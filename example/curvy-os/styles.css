@@ -1,0 +1,147 @@
+.field-row {
+    display: block !important;
+    margin-bottom: 10px !important;
+}
+
+li.balance {
+    cursor: pointer;
+}
+
+li.balance.selected {
+    background-color: navy;
+    color: #fff;
+    outline: 1px dotted #00f;
+}
+
+#register.window {
+    display: none;
+
+    width: 200px;
+    height: 116px;
+
+    position: absolute;
+    z-index: 100;
+
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+header label,
+button {
+    margin-left: 16px;
+}
+
+.window-body {
+    height: 400px;
+}
+#register.window .window-body button {
+    display: block;
+    text-align: center;
+    margin: 5px auto;
+    width: 160px;
+}
+
+aside {
+    margin-right: 16px;
+    min-width: 250px;
+}
+
+fieldset {
+    width: 90%;
+    margin: 0 auto;
+}
+
+fieldset label {
+    width: 80px;
+    text-align: right;
+    display: inline-block;
+}
+
+/* fieldset button {
+    position: absolute;
+    right: 10px;
+} */
+
+#hideZeroBalancesContainer,
+#addWalletButton,
+#refreshBalancesButton {
+    width: 100%;
+    margin: 6px 3px 0 0;
+}
+
+#walletsTab {
+    display: flex;
+}
+
+#walletsTab main {
+    width: 100%;
+}
+
+#walletsTab main fieldset {
+    width: 95%;
+    margin: 0 auto;
+}
+
+#walletsTab main fieldset button {
+    right: 10px;
+}
+
+#walletsTab main fieldset input {
+    width: 80%;
+}
+
+#window {
+    width: 900px;
+    margin: 20px auto;
+    position: absolute;
+    z-index: 99;
+
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.status-bar {
+    margin-top: 2px !important;
+}
+
+ul.tree-view {
+    height: calc(100% - 100px);
+    overflow: scroll;
+}
+
+.sunken-panel {
+    height: 100%;
+}
+
+body {
+    background-color: teal;
+    background-image: url(wallpaper.png);
+    background-repeat: no-repeat;
+    background-position: 100% 0;
+    background-size: 20%;
+}
+
+menu[role="tablist"] {
+    margin-top: 20px !important;
+    display: flex;
+}
+
+menu[role="tablist"] > li {
+    padding: 7px;
+    cursor: pointer;
+}
+
+#curvy-features {
+    margin-top: 0px !important;
+    margin-bottom: 3px;
+    /* width: 100%; */
+}
+
+#curvy-features > div[role="sub-tab-content"] {
+    padding: 5px 10px;
+    cursor: pointer;
+    position: absolute;
+    top: 0;
+}

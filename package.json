@@ -1,0 +1,81 @@
+{
+  "name": "@0xcurvy/curvy-sdk",
+  "license": "MIT",
+  "version": "0.0.6",
+  "repository": "https://github.com/0xCurvy/curvy-sdk",
+  "type": "module",
+  "main": "dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "typings": "./dist/types/index.d.ts",
+  "description": "A TypeScript/JavaScript SDK for interacting with the Curvy platform.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "default": "./dist/esm/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "build:example": "tsup src/exports/index.ts --format esm --dts --dts-resolve --clean --out-dir example/curvy-os/dist --platform browser --target es2022",
+    "clean": "rimraf dist",
+    "check": "biome check --write src",
+    "format": "biome format --write src",
+    "lint": "biome lint --write src",
+    "check:packages": "pnpm up --latest --interactive",
+    "prepublishOnly": "pnpm run build",
+    "test": "vitest run",
+    "postinstall": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@commitlint/types": "^19.8.1",
+    "@total-typescript/ts-reset": "^0.6.1",
+    "@types/lodash.merge": "^4.6.9",
+    "commitizen": "^4.3.1",
+    "cz-conventional-changelog": "^3.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.0",
+    "rimraf": "^6.0.1",
+    "tsup": "8.5.0",
+    "typescript": "5.8.3",
+    "vitest": "3.1.4"
+  },
+  "dependencies": {
+    "@noble/secp256k1": "^2.3.0",
+    "buffer": "^6.0.3",
+    "dayjs": "^1.11.13",
+    "dnum": "^2.15.0",
+    "ethers": "^6.14.4",
+    "eventemitter3": "^5.0.1",
+    "lodash.merge": "^4.6.2",
+    "starknet": "^7.6.2",
+    "viem": "^2.30.5"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "lint-staged": {
+    "*": [
+      "biome check --write ./src"
+    ]
+  },
+  "packageManager": "pnpm@10.7.1"
+}
