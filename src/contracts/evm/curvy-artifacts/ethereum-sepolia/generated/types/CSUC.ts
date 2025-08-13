@@ -13,7 +13,7 @@ import type {
   ContractRunner,
   ContractMethod,
   Listener,
-} from 'ethers';
+} from "ethers";
 import type {
   TypedContractEvent,
   TypedDeferredTopicFilter,
@@ -21,7 +21,7 @@ import type {
   TypedLogDescription,
   TypedListener,
   TypedContractMethod,
-} from './common';
+} from "./common";
 
 export declare namespace CSUC_Types {
   export type ActionHandlingInfoStruct = {
@@ -29,10 +29,10 @@ export declare namespace CSUC_Types {
     handler: AddressLike;
   };
 
-  export type ActionHandlingInfoStructOutput = [
-    mandatoryFeePoints: bigint,
-    handler: string,
-  ] & { mandatoryFeePoints: bigint; handler: string };
+  export type ActionHandlingInfoStructOutput = [mandatoryFeePoints: bigint, handler: string] & {
+    mandatoryFeePoints: bigint;
+    handler: string;
+  };
 
   export type ActionHandlingInfoUpdateStruct = {
     actionId: BigNumberish;
@@ -111,244 +111,118 @@ export declare namespace CSUC_Types {
 export interface CSUCInterface extends Interface {
   getFunction(
     nameOrSignature:
-      | '_hashActionPayload'
-      | '_hashActionPayloadWithCustomNonce'
-      | 'acceptOwnership'
-      | 'actionInfo'
-      | 'balanceAndNonce'
-      | 'balanceOf(address,uint256)'
-      | 'balanceOf(address,address)'
-      | 'balanceOfBatch'
-      | 'feeCollector'
-      | 'getMandatoryFee'
-      | 'isApprovedForAll'
-      | 'nonceOf'
-      | 'operator'
-      | 'operatorExecute'
-      | 'owner'
-      | 'pendingOwner'
-      | 'renounceOwnership'
-      | 'safeBatchTransferFrom'
-      | 'safeTransferFrom'
-      | 'setApprovalForAll'
-      | 'supportsInterface'
-      | 'transferOwnership'
-      | 'unwrap'
-      | 'updateConfig'
-      | 'uri'
-      | 'wrap'
-      | 'wrapERC20'
-      | 'wrapNative'
+      | "_hashActionPayload"
+      | "_hashActionPayloadWithCustomNonce"
+      | "acceptOwnership"
+      | "actionInfo"
+      | "balanceAndNonce"
+      | "balanceOf(address,uint256)"
+      | "balanceOf(address,address)"
+      | "balanceOfBatch"
+      | "feeCollector"
+      | "getMandatoryFee"
+      | "isApprovedForAll"
+      | "nonceOf"
+      | "operator"
+      | "operatorExecute"
+      | "owner"
+      | "pendingOwner"
+      | "renounceOwnership"
+      | "safeBatchTransferFrom"
+      | "safeTransferFrom"
+      | "setApprovalForAll"
+      | "supportsInterface"
+      | "transferOwnership"
+      | "unwrap"
+      | "updateConfig"
+      | "uri"
+      | "wrap"
+      | "wrapERC20"
+      | "wrapNative",
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
-      | 'ActionExecuted'
-      | 'ApprovalForAll'
-      | 'OwnershipTransferStarted'
-      | 'OwnershipTransferred'
-      | 'TransferBatch'
-      | 'TransferSingle'
-      | 'URI'
-      | 'UnwrappingToken'
-      | 'WrappingToken'
+      | "ActionExecuted"
+      | "ApprovalForAll"
+      | "OwnershipTransferStarted"
+      | "OwnershipTransferred"
+      | "TransferBatch"
+      | "TransferSingle"
+      | "URI"
+      | "UnwrappingToken"
+      | "WrappingToken",
   ): EventFragment;
 
   encodeFunctionData(
-    functionFragment: '_hashActionPayload',
-    values: [AddressLike, CSUC_Types.ActionPayloadStruct]
+    functionFragment: "_hashActionPayload",
+    values: [AddressLike, CSUC_Types.ActionPayloadStruct],
   ): string;
   encodeFunctionData(
-    functionFragment: '_hashActionPayloadWithCustomNonce',
-    values: [CSUC_Types.ActionPayloadStruct, BigNumberish]
+    functionFragment: "_hashActionPayloadWithCustomNonce",
+    values: [CSUC_Types.ActionPayloadStruct, BigNumberish],
+  ): string;
+  encodeFunctionData(functionFragment: "acceptOwnership", values?: undefined): string;
+  encodeFunctionData(functionFragment: "actionInfo", values: [BigNumberish]): string;
+  encodeFunctionData(functionFragment: "balanceAndNonce", values: [AddressLike, AddressLike]): string;
+  encodeFunctionData(functionFragment: "balanceOf(address,uint256)", values: [AddressLike, BigNumberish]): string;
+  encodeFunctionData(functionFragment: "balanceOf(address,address)", values: [AddressLike, AddressLike]): string;
+  encodeFunctionData(functionFragment: "balanceOfBatch", values: [AddressLike[], BigNumberish[]]): string;
+  encodeFunctionData(functionFragment: "feeCollector", values?: undefined): string;
+  encodeFunctionData(functionFragment: "getMandatoryFee", values: [BigNumberish, BigNumberish]): string;
+  encodeFunctionData(functionFragment: "isApprovedForAll", values: [AddressLike, AddressLike]): string;
+  encodeFunctionData(functionFragment: "nonceOf", values: [AddressLike, AddressLike]): string;
+  encodeFunctionData(functionFragment: "operator", values?: undefined): string;
+  encodeFunctionData(functionFragment: "operatorExecute", values: [CSUC_Types.ActionStruct[]]): string;
+  encodeFunctionData(functionFragment: "owner", values?: undefined): string;
+  encodeFunctionData(functionFragment: "pendingOwner", values?: undefined): string;
+  encodeFunctionData(functionFragment: "renounceOwnership", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "safeBatchTransferFrom",
+    values: [AddressLike, AddressLike, BigNumberish[], BigNumberish[], BytesLike],
   ): string;
   encodeFunctionData(
-    functionFragment: 'acceptOwnership',
-    values?: undefined
+    functionFragment: "safeTransferFrom",
+    values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike],
   ): string;
-  encodeFunctionData(
-    functionFragment: 'actionInfo',
-    values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'balanceAndNonce',
-    values: [AddressLike, AddressLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'balanceOf(address,uint256)',
-    values: [AddressLike, BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'balanceOf(address,address)',
-    values: [AddressLike, AddressLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'balanceOfBatch',
-    values: [AddressLike[], BigNumberish[]]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'feeCollector',
-    values?: undefined
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'getMandatoryFee',
-    values: [BigNumberish, BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'isApprovedForAll',
-    values: [AddressLike, AddressLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'nonceOf',
-    values: [AddressLike, AddressLike]
-  ): string;
-  encodeFunctionData(functionFragment: 'operator', values?: undefined): string;
-  encodeFunctionData(
-    functionFragment: 'operatorExecute',
-    values: [CSUC_Types.ActionStruct[]]
-  ): string;
-  encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
-  encodeFunctionData(
-    functionFragment: 'pendingOwner',
-    values?: undefined
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'renounceOwnership',
-    values?: undefined
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'safeBatchTransferFrom',
-    values: [
-      AddressLike,
-      AddressLike,
-      BigNumberish[],
-      BigNumberish[],
-      BytesLike,
-    ]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'safeTransferFrom',
-    values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'setApprovalForAll',
-    values: [AddressLike, boolean]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'supportsInterface',
-    values: [BytesLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'transferOwnership',
-    values: [AddressLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'unwrap',
-    values: [CSUC_Types.ActionStruct]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'updateConfig',
-    values: [CSUC_Types.ConfigUpdateStruct]
-  ): string;
-  encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
-  encodeFunctionData(
-    functionFragment: 'wrap',
-    values: [AddressLike, AddressLike, BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'wrapERC20',
-    values: [AddressLike, AddressLike, BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: 'wrapNative',
-    values: [AddressLike]
-  ): string;
+  encodeFunctionData(functionFragment: "setApprovalForAll", values: [AddressLike, boolean]): string;
+  encodeFunctionData(functionFragment: "supportsInterface", values: [BytesLike]): string;
+  encodeFunctionData(functionFragment: "transferOwnership", values: [AddressLike]): string;
+  encodeFunctionData(functionFragment: "unwrap", values: [CSUC_Types.ActionStruct]): string;
+  encodeFunctionData(functionFragment: "updateConfig", values: [CSUC_Types.ConfigUpdateStruct]): string;
+  encodeFunctionData(functionFragment: "uri", values: [BigNumberish]): string;
+  encodeFunctionData(functionFragment: "wrap", values: [AddressLike, AddressLike, BigNumberish]): string;
+  encodeFunctionData(functionFragment: "wrapERC20", values: [AddressLike, AddressLike, BigNumberish]): string;
+  encodeFunctionData(functionFragment: "wrapNative", values: [AddressLike]): string;
 
-  decodeFunctionResult(
-    functionFragment: '_hashActionPayload',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: '_hashActionPayloadWithCustomNonce',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'acceptOwnership',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: 'actionInfo', data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: 'balanceAndNonce',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'balanceOf(address,uint256)',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'balanceOf(address,address)',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'balanceOfBatch',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'feeCollector',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'getMandatoryFee',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'isApprovedForAll',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: 'nonceOf', data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: 'operator', data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: 'operatorExecute',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: 'pendingOwner',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'renounceOwnership',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'safeBatchTransferFrom',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'safeTransferFrom',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'setApprovalForAll',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'supportsInterface',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: 'transferOwnership',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: 'unwrap', data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: 'updateConfig',
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: 'wrap', data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: 'wrapERC20', data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: 'wrapNative', data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "_hashActionPayload", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "_hashActionPayloadWithCustomNonce", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "acceptOwnership", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "actionInfo", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "balanceAndNonce", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "balanceOf(address,uint256)", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "balanceOf(address,address)", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "balanceOfBatch", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "feeCollector", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "getMandatoryFee", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "isApprovedForAll", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "nonceOf", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "operator", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "operatorExecute", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "pendingOwner", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "renounceOwnership", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "safeBatchTransferFrom", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "safeTransferFrom", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "setApprovalForAll", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "supportsInterface", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "transferOwnership", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "unwrap", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "updateConfig", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "uri", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "wrap", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "wrapERC20", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "wrapNative", data: BytesLike): Result;
 }
 
 export namespace ActionExecutedEvent {
@@ -364,16 +238,8 @@ export namespace ActionExecutedEvent {
 }
 
 export namespace ApprovalForAllEvent {
-  export type InputTuple = [
-    account: AddressLike,
-    operator: AddressLike,
-    approved: boolean,
-  ];
-  export type OutputTuple = [
-    account: string,
-    operator: string,
-    approved: boolean,
-  ];
+  export type InputTuple = [account: AddressLike, operator: AddressLike, approved: boolean];
+  export type OutputTuple = [account: string, operator: string, approved: boolean];
   export interface OutputObject {
     account: string;
     operator: string;
@@ -419,13 +285,7 @@ export namespace TransferBatchEvent {
     ids: BigNumberish[],
     values: BigNumberish[],
   ];
-  export type OutputTuple = [
-    operator: string,
-    from: string,
-    to: string,
-    ids: bigint[],
-    values: bigint[],
-  ];
+  export type OutputTuple = [operator: string, from: string, to: string, ids: bigint[], values: bigint[]];
   export interface OutputObject {
     operator: string;
     from: string;
@@ -447,13 +307,7 @@ export namespace TransferSingleEvent {
     id: BigNumberish,
     value: BigNumberish,
   ];
-  export type OutputTuple = [
-    operator: string,
-    from: string,
-    to: string,
-    id: bigint,
-    value: bigint,
-  ];
+  export type OutputTuple = [operator: string, from: string, to: string, id: bigint, value: bigint];
   export interface OutputObject {
     operator: string;
     from: string;
@@ -481,11 +335,7 @@ export namespace URIEvent {
 }
 
 export namespace UnwrappingTokenEvent {
-  export type InputTuple = [
-    token: AddressLike,
-    to: AddressLike,
-    amount: BigNumberish,
-  ];
+  export type InputTuple = [token: AddressLike, to: AddressLike, amount: BigNumberish];
   export type OutputTuple = [token: string, to: string, amount: bigint];
   export interface OutputObject {
     token: string;
@@ -499,11 +349,7 @@ export namespace UnwrappingTokenEvent {
 }
 
 export namespace WrappingTokenEvent {
-  export type InputTuple = [
-    token: AddressLike,
-    to: AddressLike,
-    amount: BigNumberish,
-  ];
+  export type InputTuple = [token: AddressLike, to: AddressLike, amount: BigNumberish];
   export type OutputTuple = [token: string, to: string, amount: bigint];
   export interface OutputObject {
     token: string;
@@ -525,427 +371,241 @@ export interface CSUC extends BaseContract {
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
     fromBlockOrBlockhash?: string | number | undefined,
-    toBlock?: string | number | undefined
+    toBlock?: string | number | undefined,
   ): Promise<Array<TypedEventLog<TCEvent>>>;
   queryFilter<TCEvent extends TypedContractEvent>(
     filter: TypedDeferredTopicFilter<TCEvent>,
     fromBlockOrBlockhash?: string | number | undefined,
-    toBlock?: string | number | undefined
+    toBlock?: string | number | undefined,
   ): Promise<Array<TypedEventLog<TCEvent>>>;
 
-  on<TCEvent extends TypedContractEvent>(
-    event: TCEvent,
-    listener: TypedListener<TCEvent>
-  ): Promise<this>;
+  on<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>;
   on<TCEvent extends TypedContractEvent>(
     filter: TypedDeferredTopicFilter<TCEvent>,
-    listener: TypedListener<TCEvent>
+    listener: TypedListener<TCEvent>,
   ): Promise<this>;
 
-  once<TCEvent extends TypedContractEvent>(
-    event: TCEvent,
-    listener: TypedListener<TCEvent>
-  ): Promise<this>;
+  once<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>;
   once<TCEvent extends TypedContractEvent>(
     filter: TypedDeferredTopicFilter<TCEvent>,
-    listener: TypedListener<TCEvent>
+    listener: TypedListener<TCEvent>,
   ): Promise<this>;
 
-  listeners<TCEvent extends TypedContractEvent>(
-    event: TCEvent
-  ): Promise<Array<TypedListener<TCEvent>>>;
+  listeners<TCEvent extends TypedContractEvent>(event: TCEvent): Promise<Array<TypedListener<TCEvent>>>;
   listeners(eventName?: string): Promise<Array<Listener>>;
-  removeAllListeners<TCEvent extends TypedContractEvent>(
-    event?: TCEvent
-  ): Promise<this>;
+  removeAllListeners<TCEvent extends TypedContractEvent>(event?: TCEvent): Promise<this>;
 
   _hashActionPayload: TypedContractMethod<
     [_from: AddressLike, _payload: CSUC_Types.ActionPayloadStruct],
     [string],
-    'view'
+    "view"
   >;
 
   _hashActionPayloadWithCustomNonce: TypedContractMethod<
     [_payload: CSUC_Types.ActionPayloadStruct, _nonce: BigNumberish],
     [string],
-    'view'
+    "view"
   >;
 
-  acceptOwnership: TypedContractMethod<[], [void], 'nonpayable'>;
+  acceptOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
   actionInfo: TypedContractMethod<
     [arg0: BigNumberish],
     [[bigint, string] & { mandatoryFeePoints: bigint; handler: string }],
-    'view'
+    "view"
   >;
 
-  balanceAndNonce: TypedContractMethod<
-    [arg0: AddressLike, arg1: AddressLike],
-    [bigint],
-    'view'
-  >;
+  balanceAndNonce: TypedContractMethod<[arg0: AddressLike, arg1: AddressLike], [bigint], "view">;
 
-  'balanceOf(address,uint256)': TypedContractMethod<
-    [_owner: AddressLike, _token: BigNumberish],
-    [bigint],
-    'view'
-  >;
+  "balanceOf(address,uint256)": TypedContractMethod<[_owner: AddressLike, _token: BigNumberish], [bigint], "view">;
 
-  'balanceOf(address,address)': TypedContractMethod<
-    [_owner: AddressLike, _token: AddressLike],
-    [bigint],
-    'view'
-  >;
+  "balanceOf(address,address)": TypedContractMethod<[_owner: AddressLike, _token: AddressLike], [bigint], "view">;
 
-  balanceOfBatch: TypedContractMethod<
-    [accounts: AddressLike[], ids: BigNumberish[]],
-    [bigint[]],
-    'view'
-  >;
+  balanceOfBatch: TypedContractMethod<[accounts: AddressLike[], ids: BigNumberish[]], [bigint[]], "view">;
 
-  feeCollector: TypedContractMethod<[], [string], 'view'>;
+  feeCollector: TypedContractMethod<[], [string], "view">;
 
-  getMandatoryFee: TypedContractMethod<
-    [_actionId: BigNumberish, _amount: BigNumberish],
-    [bigint],
-    'view'
-  >;
+  getMandatoryFee: TypedContractMethod<[_actionId: BigNumberish, _amount: BigNumberish], [bigint], "view">;
 
-  isApprovedForAll: TypedContractMethod<
-    [account: AddressLike, operator: AddressLike],
-    [boolean],
-    'view'
-  >;
+  isApprovedForAll: TypedContractMethod<[account: AddressLike, operator: AddressLike], [boolean], "view">;
 
-  nonceOf: TypedContractMethod<
-    [_owner: AddressLike, _token: AddressLike],
-    [bigint],
-    'view'
-  >;
+  nonceOf: TypedContractMethod<[_owner: AddressLike, _token: AddressLike], [bigint], "view">;
 
-  operator: TypedContractMethod<[], [string], 'view'>;
+  operator: TypedContractMethod<[], [string], "view">;
 
-  operatorExecute: TypedContractMethod<
-    [_actions: CSUC_Types.ActionStruct[]],
-    [bigint],
-    'nonpayable'
-  >;
+  operatorExecute: TypedContractMethod<[_actions: CSUC_Types.ActionStruct[]], [bigint], "nonpayable">;
 
-  owner: TypedContractMethod<[], [string], 'view'>;
+  owner: TypedContractMethod<[], [string], "view">;
 
-  pendingOwner: TypedContractMethod<[], [string], 'view'>;
+  pendingOwner: TypedContractMethod<[], [string], "view">;
 
-  renounceOwnership: TypedContractMethod<[], [void], 'nonpayable'>;
+  renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
   safeBatchTransferFrom: TypedContractMethod<
-    [
-      from: AddressLike,
-      to: AddressLike,
-      ids: BigNumberish[],
-      values: BigNumberish[],
-      data: BytesLike,
-    ],
+    [from: AddressLike, to: AddressLike, ids: BigNumberish[], values: BigNumberish[], data: BytesLike],
     [void],
-    'nonpayable'
+    "nonpayable"
   >;
 
   safeTransferFrom: TypedContractMethod<
-    [
-      from: AddressLike,
-      to: AddressLike,
-      id: BigNumberish,
-      value: BigNumberish,
-      data: BytesLike,
-    ],
+    [from: AddressLike, to: AddressLike, id: BigNumberish, value: BigNumberish, data: BytesLike],
     [void],
-    'nonpayable'
+    "nonpayable"
   >;
 
-  setApprovalForAll: TypedContractMethod<
-    [operator: AddressLike, approved: boolean],
-    [void],
-    'nonpayable'
-  >;
+  setApprovalForAll: TypedContractMethod<[operator: AddressLike, approved: boolean], [void], "nonpayable">;
 
-  supportsInterface: TypedContractMethod<
-    [interfaceId: BytesLike],
-    [boolean],
-    'view'
-  >;
+  supportsInterface: TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
 
-  transferOwnership: TypedContractMethod<
-    [newOwner: AddressLike],
-    [void],
-    'nonpayable'
-  >;
+  transferOwnership: TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
 
-  unwrap: TypedContractMethod<
-    [_action: CSUC_Types.ActionStruct],
-    [boolean],
-    'nonpayable'
-  >;
+  unwrap: TypedContractMethod<[_action: CSUC_Types.ActionStruct], [boolean], "nonpayable">;
 
-  updateConfig: TypedContractMethod<
-    [_update: CSUC_Types.ConfigUpdateStruct],
-    [boolean],
-    'nonpayable'
-  >;
+  updateConfig: TypedContractMethod<[_update: CSUC_Types.ConfigUpdateStruct], [boolean], "nonpayable">;
 
-  uri: TypedContractMethod<[arg0: BigNumberish], [string], 'view'>;
+  uri: TypedContractMethod<[arg0: BigNumberish], [string], "view">;
 
-  wrap: TypedContractMethod<
-    [_to: AddressLike, _token: AddressLike, _amount: BigNumberish],
-    [boolean],
-    'payable'
-  >;
+  wrap: TypedContractMethod<[_to: AddressLike, _token: AddressLike, _amount: BigNumberish], [boolean], "payable">;
 
   wrapERC20: TypedContractMethod<
     [_to: AddressLike, _token: AddressLike, _amount: BigNumberish],
     [boolean],
-    'nonpayable'
+    "nonpayable"
   >;
 
-  wrapNative: TypedContractMethod<[_to: AddressLike], [boolean], 'payable'>;
+  wrapNative: TypedContractMethod<[_to: AddressLike], [boolean], "payable">;
 
-  getFunction<T extends ContractMethod = ContractMethod>(
-    key: string | FunctionFragment
-  ): T;
+  getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
   getFunction(
-    nameOrSignature: '_hashActionPayload'
-  ): TypedContractMethod<
-    [_from: AddressLike, _payload: CSUC_Types.ActionPayloadStruct],
-    [string],
-    'view'
-  >;
+    nameOrSignature: "_hashActionPayload",
+  ): TypedContractMethod<[_from: AddressLike, _payload: CSUC_Types.ActionPayloadStruct], [string], "view">;
   getFunction(
-    nameOrSignature: '_hashActionPayloadWithCustomNonce'
-  ): TypedContractMethod<
-    [_payload: CSUC_Types.ActionPayloadStruct, _nonce: BigNumberish],
-    [string],
-    'view'
-  >;
+    nameOrSignature: "_hashActionPayloadWithCustomNonce",
+  ): TypedContractMethod<[_payload: CSUC_Types.ActionPayloadStruct, _nonce: BigNumberish], [string], "view">;
+  getFunction(nameOrSignature: "acceptOwnership"): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: 'acceptOwnership'
-  ): TypedContractMethod<[], [void], 'nonpayable'>;
-  getFunction(
-    nameOrSignature: 'actionInfo'
+    nameOrSignature: "actionInfo",
   ): TypedContractMethod<
     [arg0: BigNumberish],
     [[bigint, string] & { mandatoryFeePoints: bigint; handler: string }],
-    'view'
+    "view"
   >;
   getFunction(
-    nameOrSignature: 'balanceAndNonce'
+    nameOrSignature: "balanceAndNonce",
+  ): TypedContractMethod<[arg0: AddressLike, arg1: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "balanceOf(address,uint256)",
+  ): TypedContractMethod<[_owner: AddressLike, _token: BigNumberish], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "balanceOf(address,address)",
+  ): TypedContractMethod<[_owner: AddressLike, _token: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "balanceOfBatch",
+  ): TypedContractMethod<[accounts: AddressLike[], ids: BigNumberish[]], [bigint[]], "view">;
+  getFunction(nameOrSignature: "feeCollector"): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "getMandatoryFee",
+  ): TypedContractMethod<[_actionId: BigNumberish, _amount: BigNumberish], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "isApprovedForAll",
+  ): TypedContractMethod<[account: AddressLike, operator: AddressLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "nonceOf",
+  ): TypedContractMethod<[_owner: AddressLike, _token: AddressLike], [bigint], "view">;
+  getFunction(nameOrSignature: "operator"): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "operatorExecute",
+  ): TypedContractMethod<[_actions: CSUC_Types.ActionStruct[]], [bigint], "nonpayable">;
+  getFunction(nameOrSignature: "owner"): TypedContractMethod<[], [string], "view">;
+  getFunction(nameOrSignature: "pendingOwner"): TypedContractMethod<[], [string], "view">;
+  getFunction(nameOrSignature: "renounceOwnership"): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "safeBatchTransferFrom",
   ): TypedContractMethod<
-    [arg0: AddressLike, arg1: AddressLike],
-    [bigint],
-    'view'
-  >;
-  getFunction(
-    nameOrSignature: 'balanceOf(address,uint256)'
-  ): TypedContractMethod<
-    [_owner: AddressLike, _token: BigNumberish],
-    [bigint],
-    'view'
-  >;
-  getFunction(
-    nameOrSignature: 'balanceOf(address,address)'
-  ): TypedContractMethod<
-    [_owner: AddressLike, _token: AddressLike],
-    [bigint],
-    'view'
-  >;
-  getFunction(
-    nameOrSignature: 'balanceOfBatch'
-  ): TypedContractMethod<
-    [accounts: AddressLike[], ids: BigNumberish[]],
-    [bigint[]],
-    'view'
-  >;
-  getFunction(
-    nameOrSignature: 'feeCollector'
-  ): TypedContractMethod<[], [string], 'view'>;
-  getFunction(
-    nameOrSignature: 'getMandatoryFee'
-  ): TypedContractMethod<
-    [_actionId: BigNumberish, _amount: BigNumberish],
-    [bigint],
-    'view'
-  >;
-  getFunction(
-    nameOrSignature: 'isApprovedForAll'
-  ): TypedContractMethod<
-    [account: AddressLike, operator: AddressLike],
-    [boolean],
-    'view'
-  >;
-  getFunction(
-    nameOrSignature: 'nonceOf'
-  ): TypedContractMethod<
-    [_owner: AddressLike, _token: AddressLike],
-    [bigint],
-    'view'
-  >;
-  getFunction(
-    nameOrSignature: 'operator'
-  ): TypedContractMethod<[], [string], 'view'>;
-  getFunction(
-    nameOrSignature: 'operatorExecute'
-  ): TypedContractMethod<
-    [_actions: CSUC_Types.ActionStruct[]],
-    [bigint],
-    'nonpayable'
-  >;
-  getFunction(
-    nameOrSignature: 'owner'
-  ): TypedContractMethod<[], [string], 'view'>;
-  getFunction(
-    nameOrSignature: 'pendingOwner'
-  ): TypedContractMethod<[], [string], 'view'>;
-  getFunction(
-    nameOrSignature: 'renounceOwnership'
-  ): TypedContractMethod<[], [void], 'nonpayable'>;
-  getFunction(
-    nameOrSignature: 'safeBatchTransferFrom'
-  ): TypedContractMethod<
-    [
-      from: AddressLike,
-      to: AddressLike,
-      ids: BigNumberish[],
-      values: BigNumberish[],
-      data: BytesLike,
-    ],
+    [from: AddressLike, to: AddressLike, ids: BigNumberish[], values: BigNumberish[], data: BytesLike],
     [void],
-    'nonpayable'
+    "nonpayable"
   >;
   getFunction(
-    nameOrSignature: 'safeTransferFrom'
+    nameOrSignature: "safeTransferFrom",
   ): TypedContractMethod<
-    [
-      from: AddressLike,
-      to: AddressLike,
-      id: BigNumberish,
-      value: BigNumberish,
-      data: BytesLike,
-    ],
+    [from: AddressLike, to: AddressLike, id: BigNumberish, value: BigNumberish, data: BytesLike],
     [void],
-    'nonpayable'
+    "nonpayable"
   >;
   getFunction(
-    nameOrSignature: 'setApprovalForAll'
-  ): TypedContractMethod<
-    [operator: AddressLike, approved: boolean],
-    [void],
-    'nonpayable'
-  >;
+    nameOrSignature: "setApprovalForAll",
+  ): TypedContractMethod<[operator: AddressLike, approved: boolean], [void], "nonpayable">;
+  getFunction(nameOrSignature: "supportsInterface"): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
+  getFunction(nameOrSignature: "transferOwnership"): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: 'supportsInterface'
-  ): TypedContractMethod<[interfaceId: BytesLike], [boolean], 'view'>;
+    nameOrSignature: "unwrap",
+  ): TypedContractMethod<[_action: CSUC_Types.ActionStruct], [boolean], "nonpayable">;
   getFunction(
-    nameOrSignature: 'transferOwnership'
-  ): TypedContractMethod<[newOwner: AddressLike], [void], 'nonpayable'>;
+    nameOrSignature: "updateConfig",
+  ): TypedContractMethod<[_update: CSUC_Types.ConfigUpdateStruct], [boolean], "nonpayable">;
+  getFunction(nameOrSignature: "uri"): TypedContractMethod<[arg0: BigNumberish], [string], "view">;
   getFunction(
-    nameOrSignature: 'unwrap'
-  ): TypedContractMethod<
-    [_action: CSUC_Types.ActionStruct],
-    [boolean],
-    'nonpayable'
-  >;
+    nameOrSignature: "wrap",
+  ): TypedContractMethod<[_to: AddressLike, _token: AddressLike, _amount: BigNumberish], [boolean], "payable">;
   getFunction(
-    nameOrSignature: 'updateConfig'
-  ): TypedContractMethod<
-    [_update: CSUC_Types.ConfigUpdateStruct],
-    [boolean],
-    'nonpayable'
-  >;
-  getFunction(
-    nameOrSignature: 'uri'
-  ): TypedContractMethod<[arg0: BigNumberish], [string], 'view'>;
-  getFunction(
-    nameOrSignature: 'wrap'
-  ): TypedContractMethod<
-    [_to: AddressLike, _token: AddressLike, _amount: BigNumberish],
-    [boolean],
-    'payable'
-  >;
-  getFunction(
-    nameOrSignature: 'wrapERC20'
-  ): TypedContractMethod<
-    [_to: AddressLike, _token: AddressLike, _amount: BigNumberish],
-    [boolean],
-    'nonpayable'
-  >;
-  getFunction(
-    nameOrSignature: 'wrapNative'
-  ): TypedContractMethod<[_to: AddressLike], [boolean], 'payable'>;
+    nameOrSignature: "wrapERC20",
+  ): TypedContractMethod<[_to: AddressLike, _token: AddressLike, _amount: BigNumberish], [boolean], "nonpayable">;
+  getFunction(nameOrSignature: "wrapNative"): TypedContractMethod<[_to: AddressLike], [boolean], "payable">;
 
   getEvent(
-    key: 'ActionExecuted'
+    key: "ActionExecuted",
   ): TypedContractEvent<
     ActionExecutedEvent.InputTuple,
     ActionExecutedEvent.OutputTuple,
     ActionExecutedEvent.OutputObject
   >;
   getEvent(
-    key: 'ApprovalForAll'
+    key: "ApprovalForAll",
   ): TypedContractEvent<
     ApprovalForAllEvent.InputTuple,
     ApprovalForAllEvent.OutputTuple,
     ApprovalForAllEvent.OutputObject
   >;
   getEvent(
-    key: 'OwnershipTransferStarted'
+    key: "OwnershipTransferStarted",
   ): TypedContractEvent<
     OwnershipTransferStartedEvent.InputTuple,
     OwnershipTransferStartedEvent.OutputTuple,
     OwnershipTransferStartedEvent.OutputObject
   >;
   getEvent(
-    key: 'OwnershipTransferred'
+    key: "OwnershipTransferred",
   ): TypedContractEvent<
     OwnershipTransferredEvent.InputTuple,
     OwnershipTransferredEvent.OutputTuple,
     OwnershipTransferredEvent.OutputObject
   >;
   getEvent(
-    key: 'TransferBatch'
-  ): TypedContractEvent<
-    TransferBatchEvent.InputTuple,
-    TransferBatchEvent.OutputTuple,
-    TransferBatchEvent.OutputObject
-  >;
+    key: "TransferBatch",
+  ): TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;
   getEvent(
-    key: 'TransferSingle'
+    key: "TransferSingle",
   ): TypedContractEvent<
     TransferSingleEvent.InputTuple,
     TransferSingleEvent.OutputTuple,
     TransferSingleEvent.OutputObject
   >;
+  getEvent(key: "URI"): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTuple, URIEvent.OutputObject>;
   getEvent(
-    key: 'URI'
-  ): TypedContractEvent<
-    URIEvent.InputTuple,
-    URIEvent.OutputTuple,
-    URIEvent.OutputObject
-  >;
-  getEvent(
-    key: 'UnwrappingToken'
+    key: "UnwrappingToken",
   ): TypedContractEvent<
     UnwrappingTokenEvent.InputTuple,
     UnwrappingTokenEvent.OutputTuple,
     UnwrappingTokenEvent.OutputObject
   >;
   getEvent(
-    key: 'WrappingToken'
-  ): TypedContractEvent<
-    WrappingTokenEvent.InputTuple,
-    WrappingTokenEvent.OutputTuple,
-    WrappingTokenEvent.OutputObject
-  >;
+    key: "WrappingToken",
+  ): TypedContractEvent<WrappingTokenEvent.InputTuple, WrappingTokenEvent.OutputTuple, WrappingTokenEvent.OutputObject>;
 
   filters: {
-    'ActionExecuted(tuple)': TypedContractEvent<
+    "ActionExecuted(tuple)": TypedContractEvent<
       ActionExecutedEvent.InputTuple,
       ActionExecutedEvent.OutputTuple,
       ActionExecutedEvent.OutputObject
@@ -956,7 +616,7 @@ export interface CSUC extends BaseContract {
       ActionExecutedEvent.OutputObject
     >;
 
-    'ApprovalForAll(address,address,bool)': TypedContractEvent<
+    "ApprovalForAll(address,address,bool)": TypedContractEvent<
       ApprovalForAllEvent.InputTuple,
       ApprovalForAllEvent.OutputTuple,
       ApprovalForAllEvent.OutputObject
@@ -967,7 +627,7 @@ export interface CSUC extends BaseContract {
       ApprovalForAllEvent.OutputObject
     >;
 
-    'OwnershipTransferStarted(address,address)': TypedContractEvent<
+    "OwnershipTransferStarted(address,address)": TypedContractEvent<
       OwnershipTransferStartedEvent.InputTuple,
       OwnershipTransferStartedEvent.OutputTuple,
       OwnershipTransferStartedEvent.OutputObject
@@ -978,7 +638,7 @@ export interface CSUC extends BaseContract {
       OwnershipTransferStartedEvent.OutputObject
     >;
 
-    'OwnershipTransferred(address,address)': TypedContractEvent<
+    "OwnershipTransferred(address,address)": TypedContractEvent<
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
       OwnershipTransferredEvent.OutputObject
@@ -989,7 +649,7 @@ export interface CSUC extends BaseContract {
       OwnershipTransferredEvent.OutputObject
     >;
 
-    'TransferBatch(address,address,address,uint256[],uint256[])': TypedContractEvent<
+    "TransferBatch(address,address,address,uint256[],uint256[])": TypedContractEvent<
       TransferBatchEvent.InputTuple,
       TransferBatchEvent.OutputTuple,
       TransferBatchEvent.OutputObject
@@ -1000,7 +660,7 @@ export interface CSUC extends BaseContract {
       TransferBatchEvent.OutputObject
     >;
 
-    'TransferSingle(address,address,address,uint256,uint256)': TypedContractEvent<
+    "TransferSingle(address,address,address,uint256,uint256)": TypedContractEvent<
       TransferSingleEvent.InputTuple,
       TransferSingleEvent.OutputTuple,
       TransferSingleEvent.OutputObject
@@ -1011,18 +671,10 @@ export interface CSUC extends BaseContract {
       TransferSingleEvent.OutputObject
     >;
 
-    'URI(string,uint256)': TypedContractEvent<
-      URIEvent.InputTuple,
-      URIEvent.OutputTuple,
-      URIEvent.OutputObject
-    >;
-    URI: TypedContractEvent<
-      URIEvent.InputTuple,
-      URIEvent.OutputTuple,
-      URIEvent.OutputObject
-    >;
+    "URI(string,uint256)": TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTuple, URIEvent.OutputObject>;
+    URI: TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTuple, URIEvent.OutputObject>;
 
-    'UnwrappingToken(address,address,uint256)': TypedContractEvent<
+    "UnwrappingToken(address,address,uint256)": TypedContractEvent<
       UnwrappingTokenEvent.InputTuple,
       UnwrappingTokenEvent.OutputTuple,
       UnwrappingTokenEvent.OutputObject
@@ -1033,7 +685,7 @@ export interface CSUC extends BaseContract {
       UnwrappingTokenEvent.OutputObject
     >;
 
-    'WrappingToken(address,address,uint256)': TypedContractEvent<
+    "WrappingToken(address,address,uint256)": TypedContractEvent<
       WrappingTokenEvent.InputTuple,
       WrappingTokenEvent.OutputTuple,
       WrappingTokenEvent.OutputObject

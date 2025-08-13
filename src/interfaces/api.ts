@@ -57,10 +57,7 @@ interface IApiClient {
 
   auth: {
     GetBearerTotp(): Promise<string>;
-    CreateBearerToken(body: {
-      nonce: string;
-      signature: string;
-    }): Promise<string>;
+    CreateBearerToken(body: { nonce: string; signature: string }): Promise<string>;
     RefreshBearerToken(): Promise<string>;
   };
 

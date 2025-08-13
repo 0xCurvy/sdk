@@ -261,7 +261,12 @@ class EvmRpc extends Rpc {
   }
 
   // TODO: Allow onboarding native currency (ETH as well) within this method
-  async prepareCSUCOnboardTransactions(privateKey: HexString, toAddress: `0x${string}`, currencySymbol: string, amount: string): Promise<GasSponsorshipRequest> {
+  async prepareCSUCOnboardTransactions(
+    privateKey: HexString,
+    toAddress: `0x${string}`,
+    currencySymbol: string,
+    amount: string,
+  ): Promise<GasSponsorshipRequest> {
     const token = this.network.currencies.find((c) => c.symbol === currencySymbol);
     if (!token) throw new Error(`Token ${currencySymbol} not found.`);
 
