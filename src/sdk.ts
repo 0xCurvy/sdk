@@ -1,6 +1,9 @@
+import { Buffer as BufferPolyfill } from "buffer";
+import dayjs from "dayjs";
+import { mul, toNumber } from "dnum";
+import { ec, validateAndParseAddress } from "starknet";
 import { getAddress, parseSignature, verifyTypedData } from "viem";
-
-import { Buffer } from "buffer";
+import { CSUC_TOKENS } from "@/constants/csuc";
 import {
   BALANCE_REFRESH_COMPLETE_EVENT,
   BALANCE_REFRESH_PROGRESS_EVENT,
@@ -14,8 +17,9 @@ import {
   SYNC_PROGRESS_EVENT,
   SYNC_STARTED_EVENT,
 } from "@/constants/events";
-import { type NETWORKS, NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
+import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES, type NETWORKS } from "@/constants/networks";
 import { CURVY_HANDLE_REGEX } from "@/constants/regex";
+import { prepareCsucActionEstimationRequest, prepareCuscActionRequest } from "@/csuc";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import type { IApiClient } from "@/interfaces/api";
@@ -30,6 +34,15 @@ import type { StarknetRpc } from "@/rpc/starknet";
 import { TemporaryStorage } from "@/storage/temporary-storage";
 import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
 import type { AggregationRequest, DepositPayload, Network, WithdrawPayload } from "@/types/api";
+import {
+  type CsucActionPayload,
+  type CsucActionSet,
+  type CsucActionStatus,
+  type CsucEstimatedActionCost,
+  CsucSupportedNetwork,
+  CsucSupportedNetworkId,
+} from "@/types/csuc";
+import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
   BalanceRefreshCompleteEvent,
   BalanceRefreshProgressEvent,
@@ -44,38 +57,24 @@ import type {
 import { type HexString, isHexString, isStarkentSignature } from "@/types/helper";
 import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
 import {
-  type EvmSignTypedDataParameters,
-  type EvmSignatureData,
-  type StarknetSignatureData,
   assertIsStarkentSignatureData,
+  type EvmSignatureData,
+  type EvmSignTypedDataParameters,
+  type StarknetSignatureData,
 } from "@/types/signature";
+import { parseDecimals } from "@/utils/csuc";
+import { encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
-import dayjs from "dayjs";
-import { ec, validateAndParseAddress } from "starknet";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
 import { computePrivateKeys, deriveAddress } from "./utils/address";
-import { type NetworkFilter, filterNetworks, networksToPriceData } from "./utils/network";
+import { filterNetworks, type NetworkFilter, networksToPriceData } from "./utils/network";
 import { CurvyWallet } from "./wallet";
 import { WalletManager } from "./wallet-manager";
 
-import { CSUC_TOKENS } from "@/constants/csuc";
-import { prepareCsucActionEstimationRequest, prepareCuscActionRequest } from "@/csuc";
-import {
-  type CsucActionPayload,
-  type CsucActionSet,
-  type CsucActionStatus,
-  type CsucEstimatedActionCost,
-  CsucSupportedNetwork,
-  CsucSupportedNetworkId,
-} from "@/types/csuc";
-import { type CurvyHandle, assertCurvyHandle, isValidCurvyHandle } from "@/types/curvy";
-import { parseDecimals } from "@/utils/csuc";
-import { encryptCurvyMessage } from "@/utils/encryption";
-import { mul, toNumber } from "dnum";
-
-globalThis.Buffer = Buffer;
+// biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
+(globalThis as any).Buffer ??= BufferPolyfill;
 
 const PRICE_UPDATE_INTERVAL = 5 * 60 * 10 ** 3;
 

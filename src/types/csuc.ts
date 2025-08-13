@@ -106,7 +106,6 @@ export type CsucNonce = {
 };
 
 export function assertNetworkIsSupported(network: CsucSupportedNetwork): asserts network is CsucSupportedNetwork {
-  return true;
   if (network !== CsucSupportedNetwork.ETHEREUM_SEPOLIA) {
     throw new Error("CSUC:EVM - Unsupported network for action type conversion!");
   }

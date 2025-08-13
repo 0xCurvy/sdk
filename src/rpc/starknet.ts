@@ -311,7 +311,7 @@ class StarknetRpc extends Rpc {
     amount: string,
     currency: string,
   ): Promise<StarknetFeeEstimate> {
-    let deployFee: EstimateFee | undefined = undefined;
+    let deployFee: EstimateFee | undefined ;
     const isDeployed = await this.#checkIsStarknetAccountDeployed(curvyAddress);
     if (!isDeployed) {
       deployFee = await this.#estimateDeployFee(curvyAddress, privateKey);

@@ -32,7 +32,8 @@
     "lint": "biome lint --write src",
     "check:packages": "pnpm up --latest --interactive",
     "prepublishOnly": "pnpm run build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepare": "tsup"
   },
   "devDependencies": {
     "@total-typescript/ts-reset": "^0.6.1",
