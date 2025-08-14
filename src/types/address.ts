@@ -1,9 +1,9 @@
 import {
   type EVM_NETWORKS,
-  type NETWORKS,
   NETWORK_FLAVOUR,
   type NETWORK_FLAVOUR_VALUES,
   type NETWORK_GROUP_VALUES,
+  type NETWORKS,
   type STARKNET_NETWORKS,
   type TOKENS,
 } from "@/constants/networks";

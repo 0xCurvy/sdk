@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import type { CurvyEventEmitter } from "@/events";
 import type { IAddressScanner } from "@/interfaces/address-scanner";
 import type { IApiClient } from "@/interfaces/api";
@@ -7,7 +8,6 @@ import type { CurvyAddress } from "@/types/address";
 import type { RawAnnouncement } from "@/types/api";
 import { deriveAddress } from "@/utils/address";
 import type { CurvyWallet } from "@/wallet";
-import dayjs from "dayjs";
 
 const SYNC_BATCH_SIZE = 200;
 

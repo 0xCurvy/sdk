@@ -1,4 +1,4 @@
-import type { NETWORKS, NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
+import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
 import type { MultiRpc } from "@/rpc/multi";
 import type { CurvyAddress } from "@/types/address";
 import type {

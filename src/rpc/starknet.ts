@@ -1,9 +1,26 @@
+import {
+  Account,
+  CairoCustomEnum,
+  type Call,
+  CallData,
+  Contract,
+  cairo,
+  type constants,
+  type DeployAccountContractPayload,
+  type DeployContractResponse,
+  type EstimateFee,
+  EthSigner,
+  hash,
+  Provider,
+  type RawArgs,
+  validateAndParseAddress,
+} from "starknet";
+import { type Address, parseUnits } from "viem";
 import { CURVY_ACCOUNT_CLASS_HASHES, CURVY_DUMMY_STARKNET_ACCOUNT } from "@/constants/starknet";
 import { starknetAccountAbi } from "@/contracts/starknet/abi/account";
 import { starknetErc20Abi } from "@/contracts/starknet/abi/erc20";
 import { starknetMulticallAbi } from "@/contracts/starknet/abi/multicall";
-import type { CurvyAddressBalances } from "@/types/address";
-import type { CurvyAddress } from "@/types/address";
+import type { CurvyAddress, CurvyAddressBalances } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
@@ -11,24 +28,6 @@ import type { StarknetFeeEstimate } from "@/types/rpc";
 import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { toSlug } from "@/utils/helpers";
 import { fromUint256 } from "@/utils/rpc";
-import {
-  type constants,
-  Account,
-  CairoCustomEnum,
-  type Call,
-  CallData,
-  Contract,
-  type DeployAccountContractPayload,
-  type DeployContractResponse,
-  type EstimateFee,
-  EthSigner,
-  Provider,
-  type RawArgs,
-  cairo,
-  hash,
-  validateAndParseAddress,
-} from "starknet";
-import { type Address, parseUnits } from "viem";
 import { Rpc } from "./abstract";
 
 class StarknetRpc extends Rpc {
@@ -311,7 +310,7 @@ class StarknetRpc extends Rpc {
     amount: string,
     currency: string,
   ): Promise<StarknetFeeEstimate> {
-    let deployFee: EstimateFee | undefined ;
+    let deployFee: EstimateFee | undefined;
     const isDeployed = await this.#checkIsStarknetAccountDeployed(curvyAddress);
     if (!isDeployed) {
       deployFee = await this.#estimateDeployFee(curvyAddress, privateKey);

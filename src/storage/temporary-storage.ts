@@ -1,3 +1,4 @@
+import merge from "lodash.merge";
 import type { TOKENS } from "@/constants/networks";
 import { StorageError } from "@/errors";
 import type { StorageInterface } from "@/interfaces/storage";
@@ -5,7 +6,6 @@ import type { CurvyAddress, MinifiedCurvyAddress } from "@/types/address";
 import type { CurvyWalletData } from "@/types/wallet";
 import { bytesToDecimalString, decimalStringToBytes } from "@/utils/decimal-conversions";
 import type { CurvyWallet } from "@/wallet";
-import merge from "lodash.merge";
 
 export class TemporaryStorage implements StorageInterface {
   readonly #walletStorage = new Map<string, CurvyWalletData>();

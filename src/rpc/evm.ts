@@ -1,3 +1,20 @@
+import {
+  type Address,
+  createPublicClient,
+  createWalletClient,
+  decodeFunctionResult,
+  encodeFunctionData,
+  erc20Abi,
+  getContract,
+  http,
+  type PublicClient,
+  parseEther,
+  parseUnits,
+  type TransactionRequest,
+  type WalletClient,
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { getBalance, readContract } from "viem/actions";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { ARTIFACT as CSUC_ETH_SEPOLIA_ARTIFACT } from "@/contracts/evm/curvy-artifacts/ethereum-sepolia/CSUC";
 import { Rpc } from "@/rpc/abstract";
@@ -8,23 +25,6 @@ import type { HexString } from "@/types/helper";
 import { jsonStringify } from "@/utils/common";
 import { toSlug } from "@/utils/helpers";
 import { generateViemChainFromNetwork } from "@/utils/rpc";
-import {
-  http,
-  type Address,
-  type PublicClient,
-  type TransactionRequest,
-  type WalletClient,
-  createPublicClient,
-  createWalletClient,
-  decodeFunctionResult,
-  encodeFunctionData,
-  erc20Abi,
-  getContract,
-  parseEther,
-  parseUnits,
-} from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { getBalance, readContract } from "viem/actions";
 
 class EvmRpc extends Rpc {
   readonly #publicClient: PublicClient;

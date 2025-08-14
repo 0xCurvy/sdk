@@ -1,5 +1,5 @@
-import type { HexString } from "@/types/helper";
 import type { EstimateFee } from "starknet";
+import type { HexString } from "@/types/helper";
 
 type StarknetFeeEstimate = {
   deployFee: EstimateFee | undefined;

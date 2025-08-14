@@ -1,9 +1,9 @@
+import { computeAddress } from "ethers";
+import { hash as _hash, CallData, validateAndParseAddress } from "starknet";
 import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import { CURVY_ACCOUNT_CLASS_HASHES } from "@/constants/starknet";
 import { starknetAccountAbi } from "@/contracts/starknet/abi/account";
 import type { HexString } from "@/types/helper";
-import { computeAddress } from "ethers";
-import { CallData, hash as _hash, validateAndParseAddress } from "starknet";
 import { decimalStringToHex } from "./decimal-conversions";
 
 const deriveAddress = (rawPubKey?: string, flavour?: NETWORK_FLAVOUR_VALUES) => {
@@ -35,6 +35,7 @@ const deriveAddress = (rawPubKey?: string, flavour?: NETWORK_FLAVOUR_VALUES) => 
     }
   }
 };
+
 import { concat, keccak256 } from "ethers";
 
 const computePrivateKeys = (r_string: string, s_string: string) => {

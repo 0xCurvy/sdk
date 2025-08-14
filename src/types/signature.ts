@@ -1,6 +1,6 @@
-import type { HexString } from "@/types/helper";
 import type { ArraySignatureType as StarknetSignature, TypedData } from "starknet";
 import type { SignTypedDataParameters } from "viem";
+import type { HexString } from "@/types/helper";
 
 type StarknetSignTypedDataParameters = TypedData;
 type EvmSignTypedDataParameters = Omit<SignTypedDataParameters, "account">;

@@ -1,5 +1,5 @@
-import { Core } from "@/core";
 import { expect, test } from "vitest";
+import { Core } from "@/core";
 import { mockPopulateAnnouncement } from "./utils/announcement-filler";
 
 test("should generate new Curvy keypairs", async () => {

@@ -1,3 +1,4 @@
+import type EventEmitter from "eventemitter3";
 import type {
   BalanceRefreshCompleteEvent,
   BalanceRefreshProgressEvent,
@@ -11,7 +12,6 @@ import type {
   SyncProgressEvent,
   SyncStartedEvent,
 } from "@/types/events";
-import type EventEmitter from "eventemitter3";
 
 interface ICurvyEventEmitter extends EventEmitter {
   emitSyncStarted(event: SyncStartedEvent): void;

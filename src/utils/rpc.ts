@@ -1,6 +1,6 @@
-import type { Network } from "@/types/api";
 import type { BigNumberish } from "starknet";
 import { defineChain } from "viem";
+import type { Network } from "@/types/api";
 
 const generateViemChainFromNetwork = (network: Network) => {
   const nativeCurrency = network.currencies.find((c) => c.native);

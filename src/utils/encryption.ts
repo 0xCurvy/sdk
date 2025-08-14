@@ -1,7 +1,7 @@
-import { ethers } from "ethers";
-import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { ProjectivePoint } from "@noble/secp256k1";
+import { ethers } from "ethers";
 import { bytesToHex } from "viem";
+import { decimalStringToHex } from "@/utils/decimal-conversions";
 
 const PBDKF2_ITERATION_COUNT = 210000;
 const SALT_LENGTH = 32;

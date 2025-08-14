@@ -1,6 +1,6 @@
 import type { NETWORK_FLAVOUR } from "@/constants/networks";
 import type { CurvyAddressBalances, EVMCurvyAddress, StarknetCurvyAddress } from "@/types/address";
-import { type NetworkFilter, filterNetworks } from "@/utils/network";
+import { filterNetworks, type NetworkFilter } from "@/utils/network";
 import type { Rpc } from "./abstract";
 
 class MultiRpc {

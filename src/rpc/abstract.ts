@@ -1,8 +1,8 @@
 import type { CurvyAddress, CurvyAddressBalance, CurvyAddressBalances } from "@/types/address";
 import type { Network } from "@/types/api";
+import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import type { StarknetFeeEstimate } from "@/types/rpc";
-import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 
 abstract class Rpc {
   readonly #network: Network;

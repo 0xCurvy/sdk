@@ -1,14 +1,14 @@
+import { ethers } from "ethers";
+import { encodeAbiParameters, keccak256, parseEther } from "viem";
 import { CSUC_TOKENS } from "@/constants/csuc";
 import {
+  assertNetworkIsSupported,
   type CsucActionPayload,
   type CsucActionType,
   type CsucSignature,
   CsucSupportedNetwork,
   CsucSupportedNetworkChainId,
-  assertNetworkIsSupported,
 } from "@/types/csuc";
-import { ethers } from "ethers";
-import { encodeAbiParameters, keccak256, parseEther } from "viem";
 
 export const supportedNetworkToChainId = (network: CsucSupportedNetwork): CsucSupportedNetworkChainId => {
   switch (network) {

@@ -1,15 +1,14 @@
+import { type EncodeAbiParametersReturnType, encodeAbiParameters } from "viem";
 import type { CurvyAddress } from "@/types/address";
-
 import {
+  assertNetworkIsSupported,
   type CsucAction,
   type CsucActionPayload,
   CsucActionSet,
   type CsucSupportedNetwork,
-  assertNetworkIsSupported,
 } from "@/types/csuc";
 import type { HexString } from "@/types/helper";
 import { getTokenSymbol, signActionPayload, supportedNetworkToChainId } from "@/utils/csuc";
-import { type EncodeAbiParametersReturnType, encodeAbiParameters } from "viem";
 
 const prepareCsucActionEstimationRequest = async (
   network: CsucSupportedNetwork,

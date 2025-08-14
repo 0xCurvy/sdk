@@ -1,3 +1,4 @@
+import EventEmitter from "eventemitter3";
 import {
   BALANCE_REFRESH_COMPLETE_EVENT,
   BALANCE_REFRESH_PROGRESS_EVENT,
@@ -25,7 +26,6 @@ import type {
   SyncProgressEvent,
   SyncStartedEvent,
 } from "@/types/events";
-import EventEmitter from "eventemitter3";
 
 export class CurvyEventEmitter extends EventEmitter implements ICurvyEventEmitter {
   emitSyncStarted(event: SyncStartedEvent) {
