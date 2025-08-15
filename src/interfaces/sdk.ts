@@ -55,6 +55,7 @@ interface ICurvySDK {
   ): Promise<CurvySignatureParameters>;
 
   setActiveNetworks(networkFilter: NetworkFilter): void;
+  switchNetworkEnvironment(environment: "mainnet" | "testnet"): void;
 
   // Actions
   addWalletWithSignature(flavour: NETWORK_FLAVOUR["EVM"], signature: EvmSignatureData): Promise<CurvyWallet>;
