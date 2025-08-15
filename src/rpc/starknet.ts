@@ -15,7 +15,7 @@ import {
   type RawArgs,
   validateAndParseAddress,
 } from "starknet";
-import { type Address, parseUnits } from "viem";
+import type { Address } from "viem";
 import { CURVY_ACCOUNT_CLASS_HASHES, CURVY_DUMMY_STARKNET_ACCOUNT } from "@/constants/starknet";
 import { starknetAccountAbi } from "@/contracts/starknet/abi/account";
 import { starknetErc20Abi } from "@/contracts/starknet/abi/erc20";
@@ -25,6 +25,7 @@ import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import type { StarknetFeeEstimate } from "@/types/rpc";
+import { parseDecimal } from "@/utils/currency";
 import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { toSlug } from "@/utils/helpers";
 import { fromUint256 } from "@/utils/rpc";
@@ -48,12 +49,12 @@ class StarknetRpc extends Rpc {
       this.#provider,
     ).typedv2(starknetMulticallAbi);
 
-    const calls = this.network.currencies.map(({ contract_address }) => ({
+    const calls = this.network.currencies.map(({ contractAddress }) => ({
       execution: new CairoCustomEnum({
         Static: {},
       }),
       to: new CairoCustomEnum({
-        Hardcoded: contract_address,
+        Hardcoded: contractAddress,
       }),
       selector: new CairoCustomEnum({
         Hardcoded: hash.getSelectorFromName("balance_of"),
@@ -67,11 +68,11 @@ class StarknetRpc extends Rpc {
 
     return tokenBalances
       .map(([low, high], idx) => {
-        const { contract_address: tokenAddress, ...token } = this.network.currencies[idx];
+        const { contractAddress: tokenAddress, ...token } = this.network.currencies[idx];
 
         const tokenMeta = {
           decimals: token.decimals,
-          iconUrl: token.icon_url,
+          iconUrl: token.iconUrl,
           name: token.name,
           symbol: token.symbol,
           native: token.native,
@@ -103,11 +104,11 @@ class StarknetRpc extends Rpc {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contract_address: tokenAddress } = token;
+    const { contractAddress: tokenAddress } = token;
 
     const tokenMeta = {
       decimals: token.decimals,
-      iconUrl: token.icon_url,
+      iconUrl: token.iconUrl,
       name: token.name,
       symbol: token.symbol,
       native: token.native,
@@ -120,7 +121,7 @@ class StarknetRpc extends Rpc {
       slug: toSlug(this.network.name),
     };
 
-    const starkErc20 = new Contract(starknetErc20Abi, token.contract_address as Address, this.#provider).typedv2(
+    const starkErc20 = new Contract(starknetErc20Abi, token.contractAddress as Address, this.#provider).typedv2(
       starknetErc20Abi,
     );
 
@@ -140,11 +141,11 @@ class StarknetRpc extends Rpc {
     const starknetAccount = new Account(this.#provider, curvyAddress.address, new EthSigner(privateKey));
 
     const txPayload = {
-      contractAddress: token.contract_address as string,
+      contractAddress: token.contractAddress as string,
       entrypoint: "transfer",
       calldata: CallData.compile({
         to: address,
-        amount: cairo.uint256(parseUnits(amount, token?.decimals)),
+        amount: cairo.uint256(parseDecimal(amount, token)),
       }),
     } satisfies Call;
 

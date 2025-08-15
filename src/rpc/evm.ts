@@ -8,8 +8,6 @@ import {
   getContract,
   http,
   type PublicClient,
-  parseEther,
-  parseUnits,
   type TransactionRequest,
   type WalletClient,
 } from "viem";
@@ -23,6 +21,7 @@ import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import { jsonStringify } from "@/utils/common";
+import { isNativeCurrency, parseDecimal } from "@/utils/currency";
 import { toSlug } from "@/utils/helpers";
 import { generateViemChainFromNetwork } from "@/utils/rpc";
 
@@ -62,8 +61,8 @@ class EvmRpc extends Rpc {
       client: this.#publicClient,
     });
 
-    const calls = this.network.currencies.map(({ contract_address }) => {
-      if (!contract_address)
+    const calls = this.network.currencies.map(({ contractAddress }) => {
+      if (!contractAddress)
         return {
           target: evmMulticall.address,
           callData: encodeFunctionData({
@@ -75,7 +74,7 @@ class EvmRpc extends Rpc {
         };
 
       return {
-        target: contract_address as Address,
+        target: contractAddress as Address,
         callData: encodeFunctionData({
           abi: erc20Abi,
           functionName: "balanceOf",
@@ -93,11 +92,11 @@ class EvmRpc extends Rpc {
 
     return tokenBalances
       .map((encodedTokenBalance, idx) => {
-        const { contract_address: tokenAddress, ...token } = this.network.currencies[idx];
+        const { contractAddress: tokenAddress, ...token } = this.network.currencies[idx];
 
         const tokenMeta = {
           decimals: token.decimals,
-          iconUrl: token.icon_url,
+          iconUrl: token.iconUrl,
           name: token.name,
           symbol: token.symbol,
           native: token.native,
@@ -110,7 +109,7 @@ class EvmRpc extends Rpc {
           slug: networkSlug,
         };
 
-        let balance = 0n;
+        let balance: bigint;
 
         if (!tokenAddress)
           balance = decodeFunctionResult({
@@ -141,11 +140,11 @@ class EvmRpc extends Rpc {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contract_address: tokenAddress } = token;
+    const { contractAddress: tokenAddress } = token;
 
     const tokenMeta = {
       decimals: token.decimals,
-      iconUrl: token.icon_url,
+      iconUrl: token.iconUrl,
       name: token.name,
       symbol: token.symbol,
       native: token.native,
@@ -158,15 +157,15 @@ class EvmRpc extends Rpc {
       slug: toSlug(this.network.name),
     };
 
-    let balance = 0n;
+    let balance: bigint;
 
-    if (!token.contract_address) {
+    if (isNativeCurrency(token)) {
       balance = await getBalance(this.#publicClient, {
         address: stealthAddress.address as Address,
       });
     } else
       balance = await readContract(this.#publicClient, {
-        address: token.contract_address as Address,
+        address: token.contractAddress as Address,
         abi: erc20Abi,
         functionName: "balanceOf",
         args: [stealthAddress.address as Address],
@@ -186,12 +185,12 @@ class EvmRpc extends Rpc {
       chain: this.#walletClient.chain,
     } as const;
 
-    if (token.contract_address === undefined) {
+    if (isNativeCurrency(token)) {
       const gasLimit = await this.#publicClient
         .estimateGas({
           account,
           to: address,
-          value: parseEther(amount),
+          value: parseDecimal(amount, token),
         })
         .then((res) => res)
         .catch(() => 21_000n);
@@ -199,7 +198,7 @@ class EvmRpc extends Rpc {
       return this.#walletClient.prepareTransactionRequest({
         ...txRequestBase,
         to: address,
-        value: parseEther(amount),
+        value: parseDecimal(amount, token),
         gas: gasLimit,
       });
     }
@@ -207,23 +206,25 @@ class EvmRpc extends Rpc {
     const data = encodeFunctionData({
       abi: erc20Abi,
       functionName: "transfer",
-      args: [address, parseUnits(amount, token.decimals)],
+      // No parse units, use Currency utils
+      args: [address, parseDecimal(amount, token)],
     });
 
     const gasLimit = await this.#publicClient
       .estimateContractGas({
         account,
-        address: token.contract_address as Address,
+        address: token.contractAddress as Address,
         abi: erc20Abi,
         functionName: "transfer",
-        args: [address, parseUnits(amount, token.decimals)],
+        // No parse units, use Currency utils
+        args: [address, parseDecimal(amount, token)],
       })
       .then((res) => res)
       .catch(() => 65_000n);
 
     return this.#walletClient.prepareTransactionRequest({
       ...txRequestBase,
-      to: token.contract_address as Address,
+      to: token.contractAddress as Address,
       gas: gasLimit,
       data,
       value: 0n,
@@ -260,6 +261,7 @@ class EvmRpc extends Rpc {
     return feeEstimate;
   }
 
+  // TODO: We should introduce commands first here as an example
   // TODO: Allow onboarding native currency (ETH as well) within this method
   async prepareCSUCOnboardTransactions(
     privateKey: HexString,
@@ -268,10 +270,12 @@ class EvmRpc extends Rpc {
     amount: string,
   ): Promise<GasSponsorshipRequest> {
     const token = this.network.currencies.find((c) => c.symbol === currencySymbol);
+
+    console.log(currencySymbol, this.network.currencies, token);
     if (!token) throw new Error(`Token ${currencySymbol} not found.`);
 
-    if (!token.contract_address) {
-      throw new Error("Token contract address is not defined.");
+    if (isNativeCurrency(token)) {
+      throw new Error("This method does not support native currency onboards now");
     }
 
     // Legacy CSA
@@ -291,7 +295,7 @@ class EvmRpc extends Rpc {
     const txInfo = [
       // ERC20 approve transaction
       {
-        to: token.contract_address as Address,
+        to: token.contractAddress as Address,
         data: encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
@@ -306,7 +310,7 @@ class EvmRpc extends Rpc {
         data: encodeFunctionData({
           abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
           functionName: "wrapERC20",
-          args: [toAddress, token.contract_address as `0x${string}`, BigInt(amount)],
+          args: [toAddress, token.contractAddress as `0x${string}`, BigInt(amount)],
         }),
         gas: 120_000n,
         nonce: ++nonce,
