@@ -35,14 +35,14 @@ type Currency = {
   id: number;
   name: string;
   symbol: string;
-  coinmarketcap_id: string;
+  coinmarketcapId: string;
   native?: boolean;
-  icon_url: string;
+  iconUrl: string;
   price: string;
-  updated_at: string;
+  updatedAt: string;
   decimals: number;
-  contract_address?: string;
-  csuc_enabled: boolean;
+  contractAddress: string;
+  csucEnabled: boolean;
 };
 
 type RawNetwork = {
