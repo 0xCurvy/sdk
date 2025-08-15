@@ -36,7 +36,7 @@ type Currency = {
   name: string;
   symbol: string;
   coinmarketcapId: string;
-  native?: boolean;
+  nativeCurrency: boolean;
   iconUrl: string;
   price: string;
   updatedAt: string;

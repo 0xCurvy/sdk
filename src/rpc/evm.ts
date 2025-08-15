@@ -99,7 +99,7 @@ class EvmRpc extends Rpc {
           iconUrl: token.iconUrl,
           name: token.name,
           symbol: token.symbol,
-          native: token.native,
+          native: token.nativeCurrency,
         };
 
         const networkMeta = {
@@ -147,7 +147,7 @@ class EvmRpc extends Rpc {
       iconUrl: token.iconUrl,
       name: token.name,
       symbol: token.symbol,
-      native: token.native,
+      native: token.nativeCurrency,
     };
 
     const networkMeta = {
