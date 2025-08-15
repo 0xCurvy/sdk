@@ -123,7 +123,7 @@ class CurvySDK implements ICurvySDK {
     sdk.startPriceIntervalUpdate();
 
     if (networkFilter === undefined) {
-      sdk.setActiveNetworks(true); // testnets only
+      sdk.setActiveNetworks(false); // all mainnets by default
     } else {
       sdk.setActiveNetworks(networkFilter);
     }
@@ -284,6 +284,17 @@ class CurvySDK implements ICurvySDK {
       throw new Error(`Network array is empty after filtering with ${networkFilter}`);
     }
     this.#rpcClient = newMultiRpc(networks);
+  }
+
+
+  /* TODO: Think about how to handle networks better
+   *       SDK should probably be initialized explicitly with networks and switching should happen among them
+   *       eg. someone only passes mainnet networks, switching to 'testnet' then throws an error or warning
+   *       We could provide some general ready to use filters (eg. starknet networks, evm networks...)
+  */
+
+  switchEnvironment(environment: "mainnet" | "testnet"){
+    return this.setActiveNetworks(environment === "testnet")
   }
 
   async #verifySignature(
