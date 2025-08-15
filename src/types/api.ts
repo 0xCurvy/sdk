@@ -42,6 +42,7 @@ type Currency = {
   updatedAt: string;
   decimals: number;
   contractAddress: string;
+  nativeCurrency: boolean;
   csucEnabled: boolean;
 };
 
