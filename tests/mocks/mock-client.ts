@@ -61,12 +61,12 @@ export class MockAPIClient implements IApiClient {
     this.mockAnnouncements = announcements;
   }
 
-  updateBearerToken = (newBearerToken: string): void => {
+  updateBearerToken = (_newBearerToken: string): void => {
     // Mock implementation: does nothing
   };
 
   announcement = {
-    CreateAnnouncement: async (params: CreateAnnouncementRequestBody): Promise<CreateAnnouncementReturnType> => {
+    CreateAnnouncement: async (_params: CreateAnnouncementRequestBody): Promise<CreateAnnouncementReturnType> => {
       throw new Error("Method not implemented.");
     },
     GetAnnouncements: async (
@@ -112,12 +112,12 @@ export class MockAPIClient implements IApiClient {
       };
     },
     UpdateAnnouncementEncryptedMessage: async (
-      id: string,
-      body: UpdateAnnouncementEncryptedMessageRequestBody,
+      _id: string,
+      _body: UpdateAnnouncementEncryptedMessageRequestBody,
     ): Promise<UpdateAnnouncementEncryptedMessageReturnType> => {
       throw new Error("Method not implemented.");
     },
-    GetAnnouncementEncryptedMessage: async (id: string): Promise<GetAnnouncementEncryptedMessageReturnType> => {
+    GetAnnouncementEncryptedMessage: async (_id: string): Promise<GetAnnouncementEncryptedMessageReturnType> => {
       throw new Error("Method not implemented.");
     },
   };
@@ -157,7 +157,7 @@ export class MockAPIClient implements IApiClient {
     GetBearerTotp: async (): Promise<string> => {
       throw new Error("Method not implemented!");
     },
-    CreateBearerToken: async (body: { nonce: string; signature: string }): Promise<string> => {
+    CreateBearerToken: async (_body: { nonce: string; signature: string }): Promise<string> => {
       throw new Error("Method not implemented!");
     },
     RefreshBearerToken: async (): Promise<string> => {
@@ -169,44 +169,44 @@ export class MockAPIClient implements IApiClient {
       return Promise.resolve("vitalik.curvy.name");
     },
 
-    ResolveCurvyHandle: async (username: string): Promise<ResolveCurvyHandleReturnType> => {
+    ResolveCurvyHandle: async (_username: string): Promise<ResolveCurvyHandleReturnType> => {
       throw new Error("Not needed for announcement syncing tests");
     },
 
-    RegisterCurvyHandle: async (body: RegisterCurvyHandleRequestBody): Promise<RegisterCurvyHandleReturnType> => {
+    RegisterCurvyHandle: async (_body: RegisterCurvyHandleRequestBody): Promise<RegisterCurvyHandleReturnType> => {
       throw new Error("Not needed for announcement syncing tests");
     },
   };
 
   aggregator = {
-    SubmitDeposit: async (data: DepositPayload): Promise<SubmitDepositReturnType> => {
+    SubmitDeposit: async (_data: DepositPayload): Promise<SubmitDepositReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitWithdraw: async (data: WithdrawPayload): Promise<SubmitWithdrawReturnType> => {
+    SubmitWithdraw: async (_data: WithdrawPayload): Promise<SubmitWithdrawReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitAggregation: async (data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType> => {
+    SubmitAggregation: async (_data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType> => {
       throw new Error("Method not implemented.");
     },
-    GetAggregatorRequestStatus: async (requestId: string): Promise<GetAggregatorRequestStatusReturnType> => {
+    GetAggregatorRequestStatus: async (_requestId: string): Promise<GetAggregatorRequestStatusReturnType> => {
       throw new Error("Method not implemented.");
     },
   };
 
   csuc = {
-    GetCSAInfo: async (req: GetCSAInfoRequest): Promise<GetCSAInfoResponse> => {
+    GetCSAInfo: async (_req: GetCSAInfoRequest): Promise<GetCSAInfoResponse> => {
       throw new Error("Method not implemented.");
     },
-    EstimateAction: async (req: GetActionEstimatedCostRequest): Promise<GetActionEstimatedCostResponse> => {
+    EstimateAction: async (_req: GetActionEstimatedCostRequest): Promise<GetActionEstimatedCostResponse> => {
       throw new Error("Method not implemented.");
     },
-    SubmitActionRequest: async (req: CreateActionRequest): Promise<CreateActionResponse> => {
+    SubmitActionRequest: async (_req: CreateActionRequest): Promise<CreateActionResponse> => {
       throw new Error("Method not implemented.");
     },
   };
 
   gasSponsorship = {
-    SubmitRequest: async (request: SubmitGasSponsorshipRequest): Promise<SubmitGasSponsorshipRequestReturnType> => {
+    SubmitRequest: async (_request: SubmitGasSponsorshipRequest): Promise<SubmitGasSponsorshipRequestReturnType> => {
       throw new Error("Method not implemented.");
     },
   };

@@ -1,6 +1,6 @@
 import { defineConfig, type Options } from "tsup";
 
-export default defineConfig((options) => {
+export default defineConfig((_) => {
   const baseConfig: Options = {
     entry: ["./src/exports/*.[jt]s"],
     format: ["esm"],

@@ -236,7 +236,7 @@ class EvmRpc extends Rpc {
     address: string,
     amount: string,
     currencySymbol: string,
-    fee?: bigint,
+    _fee?: bigint,
   ) {
     const txRequest = await this.#prepareTx(privateKey, address as `0x${string}`, amount, currencySymbol);
     const serializedTransaction = await this.#walletClient.signTransaction(txRequest);

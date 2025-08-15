@@ -366,10 +366,10 @@ class StarknetRpc extends Rpc {
   }
 
   prepareCSUCOnboardTransactions(
-    privateKey: HexString,
-    toAddress: string,
-    currency: string,
-    amount: string,
+    _privateKey: HexString,
+    _toAddress: string,
+    _currency: string,
+    _amount: string,
   ): Promise<GasSponsorshipRequest> {
     throw new Error("CSUC is not supported on Starknet");
   }

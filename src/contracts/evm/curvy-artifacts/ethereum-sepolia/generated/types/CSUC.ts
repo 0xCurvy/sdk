@@ -407,7 +407,7 @@ export interface CSUC extends BaseContract {
     "view"
   >;
 
-  acceptOwnership: TypedContractMethod<[], [void], "nonpayable">;
+  acceptOwnership: TypedContractMethod<[], [undefined], "nonpayable">;
 
   actionInfo: TypedContractMethod<
     [arg0: BigNumberish],
@@ -439,25 +439,25 @@ export interface CSUC extends BaseContract {
 
   pendingOwner: TypedContractMethod<[], [string], "view">;
 
-  renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+  renounceOwnership: TypedContractMethod<[], [undefined], "nonpayable">;
 
   safeBatchTransferFrom: TypedContractMethod<
     [from: AddressLike, to: AddressLike, ids: BigNumberish[], values: BigNumberish[], data: BytesLike],
-    [void],
+    [undefined],
     "nonpayable"
   >;
 
   safeTransferFrom: TypedContractMethod<
     [from: AddressLike, to: AddressLike, id: BigNumberish, value: BigNumberish, data: BytesLike],
-    [void],
+    [undefined],
     "nonpayable"
   >;
 
-  setApprovalForAll: TypedContractMethod<[operator: AddressLike, approved: boolean], [void], "nonpayable">;
+  setApprovalForAll: TypedContractMethod<[operator: AddressLike, approved: boolean], [undefined], "nonpayable">;
 
   supportsInterface: TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
 
-  transferOwnership: TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  transferOwnership: TypedContractMethod<[newOwner: AddressLike], [undefined], "nonpayable">;
 
   unwrap: TypedContractMethod<[_action: CSUC_Types.ActionStruct], [boolean], "nonpayable">;
 
@@ -483,7 +483,7 @@ export interface CSUC extends BaseContract {
   getFunction(
     nameOrSignature: "_hashActionPayloadWithCustomNonce",
   ): TypedContractMethod<[_payload: CSUC_Types.ActionPayloadStruct, _nonce: BigNumberish], [string], "view">;
-  getFunction(nameOrSignature: "acceptOwnership"): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(nameOrSignature: "acceptOwnership"): TypedContractMethod<[], [undefined], "nonpayable">;
   getFunction(
     nameOrSignature: "actionInfo",
   ): TypedContractMethod<
@@ -519,26 +519,28 @@ export interface CSUC extends BaseContract {
   ): TypedContractMethod<[_actions: CSUC_Types.ActionStruct[]], [bigint], "nonpayable">;
   getFunction(nameOrSignature: "owner"): TypedContractMethod<[], [string], "view">;
   getFunction(nameOrSignature: "pendingOwner"): TypedContractMethod<[], [string], "view">;
-  getFunction(nameOrSignature: "renounceOwnership"): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(nameOrSignature: "renounceOwnership"): TypedContractMethod<[], [undefined], "nonpayable">;
   getFunction(
     nameOrSignature: "safeBatchTransferFrom",
   ): TypedContractMethod<
     [from: AddressLike, to: AddressLike, ids: BigNumberish[], values: BigNumberish[], data: BytesLike],
-    [void],
+    [undefined],
     "nonpayable"
   >;
   getFunction(
     nameOrSignature: "safeTransferFrom",
   ): TypedContractMethod<
     [from: AddressLike, to: AddressLike, id: BigNumberish, value: BigNumberish, data: BytesLike],
-    [void],
+    [undefined],
     "nonpayable"
   >;
   getFunction(
     nameOrSignature: "setApprovalForAll",
-  ): TypedContractMethod<[operator: AddressLike, approved: boolean], [void], "nonpayable">;
+  ): TypedContractMethod<[operator: AddressLike, approved: boolean], [undefined], "nonpayable">;
   getFunction(nameOrSignature: "supportsInterface"): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
-  getFunction(nameOrSignature: "transferOwnership"): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "transferOwnership",
+  ): TypedContractMethod<[newOwner: AddressLike], [undefined], "nonpayable">;
   getFunction(
     nameOrSignature: "unwrap",
   ): TypedContractMethod<[_action: CSUC_Types.ActionStruct], [boolean], "nonpayable">;

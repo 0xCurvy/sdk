@@ -72,7 +72,7 @@ class HttpClient {
       let responseBody: T;
       try {
         responseBody = (await response.json()) as T;
-      } catch (e) {
+      } catch (_e) {
         throw new APIError("Invalid JSON response", response.status, await response.text());
       }
 

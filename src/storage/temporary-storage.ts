@@ -24,7 +24,7 @@ export class TemporaryStorage implements StorageInterface {
         this.#addressStorage.set(minifiedAddress.walletId, new Map<string, MinifiedCurvyAddress>());
       }
 
-      this.#addressStorage.get(minifiedAddress.walletId)!.set(minifiedAddress.id, minifiedAddress);
+      this.#addressStorage.get(minifiedAddress.walletId)?.set(minifiedAddress.id, minifiedAddress);
     } catch (error) {
       if (error instanceof StorageError) throw error;
       throw new StorageError("Failed to write announcement", error as Error);

@@ -100,9 +100,9 @@ const prepareCuscActionRequest = async (
   if (!tokenSymbol) {
     throw new Error(`Token ${token} not found on network ${network}`);
   }
-  const nonce = from.csuc.nonces[network]![tokenSymbol];
+  const nonce = from.csuc.nonces[network]?.[tokenSymbol];
 
-  const signature = await signActionPayload(chainId, payload, totalFee, nonce!.toString(), privateKey);
+  const signature = await signActionPayload(chainId, payload, totalFee, nonce?.toString(), privateKey);
 
   return {
     payload,

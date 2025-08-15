@@ -28,7 +28,7 @@ function showTabContent(tabId) {
   }
 
   // Hide all sub tab content except the first one
-  for (const tab of document.querySelectorAll('.window[role="tabpanel"] > .window-body')) {
+  for (const _tab of document.querySelectorAll('.window[role="tabpanel"] > .window-body')) {
     for (const [index, subTab] of document.querySelectorAll("div[role='sub-tab-content']").entries()) {
       subTab.setAttribute("aria-selected", "false");
       subTab.style.visibility = "hidden";
@@ -650,7 +650,7 @@ async function estimateFeeForCSUC(action) {
   const token = getTokenAddress("ethereum-sepolia", currency);
 
   const { payload, offeredTotalFee } = await window.curvySDK.estimateActionInsideCSUC(
-    "ethereum-sepolia",
+    network,
     action,
     stealthAddress,
     toAddress,
@@ -689,7 +689,7 @@ async function executeCSUCAction(action) {
 
   const stealthAddress = await window.curvySDK.getStealthAddressById(window.selectedCsucAddressId);
 
-  const res = await window.curvySDK.requestActionInsideCSUC(
+  const _res = await window.curvySDK.requestActionInsideCSUC(
     "ethereum-sepolia",
     stealthAddress,
     payload,
