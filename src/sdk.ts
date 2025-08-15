@@ -293,7 +293,7 @@ class CurvySDK implements ICurvySDK {
    *       We could provide some general ready to use filters (eg. starknet networks, evm networks...)
   */
 
-  switchEnvironment(environment: "mainnet" | "testnet"){
+  switchNetworkEnvironment(environment: "mainnet" | "testnet"){
     return this.setActiveNetworks(environment === "testnet")
   }
 
