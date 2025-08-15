@@ -21,7 +21,7 @@ import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import { jsonStringify } from "@/utils/common";
-import { isNativeCurrency } from "@/utils/currency";
+import { isNativeCurrency, parseDecimal } from "@/utils/currency";
 import { toSlug } from "@/utils/helpers";
 import { generateViemChainFromNetwork } from "@/utils/rpc";
 
@@ -261,6 +261,7 @@ class EvmRpc extends Rpc {
     return feeEstimate;
   }
 
+  // TODO: We should introduce commands first here as an example
   // TODO: Allow onboarding native currency (ETH as well) within this method
   async prepareCSUCOnboardTransactions(
     privateKey: HexString,

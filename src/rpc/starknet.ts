@@ -25,6 +25,7 @@ import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import type { StarknetFeeEstimate } from "@/types/rpc";
+import { parseDecimal } from "@/utils/currency";
 import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { toSlug } from "@/utils/helpers";
 import { fromUint256 } from "@/utils/rpc";
