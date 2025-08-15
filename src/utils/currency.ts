@@ -3,6 +3,7 @@ import type { Currency } from "@/types/api";
 
 export const NATIVE_CURRENCY_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
+// TODO: Think about this and Vanja's native_currency field on network object, only one is needed really
 export const isNativeCurrency = (currency: Currency): boolean => {
   // Doing three checks because why not, its safer
   return (
