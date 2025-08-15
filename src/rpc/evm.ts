@@ -21,7 +21,7 @@ import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import { jsonStringify } from "@/utils/common";
-import { isNativeCurrency, parseDecimal } from "@/utils/currency";
+import { parseDecimal } from "@/utils/currency";
 import { toSlug } from "@/utils/helpers";
 import { generateViemChainFromNetwork } from "@/utils/rpc";
 
@@ -159,7 +159,7 @@ class EvmRpc extends Rpc {
 
     let balance: bigint;
 
-    if (isNativeCurrency(token)) {
+    if (token.nativeCurrency) {
       balance = await getBalance(this.#publicClient, {
         address: stealthAddress.address as Address,
       });
@@ -185,7 +185,7 @@ class EvmRpc extends Rpc {
       chain: this.#walletClient.chain,
     } as const;
 
-    if (isNativeCurrency(token)) {
+    if (token.nativeCurrency) {
       const gasLimit = await this.#publicClient
         .estimateGas({
           account,
@@ -274,7 +274,7 @@ class EvmRpc extends Rpc {
     console.log(currencySymbol, this.network.currencies, token);
     if (!token) throw new Error(`Token ${currencySymbol} not found.`);
 
-    if (isNativeCurrency(token)) {
+    if (token.nativeCurrency) {
       throw new Error("This method does not support native currency onboards now");
     }
 
