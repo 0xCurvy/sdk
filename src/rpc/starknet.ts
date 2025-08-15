@@ -15,7 +15,7 @@ import {
   type RawArgs,
   validateAndParseAddress,
 } from "starknet";
-import { type Address, parseUnits } from "viem";
+import type { Address } from "viem";
 import { CURVY_ACCOUNT_CLASS_HASHES, CURVY_DUMMY_STARKNET_ACCOUNT } from "@/constants/starknet";
 import { starknetAccountAbi } from "@/contracts/starknet/abi/account";
 import { starknetErc20Abi } from "@/contracts/starknet/abi/erc20";
@@ -144,7 +144,7 @@ class StarknetRpc extends Rpc {
       entrypoint: "transfer",
       calldata: CallData.compile({
         to: address,
-        amount: cairo.uint256(parseUnits(amount, token?.decimals)),
+        amount: cairo.uint256(parseDecimal(amount, token)),
       }),
     } satisfies Call;
 

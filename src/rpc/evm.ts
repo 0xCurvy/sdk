@@ -8,8 +8,6 @@ import {
   getContract,
   http,
   type PublicClient,
-  parseEther,
-  parseUnits,
   type TransactionRequest,
   type WalletClient,
 } from "viem";
@@ -192,7 +190,7 @@ class EvmRpc extends Rpc {
         .estimateGas({
           account,
           to: address,
-          value: parseEther(amount),
+          value: parseDecimal(amount, token),
         })
         .then((res) => res)
         .catch(() => 21_000n);
@@ -200,7 +198,7 @@ class EvmRpc extends Rpc {
       return this.#walletClient.prepareTransactionRequest({
         ...txRequestBase,
         to: address,
-        value: parseEther(amount),
+        value: parseDecimal(amount, token),
         gas: gasLimit,
       });
     }
@@ -208,7 +206,8 @@ class EvmRpc extends Rpc {
     const data = encodeFunctionData({
       abi: erc20Abi,
       functionName: "transfer",
-      args: [address, parseUnits(amount, token.decimals)],
+      // No parse units, use Currency utils
+      args: [address, parseDecimal(amount, token)],
     });
 
     const gasLimit = await this.#publicClient
@@ -217,7 +216,8 @@ class EvmRpc extends Rpc {
         address: token.contractAddress as Address,
         abi: erc20Abi,
         functionName: "transfer",
-        args: [address, parseUnits(amount, token.decimals)],
+        // No parse units, use Currency utils
+        args: [address, parseDecimal(amount, token)],
       })
       .then((res) => res)
       .catch(() => 65_000n);

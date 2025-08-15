@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { encodeAbiParameters, keccak256, parseEther } from "viem";
+import { encodeAbiParameters, keccak256 } from "viem";
 import { CSUC_TOKENS } from "@/constants/csuc";
 import {
   assertNetworkIsSupported,
@@ -165,30 +165,6 @@ export const signActionPayload = async (
     s: s.toString(),
     v: BigInt(v).toString(),
   } as CsucSignature;
-};
-
-export const parseDecimals = (
-  value: bigint | string | number,
-  decimals = 18, // Some tokens do not have 18 decimals!
-): bigint => {
-  if (typeof value !== "string") value = value.toString();
-
-  if (decimals === 18) {
-    // Treat it same as Ether
-    return parseEther(value);
-  }
-
-  // Rearrange the decimal point
-  const parsedValue = parseEther(value);
-
-  if (decimals < 18) {
-    const factor = 10n ** BigInt(18 - decimals);
-
-    return parsedValue / factor;
-  }
-
-  const factor = 10n ** BigInt(decimals - 18);
-  return parsedValue * factor;
 };
 
 export const getTokenAddress = (networkId: string, tokenSymbol: string) => {

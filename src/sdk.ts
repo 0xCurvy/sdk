@@ -33,7 +33,7 @@ import type { MultiRpc } from "@/rpc/multi";
 import type { StarknetRpc } from "@/rpc/starknet";
 import { TemporaryStorage } from "@/storage/temporary-storage";
 import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
-import type { AggregationRequest, DepositPayload, Network, WithdrawPayload } from "@/types/api";
+import type { AggregationRequest, Currency, DepositPayload, Network, WithdrawPayload } from "@/types/api";
 import {
   type CsucActionPayload,
   type CsucActionSet,
@@ -62,7 +62,7 @@ import {
   type EvmSignTypedDataParameters,
   type StarknetSignatureData,
 } from "@/types/signature";
-import { parseDecimals } from "@/utils/csuc";
+import { parseDecimal } from "@/utils/currency";
 import { encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
@@ -286,15 +286,14 @@ class CurvySDK implements ICurvySDK {
     this.#rpcClient = newMultiRpc(networks);
   }
 
-
   /* TODO: Think about how to handle networks better
    *       SDK should probably be initialized explicitly with networks and switching should happen among them
    *       eg. someone only passes mainnet networks, switching to 'testnet' then throws an error or warning
    *       We could provide some general ready to use filters (eg. starknet networks, evm networks...)
-  */
+   */
 
-  switchNetworkEnvironment(environment: "mainnet" | "testnet"){
-    return this.setActiveNetworks(environment === "testnet")
+  switchNetworkEnvironment(environment: "mainnet" | "testnet") {
+    return this.setActiveNetworks(environment === "testnet");
   }
 
   async #verifySignature(
@@ -838,7 +837,8 @@ class CurvySDK implements ICurvySDK {
     _amount: bigint | string,
   ): Promise<CsucEstimatedActionCost> {
     // User creates an action payload, and determines the wanted cost/speed
-    const amount = parseDecimals(_amount, 18).toString();
+    // TODO: Get eth properly
+    const amount = parseDecimal("0.001", { decimals: 18 } as Currency).toString();
 
     const payload = await prepareCsucActionEstimationRequest(network, actionId, from, to, token, amount);
 
