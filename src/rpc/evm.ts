@@ -61,23 +61,24 @@ class EvmRpc extends Rpc {
       client: this.#publicClient,
     });
 
-    const calls = this.network.currencies.map(({ contractAddress }) => {
-      if (!contractAddress)
+    const calls = this.network.currencies.map(({ nativeCurrency, contractAddress }) => {
+      if (nativeCurrency) {
         return {
-          target: evmMulticall.address,
+          target: contractAddress as Address,
           callData: encodeFunctionData({
-            abi: evmMulticall3Abi,
-            functionName: "getEthBalance",
+            abi: erc20Abi,
+            functionName: "balanceOf",
             args: [stealthAddress.address as Address],
           }),
           gasLimit: 30_000n,
         };
+      }
 
       return {
-        target: contractAddress as Address,
+        target: evmMulticall.address,
         callData: encodeFunctionData({
-          abi: erc20Abi,
-          functionName: "balanceOf",
+          abi: evmMulticall3Abi,
+          functionName: "getEthBalance",
           args: [stealthAddress.address as Address],
         }),
         gasLimit: 30_000n,
@@ -163,13 +164,14 @@ class EvmRpc extends Rpc {
       balance = await getBalance(this.#publicClient, {
         address: stealthAddress.address as Address,
       });
-    } else
+    } else {
       balance = await readContract(this.#publicClient, {
         address: token.contractAddress as Address,
         abi: erc20Abi,
         functionName: "balanceOf",
         args: [stealthAddress.address as Address],
       });
+    }
 
     return { balance, tokenAddress: tokenAddress as HexString | undefined, tokenMeta, networkMeta };
   }
