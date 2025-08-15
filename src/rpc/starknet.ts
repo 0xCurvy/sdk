@@ -75,7 +75,7 @@ class StarknetRpc extends Rpc {
           iconUrl: token.iconUrl,
           name: token.name,
           symbol: token.symbol,
-          native: token.native,
+          native: token.nativeCurrency,
         };
 
         const networkMeta = {
@@ -111,7 +111,7 @@ class StarknetRpc extends Rpc {
       iconUrl: token.iconUrl,
       name: token.name,
       symbol: token.symbol,
-      native: token.native,
+      native: token.nativeCurrency,
     };
 
     const networkMeta = {

@@ -3,7 +3,7 @@ import { defineChain } from "viem";
 import type { Network } from "@/types/api";
 
 const generateViemChainFromNetwork = (network: Network) => {
-  const nativeCurrency = network.currencies.find((c) => c.native);
+  const nativeCurrency = network.currencies.find((c) => c.nativeCurrency);
 
   if (!nativeCurrency) {
     throw new Error(`No native currency found for network: ${network.name}`);

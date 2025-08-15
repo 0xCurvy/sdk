@@ -243,7 +243,7 @@ class CurvySDK implements ICurvySDK {
   }
 
   getNativeCurrencyForNetwork(network: Network) {
-    const nativeCurrency = network.currencies.find((c) => c.native);
+    const nativeCurrency = network.currencies.find((c) => c.nativeCurrency);
 
     if (!nativeCurrency) {
       throw new Error(`No native currency found for network ${network.name}`);
@@ -738,7 +738,7 @@ class CurvySDK implements ICurvySDK {
     else recipientData = { address: to };
 
     const rpc = this.rpcClient.Network(networkIdentifier);
-    const nativeToken = this.getNetwork(networkIdentifier).currencies.find((c) => c.native)!;
+    const nativeToken = this.getNetwork(networkIdentifier).currencies.find((c) => c.nativeCurrency)!;
     const fee = await rpc.estimateFee(from, privateKey, recipientData.address, amount, currency);
     const raw = rpc.feeToAmount(fee);
     const fiat = toNumber(mul([raw, nativeToken.decimals], await this.storage.getTokenPrice(nativeToken.symbol)));
