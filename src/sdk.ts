@@ -524,14 +524,9 @@ class CurvySDK implements ICurvySDK {
     }
 
     // TODO CSUC balances and nonces, this is a temporary solution, need to move this to a separate method
-    for (const supportedNetwork of Object.values(CsucSupportedNetworkId)) {
-      const eligibleAddresses = await this.storage.getCurvyAddressesByWalletIdAndNetworkId(
-        walletId,
-        supportedNetwork as number,
-      );
+    const eligibleAddresses = await this.storage.getCurvyAddressesByWalletIdAndFlavour(walletId, "evm");
 
-      if (eligibleAddresses.length === 0) continue;
-
+    if (eligibleAddresses.length !== 0) {
       const {
         data: { csaInfo },
       } = await this.apiClient.csuc.GetCSAInfo({
@@ -593,14 +588,14 @@ class CurvySDK implements ICurvySDK {
             nonces,
           },
         });
-
-        this.#emitter.emitBalanceRefreshComplete({
-          walletId,
-        });
-
-        this.#semaphore[`refresh-balances-${walletId}`] = undefined;
       }
     }
+
+    this.#emitter.emitBalanceRefreshComplete({
+      walletId,
+    });
+
+    this.#semaphore[`refresh-balances-${walletId}`] = undefined;
   }
 
   async refreshBalances() {
