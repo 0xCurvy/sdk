@@ -62,7 +62,7 @@ class EvmRpc extends Rpc {
     });
 
     const calls = this.network.currencies.map(({ nativeCurrency, contractAddress }) => {
-      if (nativeCurrency) {
+      if (!nativeCurrency) {
         return {
           target: contractAddress as Address,
           callData: encodeFunctionData({
@@ -112,7 +112,7 @@ class EvmRpc extends Rpc {
 
         let balance: bigint;
 
-        if (!tokenAddress)
+        if (token.nativeCurrency)
           balance = decodeFunctionResult({
             abi: evmMulticall3Abi,
             functionName: "getEthBalance",
