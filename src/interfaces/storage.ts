@@ -1,4 +1,4 @@
-import type { NETWORK_ENVIRONMENT_VALUES, TOKENS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, TOKENS } from "@/constants/networks";
 import type { CurvyAddress } from "@/types/address";
 import type { CurvyWalletData, ScanInfo } from "@/types/wallet";
 import type { CurvyWallet } from "@/wallet";
@@ -12,7 +12,10 @@ export interface StorageInterface {
 
   getCurvyAddressById(id: string, environment?: NETWORK_ENVIRONMENT_VALUES): Promise<CurvyAddress>;
   getCurvyAddressesByWalletId(walletId: string, environment?: NETWORK_ENVIRONMENT_VALUES): Promise<CurvyAddress[]>;
-  getCurvyAddressesByWalletIdAndNetworkId(walletId: string, networkId: number): Promise<CurvyAddress[]>;
+  getCurvyAddressesByWalletIdAndFlavour(
+    walletId: string,
+    networkFlavour: NETWORK_FLAVOUR_VALUES,
+  ): Promise<CurvyAddress[]>;
   getAllCurvyAddresses(): Promise<CurvyAddress[]>;
 
   storeCurvyWallet(wallet: CurvyWallet): Promise<void>;

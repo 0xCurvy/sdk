@@ -1,5 +1,5 @@
 import merge from "lodash.merge";
-import type { TOKENS } from "@/constants/networks";
+import type { NETWORK_FLAVOUR_VALUES, TOKENS } from "@/constants/networks";
 import { StorageError } from "@/errors";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { CurvyAddress, MinifiedCurvyAddress } from "@/types/address";
@@ -100,10 +100,10 @@ export class TemporaryStorage implements StorageInterface {
     }));
   }
 
-  async getCurvyAddressesByWalletIdAndNetworkId(walletId: string, networkId: number) {
+  async getCurvyAddressesByWalletIdAndFlavour(walletId: string, networkFlavour: NETWORK_FLAVOUR_VALUES) {
     const walletAddresses = await this.getCurvyAddressesByWalletId(walletId);
 
-    return walletAddresses.filter((address) => address.network_id === networkId);
+    return walletAddresses.filter((address) => address.networkFlavour === networkFlavour);
   }
 
   async getAllCurvyAddresses() {

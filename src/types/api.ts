@@ -23,7 +23,6 @@ type _Announcement = {
   createdAt: string;
   id: string;
   networkFlavour: NETWORK_FLAVOUR_VALUES;
-  network_id: number;
   viewTag: string;
 };
 
