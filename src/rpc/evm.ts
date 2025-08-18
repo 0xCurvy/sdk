@@ -21,7 +21,7 @@ import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import { jsonStringify } from "@/utils/common";
-import { NATIVE_CURRENCY_ADDRESS, parseDecimal } from '@/utils/currency';
+import { parseDecimal } from '@/utils/currency';
 import { toSlug } from "@/utils/helpers";
 import { generateViemChainFromNetwork } from "@/utils/rpc";
 
@@ -61,8 +61,8 @@ class EvmRpc extends Rpc {
       client: this.#publicClient,
     });
 
-    const calls = this.network.currencies.map(({ contractAddress }) => {
-      if (contractAddress === NATIVE_CURRENCY_ADDRESS) {
+    const calls = this.network.currencies.map(({ nativeCurrency, contractAddress }) => {
+      if (nativeCurrency) {
         return {
           target: evmMulticall.address,
           callData: encodeFunctionData({
