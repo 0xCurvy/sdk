@@ -21,7 +21,7 @@ import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import { jsonStringify } from "@/utils/common";
-import { parseDecimal } from "@/utils/currency";
+import { parseDecimal } from '@/utils/currency';
 import { toSlug } from "@/utils/helpers";
 import { generateViemChainFromNetwork } from "@/utils/rpc";
 
@@ -64,10 +64,10 @@ class EvmRpc extends Rpc {
     const calls = this.network.currencies.map(({ nativeCurrency, contractAddress }) => {
       if (!nativeCurrency) {
         return {
-          target: contractAddress as Address,
+          target: evmMulticall.address,
           callData: encodeFunctionData({
-            abi: erc20Abi,
-            functionName: "balanceOf",
+            abi: evmMulticall3Abi,
+            functionName: "getEthBalance",
             args: [stealthAddress.address as Address],
           }),
           gasLimit: 30_000n,
@@ -75,10 +75,10 @@ class EvmRpc extends Rpc {
       }
 
       return {
-        target: evmMulticall.address,
+        target: contractAddress as Address,
         callData: encodeFunctionData({
-          abi: evmMulticall3Abi,
-          functionName: "getEthBalance",
+          abi: erc20Abi,
+          functionName: "balanceOf",
           args: [stealthAddress.address as Address],
         }),
         gasLimit: 30_000n,
@@ -273,7 +273,6 @@ class EvmRpc extends Rpc {
   ): Promise<GasSponsorshipRequest> {
     const token = this.network.currencies.find((c) => c.symbol === currencySymbol);
 
-    console.log(currencySymbol, this.network.currencies, token);
     if (!token) throw new Error(`Token ${currencySymbol} not found.`);
 
     if (token.nativeCurrency) {
@@ -301,7 +300,7 @@ class EvmRpc extends Rpc {
         data: encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
-          args: [csucContractAddress, BigInt(amount)],
+          args: [csucContractAddress, parseDecimal(amount,token)],
         }),
         gas: 70_000n,
         nonce,
@@ -312,7 +311,7 @@ class EvmRpc extends Rpc {
         data: encodeFunctionData({
           abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
           functionName: "wrapERC20",
-          args: [toAddress, token.contractAddress as `0x${string}`, BigInt(amount)],
+          args: [toAddress, token.contractAddress as `0x${string}`, parseDecimal(amount,token)],
         }),
         gas: 120_000n,
         nonce: ++nonce,
