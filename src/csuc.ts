@@ -1,18 +1,12 @@
 import { type EncodeAbiParametersReturnType, encodeAbiParameters } from "viem";
 import type { CurvyAddress } from "@/types/address";
 import type { NetworkWithCurrencies } from "@/types/api";
-import {
-  assertNetworkIsSupported,
-  type CsucAction,
-  type CsucActionPayload,
-  CsucActionSet,
-  type CsucSupportedNetwork,
-} from "@/types/csuc";
+import { type CsucAction, type CsucActionPayload, CsucActionSet } from "@/types/csuc";
 import type { HexString } from "@/types/helper";
-import { getTokenSymbol, signActionPayload, supportedNetworkToChainId } from "@/utils/csuc";
+import { signActionPayload } from "@/utils/csuc";
 
 const prepareCsucActionEstimationRequest = async (
-  network: CsucSupportedNetwork,
+  network: NetworkWithCurrencies,
   action: CsucActionSet,
   from: CurvyAddress,
   to: HexString,
@@ -92,7 +86,7 @@ const prepareCuscActionRequest = async (
   payload: CsucActionPayload,
   totalFee: string,
 ): Promise<CsucAction> => {
-  assertNetworkIsSupported(network);
+  // TODO: Think whether we need validation here at all because backend will fail.
 
   const chainId = network.chainId;
 
@@ -106,7 +100,11 @@ const prepareCuscActionRequest = async (
 
   const nonce = from.csuc.nonces[network.name]?.[currency.symbol];
 
-  const signature = await signActionPayload(chainId, payload, totalFee, nonce?.toString(), privateKey);
+  if (!nonce) {
+    throw new Error(`Nonce for ${currency.symbol} not found on ${from.address}`);
+  }
+
+  const signature = await signActionPayload(chainId, payload, totalFee, nonce.toString(), privateKey);
 
   return {
     payload,
