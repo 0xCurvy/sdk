@@ -8,15 +8,7 @@
 
 import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
 import type { InputNoteData, OutputNoteData, Signature } from "@/types/aggregator";
-import type {
-  CSAInfo,
-  CsucAction,
-  CsucActionPayload,
-  CsucActionStatus,
-  CsucEstimatedActionCost,
-  CsucSupportedNetwork,
-  CsucSupportedNetworkId,
-} from "@/types/csuc";
+import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 
 type _Announcement = {
@@ -219,7 +211,7 @@ export type {
 //#region CSUC
 
 type GetCSAInfoRequest = {
-  network: CsucSupportedNetwork | CsucSupportedNetworkId;
+  network: Network | NetworkWithCurrencies;
   csas: string[];
 };
 
