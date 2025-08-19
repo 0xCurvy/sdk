@@ -50,9 +50,6 @@ type Network = {
   chainId: string;
   blockExplorerUrl: string;
   rpcUrl: string;
-};
-
-type NetworkWithCurrencies = Network & {
   currencies: Array<Currency>;
 };
 
@@ -115,7 +112,7 @@ type GetAnnouncementEncryptedMessageReturnType = {
 
 //#region Network
 
-type NetworksWithCurrenciesResponse = { data: Array<NetworkWithCurrencies>; error: string | null };
+type NetworksWithCurrenciesResponse = { data: Array<Network>; error: string | null };
 type GetNetworksReturnType = Array<Network>;
 
 //#endregion
@@ -264,7 +261,6 @@ export type {
   UpdateAnnouncementEncryptedMessageReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   Network,
-  NetworkWithCurrencies,
   Currency,
   NetworksWithCurrenciesResponse,
   GetNetworksReturnType,

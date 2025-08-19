@@ -1,4 +1,4 @@
-import type { Network, NetworkWithCurrencies } from "@/types/api";
+import type { Network } from "@/types/api";
 import type { NetworkFilter } from "@/utils/network";
 
 export enum CsucActionSet {
@@ -13,7 +13,6 @@ export type CsucActionType = {
 };
 export type CsucActionPayload = {
   id?: number;
-  network: NetworkWithCurrencies;
   networkId: number;
   from: string;
   actionType: CsucActionType;

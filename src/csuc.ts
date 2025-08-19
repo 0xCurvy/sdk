@@ -1,12 +1,12 @@
 import { type EncodeAbiParametersReturnType, encodeAbiParameters } from "viem";
 import type { CurvyAddress } from "@/types/address";
-import type { NetworkWithCurrencies } from "@/types/api";
+import type { Network } from "@/types/api";
 import { type CsucAction, type CsucActionPayload, CsucActionSet } from "@/types/csuc";
 import type { HexString } from "@/types/helper";
 import { signActionPayload } from "@/utils/csuc";
 
 const prepareCsucActionEstimationRequest = async (
-  network: NetworkWithCurrencies,
+  network: Network,
   action: CsucActionSet,
   from: CurvyAddress,
   to: HexString,
@@ -80,7 +80,7 @@ const prepareCsucActionEstimationRequest = async (
 };
 
 const prepareCuscActionRequest = async (
-  network: NetworkWithCurrencies,
+  network: Network,
   from: CurvyAddress,
   privateKey: HexString,
   payload: CsucActionPayload,
