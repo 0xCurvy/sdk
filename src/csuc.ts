@@ -1,17 +1,12 @@
 import { type EncodeAbiParametersReturnType, encodeAbiParameters } from "viem";
 import type { CurvyAddress } from "@/types/address";
-import {
-  assertNetworkIsSupported,
-  type CsucAction,
-  type CsucActionPayload,
-  CsucActionSet,
-  type CsucSupportedNetwork,
-} from "@/types/csuc";
+import type { Network } from "@/types/api";
+import { type CsucAction, type CsucActionPayload, CsucActionSet } from "@/types/csuc";
 import type { HexString } from "@/types/helper";
-import { getTokenSymbol, signActionPayload, supportedNetworkToChainId } from "@/utils/csuc";
+import { signActionPayload } from "@/utils/csuc";
 
 const prepareCsucActionEstimationRequest = async (
-  network: CsucSupportedNetwork,
+  network: Network,
   action: CsucActionSet,
   from: CurvyAddress,
   to: HexString,
@@ -85,24 +80,31 @@ const prepareCsucActionEstimationRequest = async (
 };
 
 const prepareCuscActionRequest = async (
-  network: CsucSupportedNetwork,
+  network: Network,
   from: CurvyAddress,
   privateKey: HexString,
   payload: CsucActionPayload,
   totalFee: string,
 ): Promise<CsucAction> => {
-  assertNetworkIsSupported(network);
+  // TODO: Think whether we need validation here at all because backend will fail.
 
-  const chainId = supportedNetworkToChainId(network);
+  const chainId = network.chainId;
 
-  const { token } = JSON.parse(payload.encodedData) as any;
-  const tokenSymbol = getTokenSymbol(network, token);
-  if (!tokenSymbol) {
-    throw new Error(`Token ${token} not found on network ${network}`);
+  const { token: currencyContractAddress } = JSON.parse(payload.encodedData) as any;
+  const currency = network.currencies.find((currency) => {
+    return currency.contractAddress === currencyContractAddress;
+  });
+  if (!currency) {
+    throw new Error(`Token ${currencyContractAddress} not found on network ${network}`);
   }
-  const nonce = from.csuc.nonces[network]?.[tokenSymbol];
 
-  const signature = await signActionPayload(chainId, payload, totalFee, nonce?.toString(), privateKey);
+  const nonce = from.csuc.nonces[network.name]?.[currency.symbol];
+
+  if (!nonce) {
+    throw new Error(`Nonce for ${currency.symbol} not found on ${from.address}`);
+  }
+
+  const signature = await signActionPayload(chainId, payload, totalFee, nonce.toString(), privateKey);
 
   return {
     payload,

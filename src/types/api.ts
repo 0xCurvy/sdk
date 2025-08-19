@@ -8,16 +8,9 @@
 
 import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
 import type { InputNoteData, OutputNoteData, Signature } from "@/types/aggregator";
-import type {
-  CSAInfo,
-  CsucAction,
-  CsucActionPayload,
-  CsucActionStatus,
-  CsucEstimatedActionCost,
-  CsucSupportedNetwork,
-  CsucSupportedNetworkId,
-} from "@/types/csuc";
+import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
+import type { NetworkFilter } from "@/utils/network";
 
 type _Announcement = {
   createdAt: string;
@@ -44,7 +37,7 @@ type Currency = {
   csucEnabled: boolean;
 };
 
-type RawNetwork = {
+type Network = {
   id: number;
   name: string;
   group: NETWORK_GROUP_VALUES;
@@ -56,9 +49,7 @@ type RawNetwork = {
   nativeCurrency: string | null;
   chainId: string;
   blockExplorerUrl: string;
-};
-
-type RawNetworkWithCurrencies = RawNetwork & {
+  rpcUrl: string;
   currencies: Array<Currency>;
 };
 
@@ -121,15 +112,7 @@ type GetAnnouncementEncryptedMessageReturnType = {
 
 //#region Network
 
-type Network = RawNetworkWithCurrencies & {
-  rpcUrl: string;
-};
-
-type NetworkWithCurrencies = Network & {
-  currencies: Array<Currency>;
-};
-
-type NetworksWithCurrenciesResponse = { data: Array<RawNetworkWithCurrencies>; error: string | null };
+type NetworksWithCurrenciesResponse = { data: Array<Network>; error: string | null };
 type GetNetworksReturnType = Array<Network>;
 
 //#endregion
@@ -219,7 +202,7 @@ export type {
 //#region CSUC
 
 type GetCSAInfoRequest = {
-  network: CsucSupportedNetwork | CsucSupportedNetworkId;
+  network: NetworkFilter;
   csas: string[];
 };
 
@@ -278,7 +261,6 @@ export type {
   UpdateAnnouncementEncryptedMessageReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   Network,
-  NetworkWithCurrencies,
   Currency,
   NetworksWithCurrenciesResponse,
   GetNetworksReturnType,
