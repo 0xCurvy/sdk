@@ -21,7 +21,7 @@ import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import { jsonStringify } from "@/utils/common";
-import { parseDecimal } from '@/utils/currency';
+import { parseDecimal } from "@/utils/currency";
 import { toSlug } from "@/utils/helpers";
 import { generateViemChainFromNetwork } from "@/utils/rpc";
 
@@ -50,6 +50,7 @@ class EvmRpc extends Rpc {
   get publicClient() {
     return this.#publicClient;
   }
+
   get walletClient() {
     return this.#walletClient;
   }
@@ -300,7 +301,7 @@ class EvmRpc extends Rpc {
         data: encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
-          args: [csucContractAddress, parseDecimal(amount,token)],
+          args: [csucContractAddress, parseDecimal(amount, token)],
         }),
         gas: 70_000n,
         nonce,
@@ -311,7 +312,7 @@ class EvmRpc extends Rpc {
         data: encodeFunctionData({
           abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
           functionName: "wrapERC20",
-          args: [toAddress, token.contractAddress as `0x${string}`, parseDecimal(amount,token)],
+          args: [toAddress, token.contractAddress as `0x${string}`, parseDecimal(amount, token)],
         }),
         gas: 120_000n,
         nonce: ++nonce,

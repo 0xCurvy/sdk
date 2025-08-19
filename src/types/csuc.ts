@@ -1,4 +1,5 @@
 import type { Network, NetworkWithCurrencies } from "@/types/api";
+import type { NetworkFilter } from "@/utils/network";
 
 export enum CsucActionSet {
   TRANSFER = "transfer",
@@ -77,7 +78,7 @@ export type CsucBatch = {
   updatedAt: Date;
 };
 export type CSAInfo = {
-  network: NetworkWithCurrencies;
+  network: NetworkFilter; // TODO: NetworkSlug
   address: string;
   balances: CsucBalance[];
   nonce: CsucNonce[];

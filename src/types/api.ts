@@ -211,7 +211,7 @@ export type {
 //#region CSUC
 
 type GetCSAInfoRequest = {
-  network: Network | NetworkWithCurrencies;
+  network: NetworkFilter;
   csas: string[];
 };
 
