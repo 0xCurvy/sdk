@@ -63,7 +63,7 @@ class EvmRpc extends Rpc {
     });
 
     const calls = this.network.currencies.map(({ nativeCurrency, contractAddress }) => {
-      if (!nativeCurrency) {
+      if (nativeCurrency) {
         return {
           target: evmMulticall.address,
           callData: encodeFunctionData({
