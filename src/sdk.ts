@@ -34,14 +34,7 @@ import type { StarknetRpc } from "@/rpc/starknet";
 import { TemporaryStorage } from "@/storage/temporary-storage";
 import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
 import type { AggregationRequest, Currency, DepositPayload, Network, WithdrawPayload } from "@/types/api";
-import {
-  type CsucActionPayload,
-  type CsucActionSet,
-  type CsucActionStatus,
-  type CsucEstimatedActionCost,
-  CsucSupportedNetwork,
-  CsucSupportedNetworkId,
-} from "@/types/csuc";
+import type { CsucActionPayload, CsucActionSet, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
   BalanceRefreshCompleteEvent,
@@ -180,6 +173,7 @@ class CurvySDK implements ICurvySDK {
     return this.storage.getCurvyAddressById(id);
   }
 
+  // TODO[@lazartravica]: I reimplemented this on the backend, I need to revert and use this
   getNetwork(networkFilter: NetworkFilter = undefined) {
     const networks = filterNetworks(this.#networks, networkFilter);
 
@@ -629,6 +623,7 @@ class CurvySDK implements ICurvySDK {
 
     await this.storage.updateCurvyAddress(address.id, { balances: await this.rpcClient.getBalances(address) });
 
+    // TODO: Move to RPC
     /* TODO refactor csuc balances and nonces, this is a temporary solution, need to move this to a separate method
         when other refactoring is done
     * */
@@ -824,13 +819,19 @@ class CurvySDK implements ICurvySDK {
   }
 
   async estimateActionInsideCSUC(
-    network: CsucSupportedNetwork,
+    networkFilter: NetworkFilter,
     actionId: CsucActionSet,
     from: CurvyAddress,
     to: HexString,
     token: HexString,
     _amount: bigint | string,
   ): Promise<CsucEstimatedActionCost> {
+    const network = this.getNetwork(networkFilter);
+
+    if (!network.csucContractAddress) {
+      throw new Error(`CSUC contract address not found for network ${network.name}`);
+    }
+
     // User creates an action payload, and determines the wanted cost/speed
     // TODO: Get eth properly
     const amount = parseDecimal("0.001", { decimals: 18 } as Currency).toString();
@@ -847,11 +848,17 @@ class CurvySDK implements ICurvySDK {
   }
 
   async requestActionInsideCSUC(
-    network: CsucSupportedNetwork,
+    networkFilter: NetworkFilter,
     from: CurvyAddress,
     payload: CsucActionPayload,
     totalFee: string,
   ): Promise<CsucActionStatus> {
+    const network = this.getNetwork(networkFilter);
+
+    if (!network.csucContractAddress) {
+      throw new Error(`CSUC contract address not found for network ${network.name}`);
+    }
+
     const wallet = this.#walletManager.getWalletById(from.walletId);
     if (!wallet) {
       throw new Error(`Cannot send from address ${from.id} because it's wallet is not found!`);
