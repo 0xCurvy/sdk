@@ -1,3 +1,5 @@
+import type { GetTransactionReceiptResponse as StarknetTransactionReceipt } from "starknet";
+import type { TransactionReceipt as EvmTransactionReceipt } from "viem";
 import type { CurvyAddress, CurvyAddressBalance, CurvyAddressBalances } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
@@ -26,7 +28,7 @@ abstract class Rpc {
     amount: string,
     currency: string,
     fee?: StarknetFeeEstimate | bigint,
-  ): Promise<string>;
+  ): Promise<EvmTransactionReceipt | StarknetTransactionReceipt>;
 
   abstract estimateFee(
     _curvyAddress: CurvyAddress,

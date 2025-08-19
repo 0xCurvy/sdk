@@ -102,7 +102,17 @@ interface MinifiedCurvyAddress<T extends NETWORK_FLAVOUR_VALUES = any>
   publicKey: Uint8Array;
 }
 
-export { isEvmCurvyAddress, isStarknetCurvyAddress, assertEvmCurvyAddress, assertStarknetCurvyAddress };
+const isValidAddressFormat = (recipient: string): recipient is HexString => {
+  return /^0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/.test(recipient);
+};
+
+export {
+  isEvmCurvyAddress,
+  isStarknetCurvyAddress,
+  assertEvmCurvyAddress,
+  assertStarknetCurvyAddress,
+  isValidAddressFormat,
+};
 
 export type {
   AnnouncementBase,

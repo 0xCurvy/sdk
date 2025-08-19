@@ -275,7 +275,7 @@ class StarknetRpc extends Rpc {
     amount: string,
     currency: string,
     fee?: StarknetFeeEstimate,
-  ): Promise<string> {
+  ) {
     if (!(await this.#checkIsStarknetAccountDeployed(curvyAddress))) {
       await this.deployStarknetAccount(curvyAddress, privateKey, true, fee?.deployFee);
     }
@@ -295,13 +295,15 @@ class StarknetRpc extends Rpc {
       feeEstimate = fee.transactionFee;
     }
 
-    const result = await starknetAccount.execute([txPayload], {
-      version: 3,
-      resourceBounds: feeEstimate.resourceBounds,
-      maxFee: feeEstimate.suggestedMaxFee,
-    });
-
-    return result.transaction_hash;
+    return this.#provider.waitForTransaction(
+      (
+        await starknetAccount.execute([txPayload], {
+          version: 3,
+          resourceBounds: feeEstimate.resourceBounds,
+          maxFee: feeEstimate.suggestedMaxFee,
+        })
+      ).transaction_hash,
+    );
   }
 
   async estimateFee(

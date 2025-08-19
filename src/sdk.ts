@@ -527,67 +527,71 @@ class CurvySDK implements ICurvySDK {
     const eligibleAddresses = await this.storage.getCurvyAddressesByWalletIdAndFlavour(walletId, "evm");
 
     if (eligibleAddresses.length !== 0) {
-      const {
-        data: { csaInfo },
-      } = await this.apiClient.csuc.GetCSAInfo({
-        network: CsucSupportedNetwork.ETHEREUM_SEPOLIA,
-        csas: eligibleAddresses.map((c) => c.address),
-      });
-
-      for (const [idx, address] of eligibleAddresses.entries()) {
-        const csaData = csaInfo[idx];
-        const network = this.getNetwork(csaData.network);
-
-        const networkSlug = toSlug(network.name);
-        const { balances, nonces } = csaData.balances
-          .map(({ token, amount }, idx) => {
-            const data = CSUC_TOKENS[csaData.network]?.find((c) => getAddress(c.address) === getAddress(token));
-            if (!data) return null;
-
-            const { address, symbol, decimals } = data;
-
-            const balance = BigInt(amount);
-
-            return balance
-              ? {
-                  balance,
-                  tokenMeta: {
-                    decimals,
-                    iconUrl: "",
-                    name: symbol,
-                    symbol,
-                  },
-                  networkMeta: {
-                    testnet: true,
-                    flavour: "evm" as const,
-                    group: "Ethereum" as const,
-                    slug: networkSlug,
-                  },
-                  tokenAddress: address,
-                  nonce: BigInt(csaData.nonce[idx].value),
-                }
-              : null;
-          })
-          .filter(Boolean)
-          .reduce<{ balances: CurvyAddressBalances; nonces: CurvyAddressCsucNonces }>(
-            (res, { nonce, ...rest }) => {
-              if (!res.balances[networkSlug]) res.balances[networkSlug] = Object.create(null);
-              res.balances[networkSlug]![rest.tokenMeta.symbol] = rest;
-
-              if (!res.nonces[networkSlug]) res.nonces[networkSlug] = Object.create(null);
-              res.nonces[networkSlug]![rest.tokenMeta.symbol] = nonce;
-
-              return res;
-            },
-            { balances: Object.create(null), nonces: Object.create(null) },
-          );
-
-        await this.storage.updateCurvyAddress(address.id, {
-          csuc: {
-            balances,
-            nonces,
-          },
+      try {
+        const {
+          data: { csaInfo },
+        } = await this.apiClient.csuc.GetCSAInfo({
+          network: CsucSupportedNetwork.ETHEREUM_SEPOLIA,
+          csas: eligibleAddresses.map((c) => c.address),
         });
+
+        for (const [idx, address] of eligibleAddresses.entries()) {
+          const csaData = csaInfo[idx];
+          const network = this.getNetwork(csaData.network);
+
+          const networkSlug = toSlug(network.name);
+          const { balances, nonces } = csaData.balances
+            .map(({ token, amount }, idx) => {
+              const data = CSUC_TOKENS[csaData.network]?.find((c) => getAddress(c.address) === getAddress(token));
+              if (!data) return null;
+
+              const { address, symbol, decimals } = data;
+
+              const balance = BigInt(amount);
+
+              return balance
+                ? {
+                    balance,
+                    tokenMeta: {
+                      decimals,
+                      iconUrl: "",
+                      name: symbol,
+                      symbol,
+                    },
+                    networkMeta: {
+                      testnet: true,
+                      flavour: "evm" as const,
+                      group: "Ethereum" as const,
+                      slug: networkSlug,
+                    },
+                    tokenAddress: address,
+                    nonce: BigInt(csaData.nonce[idx].value),
+                  }
+                : null;
+            })
+            .filter(Boolean)
+            .reduce<{ balances: CurvyAddressBalances; nonces: CurvyAddressCsucNonces }>(
+              (res, { nonce, ...rest }) => {
+                if (!res.balances[networkSlug]) res.balances[networkSlug] = Object.create(null);
+                res.balances[networkSlug]![rest.tokenMeta.symbol] = rest;
+
+                if (!res.nonces[networkSlug]) res.nonces[networkSlug] = Object.create(null);
+                res.nonces[networkSlug]![rest.tokenMeta.symbol] = nonce;
+
+                return res;
+              },
+              { balances: Object.create(null), nonces: Object.create(null) },
+            );
+
+          await this.storage.updateCurvyAddress(address.id, {
+            csuc: {
+              balances,
+              nonces,
+            },
+          });
+        }
+      } catch (e) {
+        console.error("Error while fetching CSUC balances and nonces", e);
       }
     }
 
