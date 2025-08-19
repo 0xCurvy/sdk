@@ -8,6 +8,7 @@ import { toSlug } from "@/utils/helpers";
 // - callback: Filter callback function that takes Network as argument
 // - boolean: Indicates whether we should connect to all mainnets (false) or all testnets (true)
 // - undefined: We want to return all
+// TODO: Think about renaming to NetworkSelector
 export type NetworkFilter =
   | string
   | string[]

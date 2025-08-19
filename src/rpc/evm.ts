@@ -50,6 +50,7 @@ class EvmRpc extends Rpc {
   get publicClient() {
     return this.#publicClient;
   }
+
   get walletClient() {
     return this.#walletClient;
   }
