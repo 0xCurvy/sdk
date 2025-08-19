@@ -10,6 +10,7 @@ import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/n
 import type { InputNoteData, OutputNoteData, Signature } from "@/types/aggregator";
 import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
+import type { NetworkFilter } from "@/utils/network";
 
 type _Announcement = {
   createdAt: string;
@@ -36,7 +37,7 @@ type Currency = {
   csucEnabled: boolean;
 };
 
-type RawNetwork = {
+type Network = {
   id: number;
   name: string;
   group: NETWORK_GROUP_VALUES;
@@ -48,9 +49,10 @@ type RawNetwork = {
   nativeCurrency: string | null;
   chainId: string;
   blockExplorerUrl: string;
+  rpcUrl: string;
 };
 
-type RawNetworkWithCurrencies = RawNetwork & {
+type NetworkWithCurrencies = Network & {
   currencies: Array<Currency>;
 };
 
@@ -113,15 +115,7 @@ type GetAnnouncementEncryptedMessageReturnType = {
 
 //#region Network
 
-type Network = RawNetworkWithCurrencies & {
-  rpcUrl: string;
-};
-
-type NetworkWithCurrencies = Network & {
-  currencies: Array<Currency>;
-};
-
-type NetworksWithCurrenciesResponse = { data: Array<RawNetworkWithCurrencies>; error: string | null };
+type NetworksWithCurrenciesResponse = { data: Array<NetworkWithCurrencies>; error: string | null };
 type GetNetworksReturnType = Array<Network>;
 
 //#endregion
