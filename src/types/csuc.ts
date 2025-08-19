@@ -1,16 +1,4 @@
-import type { Network } from "@/types/api";
-
-export enum CsucSupportedNetwork {
-  ETHEREUM_SEPOLIA = "ethereum-sepolia",
-}
-
-export enum CsucSupportedNetworkId {
-  ETHEREUM_SEPOLIA = 1,
-}
-
-export enum CsucSupportedNetworkChainId {
-  ETHEREUM_SEPOLIA = "11155111",
-}
+import type { Network, NetworkWithCurrencies } from "@/types/api";
 
 export enum CsucActionSet {
   TRANSFER = "transfer",
@@ -24,7 +12,7 @@ export type CsucActionType = {
 };
 export type CsucActionPayload = {
   id?: number;
-  network: CsucSupportedNetwork;
+  network: NetworkWithCurrencies;
   networkId: number;
   from: string;
   actionType: CsucActionType;
@@ -89,7 +77,7 @@ export type CsucBatch = {
   updatedAt: Date;
 };
 export type CSAInfo = {
-  network: CsucSupportedNetwork;
+  network: NetworkWithCurrencies;
   address: string;
   balances: CsucBalance[];
   nonce: CsucNonce[];
@@ -104,9 +92,3 @@ export type CsucNonce = {
   token: string;
   value: string;
 };
-
-export function assertNetworkIsSupported(network: CsucSupportedNetwork): asserts network is CsucSupportedNetwork {
-  if (network !== CsucSupportedNetwork.ETHEREUM_SEPOLIA) {
-    throw new Error("CSUC:EVM - Unsupported network for action type conversion!");
-  }
-}

@@ -1,25 +1,6 @@
 import { ethers } from "ethers";
 import { encodeAbiParameters, keccak256 } from "viem";
-import { CSUC_TOKENS } from "@/constants/csuc";
-import {
-  assertNetworkIsSupported,
-  type CsucActionPayload,
-  type CsucActionType,
-  type CsucSignature,
-  CsucSupportedNetwork,
-  CsucSupportedNetworkChainId,
-} from "@/types/csuc";
-
-export const supportedNetworkToChainId = (network: CsucSupportedNetwork): CsucSupportedNetworkChainId => {
-  switch (network) {
-    case CsucSupportedNetwork.ETHEREUM_SEPOLIA:
-      return CsucSupportedNetworkChainId.ETHEREUM_SEPOLIA;
-    default:
-      throw new Error(
-        `Unsupported network: ${network}. Supported networks: ${Object.values(CsucSupportedNetwork).join(", ")}`,
-      );
-  }
-};
+import type { CsucActionPayload, CsucActionType, CsucSignature } from "@/types/csuc";
 
 export const hashActionPayload = (
   chainId: string,
@@ -27,8 +8,6 @@ export const hashActionPayload = (
   totalFee: string,
   nonce: string,
 ): string => {
-  assertNetworkIsSupported(payload.network);
-
   const actionId = getOnchainActionId(payload);
   const { token, amount, parameters } = JSON.parse(payload.encodedData) as any;
 
@@ -101,8 +80,6 @@ export const hashActionPayload = (
 
 // Convert CSUC.ActionType to a hash representation for the contract
 export const getOnchainActionId = (payload: CsucActionPayload): bigint => {
-  assertNetworkIsSupported(payload.network);
-
   const hash = (id: string) => {
     const encoded = encodeAbiParameters([{ type: "string" }], [id]);
 
@@ -130,10 +107,6 @@ export const signActionPayload = async (
   nonce: string,
   privateKey: `0x${string}`,
 ): Promise<CsucSignature> => {
-  if (payload.network !== CsucSupportedNetwork.ETHEREUM_SEPOLIA) {
-    throw new Error("Unsupported network for signing action");
-  }
-
   const rawMessage = hashActionPayload(chainId, payload, totalFee, nonce);
 
   // Viem doesn't create signature correctly!
@@ -165,18 +138,4 @@ export const signActionPayload = async (
     s: s.toString(),
     v: BigInt(v).toString(),
   } as CsucSignature;
-};
-
-export const getTokenAddress = (networkId: string, tokenSymbol: string) => {
-  if (networkId !== "ethereum-sepolia") {
-    return undefined;
-  }
-  return CSUC_TOKENS[networkId]?.find((token) => token.symbol === tokenSymbol)?.address;
-};
-
-export const getTokenSymbol = (network: CsucSupportedNetwork, tokenAddress: string) => {
-  if (network !== CsucSupportedNetwork.ETHEREUM_SEPOLIA) {
-    return undefined;
-  }
-  return CSUC_TOKENS[network]?.find((token) => token.address.toLowerCase() === tokenAddress.toLowerCase())?.symbol;
 };
