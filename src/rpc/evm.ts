@@ -17,7 +17,7 @@ import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { ARTIFACT as CSUC_ETH_SEPOLIA_ARTIFACT } from "@/contracts/evm/curvy-artifacts/ethereum-sepolia/CSUC";
 import { Rpc } from "@/rpc/abstract";
 import type { CurvyAddress, CurvyAddressBalances } from "@/types/address";
-import type { Network } from "@/types/api";
+import type { Currency, Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import { jsonStringify } from "@/utils/common";
@@ -274,6 +274,30 @@ class EvmRpc extends Rpc {
 
   feeToAmount(feeEstimate: bigint): bigint {
     return feeEstimate;
+  }
+
+  async onboardNativeToCSUC(from: CurvyAddress, privateKey: HexString, currency: Currency, amount: string) {
+    const hash = await this.walletClient.writeContract({
+      abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
+      functionName: "wrapNative",
+      account: privateKeyToAccount(privateKey),
+      chain: this.#walletClient.chain,
+      address: this.network.csucContractAddress as HexString,
+      args: [from.address],
+      value: parseDecimal(amount, currency),
+    });
+
+    const receipt = this.publicClient.waitForTransactionReceipt({
+      hash,
+    });
+
+    const txExplorerUrl = `${this.network.blockExplorerUrl}/tx/${hash}`;
+
+    return {
+      txHash: hash,
+      txExplorerUrl,
+      receipt,
+    };
   }
 
   // TODO: We should introduce commands first here as an example

@@ -13,7 +13,7 @@ import type { HexString } from "@/types/helper";
 type ScannedAnnouncement = RawAnnouncement & {
   publicKey: string;
   walletId: string;
-  address: string;
+  address: HexString;
 };
 
 type AnnouncementBase = {

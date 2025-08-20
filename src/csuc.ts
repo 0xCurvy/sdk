@@ -65,7 +65,6 @@ const prepareCsucActionEstimationRequest = async (
     parameters,
   });
   const payload: CsucActionPayload = {
-    network,
     networkId: 1,
     from: from.address,
     actionType: {
