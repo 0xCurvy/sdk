@@ -51,7 +51,7 @@
     "ethers": "^6.14.4",
     "eventemitter3": "^5.0.1",
     "lodash.merge": "^4.6.2",
-    "starknet": "^7.6.2",
+    "starknet": "^7.6.4",
     "viem": "^2.30.5"
   },
   "config": {

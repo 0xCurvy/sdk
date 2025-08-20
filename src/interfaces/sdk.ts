@@ -20,12 +20,13 @@ import type {
   ScanCompleteEvent,
   ScanErrorEvent,
   ScanMatchEvent,
+  SyncCompleteEvent,
   SyncErrorEvent,
   SyncProgressEvent,
   SyncStartedEvent,
 } from "@/types/events";
 import type { HexString } from "@/types/helper";
-import type { CurvyFeeEstimate, StarknetFeeEstimate } from "@/types/rpc";
+import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
 import type { CurvySignatureParameters, EvmSignatureData, StarknetSignatureData } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
 import type { CurvyWallet } from "@/wallet";
@@ -103,7 +104,7 @@ interface ICurvySDK {
     currency: string,
     fee: StarknetFeeEstimate | bigint,
     message?: string,
-  ): Promise<string>;
+  ): Promise<SendReturnType>;
 
   createDeposit(payload: DepositPayload): Promise<SubmitDepositReturnType>;
   createWithdraw(payload: WithdrawPayload): Promise<SubmitWithdrawReturnType>;
@@ -113,7 +114,7 @@ interface ICurvySDK {
   // Event subscriptions
   onSyncStarted(listener: (event: SyncStartedEvent) => void): void;
   onSyncProgress(listener: (event: SyncProgressEvent) => void): void;
-  onSyncComplete(listener: (event: SyncProgressEvent) => void): void;
+  onSyncComplete(listener: (event: SyncCompleteEvent) => void): void;
   onSyncError(listener: (event: SyncErrorEvent) => void): void;
 
   onScanMatch(listener: (event: ScanMatchEvent) => void): void;

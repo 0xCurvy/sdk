@@ -1,4 +1,5 @@
-import type { EstimateFee } from "starknet";
+import type { EstimateFee, GetTransactionReceiptResponse as StarknetTransactionReceipt } from "starknet";
+import type { TransactionReceipt as EvmTransactionReceipt } from "viem";
 import type { HexString } from "@/types/helper";
 
 type StarknetFeeEstimate = {
@@ -22,4 +23,10 @@ type RecipientData = {
   pubKey?: string;
 };
 
-export type { StarknetFeeEstimate, CurvyFeeEstimate, RecipientData };
+type SendReturnType = {
+  txHash: string;
+  txExplorerUrl: string;
+  receipt: EvmTransactionReceipt | StarknetTransactionReceipt;
+};
+
+export type { StarknetFeeEstimate, CurvyFeeEstimate, RecipientData, SendReturnType };

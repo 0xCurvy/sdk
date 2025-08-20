@@ -2,7 +2,7 @@ import type { CurvyAddress, CurvyAddressBalance, CurvyAddressBalances } from "@/
 import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
-import type { StarknetFeeEstimate } from "@/types/rpc";
+import type { SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
 
 abstract class Rpc {
   readonly #network: Network;
@@ -26,7 +26,7 @@ abstract class Rpc {
     amount: string,
     currency: string,
     fee?: StarknetFeeEstimate | bigint,
-  ): Promise<string>;
+  ): Promise<SendReturnType>;
 
   abstract estimateFee(
     _curvyAddress: CurvyAddress,

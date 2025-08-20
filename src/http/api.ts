@@ -28,7 +28,6 @@ import type {
   UpdateAnnouncementEncryptedMessageReturnType,
   WithdrawPayload,
 } from "@/types/api";
-import { toSlug } from "@/utils/helpers";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
@@ -81,9 +80,7 @@ class ApiClient extends HttpClient implements IApiClient {
         path: "/currency/latest",
       });
 
-      return networks.data.map((network) => {
-        return { ...network, rpcUrl: `${this.apiBaseUrl}/rpc/${toSlug(network.name)}` };
-      });
+      return networks.data;
     },
   };
 

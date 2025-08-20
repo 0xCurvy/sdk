@@ -3,7 +3,6 @@ import dayjs from "dayjs";
 import { mul, toNumber } from "dnum";
 import { ec, validateAndParseAddress } from "starknet";
 import { getAddress, parseSignature, verifyTypedData } from "viem";
-import { CSUC_TOKENS } from "@/constants/csuc";
 import {
   BALANCE_REFRESH_COMPLETE_EVENT,
   BALANCE_REFRESH_PROGRESS_EVENT,
@@ -34,14 +33,7 @@ import type { StarknetRpc } from "@/rpc/starknet";
 import { TemporaryStorage } from "@/storage/temporary-storage";
 import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
 import type { AggregationRequest, Currency, DepositPayload, Network, WithdrawPayload } from "@/types/api";
-import {
-  type CsucActionPayload,
-  type CsucActionSet,
-  type CsucActionStatus,
-  type CsucEstimatedActionCost,
-  CsucSupportedNetwork,
-  CsucSupportedNetworkId,
-} from "@/types/csuc";
+import type { CsucActionPayload, CsucActionSet, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
   BalanceRefreshCompleteEvent,
@@ -50,6 +42,7 @@ import type {
   ScanCompleteEvent,
   ScanErrorEvent,
   ScanMatchEvent,
+  SyncCompleteEvent,
   SyncErrorEvent,
   SyncProgressEvent,
   SyncStartedEvent,
@@ -180,6 +173,7 @@ class CurvySDK implements ICurvySDK {
     return this.storage.getCurvyAddressById(id);
   }
 
+  // TODO[@lazartravica]: I reimplemented this on the backend, I need to revert and use this
   getNetwork(networkFilter: NetworkFilter = undefined) {
     const networks = filterNetworks(this.#networks, networkFilter);
 
@@ -515,7 +509,7 @@ class CurvySDK implements ICurvySDK {
     });
 
     for (const address of addresses) {
-      await this.storage.updateCurvyAddress(address.id, { balances: await this.rpcClient.getBalances(address) });
+      await this.refreshAddressBalances(address);
       processed++;
       this.#emitter.emitBalanceRefreshProgress({
         walletId,
@@ -523,81 +517,13 @@ class CurvySDK implements ICurvySDK {
       });
     }
 
-    // TODO CSUC balances and nonces, this is a temporary solution, need to move this to a separate method
-    const eligibleAddresses = await this.storage.getCurvyAddressesByWalletIdAndFlavour(walletId, "evm");
-
-    if (eligibleAddresses.length !== 0) {
-      const {
-        data: { csaInfo },
-      } = await this.apiClient.csuc.GetCSAInfo({
-        network: CsucSupportedNetwork.ETHEREUM_SEPOLIA,
-        csas: eligibleAddresses.map((c) => c.address),
-      });
-
-      for (const [idx, address] of eligibleAddresses.entries()) {
-        const csaData = csaInfo[idx];
-        const network = this.getNetwork(csaData.network);
-
-        const networkSlug = toSlug(network.name);
-        const { balances, nonces } = csaData.balances
-          .map(({ token, amount }, idx) => {
-            const data = CSUC_TOKENS[csaData.network]?.find((c) => getAddress(c.address) === getAddress(token));
-            if (!data) return null;
-
-            const { address, symbol, decimals } = data;
-
-            const balance = BigInt(amount);
-
-            return balance
-              ? {
-                  balance,
-                  tokenMeta: {
-                    decimals,
-                    iconUrl: "",
-                    name: symbol,
-                    symbol,
-                  },
-                  networkMeta: {
-                    testnet: true,
-                    flavour: "evm" as const,
-                    group: "Ethereum" as const,
-                    slug: networkSlug,
-                  },
-                  tokenAddress: address,
-                  nonce: BigInt(csaData.nonce[idx].value),
-                }
-              : null;
-          })
-          .filter(Boolean)
-          .reduce<{ balances: CurvyAddressBalances; nonces: CurvyAddressCsucNonces }>(
-            (res, { nonce, ...rest }) => {
-              if (!res.balances[networkSlug]) res.balances[networkSlug] = Object.create(null);
-              res.balances[networkSlug]![rest.tokenMeta.symbol] = rest;
-
-              if (!res.nonces[networkSlug]) res.nonces[networkSlug] = Object.create(null);
-              res.nonces[networkSlug]![rest.tokenMeta.symbol] = nonce;
-
-              return res;
-            },
-            { balances: Object.create(null), nonces: Object.create(null) },
-          );
-
-        await this.storage.updateCurvyAddress(address.id, {
-          csuc: {
-            balances,
-            nonces,
-          },
-        });
-      }
-    }
-
     this.#emitter.emitBalanceRefreshComplete({
       walletId,
     });
-
     this.#semaphore[`refresh-balances-${walletId}`] = undefined;
   }
 
+  // refreshBalances refreshes balances for all wallets
   async refreshBalances() {
     if (this.#semaphore["refresh-balances"]) {
       return;
@@ -629,14 +555,13 @@ class CurvySDK implements ICurvySDK {
 
     await this.storage.updateCurvyAddress(address.id, { balances: await this.rpcClient.getBalances(address) });
 
-    /* TODO refactor csuc balances and nonces, this is a temporary solution, need to move this to a separate method
-        when other refactoring is done
-    * */
-    if (Object.values(CsucSupportedNetworkId).includes(address.id)) {
+    // TODO: Move to RPC
+    // TODO: Move to artifact
+    if (address.networkFlavour === NETWORK_FLAVOUR.EVM) {
       const {
         data: { csaInfo },
       } = await this.apiClient.csuc.GetCSAInfo({
-        network: CsucSupportedNetwork.ETHEREUM_SEPOLIA,
+        network: "ethereum-sepolia",
         csas: [address.address],
       });
 
@@ -644,12 +569,13 @@ class CurvySDK implements ICurvySDK {
       const network = this.getNetwork(csaData.network);
       const networkSlug = toSlug(network.name);
 
+      // TODO: We don't  use token but currency in this context. Remove all mentions of token.
       const { balances, nonces } = csaData.balances
         .map(({ token, amount }, idx) => {
-          const data = CSUC_TOKENS[csaData.network]?.find((c) => getAddress(c.address) === getAddress(token));
-          if (!data) return null;
+          const currency = network.currencies.find((currency) => currency.contractAddress === token);
+          if (!currency) return null;
 
-          const { address, symbol, decimals } = data;
+          const { contractAddress, symbol, decimals, name, iconUrl } = currency;
 
           const balance = BigInt(amount);
 
@@ -658,17 +584,17 @@ class CurvySDK implements ICurvySDK {
                 balance,
                 tokenMeta: {
                   decimals,
-                  iconUrl: "",
-                  name: symbol,
+                  iconUrl,
+                  name,
                   symbol,
                 },
                 networkMeta: {
-                  testnet: true,
-                  flavour: "evm" as const,
-                  group: "Ethereum" as const,
+                  testnet: network.testnet,
+                  flavour: network.flavour,
+                  group: network.group,
                   slug: networkSlug,
                 },
-                tokenAddress: address,
+                tokenAddress: contractAddress as HexString,
                 nonce: BigInt(csaData.nonce[idx].value),
               }
             : null;
@@ -824,13 +750,19 @@ class CurvySDK implements ICurvySDK {
   }
 
   async estimateActionInsideCSUC(
-    network: CsucSupportedNetwork,
+    networkFilter: NetworkFilter,
     actionId: CsucActionSet,
     from: CurvyAddress,
     to: HexString,
     token: HexString,
     _amount: bigint | string,
   ): Promise<CsucEstimatedActionCost> {
+    const network = this.getNetwork(networkFilter);
+
+    if (!network.csucContractAddress) {
+      throw new Error(`CSUC contract address not found for network ${network.name}`);
+    }
+
     // User creates an action payload, and determines the wanted cost/speed
     // TODO: Get eth properly
     const amount = parseDecimal("0.001", { decimals: 18 } as Currency).toString();
@@ -847,11 +779,17 @@ class CurvySDK implements ICurvySDK {
   }
 
   async requestActionInsideCSUC(
-    network: CsucSupportedNetwork,
+    networkFilter: NetworkFilter,
     from: CurvyAddress,
     payload: CsucActionPayload,
     totalFee: string,
   ): Promise<CsucActionStatus> {
+    const network = this.getNetwork(networkFilter);
+
+    if (!network.csucContractAddress) {
+      throw new Error(`CSUC contract address not found for network ${network.name}`);
+    }
+
     const wallet = this.#walletManager.getWalletById(from.walletId);
     if (!wallet) {
       throw new Error(`Cannot send from address ${from.id} because it's wallet is not found!`);
@@ -879,7 +817,7 @@ class CurvySDK implements ICurvySDK {
     this.#emitter.on(SYNC_PROGRESS_EVENT, listener);
   }
 
-  onSyncComplete(listener: (event: SyncProgressEvent) => void) {
+  onSyncComplete(listener: (event: SyncCompleteEvent) => void) {
     this.#emitter.on(SYNC_COMPLETE_EVENT, listener);
   }
 

@@ -21,7 +21,7 @@ import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import { jsonStringify } from "@/utils/common";
-import { parseDecimal } from '@/utils/currency';
+import { parseDecimal } from "@/utils/currency";
 import { toSlug } from "@/utils/helpers";
 import { generateViemChainFromNetwork } from "@/utils/rpc";
 
@@ -50,6 +50,7 @@ class EvmRpc extends Rpc {
   get publicClient() {
     return this.#publicClient;
   }
+
   get walletClient() {
     return this.#walletClient;
   }
@@ -62,7 +63,7 @@ class EvmRpc extends Rpc {
     });
 
     const calls = this.network.currencies.map(({ nativeCurrency, contractAddress }) => {
-      if (!nativeCurrency) {
+      if (nativeCurrency) {
         return {
           target: evmMulticall.address,
           callData: encodeFunctionData({
@@ -244,7 +245,19 @@ class EvmRpc extends Rpc {
     const txRequest = await this.#prepareTx(privateKey, address as `0x${string}`, amount, currencySymbol);
     const serializedTransaction = await this.#walletClient.signTransaction(txRequest);
 
-    return this.#walletClient.sendRawTransaction({ serializedTransaction });
+    const hash = await this.#walletClient.sendRawTransaction({ serializedTransaction });
+
+    const receipt = await this.publicClient.waitForTransactionReceipt({
+      hash,
+    });
+
+    const txExplorerUrl = `${this.network.blockExplorerUrl}/tx/${hash}`;
+
+    return {
+      txHash: hash,
+      txExplorerUrl,
+      receipt,
+    };
   }
 
   async estimateFee(
@@ -300,7 +313,7 @@ class EvmRpc extends Rpc {
         data: encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
-          args: [csucContractAddress, parseDecimal(amount,token)],
+          args: [csucContractAddress, parseDecimal(amount, token)],
         }),
         gas: 70_000n,
         nonce,
@@ -311,7 +324,7 @@ class EvmRpc extends Rpc {
         data: encodeFunctionData({
           abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
           functionName: "wrapERC20",
-          args: [toAddress, token.contractAddress as `0x${string}`, parseDecimal(amount,token)],
+          args: [toAddress, token.contractAddress as `0x${string}`, parseDecimal(amount, token)],
         }),
         gas: 120_000n,
         nonce: ++nonce,

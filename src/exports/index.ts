@@ -43,5 +43,6 @@ export * from "../types/wallet";
 export * from "../utils/common";
 export * from "../utils/csuc";
 export * from "../utils/currency";
+export * from "../utils/encryption";
 export { filterNetworks, type NetworkFilter } from "../utils/network";
 export type { CurvyWallet } from "../wallet";
