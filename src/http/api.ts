@@ -82,7 +82,7 @@ class ApiClient extends HttpClient implements IApiClient {
       });
 
       return networks.data.map((network) => {
-        return { ...network, rpcUrl: `${this.apiBaseUrl}/rpc/${toSlug(network.name)}` };
+        return { ...network };
       });
     },
   };

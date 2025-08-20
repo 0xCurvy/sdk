@@ -1,5 +1,3 @@
-import type { GetTransactionReceiptResponse as StarknetTransactionReceipt } from "starknet";
-import type { TransactionReceipt as EvmTransactionReceipt } from "viem";
 import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
 import type { MultiRpc } from "@/rpc/multi";
 import type { CurvyAddress } from "@/types/address";
@@ -27,7 +25,7 @@ import type {
   SyncStartedEvent,
 } from "@/types/events";
 import type { HexString } from "@/types/helper";
-import type { CurvyFeeEstimate, StarknetFeeEstimate } from "@/types/rpc";
+import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
 import type { CurvySignatureParameters, EvmSignatureData, StarknetSignatureData } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
 import type { CurvyWallet } from "@/wallet";
@@ -105,7 +103,7 @@ interface ICurvySDK {
     currency: string,
     fee: StarknetFeeEstimate | bigint,
     message?: string,
-  ): Promise<EvmTransactionReceipt | StarknetTransactionReceipt>;
+  ): Promise<SendReturnType>;
 
   createDeposit(payload: DepositPayload): Promise<SubmitDepositReturnType>;
   createWithdraw(payload: WithdrawPayload): Promise<SubmitWithdrawReturnType>;

@@ -245,9 +245,19 @@ class EvmRpc extends Rpc {
     const txRequest = await this.#prepareTx(privateKey, address as `0x${string}`, amount, currencySymbol);
     const serializedTransaction = await this.#walletClient.signTransaction(txRequest);
 
-    return this.publicClient.waitForTransactionReceipt({
-      hash: await this.#walletClient.sendRawTransaction({ serializedTransaction }),
+    const hash = await this.#walletClient.sendRawTransaction({ serializedTransaction });
+
+    const receipt = await this.publicClient.waitForTransactionReceipt({
+      hash,
     });
+
+    const txExplorerUrl = `${this.network.blockExplorerUrl}/tx/${hash}`;
+
+    return {
+      txHash: hash,
+      txExplorerUrl,
+      receipt,
+    };
   }
 
   async estimateFee(

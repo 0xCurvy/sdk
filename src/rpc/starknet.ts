@@ -295,15 +295,23 @@ class StarknetRpc extends Rpc {
       feeEstimate = fee.transactionFee;
     }
 
-    return this.#provider.waitForTransaction(
-      (
-        await starknetAccount.execute([txPayload], {
-          version: 3,
-          resourceBounds: feeEstimate.resourceBounds,
-          maxFee: feeEstimate.suggestedMaxFee,
-        })
-      ).transaction_hash,
-    );
+    const hash = (
+      await starknetAccount.execute([txPayload], {
+        version: 3,
+        resourceBounds: feeEstimate.resourceBounds,
+        maxFee: feeEstimate.suggestedMaxFee,
+      })
+    ).transaction_hash;
+
+    const receipt = await this.#provider.waitForTransaction(hash);
+
+    const txExplorerUrl = `${this.network.blockExplorerUrl}/tx/${hash}`;
+
+    return {
+      txHash: hash,
+      txExplorerUrl,
+      receipt,
+    };
   }
 
   async estimateFee(
