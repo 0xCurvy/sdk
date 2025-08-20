@@ -287,7 +287,7 @@ class EvmRpc extends Rpc {
       value: parseDecimal(amount, currency),
     });
 
-    const receipt = this.publicClient.waitForTransactionReceipt({
+    const receipt = await this.publicClient.waitForTransactionReceipt({
       hash,
     });
 
