@@ -817,10 +817,10 @@ class CurvySDK implements ICurvySDK {
     const action = await prepareCuscActionRequest(network, from, privateKey, payload, totalFee);
 
     const response = await this.apiClient.csuc.SubmitActionRequest({
-      actions: [action],
+      action: action,
     });
 
-    return response.data.actionStatuses[0];
+    return response.data.actionStatus;
   }
 
   onSyncStarted(listener: (event: SyncStartedEvent) => void) {

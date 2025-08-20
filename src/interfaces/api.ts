@@ -1,6 +1,5 @@
 import type {
   AggregationRequest,
-  CreateActionRequest,
   CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
@@ -26,6 +25,7 @@ import type {
   UpdateAnnouncementEncryptedMessageReturnType,
   WithdrawPayload,
 } from "@/types/api";
+import type { CsucAction } from "@/types/csuc";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
@@ -71,7 +71,7 @@ interface IApiClient {
   csuc: {
     GetCSAInfo(req: GetCSAInfoRequest): Promise<GetCSAInfoResponse>;
     EstimateAction(req: GetActionEstimatedCostRequest): Promise<GetActionEstimatedCostResponse>;
-    SubmitActionRequest(req: CreateActionRequest): Promise<CreateActionResponse>;
+    SubmitActionRequest(req: { action: CsucAction }): Promise<CreateActionResponse>;
   };
 
   gasSponsorship: {

@@ -221,11 +221,11 @@ type GetActionEstimatedCostResponse = {
 };
 
 type CreateActionRequest = {
-  actions: CsucAction[];
+  action: CsucAction;
 };
 
 type CreateActionResponse = {
-  data: { actionStatuses: CsucActionStatus[] };
+  data: { actionStatus: CsucActionStatus };
 };
 
 export type {
