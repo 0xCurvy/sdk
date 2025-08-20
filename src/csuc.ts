@@ -4,6 +4,7 @@ import type { Network } from "@/types/api";
 import { type CsucAction, type CsucActionPayload, CsucActionSet } from "@/types/csuc";
 import type { HexString } from "@/types/helper";
 import { signActionPayload } from "@/utils/csuc";
+import { toSlug } from "../../backend/src/lib/repositories/network/type";
 
 const prepareCsucActionEstimationRequest = async (
   network: Network,
@@ -88,6 +89,7 @@ const prepareCuscActionRequest = async (
   // TODO: Think whether we need validation here at all because backend will fail.
 
   const chainId = network.chainId;
+  const networkName = toSlug(network.name);
 
   const { token: currencyContractAddress } = JSON.parse(payload.encodedData) as any;
   const currency = network.currencies.find((currency) => {
@@ -97,9 +99,9 @@ const prepareCuscActionRequest = async (
     throw new Error(`Token ${currencyContractAddress} not found on network ${network}`);
   }
 
-  const nonce = from.csuc.nonces[network.name]?.[currency.symbol];
+  const nonce = from.csuc.nonces[networkName]?.[currency.symbol];
 
-  if (!nonce) {
+  if (nonce === undefined) {
     throw new Error(`Nonce for ${currency.symbol} not found on ${from.address}`);
   }
 
