@@ -27,6 +27,7 @@ import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
+import { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import type { StarknetRpc } from "@/rpc/starknet";
@@ -730,7 +731,11 @@ class CurvySDK implements ICurvySDK {
     currencySymbol: string,
     amount: bigint | string,
   ) {
-    // User creates a request to be onboarded to CSUC
+    const currency = this.getNetwork("ethereum-sepolia").currencies.find((c) => c.symbol === currencySymbol);
+
+    if (!currency) {
+      throw new Error(`Currency with symbol ${currencySymbol} not found on network ethereum-sepolia!`);
+    }
 
     const wallet = this.#walletManager.getWalletById(from.walletId);
     if (!wallet) {
@@ -742,9 +747,18 @@ class CurvySDK implements ICurvySDK {
       spendingPrivKeys: [privateKey],
     } = this.#core.scan(s, v, [from]);
 
+    if (currency.nativeCurrency) {
+      const rpc = this.rpcClient.Network("ethereum-sepolia");
+
+      // TODO For now we only support EVM RPCs for CSUC
+      if (rpc instanceof EvmRpc) {
+        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount.toString());
+      }
+    }
+
     const request = await this.rpcClient
       .Network("ethereum-sepolia")
-      .prepareCSUCOnboardTransactions(privateKey, toAddress, currencySymbol, amount);
+      .prepareCSUCOnboardTransactions(privateKey, toAddress, currency.symbol, amount);
 
     return await this.apiClient.gasSponsorship.SubmitRequest(request);
   }

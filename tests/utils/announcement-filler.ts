@@ -8,7 +8,6 @@ export function mockPopulateAnnouncement(announcement: AnnouncementBase): RawAnn
     ...announcement,
     id: (mockIdCounter++).toString(),
     createdAt: new Date().toString(),
-    network_id: 1,
     networkFlavour: "evm" as const,
   };
 }
