@@ -42,6 +42,7 @@ import type {
   ScanCompleteEvent,
   ScanErrorEvent,
   ScanMatchEvent,
+  SyncCompleteEvent,
   SyncErrorEvent,
   SyncProgressEvent,
   SyncStartedEvent,
@@ -557,70 +558,66 @@ class CurvySDK implements ICurvySDK {
     // TODO: Move to RPC
     // TODO: Move to artifact
     if (address.networkFlavour === NETWORK_FLAVOUR.EVM) {
-      try {
-        const {
-          data: { csaInfo },
-        } = await this.apiClient.csuc.GetCSAInfo({
-          network: "ethereum-sepolia",
-          csas: [address.address],
-        });
+      const {
+        data: { csaInfo },
+      } = await this.apiClient.csuc.GetCSAInfo({
+        network: "ethereum-sepolia",
+        csas: [address.address],
+      });
 
-        const csaData = csaInfo[0];
-        const network = this.getNetwork(csaData.network);
-        const networkSlug = toSlug(network.name);
+      const csaData = csaInfo[0];
+      const network = this.getNetwork(csaData.network);
+      const networkSlug = toSlug(network.name);
 
-        // TODO: We don't  use token but currency in this context. Remove all mentions of token.
-        const { balances, nonces } = csaData.balances
-          .map(({ token, amount }, idx) => {
-            const currency = network.currencies.find((currency) => currency.contractAddress === token);
-            if (!currency) return null;
+      // TODO: We don't  use token but currency in this context. Remove all mentions of token.
+      const { balances, nonces } = csaData.balances
+        .map(({ token, amount }, idx) => {
+          const currency = network.currencies.find((currency) => currency.contractAddress === token);
+          if (!currency) return null;
 
-            const { contractAddress, symbol, decimals } = currency;
+          const { contractAddress, symbol, decimals, name, iconUrl } = currency;
 
-            const balance = BigInt(amount);
+          const balance = BigInt(amount);
 
-            return balance
-              ? {
-                  balance,
-                  tokenMeta: {
-                    decimals,
-                    iconUrl: "",
-                    name: symbol,
-                    symbol,
-                  },
-                  networkMeta: {
-                    testnet: true,
-                    flavour: "evm" as const,
-                    group: "Ethereum" as const,
-                    slug: networkSlug,
-                  },
-                  tokenAddress: contractAddress as HexString,
-                  nonce: BigInt(csaData.nonce[idx].value),
-                }
-              : null;
-          })
-          .filter(Boolean)
-          .reduce<{ balances: CurvyAddressBalances; nonces: CurvyAddressCsucNonces }>(
-            (res, { nonce, ...rest }) => {
-              if (!res.balances[networkSlug]) res.balances[networkSlug] = Object.create(null);
-              res.balances[networkSlug]![rest.tokenMeta.symbol] = rest;
+          return balance
+            ? {
+                balance,
+                tokenMeta: {
+                  decimals,
+                  iconUrl,
+                  name,
+                  symbol,
+                },
+                networkMeta: {
+                  testnet: network.testnet,
+                  flavour: network.flavour,
+                  group: network.group,
+                  slug: networkSlug,
+                },
+                tokenAddress: contractAddress as HexString,
+                nonce: BigInt(csaData.nonce[idx].value),
+              }
+            : null;
+        })
+        .filter(Boolean)
+        .reduce<{ balances: CurvyAddressBalances; nonces: CurvyAddressCsucNonces }>(
+          (res, { nonce, ...rest }) => {
+            if (!res.balances[networkSlug]) res.balances[networkSlug] = Object.create(null);
+            res.balances[networkSlug]![rest.tokenMeta.symbol] = rest;
 
-              if (!res.nonces[networkSlug]) res.nonces[networkSlug] = Object.create(null);
-              res.nonces[networkSlug]![rest.tokenMeta.symbol] = nonce;
+            if (!res.nonces[networkSlug]) res.nonces[networkSlug] = Object.create(null);
+            res.nonces[networkSlug]![rest.tokenMeta.symbol] = nonce;
 
-              return res;
-            },
-            { balances: Object.create(null), nonces: Object.create(null) },
-          );
-        await this.storage.updateCurvyAddress(address.id, {
-          csuc: {
-            balances,
-            nonces,
+            return res;
           },
-        });
-      } catch (e) {
-        console.log(`Failed to fetch CSA info`, e);
-      }
+          { balances: Object.create(null), nonces: Object.create(null) },
+        );
+      await this.storage.updateCurvyAddress(address.id, {
+        csuc: {
+          balances,
+          nonces,
+        },
+      });
     }
 
     this.#semaphore[`refresh-balance-${address.id}`] = undefined;
@@ -820,7 +817,7 @@ class CurvySDK implements ICurvySDK {
     this.#emitter.on(SYNC_PROGRESS_EVENT, listener);
   }
 
-  onSyncComplete(listener: (event: SyncProgressEvent) => void) {
+  onSyncComplete(listener: (event: SyncCompleteEvent) => void) {
     this.#emitter.on(SYNC_COMPLETE_EVENT, listener);
   }
 

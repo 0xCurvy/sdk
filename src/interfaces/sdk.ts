@@ -20,6 +20,7 @@ import type {
   ScanCompleteEvent,
   ScanErrorEvent,
   ScanMatchEvent,
+  SyncCompleteEvent,
   SyncErrorEvent,
   SyncProgressEvent,
   SyncStartedEvent,
@@ -113,7 +114,7 @@ interface ICurvySDK {
   // Event subscriptions
   onSyncStarted(listener: (event: SyncStartedEvent) => void): void;
   onSyncProgress(listener: (event: SyncProgressEvent) => void): void;
-  onSyncComplete(listener: (event: SyncProgressEvent) => void): void;
+  onSyncComplete(listener: (event: SyncCompleteEvent) => void): void;
   onSyncError(listener: (event: SyncErrorEvent) => void): void;
 
   onScanMatch(listener: (event: ScanMatchEvent) => void): void;
