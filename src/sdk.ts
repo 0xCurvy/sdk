@@ -416,7 +416,7 @@ class CurvySDK implements ICurvySDK {
       !(
         publicKeys.viewingKey === keyPairs.V &&
         publicKeys.spendingKey === keyPairs.S &&
-        publicKeys.babyJubJubKey === keyPairs.BJJ
+        publicKeys.babyJubJubKey === keyPairs.bJJPublicKey
       )
     ) {
       throw new Error(`Wrong password for handle ${curvyHandle}.`);
@@ -470,7 +470,7 @@ class CurvySDK implements ICurvySDK {
     await this.apiClient.user.RegisterCurvyHandle({
       handle,
       ownerAddress,
-      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, babyJubJubKey: keyPairs.BJJ },
+      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, babyJubJubKey: keyPairs.bJJPublicKey },
     });
 
     const { data: registerDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);

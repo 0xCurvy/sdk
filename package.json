@@ -38,6 +38,8 @@
   "devDependencies": {
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/lodash.merge": "^4.6.9",
+    "@types/circomlibjs": "^0.1.6",
+    "@types/snarkjs": "^0.7.9",
     "rimraf": "^6.0.1",
     "tsup": "8.5.0",
     "typescript": "5.8.3",
@@ -45,8 +47,6 @@
   },
   "dependencies": {
     "@noble/secp256k1": "^2.3.0",
-    "@types/circomlibjs": "^0.1.6",
-    "@types/snarkjs": "^0.7.9",
     "buffer": "^6.0.3",
     "circomlibjs": "^0.1.7",
     "dayjs": "^1.11.13",

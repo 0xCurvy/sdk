@@ -3,6 +3,7 @@ import type { HexString } from "@/types/helper";
 type PublicKey = {
   spendingKey: string;
   viewingKey: string;
+  bJJKey: string;
 };
 
 type CoreLegacyKeyPairs = {
@@ -19,7 +20,7 @@ type CurvyPrivateKeys = {
 type CurvyPublicKeys = {
   S: string;
   V: string;
-  BJJ: string;
+  bJJPublicKey: string;
 };
 type CurvyKeyPairs = CurvyPrivateKeys & CurvyPublicKeys;
 
