@@ -1,5 +1,6 @@
 import "./wasm-exec.js";
 
+import { buildEddsa, type Eddsa } from "circomlibjs";
 import type { ICore } from "@/interfaces/core";
 import type { RawAnnouncement } from "@/types/api";
 import type {
@@ -72,10 +73,16 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 }
 
 class Core implements ICore {
+  #babyJubEddsa: Eddsa | null = null;
+
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
 
-    return new Core();
+    const core = new Core();
+
+    core.#babyJubEddsa = await buildEddsa();
+
+    return core;
   }
 
   #extractScanArgsFromAnnouncements(announcements: RawAnnouncement[]) {
@@ -112,27 +119,41 @@ class Core implements ICore {
     } satisfies CoreViewerScanArgs;
   }
 
+  #getBJJPublicKey(keyPairs: CoreLegacyKeyPairs): string {
+    if (!this.#babyJubEddsa)
+      throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
+
+    const bJJPublicKey = this.#babyJubEddsa.prv2pub(this.#babyJubEddsa.F.e("0x" + keyPairs.k));
+
+    return bJJPublicKey.map((p) => this.#babyJubEddsa?.F.toObject(p).toString()).join(".");
+  }
+
   generateKeyPairs(): CurvyKeyPairs {
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
+
+    const bJJPublicKey = this.#getBJJPublicKey(keyPairs);
 
     return {
       s: keyPairs.k,
       S: keyPairs.K,
       v: keyPairs.v,
       V: keyPairs.V,
-      BJJ: "",
+      bJJPublicKey,
     } satisfies CurvyKeyPairs;
   }
 
   getCurvyKeys(s: string, v: string): CurvyKeyPairs {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
+
+    const bJJPublicKey = this.#getBJJPublicKey(result);
+
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
-      BJJ: "",
+      bJJPublicKey,
     } satisfies CurvyKeyPairs;
   }
 
