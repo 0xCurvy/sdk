@@ -227,6 +227,8 @@ class Core implements ICore {
 
     const ownedNotes: any = [];
 
+    // TODO: Check if shared secret correctly results in the same note owner hash
+
     for (let i = 0; i < publicNotes.length; i++) {
       if (sharedSecrets[i] != null) {
         ownedNotes.push({
