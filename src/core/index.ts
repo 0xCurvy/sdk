@@ -12,6 +12,7 @@ import type {
 } from "@/types/core";
 import type { HexString } from "@/types/helper";
 import { isNode } from "@/utils/helpers";
+import { buildEddsa, Eddsa } from "circomlibjs";
 
 declare const Go: {
   new (): {
@@ -35,6 +36,12 @@ declare const curvy: {
   dbg_isValidSECP256k1Point: (args: string) => boolean;
   version: () => string;
 };
+
+let babyJubEddsa: Eddsa;
+
+async function loadBabyJubJub() {
+  babyJubEddsa = await buildEddsa();
+}
 
 async function loadWasm(wasmUrl?: string): Promise<void> {
   const go = new Go();
@@ -72,8 +79,10 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 }
 
 class Core implements ICore {
+
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
+    await loadBabyJubJub();
 
     return new Core();
   }
@@ -133,15 +142,20 @@ class Core implements ICore {
     } satisfies CurvyKeyPairs;
   }
 
-  getCurvyKeys(s: string, v: string): CurvyKeyPairs {
+  getCurvyKeys(s: string, v: string): CurvyKeyPairs & { bJJPublicKey: string } {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
+
+    const bJJPublicKey = babyJubEddsa.prv2pub(babyJubEddsa.F.e("0x" +result.k));
+    const bJJPublicKeyStringified = bJJPublicKey.map((p: any) => babyJubEddsa.F.toObject(p).toString()).join(".");
+
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
-    } satisfies CurvyKeyPairs;
+      bJJPublicKey: bJJPublicKeyStringified
+    } satisfies CurvyKeyPairs & { bJJPublicKey: string };
   }
 
   send(S: string, V: string) {
