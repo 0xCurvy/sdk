@@ -237,7 +237,6 @@ class Core implements ICore {
 
     const ownedNotes: any = [];
 
-
     for (let i = 0; i < publicNotes.length; i++) {
       if (sharedSecrets[i] != null) {
         const computedHash = poseidon.F.toObject(poseidon([...bjjKeyBigint, sharedSecrets[i]!])).toString();

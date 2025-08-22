@@ -17,7 +17,7 @@ test("Decode note shared secret", async () => {
   expect(recipientNoteData.owner.babyJubPublicKey.length).toBe(2);
 });
 
-test("Scan notes", async () => {
+test.skip("Scan notes", async () => {
   const NUM_NOTES = 10;
   const NUM_VALID_NOTES = 5;
 

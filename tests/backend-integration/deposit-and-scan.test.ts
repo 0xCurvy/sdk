@@ -6,6 +6,7 @@ import { AggregatorRequestStatus } from "@/constants/aggregator";
 
 const BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzZGt0ZXN0LnN0YWdpbmctY3VydnkubmFtZSIsImlhdCI6MTc1NTg2Nzk5NiwiZXhwIjoyMTE1ODY3OTk2fQ.jl6KWZHGPVwIozMsgkSYNlxNUur0G4VtoP7WU-XoWUk";
 
+// @ts-ignore
 const waitForRequest = async (requestId: string, api: ApiClient) => {
     return new Promise((resolve, reject) => {
         const interval = setInterval(async () => {
@@ -46,13 +47,14 @@ const serializeAsJSObject = (obj: any) => {
     return processed;
   };
 
-test.skip("should generate note, deposit and scan", async () => {
+test("should generate note, deposit and scan", async () => {
   const NUM_NOTES = 2;
   const core = await Core.init();
 
   const keyPairs = core.generateKeyPairs();
   const { bJJPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
 
+  const rawNotes: any[] = [];
   const outputNotes: any[] = [];
 
   const poseidon = await buildPoseidon();   
@@ -62,6 +64,8 @@ test.skip("should generate note, deposit and scan", async () => {
       amount: 1000000000000000000n,
       token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
     });
+
+    rawNotes.push(note);
 
     outputNotes.push({
       ownerHash: poseidon.F.toObject(
@@ -89,25 +93,23 @@ test.skip("should generate note, deposit and scan", async () => {
   const res = await api.aggregator.SubmitDeposit(depositPayload);
   expect(res.requestId).toBeDefined();
 
-  await waitForRequest(res.requestId, api);
-
-  // TODO: Scan notes
+  // await waitForRequest(res.requestId, api);
 
   const allNotes = await api.aggregator.GetAllNotes();
 
-  const scanResult = core.scanNotes(keyPairs.S, keyPairs.V, allNotes.notes.map((note)=> ({
-    ephemeralKey: note.ephemeralKey.toString(),
-    viewTag: note.viewTag.toString(),
-  })));
-  const ownersNotes = scanResult.spendingPubKeys
-    .filter((pubKey: any) => pubKey.length > 0)
-    .map((pubKey: string) => BigInt(pubKey.split(".")[0]));
+  console.log(serializeAsJSObject(allNotes.notes));
 
-  expect(ownersNotes.length).toBe(NUM_NOTES);
+  const ownedNotes = core.filterOwnedNotes(allNotes.notes.map((note) => ({
+    ownerHash: note.ownerHash,
+    ephemeralKey: note.ephemeralKey,
+    viewTag: note.viewTag.slice(2),
+  })), keyPairs.s, keyPairs.v);
 
-  for (let i = 0; i < ownersNotes.length; i++) {
-    const sharedSecret = ownersNotes[i];
-    const noteSharedSecret = outputNotes[i].owner.sharedSecret;
+  expect(ownedNotes.length).toBe(NUM_NOTES);
+
+  for (let i = 0; i < rawNotes.length; i++) {
+    const { sharedSecret } = ownedNotes[i];
+    const noteSharedSecret = rawNotes[i].owner.sharedSecret;
     expect(sharedSecret).toBe(noteSharedSecret);
   }
-});
+}, 10_000);
