@@ -122,10 +122,11 @@ type GetNetworksReturnType = Array<Network>;
 type RegisterCurvyHandleRequestBody = {
   handle: string;
   ownerAddress: string;
-  publicKeys: Array<{
+  publicKeys: {
     spendingKey: string;
     viewingKey: string;
-  }>;
+    bJJPublicKey: string;
+  };
 };
 type RegisterCurvyHandleReturnType =
   | {

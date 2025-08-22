@@ -463,7 +463,7 @@ class CurvySDK implements ICurvySDK {
     await this.apiClient.user.RegisterCurvyHandle({
       handle,
       ownerAddress,
-      publicKeys: [{ viewingKey: keyPairs.V, spendingKey: keyPairs.S }],
+      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, bJJPublicKey: "" },
     });
 
     const { data: registerDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
