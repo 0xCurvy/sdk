@@ -59,6 +59,7 @@ import {
 import { parseDecimal } from "@/utils/currency";
 import { encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
+import { type CurvyWalletCommand, SendNativeCurrencyCommand } from "./commands/interface";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
@@ -872,6 +873,19 @@ class CurvySDK implements ICurvySDK {
   }
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void) {
     this.#emitter.off(BALANCE_REFRESH_COMPLETE_EVENT, listener);
+  }
+
+  buildWalletCommand(networkFilter: NetworkFilter): CurvyWalletCommand {
+    // const commands = {
+    //   "Send": SendCommand
+    //   "Swap": SwapCommand,
+    // }
+    //
+    // return new commands[command](this, this.activeWallet, networkFilter);
+    //
+    // We do this.activeWallet here instead of in the command constructor because
+    // we want to more easily change wallets when testing.
+    return new SendNativeCurrencyCommand(this, this.activeWallet, networkFilter);
   }
 }
 
