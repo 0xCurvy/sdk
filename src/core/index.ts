@@ -12,7 +12,7 @@ import type {
 } from "@/types/core";
 import type { HexString } from "@/types/helper";
 import { isNode } from "@/utils/helpers";
-import { buildEddsa, Eddsa } from "circomlibjs";
+import { buildEddsa, Eddsa, buildPoseidon, Poseidon } from "circomlibjs";
 import { groth16 } from "snarkjs";
 
 declare const Go: {
@@ -39,10 +39,16 @@ declare const curvy: {
 };
 
 let babyJubEddsa: Eddsa;
+let poseidon: Poseidon;
 
 async function loadBabyJubJub() {
   babyJubEddsa = await buildEddsa();
 }
+
+async function loadPoseidon() {
+  poseidon = await buildPoseidon();
+}
+
 
 async function loadWasm(wasmUrl?: string): Promise<void> {
   const go = new Go();
@@ -90,6 +96,7 @@ class Core implements ICore {
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
     await loadBabyJubJub();
+    await loadPoseidon();
 
     return new Core();
   }
@@ -218,23 +225,29 @@ class Core implements ICore {
       viewTag: string;
     }[],
     s: string,
-    v: string
+    v: string,
   ) {
     const scanResult = this.scanNotes(s, v, publicNotes);
     const sharedSecrets = scanResult.spendingPubKeys.map((pubKey: string) =>
       pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null
     );
 
+    const { bJJPublicKey: ownerBabyJubPublicKey } = this.getCurvyKeys(s, v);
+    const bjjKeyBigint = ownerBabyJubPublicKey.split(".").map(BigInt);
+
     const ownedNotes: any = [];
 
-    // TODO: Check if shared secret correctly results in the same note owner hash
 
     for (let i = 0; i < publicNotes.length; i++) {
       if (sharedSecrets[i] != null) {
-        ownedNotes.push({
-          ownerHash: publicNotes[i].ownerHash,
-          sharedSecret: sharedSecrets[i],
-        });
+        const computedHash = poseidon.F.toObject(poseidon([...bjjKeyBigint, sharedSecrets[i]!])).toString();
+
+        if (computedHash == publicNotes[i].ownerHash) {
+          ownedNotes.push({
+            ownerHash: publicNotes[i].ownerHash,
+            sharedSecret: sharedSecrets[i],
+          });
+        }
       }
     }
 

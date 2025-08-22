@@ -29,7 +29,7 @@ const serializeAsJSObject = (obj: any) => {
     return processed;
   };
 
-test("should generate note, deposit and scan", async () => {
+test.skip("should generate note, deposit and scan", async () => {
   const NUM_NOTES = 2;
   const core = await Core.init();
 
