@@ -12,6 +12,8 @@ import type {
 } from "@/types/core";
 import type { HexString } from "@/types/helper";
 import { isNode } from "@/utils/helpers";
+import { buildEddsa, Eddsa } from "circomlibjs";
+import { groth16 } from "snarkjs";
 
 declare const Go: {
   new (): {
@@ -36,6 +38,12 @@ declare const curvy: {
   version: () => string;
 };
 
+let babyJubEddsa: Eddsa;
+
+async function loadBabyJubJub() {
+  babyJubEddsa = await buildEddsa();
+}
+
 async function loadWasm(wasmUrl?: string): Promise<void> {
   const go = new Go();
 
@@ -53,9 +61,14 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
     const wasmPath = path.resolve(__dirname, "./curvy-core-v1.0.2.wasm");
 
     const buffer = await fs.readFile(wasmUrl ?? wasmPath);
-    const wasmBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+    const wasmBuffer = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength
+    ) as ArrayBuffer;
 
-    const instance = (await WebAssembly.instantiate(wasmBuffer, go.importObject)).instance;
+    const instance = (
+      await WebAssembly.instantiate(wasmBuffer, go.importObject)
+    ).instance;
 
     go.run(instance);
     return;
@@ -63,7 +76,9 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 
   let instance: WebAssembly.Instance;
   if (wasmUrl) {
-    instance = (await WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject)).instance;
+    instance = (
+      await WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject)
+    ).instance;
   } else {
     const { default: init } = await import("./curvy-core-v1.0.2.wasm?init");
     instance = await init(go.importObject);
@@ -74,6 +89,7 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 class Core implements ICore {
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
+    await loadBabyJubJub();
 
     return new Core();
   }
@@ -90,8 +106,13 @@ class Core implements ICore {
     return { Rs, viewTags };
   }
 
-  #prepareScanArgs(s: string, v: string, announcements: RawAnnouncement[]): CoreScanArgs {
-    const { viewTags, Rs } = this.#extractScanArgsFromAnnouncements(announcements);
+  #prepareScanArgs(
+    s: string,
+    v: string,
+    announcements: RawAnnouncement[]
+  ): CoreScanArgs {
+    const { viewTags, Rs } =
+      this.#extractScanArgsFromAnnouncements(announcements);
 
     return {
       k: s,
@@ -101,8 +122,26 @@ class Core implements ICore {
     } satisfies CoreScanArgs;
   }
 
-  #prepareViewerScanArgs(v: string, S: string, announcements: RawAnnouncement[]): CoreViewerScanArgs {
-    const { viewTags, Rs } = this.#extractScanArgsFromAnnouncements(announcements);
+  #prepareScanNotesArgs(
+    s: string,
+    v: string,
+    noteData: { ephemeralKey: string; viewTag: string }[]
+  ): CoreScanArgs {
+    return {
+      k: s,
+      v,
+      Rs: noteData.map((note) => note.ephemeralKey),
+      viewTags: noteData.map((note) => note.viewTag),
+    } satisfies CoreScanArgs;
+  }
+
+  #prepareViewerScanArgs(
+    v: string,
+    S: string,
+    announcements: RawAnnouncement[]
+  ): CoreViewerScanArgs {
+    const { viewTags, Rs } =
+      this.#extractScanArgsFromAnnouncements(announcements);
 
     return {
       v,
@@ -123,15 +162,24 @@ class Core implements ICore {
     } satisfies CurvyKeyPairs;
   }
 
-  getCurvyKeys(s: string, v: string): CurvyKeyPairs {
+  getCurvyKeys(s: string, v: string): CurvyKeyPairs & { bJJPublicKey: string } {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
+
+    const bJJPublicKey = babyJubEddsa.prv2pub(
+      babyJubEddsa.F.e("0x" + result.k)
+    );
+    const bJJPublicKeyStringified = bJJPublicKey
+      .map((p: any) => babyJubEddsa.F.toObject(p).toString())
+      .join(".");
+
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
-    } satisfies CurvyKeyPairs;
+      bJJPublicKey: bJJPublicKeyStringified,
+    } satisfies CurvyKeyPairs & { bJJPublicKey: string };
   }
 
   send(S: string, V: string) {
@@ -140,23 +188,139 @@ class Core implements ICore {
     return JSON.parse(curvy.send(input)) as CoreSendReturnType;
   }
 
+  sendNote(
+    S: string,
+    V: string,
+    noteData: { ownerBabyJubPublicKey: string; amount: bigint; token: bigint }
+  ) {
+    const { R, viewTag, spendingPubKey } = this.send(S, V);
+
+    const note = {
+      owner: {
+        babyJubPublicKey: noteData.ownerBabyJubPublicKey.split(".").map(BigInt),
+        sharedSecret: BigInt(spendingPubKey.split(".")[0]),
+      },
+      amount: noteData.amount,
+      token: noteData.token,
+    };
+
+    return {
+      ...note,
+      ephemeralKey: R,
+      viewTag,
+    };
+  }
+
+  filterOwnedNotes(
+    publicNotes: {
+      ownerHash: string;
+      ephemeralKey: string;
+      viewTag: string;
+    }[],
+    s: string,
+    v: string
+  ) {
+    const scanResult = this.scanNotes(s, v, publicNotes);
+    const sharedSecrets = scanResult.spendingPubKeys.map((pubKey: string) =>
+      pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null
+    );
+
+    const ownedNotes: any = [];
+
+    for (let i = 0; i < publicNotes.length; i++) {
+      if (sharedSecrets[i] != null) {
+        ownedNotes.push({
+          ownerHash: publicNotes[i].ownerHash,
+          sharedSecret: sharedSecrets[i],
+        });
+      }
+    }
+
+    return ownedNotes;
+  }
+
+  async generateNoteOwnershipProof(
+    ownedNotes: {
+      ownerHash: string;
+      sharedSecret: bigint;
+    }[],
+    babyJubPublicKey: string
+  ) {
+    const NUM_NOTES = 10;
+
+    const wasmFile = `./src/core/verifyNoteOwnership_10.wasm`;
+    const zkeyFile = `./src/core/verifyNoteOwnership_10_0001.zkey`;
+
+    const paddedOwnedNotes = ownedNotes.concat(
+      ...Array(NUM_NOTES - ownedNotes.length).fill({
+        babyJubPublicKey: "0.0",
+        sharedSecret: "0",
+        ownerHash: "0",
+      })
+    );
+
+    const { proof, publicSignals } = await groth16.fullProve(
+      {
+        inputNoteOwners: paddedOwnedNotes.map(({ sharedSecret }) => [
+          ...babyJubPublicKey.split("."),
+          sharedSecret.toString(),
+        ]),
+        ownerHashes: paddedOwnedNotes.map(({ ownerHash }) => ownerHash),
+      },
+      wasmFile,
+      zkeyFile
+    );
+
+    return {
+      proof,
+      publicSignals,
+    };
+  }
+
   scan(s: string, v: string, announcements: RawAnnouncement[]) {
     const input = JSON.stringify(this.#prepareScanArgs(s, v, announcements));
 
-    const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
+    const { spendingPubKeys, spendingPrivKeys } = JSON.parse(
+      curvy.scan(input)
+    ) as CoreScanReturnType;
 
     return {
       spendingPubKeys: spendingPubKeys ?? [],
       spendingPrivKeys: (spendingPrivKeys ?? []).map(
-        (pk) => `0x${pk.slice(2).padStart(64, "0")}` as const satisfies HexString,
+        (pk) =>
+          `0x${pk.slice(2).padStart(64, "0")}` as const satisfies HexString
+      ),
+    };
+  }
+
+  scanNotes(
+    s: string,
+    v: string,
+    noteData: { ephemeralKey: string; viewTag: string }[]
+  ) {
+    const input = JSON.stringify(this.#prepareScanNotesArgs(s, v, noteData));
+
+    const { spendingPubKeys, spendingPrivKeys } = JSON.parse(
+      curvy.scan(input)
+    ) as CoreScanReturnType;
+
+    return {
+      spendingPubKeys: spendingPubKeys ?? [],
+      spendingPrivKeys: (spendingPrivKeys ?? []).map(
+        (pk) =>
+          `0x${pk.slice(2).padStart(64, "0")}` as const satisfies HexString
       ),
     };
   }
 
   viewerScan(v: string, S: string, announcements: RawAnnouncement[]) {
-    const input = JSON.stringify(this.#prepareViewerScanArgs(v, S, announcements));
+    const input = JSON.stringify(
+      this.#prepareViewerScanArgs(v, S, announcements)
+    );
 
-    const { spendingPubKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
+    const { spendingPubKeys } = JSON.parse(
+      curvy.scan(input)
+    ) as CoreScanReturnType;
 
     return {
       spendingPubKeys: spendingPubKeys ?? [],
