@@ -156,25 +156,6 @@ class Core implements ICore {
     return JSON.parse(curvy.send(input)) as CoreSendReturnType;
   }
 
-  sendNote(S: string, V: string, noteData: { ownerBabyJubPublicKey: string; amount: bigint; token: bigint }) {
-    const { R, viewTag, spendingPubKey } = this.send(S, V);
-
-    const note = {
-      owner: {
-        babyJubPublicKey: noteData.ownerBabyJubPublicKey.split(".").map(BigInt),
-        sharedSecret: BigInt(spendingPubKey.split(".")[0]),
-      },
-      amount: noteData.amount,
-      token: noteData.token,
-    };
-
-    return {
-      ...note,
-      ephemeralKey: R,
-      viewTag,
-    };
-  }
-
   scan(s: string, v: string, announcements: RawAnnouncement[]) {
     const input = JSON.stringify(this.#prepareScanArgs(s, v, announcements));
 
