@@ -14,6 +14,10 @@ const waitForRequest = async (requestId: string, api: ApiClient) => {
                 clearInterval(interval);
                 resolve(status);
             }
+            if (status === AggregatorRequestStatus.FAILED) {
+                clearInterval(interval);
+                reject("Request failed");
+            }
         }, 1000);
   })
 }
