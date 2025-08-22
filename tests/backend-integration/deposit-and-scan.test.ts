@@ -2,8 +2,21 @@ import { expect, test } from "vitest";
 import { Core } from "@/core";
 import { buildPoseidon } from "circomlibjs";
 import { ApiClient } from "@/http/api.js";
+import { AggregatorRequestStatus } from "@/constants/aggregator";
 
 const BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzZGt0ZXN0LnN0YWdpbmctY3VydnkubmFtZSIsImlhdCI6MTc1NTg2Nzk5NiwiZXhwIjoyMTE1ODY3OTk2fQ.jl6KWZHGPVwIozMsgkSYNlxNUur0G4VtoP7WU-XoWUk";
+
+const waitForRequest = async (requestId: string, api: ApiClient) => {
+    return new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+            const { status } = await api.aggregator.GetAggregatorRequestStatus(requestId);
+            if (status === AggregatorRequestStatus.SUCCESS) {
+                clearInterval(interval);
+                resolve(status);
+            }
+        }, 1000);
+  })
+}
 
 const serializeAsJSObject = (obj: any) => {
     function preprocess(value: any): any {
@@ -71,4 +84,8 @@ test.skip("should generate note, deposit and scan", async () => {
   api.updateBearerToken(BEARER_TOKEN);
   const res = await api.aggregator.SubmitDeposit(depositPayload);
   expect(res.requestId).toBeDefined();
+
+  await waitForRequest(res.requestId, api);
+
+  // TODO: Scan notes
 });
