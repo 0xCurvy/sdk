@@ -101,6 +101,16 @@ class Core implements ICore {
     } satisfies CoreScanArgs;
   }
 
+  #prepareScanNotesArgs(s: string, v: string, noteData: { ephemeralKey: string, viewTag: string }[]): CoreScanArgs {
+    
+    return {
+      k: s,
+      v,
+      Rs: noteData.map((note) => note.ephemeralKey),
+      viewTags: noteData.map((note) => note.viewTag),
+    } satisfies CoreScanArgs;
+  }
+
   #prepareViewerScanArgs(v: string, S: string, announcements: RawAnnouncement[]): CoreViewerScanArgs {
     const { viewTags, Rs } = this.#extractScanArgsFromAnnouncements(announcements);
 
@@ -142,6 +152,19 @@ class Core implements ICore {
 
   scan(s: string, v: string, announcements: RawAnnouncement[]) {
     const input = JSON.stringify(this.#prepareScanArgs(s, v, announcements));
+
+    const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
+
+    return {
+      spendingPubKeys: spendingPubKeys ?? [],
+      spendingPrivKeys: (spendingPrivKeys ?? []).map(
+        (pk) => `0x${pk.slice(2).padStart(64, "0")}` as const satisfies HexString,
+      ),
+    };
+  }
+
+  scanNotes(s: string, v: string, noteData: { ephemeralKey: string, viewTag: string }[]) {
+    const input = JSON.stringify(this.#prepareScanNotesArgs(s, v, noteData));
 
     const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
 
