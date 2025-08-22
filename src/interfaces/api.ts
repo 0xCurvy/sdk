@@ -16,6 +16,8 @@ import type {
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
+  SetBabyJubJubKeyRequestBody,
+  SetBabyJubJubKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
@@ -26,6 +28,7 @@ import type {
   WithdrawPayload,
 } from "@/types/api";
 import type { CsucAction } from "@/types/csuc";
+import type { CurvyHandle } from "@/types/curvy";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
@@ -53,6 +56,7 @@ interface IApiClient {
     RegisterCurvyHandle(body: RegisterCurvyHandleRequestBody): Promise<RegisterCurvyHandleReturnType>;
     ResolveCurvyHandle(username: string): Promise<ResolveCurvyHandleReturnType>;
     GetCurvyHandleByOwnerAddress(ownerAddress: string): Promise<GetCurvyHandleByOwnerAddressReturnType>;
+    SetBabyJubJubKey(handle: CurvyHandle, body: SetBabyJubJubKeyRequestBody): Promise<SetBabyJubJubKeyReturnType>;
   };
 
   auth: {

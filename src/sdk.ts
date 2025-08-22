@@ -210,7 +210,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error(`Handle ${handle} not found`);
     }
 
-    const { spendingKey, viewingKey } = recipientDetails.publicKeys[0];
+    const { spendingKey, viewingKey } = recipientDetails.publicKeys;
 
     const {
       spendingPubKey: recipientStealthPublicKey,
@@ -412,8 +412,21 @@ class CurvySDK implements ICurvySDK {
 
     const { createdAt, publicKeys } = ownerDetails;
 
-    if (!publicKeys.some(({ viewingKey: V, spendingKey: S }) => V === keyPairs.V && S === keyPairs.S))
+    if (!publicKeys.babyJubJubKey) {
+      const result = await this.apiClient.user.SetBabyJubJubKey(curvyHandle, { babyJubJubKey: "" });
+      if (!("data" in result) || result.data.message !== "Saved")
+        throw new Error(`Failed to set BabyJubJub key for handle ${curvyHandle}.`);
+    }
+
+    if (
+      !(
+        publicKeys.viewingKey === keyPairs.V &&
+        publicKeys.spendingKey === keyPairs.S &&
+        publicKeys.babyJubJubKey === keyPairs.BJJ
+      )
+    ) {
       throw new Error(`Wrong password for handle ${curvyHandle}.`);
+    }
 
     const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
     const wallet = new CurvyWallet(walletId, +dayjs(createdAt), curvyHandle, signature.signingAddress, keyPairs);
@@ -463,7 +476,7 @@ class CurvySDK implements ICurvySDK {
     await this.apiClient.user.RegisterCurvyHandle({
       handle,
       ownerAddress,
-      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, bJJPublicKey: "" },
+      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, babyJubJubKey: "" },
     });
 
     const { data: registerDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);

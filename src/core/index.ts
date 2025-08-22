@@ -120,6 +120,7 @@ class Core implements ICore {
       S: keyPairs.K,
       v: keyPairs.v,
       V: keyPairs.V,
+      BJJ: "",
     } satisfies CurvyKeyPairs;
   }
 
@@ -131,6 +132,7 @@ class Core implements ICore {
       v: result.v,
       S: result.K,
       V: result.V,
+      BJJ: "",
     } satisfies CurvyKeyPairs;
   }
 
