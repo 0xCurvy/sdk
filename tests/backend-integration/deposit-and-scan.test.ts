@@ -92,4 +92,22 @@ test.skip("should generate note, deposit and scan", async () => {
   await waitForRequest(res.requestId, api);
 
   // TODO: Scan notes
+
+  const allNotes = await api.aggregator.GetAllNotes();
+
+  const scanResult = core.scanNotes(keyPairs.S, keyPairs.V, allNotes.notes.map((note)=> ({
+    ephemeralKey: note.ephemeralKey.toString(),
+    viewTag: note.viewTag.toString(),
+  })));
+  const ownersNotes = scanResult.spendingPubKeys
+    .filter((pubKey: any) => pubKey.length > 0)
+    .map((pubKey: string) => BigInt(pubKey.split(".")[0]));
+
+  expect(ownersNotes.length).toBe(NUM_NOTES);
+
+  for (let i = 0; i < ownersNotes.length; i++) {
+    const sharedSecret = ownersNotes[i];
+    const noteSharedSecret = outputNotes[i].owner.sharedSecret;
+    expect(sharedSecret).toBe(noteSharedSecret);
+  }
 });

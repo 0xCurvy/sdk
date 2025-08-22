@@ -10,6 +10,7 @@ import type {
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetAggregatorRequestStatusReturnType,
+  GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsResponse,
   GetCSAInfoRequest,
@@ -147,6 +148,13 @@ class ApiClient extends HttpClient implements IApiClient {
   };
 
   aggregator = {
+    GetAllNotes: async () => {
+      return await this.request<GetAllNotesReturnType>({
+        method: "GET",
+        path: "/aggregator/get-all-notes",
+      });
+    },
+
     SubmitDeposit: async (data: DepositPayload) => {
       return await this.request<SubmitDepositReturnType>({
         method: "POST",

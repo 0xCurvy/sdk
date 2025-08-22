@@ -181,6 +181,7 @@ type AggregationRequest = {
 
 type AggregatorRequestStatus = "pending" | "submitting" | "success" | "failed" | "cancelled";
 
+type GetAllNotesReturnType = { notes: ({ ownerHash: string; viewTag: bigint; ephemeralKey: bigint })[] };
 type SubmitDepositReturnType = { requestId: string };
 type SubmitWithdrawReturnType = { requestId: string };
 type SubmitAggregationReturnType = { requestId: string };
@@ -191,6 +192,7 @@ export type {
   WithdrawPayload,
   AggregationRequest,
   AggregatorRequestStatus,
+  GetAllNotesReturnType,
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,
   SubmitAggregationReturnType,
