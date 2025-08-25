@@ -19,6 +19,8 @@ import type {
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
+  SetBabyJubJubKeyRequestBody,
+  SetBabyJubJubKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
@@ -28,6 +30,7 @@ import type {
   UpdateAnnouncementEncryptedMessageReturnType,
   WithdrawPayload,
 } from "@/types/api";
+import type { CurvyHandle } from "@/types/curvy";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
@@ -107,6 +110,14 @@ class ApiClient extends HttpClient implements IApiClient {
       });
 
       return response.data?.handle || null;
+    },
+
+    SetBabyJubJubKey: async (handle: CurvyHandle, body: SetBabyJubJubKeyRequestBody) => {
+      return await this.request<SetBabyJubJubKeyReturnType>({
+        method: "PATCH",
+        path: `/user/${handle}/bjj`,
+        body,
+      });
     },
   };
 

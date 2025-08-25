@@ -125,7 +125,7 @@ type RegisterCurvyHandleRequestBody = {
   publicKeys: {
     spendingKey: string;
     viewingKey: string;
-    babyJubJubKey: string | null;
+    babyJubJubKey: string;
   };
 };
 type RegisterCurvyHandleReturnType =
@@ -153,6 +153,21 @@ type GetCurvyHandleByOwnerAddressResponse = {
   error?: string | null;
 };
 type GetCurvyHandleByOwnerAddressReturnType = string | null;
+
+type SetBabyJubJubKeyRequestBody = {
+  babyJubJubKey: string;
+};
+
+type SetBabyJubJubKeyReturnType =
+  | {
+      data: {
+        message: string;
+      };
+      error: null;
+    }
+  | {
+      error?: string;
+    };
 
 //#endregion
 
@@ -271,6 +286,8 @@ export type {
   ResolveCurvyHandleReturnType,
   GetCurvyHandleByOwnerAddressResponse,
   GetCurvyHandleByOwnerAddressReturnType,
+  SetBabyJubJubKeyRequestBody,
+  SetBabyJubJubKeyReturnType,
 };
 
 //#endregion

@@ -412,6 +412,12 @@ class CurvySDK implements ICurvySDK {
 
     const { createdAt, publicKeys } = ownerDetails;
 
+    if (!publicKeys.babyJubJubKey) {
+      const result = await this.apiClient.user.SetBabyJubJubKey(curvyHandle, { babyJubJubKey: keyPairs.bJJPublicKey });
+      if (!("data" in result) || result.data.message !== "Saved")
+        throw new Error(`Failed to set BabyJubJub key for handle ${curvyHandle}.`);
+    }
+
     if (
       !(
         publicKeys.viewingKey === keyPairs.V &&

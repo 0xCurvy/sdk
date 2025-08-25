@@ -19,6 +19,8 @@ import type {
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
+  SetBabyJubJubKeyRequestBody,
+  SetBabyJubJubKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
@@ -177,6 +179,12 @@ export class MockAPIClient implements IApiClient {
     },
 
     RegisterCurvyHandle: async (_body: RegisterCurvyHandleRequestBody): Promise<RegisterCurvyHandleReturnType> => {
+      throw new Error("Not needed for announcement syncing tests");
+    },
+    SetBabyJubJubKey: async (
+      _handle: string,
+      _body: SetBabyJubJubKeyRequestBody,
+    ): Promise<SetBabyJubJubKeyReturnType> => {
       throw new Error("Not needed for announcement syncing tests");
     },
   };

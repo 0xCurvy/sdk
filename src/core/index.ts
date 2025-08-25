@@ -74,10 +74,14 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 
 class Core implements ICore {
   #babyJubEddsa: Eddsa | null = null;
+
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
+
     const core = new Core();
+
     core.#babyJubEddsa = await buildEddsa();
+
     return core;
   }
 
@@ -118,6 +122,7 @@ class Core implements ICore {
   #getBJJPublicKey(keyPairs: CoreLegacyKeyPairs): string {
     if (!this.#babyJubEddsa)
       throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
+
     const bJJPublicKey = this.#babyJubEddsa.prv2pub(this.#babyJubEddsa.F.e("0x" + keyPairs.k));
 
     return bJJPublicKey.map((p) => this.#babyJubEddsa?.F.toObject(p).toString()).join(".");
@@ -125,7 +130,9 @@ class Core implements ICore {
 
   generateKeyPairs(): CurvyKeyPairs {
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
+
     const bJJPublicKeyStringified = this.#getBJJPublicKey(keyPairs);
+
     return {
       s: keyPairs.k,
       S: keyPairs.K,
