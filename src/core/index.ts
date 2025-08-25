@@ -374,7 +374,11 @@ class Core implements ICore {
     notes: AuthenticatedNote[],
     babyJubPublicKey: [string, string]
   ): Note[] {
-    const scanResult = this.scanNotes(s, v, notes);
+    const scanResult = this.scanNotes(s, v, notes.map((note) => ({
+      ownerHash: note.ownerHash,
+      ephemeralKey: note.ephemeralKey,
+      viewTag: note.viewTag.slice(2),
+    })));
 
     return scanResult.spendingPubKeys.map((pubKey: string, index: number) => ({
       owner: {

@@ -118,8 +118,8 @@ test("should generate note, deposit and scan", async () => {
     expect(note.owner.babyJubPublicKey).toEqual(rawNote.owner.babyJubPublicKey);
     expect(note.owner.sharedSecret).toEqual(rawNote.owner.sharedSecret);
     expect(note.amount).toBe(rawNote.amount);
-    expect(note.token).toBe(rawNote.token);
-    expect(note.viewTag).toBe(rawNote.viewTag);
+    expect(note.token).toBe("0x" + BigInt(rawNote.token).toString(16));
+    expect(note.viewTag.slice(2)).toBe(rawNote.viewTag);
     expect(note.ephemeralKey).toBe(rawNote.ephemeralKey);
   }
 }, 10_000);
