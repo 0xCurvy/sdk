@@ -275,8 +275,8 @@ class Core implements ICore {
   ) {
     const NUM_NOTES = 10;
 
-    const wasmFile = `./src/core/verifyNoteOwnership_10.wasm`;
-    const zkeyFile = `./src/core/verifyNoteOwnership_10_0001.zkey`;
+    const wasmFile = `../zk-keys/staging/verifyNoteOwnership_10.wasm`;
+    const zkeyFile = `../zk-keys/staging/verifyNoteOwnership_10_0001.zkey`;
 
     const paddedOwnedNotes = ownedNotes.concat(
       ...Array(NUM_NOTES - ownedNotes.length).fill({
