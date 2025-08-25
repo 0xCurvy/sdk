@@ -50,6 +50,25 @@ type CoreViewerScanReturnType = {
   spendingPubKeys: Array<string>;
 };
 
+type AuthenticatedNote = {
+  owner: {
+    babyJubPublicKey: [string, string];
+    sharedSecret: string;
+  };
+  viewTag: string;
+  ephemeralKey: string;
+  token: string;
+  amount: string;
+};
+
+type OutputNote = {
+  ownerHash: string;
+  amount: string;
+  token: string;
+  viewTag: string;
+  ephemeralKey: string;
+};
+
 export type {
   PublicKey,
   CurvyKeyPairs,
@@ -61,4 +80,6 @@ export type {
   CoreScanReturnType,
   CoreViewerScanArgs,
   CoreViewerScanReturnType,
+  AuthenticatedNote,
+  OutputNote,
 };

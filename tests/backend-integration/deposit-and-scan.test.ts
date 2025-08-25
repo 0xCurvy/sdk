@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
 import { Core } from "@/core";
-import { buildPoseidon } from "circomlibjs";
 import { ApiClient } from "@/http/api.js";
 import { AggregatorRequestStatus } from "@/constants/aggregator";
 
@@ -57,7 +56,6 @@ test("should generate note, deposit and scan", async () => {
   const rawNotes: any[] = [];
   const outputNotes: any[] = [];
 
-  const poseidon = await buildPoseidon();   
   for (let i = 0; i < NUM_NOTES; i++) {
     const note = core.sendNote(keyPairs.S, keyPairs.V, {
       ownerBabyJubPublicKey: bJJPublicKey,
@@ -67,15 +65,7 @@ test("should generate note, deposit and scan", async () => {
 
     rawNotes.push(note);
 
-    outputNotes.push({
-      ownerHash: poseidon.F.toObject(
-        poseidon([...note.owner.babyJubPublicKey, note.owner.sharedSecret])
-      ),
-      amount: note.amount,
-      token: note.token,
-      ephemeralKey: note.ephemeralKey,
-      viewTag: note.viewTag,
-    });
+    outputNotes.push(core.generateOutputNote(note));
   }
 
   const api = new ApiClient(
@@ -97,8 +87,6 @@ test("should generate note, deposit and scan", async () => {
 
   const allNotes = await api.aggregator.GetAllNotes();
 
-  console.log(serializeAsJSObject(allNotes.notes));
-
   const ownedNotes = core.filterOwnedNotes(allNotes.notes.map((note) => ({
     ownerHash: note.ownerHash,
     ephemeralKey: note.ephemeralKey,
@@ -110,6 +98,12 @@ test("should generate note, deposit and scan", async () => {
   for (let i = 0; i < rawNotes.length; i++) {
     const { sharedSecret } = ownedNotes[i];
     const noteSharedSecret = rawNotes[i].owner.sharedSecret;
-    expect(sharedSecret).toBe(noteSharedSecret);
+    expect(sharedSecret.toString()).toBe(noteSharedSecret.toString());
   }
+
+  // const { proof, publicSignals: ownerHashes } = await core.generateNoteOwnershipProof(ownedNotes, bJJPublicKey);
+
+  // const authenticatedNotes = await api.aggregator.SubmitNotesOwnerhipProof({ proof, ownerHashes });
+
+  // expect(authenticatedNotes.notes.length).toBe(NUM_NOTES);
 }, 10_000);

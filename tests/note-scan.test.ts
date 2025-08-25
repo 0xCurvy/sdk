@@ -64,7 +64,7 @@ test.skip("Scan notes", async () => {
   for (let i = 0; i < ownersNotes.length; i++) {
     const sharedSecret = ownersNotes[i];
     const noteSharedSecret = notes[i].owner.sharedSecret;
-    expect(sharedSecret).toBe(noteSharedSecret);
+    expect(sharedSecret.toString()).toBe(noteSharedSecret.toString());
   }
 });
 
@@ -121,7 +121,7 @@ test("Scan owned notes", async () => {
   for (let i = 0; i < ownedNotes.length; i++) {
     const { sharedSecret } = ownedNotes[i];
     const noteSharedSecret = notes[i].owner.sharedSecret;
-    expect(sharedSecret).toBe(noteSharedSecret);
+    expect(sharedSecret.toString()).toBe(noteSharedSecret.toString());
   }
 });
 
@@ -172,9 +172,9 @@ test("Generate note ownership proof", async () => {
 
   for (let i = 0; i < MAX_NOTES; i++) {
     if (i < NUM_NOTES) {
-      expect(publicSignals[i]).toBe(publicNotes[i].ownerHash.toString());
+      expect(publicSignals[i].toString()).toBe(publicNotes[i].ownerHash.toString());
     } else {
-      expect(publicSignals[i]).toBe('0');
+      expect(publicSignals[i].toString()).toBe('0');
     }
   }
 });

@@ -29,6 +29,8 @@ import type {
   UpdateAnnouncementEncryptedMessageReturnType,
   WithdrawPayload,
 } from "@/types/api";
+import { SubmitNoteOwnershipProofReturnType } from "../types/api";
+import { Groth16Proof } from "snarkjs";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
@@ -175,6 +177,14 @@ class ApiClient extends HttpClient implements IApiClient {
       return await this.request<SubmitAggregationReturnType>({
         method: "POST",
         path: "/aggregator/aggregation",
+        body: data,
+      });
+    },
+
+    SubmitNotesOwnerhipProof: async (data: { proof: Groth16Proof; ownerHashes: string[] }) => {
+      return await this.request<SubmitNoteOwnershipProofReturnType>({
+        method: "POST",
+        path: "/aggregator/verify-note-ownerhip-proof",
         body: data,
       });
     },

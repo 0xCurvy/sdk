@@ -9,6 +9,8 @@ import type {
   CoreSendReturnType,
   CoreViewerScanArgs,
   CurvyKeyPairs,
+  AuthenticatedNote,
+  OutputNote,
 } from "@/types/core";
 import type { HexString } from "@/types/helper";
 import { isNode } from "@/utils/helpers";
@@ -199,16 +201,16 @@ class Core implements ICore {
     S: string,
     V: string,
     noteData: { ownerBabyJubPublicKey: string; amount: bigint; token: bigint }
-  ) {
+  ): AuthenticatedNote {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
     const note = {
       owner: {
-        babyJubPublicKey: noteData.ownerBabyJubPublicKey.split(".").map(BigInt),
-        sharedSecret: BigInt(spendingPubKey.split(".")[0]),
+        babyJubPublicKey: noteData.ownerBabyJubPublicKey.split(".") as [string, string],
+        sharedSecret: spendingPubKey.split(".")[0],
       },
-      amount: noteData.amount,
-      token: noteData.token,
+      amount: noteData.amount.toString(),
+      token: noteData.token.toString(),
     };
 
     return {
@@ -339,6 +341,20 @@ class Core implements ICore {
     return {
       spendingPubKeys: spendingPubKeys ?? [],
     };
+  }
+
+  generateOutputNote(
+    note: AuthenticatedNote,
+  ): OutputNote {
+    return {
+      ownerHash: poseidon.F.toObject(
+        poseidon([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)])
+      ),
+      amount: note.amount,
+      token: note.token,
+      ephemeralKey: note.ephemeralKey,
+      viewTag: note.viewTag,
+    }
   }
 
   isValidBN254Point(point: string): boolean {
