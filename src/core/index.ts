@@ -178,20 +178,28 @@ class Core implements ICore {
       v: keyPairs.v,
       V: keyPairs.V,
       bJJPublicKey: bJJPublicKeyStringified
-    } satisfies CurvyKeyPairs;
+    };
   }
 
   getCurvyKeys(s: string, v: string): CurvyKeyPairs {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
+    const bJJPublicKey = babyJubEddsa.prv2pub(
+      babyJubEddsa.F.e("0x" + result.k)
+    );
+
+    const bJJPublicKeyStringified = bJJPublicKey
+      .map((p: any) => babyJubEddsa.F.toObject(p).toString())
+      .join(".");
+
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
-      bJJPublicKey: result.bJJPublicKey,
-    } satisfies CurvyKeyPairs & { bJJPublicKey: string };
+      bJJPublicKey: bJJPublicKeyStringified,
+    } satisfies CurvyKeyPairs;
   }
 
   send(S: string, V: string) {
