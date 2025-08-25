@@ -9,6 +9,7 @@ import type {
   CoreSendReturnType,
   CoreViewerScanArgs,
   CurvyKeyPairs,
+  Note,
   AuthenticatedNote,
   OutputNote,
 } from "@/types/core";
@@ -201,7 +202,7 @@ class Core implements ICore {
     S: string,
     V: string,
     noteData: { ownerBabyJubPublicKey: string; amount: bigint; token: bigint }
-  ): AuthenticatedNote {
+  ): Note {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
     const note = {
@@ -344,7 +345,7 @@ class Core implements ICore {
   }
 
   generateOutputNote(
-    note: AuthenticatedNote,
+    note: Note,
   ): OutputNote {
     return {
       ownerHash: poseidon.F.toObject(
@@ -355,6 +356,26 @@ class Core implements ICore {
       ephemeralKey: note.ephemeralKey,
       viewTag: note.viewTag,
     }
+  }
+
+  unpackAuthenticatedNotes(
+    s: string,
+    v: string,
+    notes: AuthenticatedNote[],
+    babyJubPublicKey: [string, string]
+  ): Note[] {
+    const scanResult = this.scanNotes(s, v, notes);
+
+    return scanResult.spendingPubKeys.map((pubKey: string, index: number) => ({
+      owner: {
+        babyJubPublicKey,
+        sharedSecret:pubKey.split(".")[0]
+      },
+      amount: notes[index].amount,
+      token: notes[index].token,
+      viewTag: notes[index].viewTag,
+      ephemeralKey: notes[index].ephemeralKey,
+    }));
   }
 
   isValidBN254Point(point: string): boolean {

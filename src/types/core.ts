@@ -51,14 +51,22 @@ type CoreViewerScanReturnType = {
 };
 
 type AuthenticatedNote = {
-  owner: {
-    babyJubPublicKey: [string, string];
-    sharedSecret: string;
-  };
+  ownerHash: string;
   viewTag: string;
   ephemeralKey: string;
   token: string;
   amount: string;
+};
+
+type Note = {
+  owner: {
+    babyJubPublicKey: [string, string];
+    sharedSecret: string;
+  };
+  amount: string;
+  token: string;
+  viewTag: string;
+  ephemeralKey: string;
 };
 
 type OutputNote = {
@@ -81,5 +89,6 @@ export type {
   CoreViewerScanArgs,
   CoreViewerScanReturnType,
   AuthenticatedNote,
+  Note,
   OutputNote,
 };

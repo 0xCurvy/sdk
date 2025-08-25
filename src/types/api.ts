@@ -210,7 +210,7 @@ type SubmitWithdrawReturnType = { requestId: string };
 type SubmitAggregationReturnType = { requestId: string };
 type SubmitNoteOwnershipProofReturnType = {
   notes: {
-    owner: { babyJubPublicKey: [string, string]; sharedSecret: string };
+    ownerHash: string;
     viewTag: string;
     ephemeralKey: string;
     token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
