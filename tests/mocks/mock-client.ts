@@ -9,6 +9,7 @@ import type {
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetAggregatorRequestStatusReturnType,
+  GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsReturnType,
   GetCSAInfoRequest,
@@ -23,11 +24,13 @@ import type {
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
   SubmitGasSponsorshipRequestReturnType,
+  SubmitNoteOwnershipProofReturnType,
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
   WithdrawPayload,
 } from "@/types/api";
+import { Groth16Proof } from "snarkjs";
 
 export class MockAPIClient implements IApiClient {
   private announcementLimit = -1; // -1 will indicate there's no limit
@@ -182,6 +185,9 @@ export class MockAPIClient implements IApiClient {
   };
 
   aggregator = {
+    GetAllNotes: async (): Promise<GetAllNotesReturnType> => {
+      throw new Error("Method not implemented.");
+    },
     SubmitDeposit: async (_data: DepositPayload): Promise<SubmitDepositReturnType> => {
       throw new Error("Method not implemented.");
     },
@@ -189,6 +195,9 @@ export class MockAPIClient implements IApiClient {
       throw new Error("Method not implemented.");
     },
     SubmitAggregation: async (_data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType> => {
+      throw new Error("Method not implemented.");
+    },
+    SubmitNotesOwnerhipProof: async (_data: { proof: Groth16Proof; ownerHashes: string[] }): Promise<SubmitNoteOwnershipProofReturnType> => {
       throw new Error("Method not implemented.");
     },
     GetAggregatorRequestStatus: async (_requestId: string): Promise<GetAggregatorRequestStatusReturnType> => {

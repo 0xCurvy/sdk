@@ -7,6 +7,7 @@ import type {
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetAggregatorRequestStatusReturnType,
+  GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsReturnType,
   GetCSAInfoRequest,
@@ -20,12 +21,14 @@ import type {
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
   SubmitGasSponsorshipRequestReturnType,
+  SubmitNoteOwnershipProofReturnType,
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
   WithdrawPayload,
 } from "@/types/api";
 import type { CsucAction } from "@/types/csuc";
+import { Groth16Proof } from "snarkjs";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
@@ -62,9 +65,11 @@ interface IApiClient {
   };
 
   aggregator: {
+    GetAllNotes(): Promise<GetAllNotesReturnType>;
     SubmitDeposit(data: DepositPayload): Promise<SubmitDepositReturnType>;
     SubmitWithdraw(data: WithdrawPayload): Promise<SubmitWithdrawReturnType>;
     SubmitAggregation(data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType>;
+    SubmitNotesOwnerhipProof(data: { proof: Groth16Proof; ownerHashes: string[] }): Promise<SubmitNoteOwnershipProofReturnType>;
     GetAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
   };
 
