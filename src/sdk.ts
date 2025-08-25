@@ -413,7 +413,9 @@ class CurvySDK implements ICurvySDK {
     const { createdAt, publicKeys } = ownerDetails;
 
     if (!publicKeys.babyJubJubKey) {
-      const result = await this.apiClient.user.SetBabyJubJubKey(curvyHandle, { babyJubJubKey: keyPairs.bJJPublicKey });
+      const result = await this.apiClient.user.SetBabyJubJubKey(curvyHandle, {
+        babyJubJubKey: keyPairs.babyJubJubPublicKey,
+      });
       if (!("data" in result) || result.data.message !== "Saved")
         throw new Error(`Failed to set BabyJubJub key for handle ${curvyHandle}.`);
     }
@@ -422,7 +424,7 @@ class CurvySDK implements ICurvySDK {
       !(
         publicKeys.viewingKey === keyPairs.V &&
         publicKeys.spendingKey === keyPairs.S &&
-        publicKeys.babyJubJubKey === keyPairs.bJJPublicKey
+        publicKeys.babyJubJubKey === keyPairs.babyJubJubPublicKey
       )
     ) {
       throw new Error(`Wrong password for handle ${curvyHandle}.`);
@@ -476,7 +478,7 @@ class CurvySDK implements ICurvySDK {
     await this.apiClient.user.RegisterCurvyHandle({
       handle,
       ownerAddress,
-      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, babyJubJubKey: keyPairs.bJJPublicKey },
+      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, babyJubJubKey: keyPairs.babyJubJubPublicKey },
     });
 
     const { data: registerDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
