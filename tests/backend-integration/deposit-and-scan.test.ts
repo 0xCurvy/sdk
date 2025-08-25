@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api.js";
-import { AggregatorRequestStatus } from "@/constants/aggregator";
+import { AggregatorRequestStatus } from "@/types/aggregator";
 
 const BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzZGt0ZXN0LnN0YWdpbmctY3VydnkubmFtZSIsImlhdCI6MTc1NTg2Nzk5NiwiZXhwIjoyMTE1ODY3OTk2fQ.jl6KWZHGPVwIozMsgkSYNlxNUur0G4VtoP7WU-XoWUk";
 

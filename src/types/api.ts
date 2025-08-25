@@ -195,7 +195,7 @@ type AggregationRequest = {
   aggregationGroupId: string;
 };
 
-type AggregatorRequestStatus =
+type AggregatorRequestStatusValuesType =
   | "pending"
   | "submitting"
   | "success"
@@ -219,14 +219,14 @@ type SubmitNoteOwnershipProofReturnType = {
 };
 type GetAggregatorRequestStatusReturnType = {
   requestId: string;
-  status: AggregatorRequestStatus;
+  status: AggregatorRequestStatusValuesType;
 };
 
 export type {
   DepositPayload,
   WithdrawPayload,
   AggregationRequest,
-  AggregatorRequestStatus,
+  AggregatorRequestStatusValuesType,
   GetAllNotesReturnType,
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,

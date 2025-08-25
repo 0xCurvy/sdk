@@ -10,6 +10,7 @@ type CoreLegacyKeyPairs = {
   v: string;
   K: string;
   V: string;
+  bJJPublicKey: string;
 };
 
 type CurvyPrivateKeys = {
@@ -19,6 +20,7 @@ type CurvyPrivateKeys = {
 type CurvyPublicKeys = {
   S: string;
   V: string;
+  bJJPublicKey: string;
 };
 type CurvyKeyPairs = CurvyPrivateKeys & CurvyPublicKeys;
 
