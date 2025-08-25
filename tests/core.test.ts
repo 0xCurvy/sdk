@@ -62,8 +62,8 @@ test("simplest possible test", async () => {
 
   const keyPairs = core.generateKeyPairs();
 
-  const { bJJPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
-  expect(bJJPublicKey).not.toBeNull();
+  const { babyJubJubPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
+  expect(babyJubJubPublicKey).not.toBeNull();
 
   const validV = core.isValidBN254Point(keyPairs.V);
   const validS = core.isValidSECP256k1Point(keyPairs.S);
@@ -89,14 +89,12 @@ test("simplest possible test", async () => {
 
 test("Decode note shared secret", async () => {
   // const core = await Core.init();
-
   // const keyPairs = {
   //   s: "0x0000000000000000000000000000000000000000000000000000000000000000",
   //   S: "0x0000000000000000000000000000000000000000000000000000000000000000",
   //   v: "0x0000000000000000000000000000000000000000000000000000000000000000",
   //   K: "0x0000000000000000000000000000000000000000000000000000000000000000",
   // }
-
   // const noteData: any[] = [{
   //   ephemeralKey: "0x0000000000000000000000000000000000000000000000000000000000000000",
   //   viewTag: "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -105,17 +103,13 @@ test("Decode note shared secret", async () => {
   //   ephemeralKey: "0x0000000000000000000000000000000000000000000000000000000000000000",
   //   viewTag: "0x0000000000000000000000000000000000000000000000000000000000000000",
   // }];
-
   // const sharedSecrets = [
   //   "0x0000000000000000000000000000000000000000000000000000000000000001",
   //   "0x0000000000000000000000000000000000000000000000000000000000000002",
   // ];
-
   // const scanResult = core.scanNotes(keyPairs.s, keyPairs.v, noteData);
-
   // expect(scanResult.spendingPubKeys).lengthOf(2);
   // expect(scanResult.spendingPrivKeys).lengthOf(2);
-  
   // for (let i = 0; i < scanResult.spendingPrivKeys.length; i++) {
   //   const sharedSecret = scanResult.spendingPrivKeys[i];
   //   expect(sharedSecret).toBe(sharedSecrets[i]);

@@ -119,26 +119,26 @@ class Core implements ICore {
     } satisfies CoreViewerScanArgs;
   }
 
-  #getBJJPublicKey(keyPairs: CoreLegacyKeyPairs): string {
+  #getbabyJubJubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
     if (!this.#babyJubEddsa)
       throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
 
-    const bJJPublicKey = this.#babyJubEddsa.prv2pub(this.#babyJubEddsa.F.e("0x" + keyPairs.k));
+    const babyJubJubPublicKey = this.#babyJubEddsa.prv2pub(this.#babyJubEddsa.F.e("0x" + keyPairs.k));
 
-    return bJJPublicKey.map((p) => this.#babyJubEddsa?.F.toObject(p).toString()).join(".");
+    return babyJubJubPublicKey.map((p) => this.#babyJubEddsa?.F.toObject(p).toString()).join(".");
   }
 
   generateKeyPairs(): CurvyKeyPairs {
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
-    const bJJPublicKeyStringified = this.#getBJJPublicKey(keyPairs);
+    const babyJubJubPublicKeyStringified = this.#getbabyJubJubPublicKey(keyPairs);
 
     return {
       s: keyPairs.k,
       S: keyPairs.K,
       v: keyPairs.v,
       V: keyPairs.V,
-      bJJPublicKey: bJJPublicKeyStringified,
+      babyJubJubPublicKey: babyJubJubPublicKeyStringified,
     } satisfies CurvyKeyPairs;
   }
 
@@ -146,14 +146,14 @@ class Core implements ICore {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const bJJPublicKeyStringified = this.#getBJJPublicKey(result);
+    const babyJubJubPublicKeyStringified = this.#getbabyJubJubPublicKey(result);
 
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
-      bJJPublicKey: bJJPublicKeyStringified,
+      babyJubJubPublicKey: babyJubJubPublicKeyStringified,
     } satisfies CurvyKeyPairs;
   }
 
