@@ -6,9 +6,22 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
-import type { InputNoteData, OutputNoteData, Signature } from "@/types/aggregator";
-import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
+import type {
+  NETWORK_FLAVOUR_VALUES,
+  NETWORK_GROUP_VALUES,
+} from "@/constants/networks";
+import type {
+  InputNoteData,
+  OutputNoteData,
+  Signature,
+} from "@/types/aggregator";
+import type {
+  CSAInfo,
+  CsucAction,
+  CsucActionPayload,
+  CsucActionStatus,
+  CsucEstimatedActionCost,
+} from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { NetworkFilter } from "@/utils/network";
 
@@ -112,7 +125,10 @@ type GetAnnouncementEncryptedMessageReturnType = {
 
 //#region Network
 
-type NetworksWithCurrenciesResponse = { data: Array<Network>; error: string | null };
+type NetworksWithCurrenciesResponse = {
+  data: Array<Network>;
+  error: string | null;
+};
 type GetNetworksReturnType = Array<Network>;
 
 //#endregion
@@ -179,18 +195,39 @@ type AggregationRequest = {
   aggregationGroupId: string;
 };
 
-type AggregatorRequestStatus = "pending" | "submitting" | "success" | "failed" | "cancelled";
+type AggregatorRequestStatusValuesType =
+  | "pending"
+  | "submitting"
+  | "success"
+  | "failed"
+  | "cancelled";
 
+type GetAllNotesReturnType = {
+  notes: { ownerHash: string; viewTag: string; ephemeralKey: string }[];
+};
 type SubmitDepositReturnType = { requestId: string };
 type SubmitWithdrawReturnType = { requestId: string };
 type SubmitAggregationReturnType = { requestId: string };
-type GetAggregatorRequestStatusReturnType = { requestId: string; status: AggregatorRequestStatus };
+type SubmitNoteOwnershipProofReturnType = {
+  notes: {
+    ownerHash: string;
+    viewTag: string;
+    ephemeralKey: string;
+    token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+    amount: string;
+  }[];
+};
+type GetAggregatorRequestStatusReturnType = {
+  requestId: string;
+  status: AggregatorRequestStatusValuesType;
+};
 
 export type {
   DepositPayload,
   WithdrawPayload,
   AggregationRequest,
-  AggregatorRequestStatus,
+  AggregatorRequestStatusValuesType,
+  GetAllNotesReturnType,
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,
   SubmitAggregationReturnType,
@@ -247,7 +284,10 @@ type SubmitGasSponsorshipRequestReturnType = {
   data: { actionIds: string[] };
 };
 
-export type { SubmitGasSponsorshipRequest, SubmitGasSponsorshipRequestReturnType };
+export type {
+  SubmitGasSponsorshipRequest,
+  SubmitGasSponsorshipRequestReturnType,
+};
 
 //#endregion
 
@@ -269,6 +309,7 @@ export type {
   ResolveCurvyHandleReturnType,
   GetCurvyHandleByOwnerAddressResponse,
   GetCurvyHandleByOwnerAddressReturnType,
+  SubmitNoteOwnershipProofReturnType,
 };
 
 //#endregion
