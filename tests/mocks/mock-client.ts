@@ -1,3 +1,4 @@
+import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
 import type {
   AggregationRequest,
@@ -8,6 +9,7 @@ import type {
   DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
+  GetActionStatusResponse,
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
@@ -30,7 +32,6 @@ import type {
   UpdateAnnouncementEncryptedMessageReturnType,
   WithdrawPayload,
 } from "@/types/api";
-import { Groth16Proof } from "snarkjs";
 
 export class MockAPIClient implements IApiClient {
   private announcementLimit = -1; // -1 will indicate there's no limit
@@ -109,7 +110,6 @@ export class MockAPIClient implements IApiClient {
       });
 
       return {
-        // @ts-ignore
         announcements: announcements.slice(0, size),
         total: announcements.length,
       };
@@ -197,7 +197,10 @@ export class MockAPIClient implements IApiClient {
     SubmitAggregation: async (_data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitNotesOwnerhipProof: async (_data: { proof: Groth16Proof; ownerHashes: string[] }): Promise<SubmitNoteOwnershipProofReturnType> => {
+    SubmitNotesOwnerhipProof: async (_data: {
+      proof: Groth16Proof;
+      ownerHashes: string[];
+    }): Promise<SubmitNoteOwnershipProofReturnType> => {
       throw new Error("Method not implemented.");
     },
     GetAggregatorRequestStatus: async (_requestId: string): Promise<GetAggregatorRequestStatusReturnType> => {
@@ -213,6 +216,9 @@ export class MockAPIClient implements IApiClient {
       throw new Error("Method not implemented.");
     },
     SubmitActionRequest: async (_req: CreateActionRequest): Promise<CreateActionResponse> => {
+      throw new Error("Method not implemented.");
+    },
+    GetActionStatus: async (_req: { actionIds: string[] }): Promise<GetActionStatusResponse> => {
       throw new Error("Method not implemented.");
     },
   };

@@ -1,3 +1,4 @@
+import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
 import type {
@@ -29,8 +30,8 @@ import type {
   UpdateAnnouncementEncryptedMessageReturnType,
   WithdrawPayload,
 } from "@/types/api";
-import { SubmitNoteOwnershipProofReturnType } from "../types/api";
-import { Groth16Proof } from "snarkjs";
+import type { CsucActionStatus } from "@/types/csuc";
+import type { SubmitNoteOwnershipProofReturnType } from "../types/api";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
@@ -222,6 +223,13 @@ class ApiClient extends HttpClient implements IApiClient {
         body: {
           ...req,
         },
+      });
+    },
+    GetActionStatus: async (body: { actionIds: string[] }) => {
+      return await this.request<{ data: CsucActionStatus[]; error: null }>({
+        method: "POST",
+        path: "/csuc/action-status",
+        body,
       });
     },
   };
