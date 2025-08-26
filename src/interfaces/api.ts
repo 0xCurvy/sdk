@@ -1,3 +1,4 @@
+import type { Groth16Proof } from "snarkjs";
 import type {
   AggregationRequest,
   CreateActionResponse,
@@ -6,6 +7,7 @@ import type {
   DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
+  GetActionStatusResponse,
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
@@ -28,7 +30,6 @@ import type {
   WithdrawPayload,
 } from "@/types/api";
 import type { CsucAction } from "@/types/csuc";
-import { Groth16Proof } from "snarkjs";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
@@ -69,7 +70,10 @@ interface IApiClient {
     SubmitDeposit(data: DepositPayload): Promise<SubmitDepositReturnType>;
     SubmitWithdraw(data: WithdrawPayload): Promise<SubmitWithdrawReturnType>;
     SubmitAggregation(data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType>;
-    SubmitNotesOwnerhipProof(data: { proof: Groth16Proof; ownerHashes: string[] }): Promise<SubmitNoteOwnershipProofReturnType>;
+    SubmitNotesOwnerhipProof(data: {
+      proof: Groth16Proof;
+      ownerHashes: string[];
+    }): Promise<SubmitNoteOwnershipProofReturnType>;
     GetAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
   };
 
@@ -77,6 +81,7 @@ interface IApiClient {
     GetCSAInfo(req: GetCSAInfoRequest): Promise<GetCSAInfoResponse>;
     EstimateAction(req: GetActionEstimatedCostRequest): Promise<GetActionEstimatedCostResponse>;
     SubmitActionRequest(req: { action: CsucAction }): Promise<CreateActionResponse>;
+    GetActionStatus(req: { actionIds: string[] }): Promise<GetActionStatusResponse>;
   };
 
   gasSponsorship: {

@@ -34,7 +34,7 @@ import type { StarknetRpc } from "@/rpc/starknet";
 import { TemporaryStorage } from "@/storage/temporary-storage";
 import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
 import type { AggregationRequest, Currency, DepositPayload, Network, WithdrawPayload } from "@/types/api";
-import type { CsucActionPayload, CsucActionSet, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
+import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
 import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
   BalanceRefreshCompleteEvent,
@@ -787,9 +787,7 @@ class CurvySDK implements ICurvySDK {
       payloads: [payload],
     });
 
-    // @ts-ignore
-    // TODO remove when we remove strinigify on BE.
-    return JSON.parse(response.data.estimatedCosts)[0];
+    return response.data[0];
   }
 
   async requestActionInsideCSUC(
@@ -797,7 +795,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     payload: CsucActionPayload,
     totalFee: string,
-  ): Promise<CsucActionStatus> {
+  ) {
     const network = this.getNetwork(networkFilter);
 
     if (!network.csucContractAddress) {
@@ -820,7 +818,7 @@ class CurvySDK implements ICurvySDK {
       action: action,
     });
 
-    return response.data.actionStatus;
+    return { action, response: response.data };
   }
 
   onSyncStarted(listener: (event: SyncStartedEvent) => void) {
