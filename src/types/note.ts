@@ -24,7 +24,7 @@ type PublicNote = {
   ownerHash: bigint;
 } & DeliveryTag;
 
-type DepositedNote = {
+type DepositNote = {
   ownerHash: bigint;
 } & Balance &
   DeliveryTag;
@@ -94,25 +94,26 @@ class Note {
   }
 
   static generateOwnerHash(owner: Owner): bigint {
-    return poseidon3([
-      owner.babyJubPubKey.x,
-      owner.babyJubPubKey.y,
-      owner.sharedSecret,
-    ]);
+    return poseidon3([owner.babyJubPubKey.x, owner.babyJubPubKey.y, owner.sharedSecret]);
   }
 
   // Deposit note
   // =========================================================
-  serializeDepositNote(): DepositedNote {
+
+  // Used when sending deposit request to aggregator backend
+  serializeDepositNote(): DepositNote {
     return this.serializeAuthenticatedNote();
   }
 
-  static deserializeDepositNote(depositedNote: DepositedNote): Note {
-    return Note.deserializeAuthenticatedNote(depositedNote);
+  // TODO: Write when it is used
+  static deserializeDepositNote(depositNote: DepositNote): Note {
+    return Note.deserializeAuthenticatedNote(depositNote);
   }
 
   // Aggregation notes
   // =========================================================
+
+  // Used when sending aggregation request to aggregator backend
   serializeAggregationInputNote(): AggregationInputNote {
     if (!this.owner) {
       throw new Error("Owner is not set");
@@ -128,9 +129,8 @@ class Note {
     };
   }
 
-  static deserializeAggregationInputNote(
-    aggregationInputNote: AggregationInputNote
-  ): Note {
+  // TODO: Write when it is used
+  static deserializeAggregationInputNote(aggregationInputNote: AggregationInputNote): Note {
     const note = new Note({
       ownerHash: Note.generateOwnerHash(aggregationInputNote.owner),
       balance: aggregationInputNote,
@@ -138,6 +138,7 @@ class Note {
     return note;
   }
 
+  // Used when sending aggregation request to aggregator backend
   serializeAggregationOutputNote(): AggregationOutputNote {
     if (!this.ownerHash) {
       throw new Error("Owner hash is not set");
@@ -158,9 +159,8 @@ class Note {
     };
   }
 
-  static deserializeAggregationOutputNote(
-    aggregationOutputNote: AggregationOutputNote
-  ): Note {
+  // TODO: Write when it is used
+  static deserializeAggregationOutputNote(aggregationOutputNote: AggregationOutputNote): Note {
     const note = new Note({
       ownerHash: aggregationOutputNote.ownerHash,
       balance: {
@@ -177,6 +177,8 @@ class Note {
 
   // Withdrawal note
   // =========================================================
+
+  // Used when sending withdrawal request to aggregator backend
   serializeWithdrawalNote(): WithdrawalNote {
     return this.serializeAggregationInputNote();
   }
@@ -187,6 +189,8 @@ class Note {
 
   // Circuit notes
   // =========================================================
+
+  // Used when providing inputs for the ZK prover circuit
   serializeCircuitInputNote(): CircuitInputNote {
     if (!this.owner) {
       throw new Error("Owner is not set");
@@ -205,6 +209,7 @@ class Note {
     };
   }
 
+  // Used when providing inputs for the ZK prover circuit
   serializeCircuitOutputNote(): CircuitOutputNote {
     if (!this.ownerHash) {
       throw new Error("Owner hash is not set");
@@ -222,6 +227,8 @@ class Note {
 
   // Authenticated note
   // =========================================================
+
+  // Used when returning note with balances after verification of clientside proof of ownership
   serializeAuthenticatedNote(): AuthenticatedNote {
     if (!this.ownerHash) {
       throw new Error("Owner hash is not set");
@@ -242,9 +249,8 @@ class Note {
     };
   }
 
-  static deserializeAuthenticatedNote(
-    authenticatedNote: AuthenticatedNote
-  ): Note {
+  // Used when receiving note with balances after verification of clientside proof of ownership
+  static deserializeAuthenticatedNote(authenticatedNote: AuthenticatedNote): Note {
     const note = new Note({
       ownerHash: authenticatedNote.ownerHash,
       balance: {
@@ -261,6 +267,8 @@ class Note {
 
   // Public note
   // =========================================================
+
+  // Used when receiving notes from the note repository to scan notes for ownership
   serializePublicNote(): PublicNote {
     if (!this.ownerHash) {
       throw new Error("Owner hash is not set");
@@ -276,6 +284,7 @@ class Note {
     };
   }
 
+  // Used when receiving notes from the note repository to scan notes for ownership
   static deserializePublicNote(publicNote: PublicNote): Note {
     const note = new Note({
       ownerHash: publicNote.ownerHash,
