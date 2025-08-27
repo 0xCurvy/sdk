@@ -125,6 +125,12 @@ class CurvySDK implements ICurvySDK {
     return sdk;
   }
 
+  static async DANGER_DO_NOT_USE_init(): Promise<[CurvySDK, Core]> {
+    const core = await Core.init();
+    // @ts-expect-error
+    return [new CurvySDK(null, core, null, null), core];
+  }
+
   async #priceUpdate(_networks?: Array<Network>) {
     const networks = _networks ?? (await this.apiClient.network.GetNetworks());
     const priceMap = networksToPriceData(networks);
