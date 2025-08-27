@@ -59,6 +59,7 @@ type Network = {
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
   csucContractAddress?: string;
+  aggregatorContractAddress?: string;
   nativeCurrency: string | null;
   chainId: string;
   blockExplorerUrl: string;
@@ -195,12 +196,7 @@ type AggregationRequest = {
   aggregationGroupId: string;
 };
 
-type AggregatorRequestStatusValuesType =
-  | "pending"
-  | "submitting"
-  | "success"
-  | "failed"
-  | "cancelled";
+type AggregatorRequestStatusValuesType = "pending" | "submitting" | "success" | "failed" | "cancelled";
 
 type GetAllNotesReturnType = {
   notes: { ownerHash: string; viewTag: string; ephemeralKey: string }[];
@@ -254,7 +250,7 @@ type GetActionEstimatedCostRequest = {
 };
 
 type GetActionEstimatedCostResponse = {
-  data: { estimatedCosts: CsucEstimatedActionCost[] };
+  data: CsucEstimatedActionCost[];
 };
 
 type CreateActionRequest = {
@@ -262,7 +258,11 @@ type CreateActionRequest = {
 };
 
 type CreateActionResponse = {
-  data: { actionStatus: CsucActionStatus };
+  data: CsucActionStatus;
+};
+
+type GetActionStatusResponse = {
+  data: CsucActionStatus[];
 };
 
 export type {
@@ -272,6 +272,7 @@ export type {
   GetActionEstimatedCostResponse,
   CreateActionRequest,
   CreateActionResponse,
+  GetActionStatusResponse,
 };
 
 //#endregion
