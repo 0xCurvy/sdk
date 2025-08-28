@@ -303,11 +303,22 @@ class EvmRpc extends Rpc {
   // TODO: We should introduce commands first here as an example
   // TODO: Allow onboarding native currency (ETH as well) within this method
   async prepareCSUCOnboardTransactions(
+    networkIdentifier: string,
     privateKey: HexString,
     toAddress: `0x${string}`,
     currencySymbol: string,
     amount: string,
   ): Promise<GasSponsorshipRequest> {
+    // TODO: SDK should not be hardcoded to be aware of this
+    if (!["localnet", "ethereum-sepolia"].includes(networkIdentifier)) {
+      throw new Error(`Network: ${networkIdentifier} is not supported! Only 'localnet' and 'ethereum-sepolia'`);
+    }
+
+    const networkId = {
+      localnet: 7,
+      "ethereum-sepolia": 1,
+    }[networkIdentifier] as number;
+
     const token = this.network.currencies.find((c) => c.symbol === currencySymbol);
 
     if (!token) throw new Error(`Token ${currencySymbol} not found.`);
@@ -375,8 +386,9 @@ class EvmRpc extends Rpc {
       signedPayloads.push(sTx);
       // decodedSignedPayloads.push(dTx);
     }
+
     return {
-      networkId: 1, // Ethereum Sepolia
+      networkId,
       payloads: payloads.map((p) => ({
         data: jsonStringify(p),
       })),

@@ -1,3 +1,5 @@
+// TODO: remove this in the future
+//@ts-ignore
 import { poseidon3 } from "poseidon-lite";
 
 type Balance = {

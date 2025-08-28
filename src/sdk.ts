@@ -562,7 +562,7 @@ class CurvySDK implements ICurvySDK {
       const {
         data: { csaInfo },
       } = await this.apiClient.csuc.GetCSAInfo({
-        network: "ethereum-sepolia",
+        network: "localnet", // TODO: Make dynamic
         csas: [address.address],
       });
 
@@ -726,15 +726,16 @@ class CurvySDK implements ICurvySDK {
   }
 
   async onboardToCSUC(
+    networkIdentifier: NetworkFilter,
     from: CurvyAddress,
     toAddress: HexString | string,
     currencySymbol: string,
     amount: bigint | string,
   ) {
-    const currency = this.getNetwork("ethereum-sepolia").currencies.find((c) => c.symbol === currencySymbol);
+    const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
 
     if (!currency) {
-      throw new Error(`Currency with symbol ${currencySymbol} not found on network ethereum-sepolia!`);
+      throw new Error(`Currency with symbol ${currencySymbol} not found on network ${networkIdentifier}!`);
     }
 
     const wallet = this.#walletManager.getWalletById(from.walletId);
@@ -748,7 +749,7 @@ class CurvySDK implements ICurvySDK {
     } = this.#core.scan(s, v, [from]);
 
     if (currency.nativeCurrency) {
-      const rpc = this.rpcClient.Network("ethereum-sepolia");
+      const rpc = this.rpcClient.Network(networkIdentifier);
 
       // TODO For now we only support EVM RPCs for CSUC
       if (rpc instanceof EvmRpc) {
@@ -757,8 +758,8 @@ class CurvySDK implements ICurvySDK {
     }
 
     const request = await this.rpcClient
-      .Network("ethereum-sepolia")
-      .prepareCSUCOnboardTransactions(privateKey, toAddress, currency.symbol, amount);
+      .Network(networkIdentifier)
+      .prepareCSUCOnboardTransactions(networkIdentifier as string, privateKey, toAddress, currency.symbol, amount);
 
     return await this.apiClient.gasSponsorship.SubmitRequest(request);
   }
