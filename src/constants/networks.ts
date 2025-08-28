@@ -20,6 +20,7 @@ type NETWORK_FLAVOUR_VALUES = ExtractValues<NETWORK_FLAVOUR>;
 const EVM_MAINNETS = {
   ETHEREUM: "ethereum",
   ARBITRUM: "arbitrum",
+  LOCALNET: "localnet",
 } as const;
 type EVM_MAINNETS = typeof EVM_MAINNETS;
 type EVM_MAINNETS_VALUES = ExtractValues<EVM_MAINNETS>;
