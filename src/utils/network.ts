@@ -56,6 +56,7 @@ export function filterNetworks(networks: Network[], networkFilter: NetworkFilter
 const networksToPriceData = (networks: Network[]) => {
   return networks.reduce<Map<TOKENS, string>>((res, network) => {
     for (const { price, symbol } of network.currencies) {
+      if (!price) continue;
       if (res.has(symbol)) continue;
 
       res.set(symbol, price);
