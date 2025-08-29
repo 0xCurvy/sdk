@@ -37,4 +37,21 @@ export const AggregatorRequestStatus = {
   SUBMITTED: "submitted",
 }
 
+// TODO: add withdrawal type
+export type Withdrawal = {}
+
+export type DepositRequestParams = {
+  outputNotes: string[];
+  csucAddress: string;
+  csucTransferAllowanceSignature: string;
+}
+
+export type AggregationRequestParams = {
+  aggregations: Aggregation[];
+}
+
+export type WithdrawRequestParams = {
+  withdrawal: Withdrawal[];
+}
+
 export type { OutputNoteData, InputNoteData, Signature, Aggregation, AggregationPayload };

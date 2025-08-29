@@ -66,6 +66,7 @@ import { computePrivateKeys, deriveAddress } from "./utils/address";
 import { filterNetworks, type NetworkFilter, networksToPriceData } from "./utils/network";
 import { CurvyWallet } from "./wallet";
 import { WalletManager } from "./wallet-manager";
+import { AggregationRequestParams, DepositRequestParams, WithdrawRequestParams } from "./exports";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -820,6 +821,19 @@ class CurvySDK implements ICurvySDK {
     });
 
     return { action, response: response.data };
+  }
+
+  
+  createDepositPayload(params: DepositRequestParams) {
+    return {};
+  }
+
+  createAggregationPayload(params: AggregationRequestParams) {
+    return {};
+  }
+
+  createWithdrawPayload(params: WithdrawRequestParams) {
+    return {};
   }
 
   onSyncStarted(listener: (event: SyncStartedEvent) => void) {
