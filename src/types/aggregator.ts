@@ -1,33 +1,4 @@
-type OutputNoteData = {
-  ownerHash: bigint;
-  amount: bigint;
-  token: bigint;
-};
-
-type InputNoteData = {
-  owner: {
-    ownerBabyJub: bigint[];
-    sharedSecret: bigint;
-  };
-  token: bigint;
-  amount: bigint;
-};
-
-type Signature = {
-  S: bigint;
-  R8: bigint[];
-};
-
-type Aggregation = {
-  inputNotes: InputNoteData[];
-  outputNotes: OutputNoteData[];
-  signatures: Signature[];
-  ephemeralKeys: bigint[];
-};
-
-type AggregationPayload = {
-  aggregations: Aggregation[];
-};
+import { Note, OutputNote, Signature } from "./core";
 
 export const AggregatorRequestStatus = {
   PENDING: "pending",
@@ -37,21 +8,45 @@ export const AggregatorRequestStatus = {
   SUBMITTED: "submitted",
 }
 
-// TODO: add withdrawal type
-export type Withdrawal = {}
+type DepositPayloadParams = {
+  recipient: {
+    S: string;
+    V: string;
+  };
+  notes: {
+    babyJubPublicKey: string;
+    amount: string;
+    token: string;
+  }[];
+  csucTransferAllowanceSignature: string;
+}
 
-export type DepositRequestParams = {
-  outputNotes: string[];
+type DepositPayload = {
+  outputNotes: OutputNote[];
   csucAddress: string;
   csucTransferAllowanceSignature: string;
 }
 
-export type AggregationRequestParams = {
-  aggregations: Aggregation[];
+type AggregationPayloadParams = {
+  inputNotes: Note[];
+  outputNotes: OutputNote[];
 }
 
-export type WithdrawRequestParams = {
-  withdrawal: Withdrawal[];
+type AggregationPayload = {
+  inputNotes: Note[];
+  outputNotes: OutputNote[];
+  signatures: Signature[];
+};
+
+type WithdrawPayloadParams = {
+  inputNotes: Note[];
+  destinationAddress: string;
 }
 
-export type { OutputNoteData, InputNoteData, Signature, Aggregation, AggregationPayload };
+type WithdrawPayload = {
+  inputNotes: Note[];
+  signatures: Signature[];
+  destinationAddress: string;
+}
+
+export type { DepositPayloadParams, DepositPayload, AggregationPayloadParams, AggregationPayload, WithdrawPayloadParams, WithdrawPayload };

@@ -41,7 +41,7 @@ const generateOutputNoteHash = (outputNote: any) => {
   ]);
 };
 
-const generateAggregationOutputsHash = (outputNotes: any) => {
+const generateOutputsHash = (outputNotes: any) => {
   const outputNoteHashes = outputNotes.map(generateOutputNoteHash);
   return poseidon2(outputNoteHashes);
 };
@@ -52,7 +52,7 @@ const generateEphemeralKeysHash = (outputNotes: any[]) => {
 };
 
 const generateAggregationHash = (outputNotes: any) => {
-  const outputNoteHash = generateAggregationOutputsHash(outputNotes);
+  const outputNoteHash = generateOutputsHash(outputNotes);
   const ephemeralKeyHash = generateEphemeralKeysHash(outputNotes);
   return poseidon2([outputNoteHash, ephemeralKeyHash]);
 };
@@ -61,7 +61,7 @@ export {
   generateDummyOutputNote,
   padAggregationOutputNotes,
   generateOutputNoteHash,
-  generateAggregationOutputsHash,
+  generateOutputsHash,
   generateEphemeralKeysHash,
   generateAggregationHash,
 };

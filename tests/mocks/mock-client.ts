@@ -1,12 +1,10 @@
 import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
 import type {
-  AggregationRequest,
   CreateActionRequest,
   CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetActionStatusResponse,
@@ -30,8 +28,8 @@ import type {
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
-  WithdrawPayload,
 } from "@/types/api";
+import { AggregationPayload, DepositPayload, WithdrawPayload } from "@/types/aggregator";
 
 export class MockAPIClient implements IApiClient {
   private announcementLimit = -1; // -1 will indicate there's no limit
@@ -194,7 +192,7 @@ export class MockAPIClient implements IApiClient {
     SubmitWithdraw: async (_data: WithdrawPayload): Promise<SubmitWithdrawReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitAggregation: async (_data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType> => {
+    SubmitAggregation: async (_data: AggregationPayload): Promise<SubmitAggregationReturnType> => {
       throw new Error("Method not implemented.");
     },
     SubmitNotesOwnerhipProof: async (_data: {
