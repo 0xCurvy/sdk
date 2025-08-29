@@ -45,4 +45,5 @@ export * from "../utils/csuc";
 export * from "../utils/currency";
 export * from "../utils/encryption";
 export { filterNetworks, type NetworkFilter } from "../utils/network";
+export * from "../utils/poseidon-hash";
 export type { CurvyWallet } from "../wallet";

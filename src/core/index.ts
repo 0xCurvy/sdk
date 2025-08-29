@@ -1,6 +1,6 @@
 import "./wasm-exec.js";
 
-import { buildEddsa, buildPoseidon, type Eddsa, type Poseidon } from "circomlibjs";
+import { buildEddsa, type Eddsa } from "circomlibjs";
 import { groth16 } from "snarkjs";
 import type { ICore } from "@/interfaces/core";
 import type { RawAnnouncement } from "@/types/api";
@@ -17,6 +17,7 @@ import type {
 } from "@/types/core";
 import type { HexString } from "@/types/helper";
 import { isNode } from "@/utils/helpers";
+import PoseidonHash from "@/utils/poseidon-hash";
 
 declare const Go: {
   new (): {
@@ -40,17 +41,6 @@ declare const curvy: {
   dbg_isValidSECP256k1Point: (args: string) => boolean;
   version: () => string;
 };
-
-let babyJubEddsa: Eddsa;
-let poseidon: Poseidon;
-
-async function loadBabyJubJub() {
-  babyJubEddsa = await buildEddsa();
-}
-
-async function loadPoseidon() {
-  poseidon = await buildPoseidon();
-}
 
 async function loadWasm(wasmUrl?: string): Promise<void> {
   const go = new Go();
@@ -88,12 +78,24 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 }
 
 class Core implements ICore {
+  #Eddsa: Eddsa | null = null;
+
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
-    await loadBabyJubJub();
-    await loadPoseidon();
 
-    return new Core();
+    const core = new Core();
+
+    core.#Eddsa = await buildEddsa();
+    return core;
+  }
+
+  #getbabyJubJubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
+    if (!this.#Eddsa)
+      throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
+
+    const babyJubJubPublicKey = this.#Eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
+
+    return babyJubJubPublicKey.map((p) => this.#Eddsa?.F.toObject(p).toString()).join(".");
   }
 
   #extractScanArgsFromAnnouncements(announcements: RawAnnouncement[]) {
@@ -142,16 +144,14 @@ class Core implements ICore {
   generateKeyPairs(): CurvyKeyPairs {
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
-    const bJJPublicKey = babyJubEddsa.prv2pub(babyJubEddsa.F.e("0x" + keyPairs.k));
-
-    const bJJPublicKeyStringified = bJJPublicKey.map((p: any) => babyJubEddsa.F.toObject(p).toString()).join(".");
+    const babyJubJubPublicKeyStringified = this.#getbabyJubJubPublicKey(keyPairs);
 
     return {
       s: keyPairs.k,
       S: keyPairs.K,
       v: keyPairs.v,
       V: keyPairs.V,
-      bJJPublicKey: bJJPublicKeyStringified,
+      bJJPublicKey: babyJubJubPublicKeyStringified,
     };
   }
 
@@ -159,16 +159,14 @@ class Core implements ICore {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const bJJPublicKey = babyJubEddsa.prv2pub(babyJubEddsa.F.e("0x" + result.k));
-
-    const bJJPublicKeyStringified = bJJPublicKey.map((p: any) => babyJubEddsa.F.toObject(p).toString()).join(".");
+    const babyJubJubPublicKeyStringified = this.#getbabyJubJubPublicKey(result);
 
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
-      bJJPublicKey: bJJPublicKeyStringified,
+      bJJPublicKey: babyJubJubPublicKeyStringified,
     } satisfies CurvyKeyPairs;
   }
 
@@ -218,8 +216,7 @@ class Core implements ICore {
 
     for (let i = 0; i < publicNotes.length; i++) {
       if (sharedSecrets[i] != null) {
-        const computedHash = poseidon.F.toObject(poseidon([...bjjKeyBigint, sharedSecrets[i]!])).toString();
-
+        const computedHash = PoseidonHash([...bjjKeyBigint, sharedSecrets[i]!]).toString();
         if (computedHash === publicNotes[i].ownerHash) {
           ownedNotes.push({
             ownerHash: publicNotes[i].ownerHash,
@@ -308,9 +305,7 @@ class Core implements ICore {
 
   generateOutputNote(note: Note): OutputNote {
     return {
-      ownerHash: poseidon.F.toObject(
-        poseidon([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]),
-      ),
+      ownerHash: PoseidonHash([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]).toString(),
       amount: note.amount,
       token: note.token,
       ephemeralKey: note.ephemeralKey,
