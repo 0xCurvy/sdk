@@ -1,6 +1,6 @@
 import "./wasm-exec.js";
 
-import { buildEddsa, buildPoseidon, type Eddsa, type Poseidon } from "circomlibjs";
+import { type Eddsa, type Poseidon } from "circomlibjs";
 import { groth16 } from "snarkjs";
 import type { ICore } from "@/interfaces/core";
 import type { RawAnnouncement } from "@/types/api";
@@ -14,8 +14,9 @@ import type {
   CurvyKeyPairs,
   Note,
   OutputNote,
+  Signature,
 } from "@/types/core";
-import type { HexString } from "@/types/helper";
+import type { HexString, StringifyBigInts } from "@/types/helper";
 import { isNode } from "@/utils/helpers";
 
 declare const Go: {
@@ -40,17 +41,6 @@ declare const curvy: {
   dbg_isValidSECP256k1Point: (args: string) => boolean;
   version: () => string;
 };
-
-let babyJubEddsa: Eddsa;
-let poseidon: Poseidon;
-
-async function loadBabyJubJub() {
-  babyJubEddsa = await buildEddsa();
-}
-
-async function loadPoseidon() {
-  poseidon = await buildPoseidon();
-}
 
 async function loadWasm(wasmUrl?: string): Promise<void> {
   const go = new Go();
@@ -88,12 +78,48 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 }
 
 class Core implements ICore {
+  #babyJubEddsa: Eddsa | null = null;
+  #poseidon: Poseidon | null = null;
+
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
-    await loadBabyJubJub();
-    await loadPoseidon();
 
     return new Core();
+  }
+
+  #getbabyJubJubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
+    if (!this.#babyJubEddsa)
+      throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
+
+    const babyJubJubPublicKey = this.#babyJubEddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
+
+    return babyJubJubPublicKey.map((p) => this.#babyJubEddsa?.F.toObject(p).toString()).join(".");
+  }
+
+  getbabyJubJubPrivateKey(s: string): string {
+    if (!this.#babyJubEddsa)
+      throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
+
+    console.log("PRIVATE BABY KEY", `0x${Buffer.from(s, "hex").toString("hex")}`);
+
+    return `0x${Buffer.from(s, "hex").toString("hex")}`;
+  }
+
+  #getPoseidonHash(inputs: Array<bigint | string | number> | [[string, string], bigint]): string {
+    if (!this.#poseidon) {
+      throw new Error("Poseidon not initialized. Please call Core.init() before using this method.");
+    }
+
+    let values: bigint[];
+    if (Array.isArray(inputs[0])) {
+      const [bjjPubKey, sharedSecret] = inputs as [[string, string], bigint];
+      values = [BigInt(bjjPubKey[0]), BigInt(bjjPubKey[1]), sharedSecret];
+    } else {
+      values = (inputs as Array<bigint | string | number>).map(BigInt);
+    }
+
+    const h = this.#poseidon(values);
+    return this.#poseidon.F.toObject(h).toString();
   }
 
   #extractScanArgsFromAnnouncements(announcements: RawAnnouncement[]) {
@@ -142,16 +168,14 @@ class Core implements ICore {
   generateKeyPairs(): CurvyKeyPairs {
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
-    const bJJPublicKey = babyJubEddsa.prv2pub(babyJubEddsa.F.e("0x" + keyPairs.k));
-
-    const bJJPublicKeyStringified = bJJPublicKey.map((p: any) => babyJubEddsa.F.toObject(p).toString()).join(".");
+    const babyJubJubPublicKeyStringified = this.#getbabyJubJubPublicKey(keyPairs);
 
     return {
       s: keyPairs.k,
       S: keyPairs.K,
       v: keyPairs.v,
       V: keyPairs.V,
-      bJJPublicKey: bJJPublicKeyStringified,
+      bJJPublicKey: babyJubJubPublicKeyStringified,
     };
   }
 
@@ -159,16 +183,14 @@ class Core implements ICore {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const bJJPublicKey = babyJubEddsa.prv2pub(babyJubEddsa.F.e("0x" + result.k));
-
-    const bJJPublicKeyStringified = bJJPublicKey.map((p: any) => babyJubEddsa.F.toObject(p).toString()).join(".");
+    const babyJubJubPublicKeyStringified = this.#getbabyJubJubPublicKey(result);
 
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
-      bJJPublicKey: bJJPublicKeyStringified,
+      bJJPublicKey: babyJubJubPublicKeyStringified,
     } satisfies CurvyKeyPairs;
   }
 
@@ -218,8 +240,7 @@ class Core implements ICore {
 
     for (let i = 0; i < publicNotes.length; i++) {
       if (sharedSecrets[i] != null) {
-        const computedHash = poseidon.F.toObject(poseidon([...bjjKeyBigint, sharedSecrets[i]!])).toString();
-
+        const computedHash = this.#getPoseidonHash([...bjjKeyBigint, sharedSecrets[i]!]);
         if (computedHash === publicNotes[i].ownerHash) {
           ownedNotes.push({
             ownerHash: publicNotes[i].ownerHash,
@@ -308,8 +329,8 @@ class Core implements ICore {
 
   generateOutputNote(note: Note): OutputNote {
     return {
-      ownerHash: poseidon.F.toObject(
-        poseidon([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]),
+      ownerHash: this.#poseidon!.F.toObject(
+        this.#poseidon!([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]),
       ),
       amount: note.amount,
       token: note.token,
@@ -344,6 +365,33 @@ class Core implements ICore {
       viewTag: notes[index].viewTag,
       ephemeralKey: notes[index].ephemeralKey,
     }));
+  }
+
+  signNote(message: bigint, privateKey: string): StringifyBigInts<Signature> {
+    if (!this.#babyJubEddsa) {
+      throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
+    }
+
+    const privateKeyBuffer = Buffer.from(privateKey.slice(2), "hex");
+    const messageBuffer = this.#babyJubEddsa.babyJub.F.e(message);
+
+    const signature = this.#babyJubEddsa.signPoseidon(privateKeyBuffer, messageBuffer);
+
+    return {
+      R8: [
+        this.#babyJubEddsa.babyJub.F.toObject(signature.R8[0]).toString(),
+        this.#babyJubEddsa.babyJub.F.toObject(signature.R8[1]).toString(),
+      ],
+      S: signature.S.toString(),
+    };
+  }
+
+  poseidonHash(inputs: bigint[]): Record<string, any> {
+    if (!this.#poseidon) {
+      throw new Error("Poseidon not initialized. Please call Core.init() before using this method.");
+    }
+
+    return this.#poseidon.F.toObject(this.#poseidon(inputs));
   }
 
   isValidBN254Point(point: string): boolean {
