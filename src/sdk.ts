@@ -872,6 +872,26 @@ class CurvySDK implements ICurvySDK {
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void) {
     this.#emitter.off(BALANCE_REFRESH_COMPLETE_EVENT, listener);
   }
+
+  async pollForCriteria<T>(
+    pollFunction: () => Promise<T>,
+    pollCriteria: (res: T) => boolean,
+    maxRetries = 120,
+    delayMs = 10000,
+  ): Promise<T> {
+    for (let i = 0; i < maxRetries; i++) {
+      const res = await pollFunction();
+
+      if (pollCriteria(res)) {
+        return res;
+      }
+
+      console.info(`Polling attempt ${i + 1} failed, retrying in ${delayMs / 1000} seconds...`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    throw new Error(`Polling failed!`);
+  }
 }
 
 export { CurvySDK };
