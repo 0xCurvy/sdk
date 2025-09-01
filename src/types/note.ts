@@ -93,6 +93,14 @@ class Note {
     return poseidon3([this.ownerHash, this.balance.amount, this.balance.token]);
   }
 
+  get nullifier(): bigint {
+    if (!this.owner) {
+      throw new Error("Missing owner");
+    }
+
+    return poseidon3([this.owner.babyJubPubKey.x, this.owner.babyJubPubKey.y, this.owner.sharedSecret]);
+  }
+
   static generateOwnerHash(owner: Owner): bigint {
     return poseidon3([owner.babyJubPubKey.x, owner.babyJubPubKey.y, owner.sharedSecret]);
   }
