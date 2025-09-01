@@ -22,11 +22,13 @@ type CurvyPrivateKeys = {
   s: string;
   v: string;
 };
+
 type CurvyPublicKeys = {
   S: string;
   V: string;
   bJJPublicKey: string;
 };
+
 type CurvyKeyPairs = CurvyPrivateKeys & CurvyPublicKeys;
 
 type CoreSendReturnType = {
@@ -42,6 +44,7 @@ type CoreScanArgs = {
   Rs: Array<string>;
   viewTags: Array<string>;
 };
+
 type CoreScanReturnType = {
   spendingPubKeys: Array<string>;
   spendingPrivKeys: Array<HexString>;
@@ -53,35 +56,9 @@ type CoreViewerScanArgs = {
   Rs: Array<string>;
   viewTags: Array<string>;
 };
+
 type CoreViewerScanReturnType = {
   spendingPubKeys: Array<string>;
-};
-
-type AuthenticatedNote = {
-  ownerHash: string;
-  viewTag: string;
-  ephemeralKey: string;
-  token: string;
-  amount: string;
-};
-
-type Note = {
-  owner: {
-    babyJubPublicKey: [string, string];
-    sharedSecret: string;
-  };
-  amount: string;
-  token: string;
-  viewTag: string;
-  ephemeralKey: string;
-};
-
-type OutputNote = {
-  ownerHash: string;
-  amount: string;
-  token: string;
-  viewTag: string;
-  ephemeralKey: string;
 };
 
 export type {
@@ -96,7 +73,4 @@ export type {
   CoreScanReturnType,
   CoreViewerScanArgs,
   CoreViewerScanReturnType,
-  AuthenticatedNote,
-  Note,
-  OutputNote,
 };

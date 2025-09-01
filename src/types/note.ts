@@ -1,5 +1,3 @@
-// TODO: remove this in the future
-//@ts-ignore
 import { poseidon3 } from "poseidon-lite";
 
 type Balance = {
@@ -26,23 +24,15 @@ type PublicNote = {
   ownerHash: bigint;
 } & DeliveryTag;
 
-type DepositNote = {
-  ownerHash: bigint;
-} & Balance &
-  DeliveryTag;
-
 type AuthenticatedNote = {
   ownerHash: bigint;
 } & Balance &
   DeliveryTag;
 
-type CircuitInputNote = {
-  owner: Owner;
-} & Balance;
-
-type CircuitOutputNote = {
+type DepositNote = {
   ownerHash: bigint;
-} & Balance;
+} & Balance &
+  DeliveryTag;
 
 type AggregationInputNote = {
   owner: Owner;
@@ -55,6 +45,14 @@ type AggregationOutputNote = {
 
 type WithdrawalNote = {
   owner: Owner;
+} & Balance;
+
+type CircuitInputNote = {
+  owner: Owner;
+} & Balance;
+
+type CircuitOutputNote = {
+  ownerHash: bigint;
 } & Balance;
 
 type FullNoteData = {

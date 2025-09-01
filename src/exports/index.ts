@@ -40,6 +40,7 @@ export * from "../types/gas-sponsorship";
 export * from "../types/rpc";
 export * from "../types/signature";
 export * from "../types/wallet";
+export * from "../types/note";
 export * from "../utils/common";
 export * from "../utils/csuc";
 export * from "../utils/currency";
