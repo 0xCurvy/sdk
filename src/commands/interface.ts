@@ -1,8 +1,9 @@
 import type { Rpc } from "@/rpc/abstract";
 import type { CurvySDK } from "@/sdk";
-import type { Currency } from "@/types/api";
+import type { Currency, Network } from "@/types/api";
 import type { NetworkFilter } from "@/utils/network";
 import type { CurvyWallet } from "@/wallet";
+import { HexString } from "@/types/helper";
 
 export abstract class CurvyCommand {
   protected sdk: CurvySDK;
@@ -12,6 +13,17 @@ export abstract class CurvyCommand {
   }
 
   abstract execute(): Promise<void>;
+}
+
+export interface CurvyIntent {
+  // TODO: Type as bigint
+  // amount: bigint;
+  amount: number;
+  // TODO: Better type Curvy handle
+  toAddress: string | HexString; // if string, then it's curvy handle if it's HexString then it's EOA
+  // I don't care that Currency and Network are large objects, intents are rare and always user-generated.
+  currency: Currency;
+  network: Network;
 }
 
 export type CommandEstimateResult = {
@@ -60,7 +72,7 @@ export class CurvyCommander {
     return new CurvyRunInParallelCommand(this.sdk, commands);
   }
 
-  series(...commands: CurvyCommand) {
+  series(...commands: CurvyCommand[]) {
     return new CurvyRunInSeriesCommand(this.sdk, commands)
   }
 }
