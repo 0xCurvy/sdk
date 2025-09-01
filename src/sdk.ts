@@ -87,6 +87,8 @@ class CurvySDK implements ICurvySDK {
 
   readonly #semaphore: Partial<Record<string, boolean>>;
 
+  readonly commmander: CurvyCommander;
+
   private constructor(
     apiKey: string,
     core: Core,
@@ -100,6 +102,7 @@ class CurvySDK implements ICurvySDK {
     this.storage = storage;
     this.#walletManager = new WalletManager(this.apiClient, this.#emitter, this.storage, this.#core);
     this.#semaphore = Object.create(null);
+    this.commander = new CurvyCommander(this);
   }
 
   static async init(
@@ -124,6 +127,10 @@ class CurvySDK implements ICurvySDK {
     }
 
     return sdk;
+  }
+
+  async newCommander() {
+
   }
 
   async #priceUpdate(_networks?: Array<Network>) {
@@ -873,19 +880,6 @@ class CurvySDK implements ICurvySDK {
   }
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void) {
     this.#emitter.off(BALANCE_REFRESH_COMPLETE_EVENT, listener);
-  }
-
-  buildWalletCommand(networkFilter: NetworkFilter): CurvyWalletCommand {
-    // const commands = {
-    //   "Send": SendCommand
-    //   "Swap": SwapCommand,
-    // }
-    //
-    // return new commands[command](this, this.activeWallet, networkFilter);
-    //
-    // We do this.activeWallet here instead of in the command constructor because
-    // we want to more easily change wallets when testing.
-    return new SendNativeCurrencyCommand(this, this.activeWallet, networkFilter);
   }
 }
 

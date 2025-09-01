@@ -1,9 +1,6 @@
-// @ts-nocheck
-
 import type { Rpc } from "@/rpc/abstract";
 import type { CurvySDK } from "@/sdk";
 import type { Currency } from "@/types/api";
-import type { HexString } from "@/types/helper";
 import type { NetworkFilter } from "@/utils/network";
 import type { CurvyWallet } from "@/wallet";
 
@@ -36,35 +33,63 @@ export abstract class CurvyWalletCommand extends CurvyCommand {
   abstract estimate(): Promise<CommandEstimateResult>;
 }
 
-export class SendNativeCurrencyCommand extends CurvyWalletCommand {
-  #amount: bigint;
-  #currency: Currency;
-  #to: HexString;
+export abstract class CurvyComposableCommand extends CurvyCommand {
+  protected commands: CurvyCommand[];
+  protected ignoreErrors: boolean;
 
-  set amount(value: bigint) {
-    this.#amount = value;
+  constructor(sdk: CurvySDK, commands: CurvyCommand[]) {
+    super(sdk);
+    this.commands = commands;
+    this.ignoreErrors = false;
   }
 
-  set currency(value: Currency) {
-    this.#currency = value;
+  abstract ignoreErrors(): CurvyComposableCommand {
+    this.ignoreErrors = true;
+    return this
+  }
+}
+
+export class CurvyCommander {
+  protected sdk: CurvySDK;
+
+  constructor(sdk: CurvySDK) {
+    this.sdk = sdk;
   }
 
-  set to(value: HexString) {
-    this.#to = value;
+  parallel(...commands: CurvyCommand[]) {
+    return new CurvyRunInParallelCommand(this.sdk, commands);
   }
 
-  async estimate(): Promise<CommandEstimateResult> {
-    console.log("I am estimating gas!");
-
-    return <CommandEstimateResult>{
-      gas: 0n,
-      curvyFee: 0n,
-      currency: await this.sdk.getNativeCurrencyForNetwork(this.rpc.network),
-    };
+  series(...commands: CurvyCommand) {
+    return new CurvyRunInSeriesCommand(this.sdk, commands)
   }
-
+}
+export class CurvyRunInParallelCommand extends CurvyComposableCommand {
   async execute(): Promise<void> {
-    console.log(`${this.amount}${this.currency.symbol} sent from ${this.wallet.curvyHandle}!`);
-    return Promise.resolve();
+    await Promise.all(
+      this.commands.map(async (command) => {
+        try {
+          await command.execute();
+        } catch (e) {
+          console.error(e);
+        }
+      }),
+    );
+  }
+}
+
+export class CurvyRunInSeriesCommand extends CurvyComposableCommand {
+  async execute(): Promise<void> {
+    for (const command of this.commands) {
+      try {
+        await command.execute();
+      } catch (e) {
+        if (this.ignoreErrors) {
+          console.log("I will just log the error");
+        } else {
+          throw e;
+        }
+      }
+    }
   }
 }
