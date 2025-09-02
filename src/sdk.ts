@@ -66,9 +66,10 @@ import { computePrivateKeys, deriveAddress } from "./utils/address";
 import { filterNetworks, type NetworkFilter, networksToPriceData } from "./utils/network";
 import { CurvyWallet } from "./wallet";
 import { WalletManager } from "./wallet-manager";
-import { AggregationPayloadParams, WithdrawPayloadParams } from "./exports";
+import { AggregationPayloadParams, WithdrawPayloadParams } from "./types/aggregator";
 import { AggregationPayload, DepositPayload, DepositPayloadParams, WithdrawPayload } from "./types/aggregator";
 import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
+import { poseidonHash } from "./utils/poseidon-hash";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -903,7 +904,7 @@ class CurvySDK implements ICurvySDK {
       });
     }
     const msgHash = generateOutputsHash(inputNotes);
-    const signature = this.#core.signNote(this.#core.poseidonHash([msgHash, BigInt(destinationAddress), 0n]), this.#core.getbabyJubJubPrivateKey(s));
+    const signature = this.#core.signNote(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), this.#core.getbabyJubJubPrivateKey(s));
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
