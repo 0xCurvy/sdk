@@ -90,9 +90,7 @@ class Core implements ICore {
   }
 
   #getbabyJubJubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
-    if (!this.#eddsa)
-      throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
-
+    // @ts-expect-error
     const babyJubJubPublicKey = this.#eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
 
     return babyJubJubPublicKey.map((p) => this.#eddsa?.F.toObject(p).toString()).join(".");
