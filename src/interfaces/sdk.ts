@@ -128,6 +128,12 @@ interface ICurvySDK {
   offBalanceRefreshProgress(listener: (event: BalanceRefreshProgressEvent) => void): void;
   onBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void): void;
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void): void;
+  pollForCriteria<T>(
+    pollFunction: () => Promise<T>,
+    pollCriteria: (res: T) => boolean,
+    maxRetries: number,
+    delayMs: number,
+  ): Promise<T>;
 }
 
 export type { ICurvySDK };
