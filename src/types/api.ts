@@ -6,22 +6,9 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type {
-  NETWORK_FLAVOUR_VALUES,
-  NETWORK_GROUP_VALUES,
-} from "@/constants/networks";
-import type {
-  InputNoteData,
-  OutputNoteData,
-  Signature,
-} from "@/types/aggregator";
-import type {
-  CSAInfo,
-  CsucAction,
-  CsucActionPayload,
-  CsucActionStatus,
-  CsucEstimatedActionCost,
-} from "@/types/csuc";
+import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
+import type { InputNoteData, OutputNoteData, Signature } from "@/types/aggregator";
+import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { NetworkFilter } from "@/utils/network";
 
@@ -59,6 +46,7 @@ type Network = {
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
   csucContractAddress?: string;
+  minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   nativeCurrency: string | null;
   chainId: string;
@@ -285,10 +273,7 @@ type SubmitGasSponsorshipRequestReturnType = {
   data: { actionIds: string[] };
 };
 
-export type {
-  SubmitGasSponsorshipRequest,
-  SubmitGasSponsorshipRequestReturnType,
-};
+export type { SubmitGasSponsorshipRequest, SubmitGasSponsorshipRequestReturnType };
 
 //#endregion
 
