@@ -78,24 +78,24 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 }
 
 class Core implements ICore {
-  #Eddsa: Eddsa | null = null;
+  #eddsa: Eddsa | null = null;
 
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
 
     const core = new Core();
 
-    core.#Eddsa = await buildEddsa();
+    core.#eddsa = await buildEddsa();
     return core;
   }
 
   #getbabyJubJubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
-    if (!this.#Eddsa)
+    if (!this.#eddsa)
       throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
 
-    const babyJubJubPublicKey = this.#Eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
+    const babyJubJubPublicKey = this.#eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
 
-    return babyJubJubPublicKey.map((p) => this.#Eddsa?.F.toObject(p).toString()).join(".");
+    return babyJubJubPublicKey.map((p) => this.#eddsa?.F.toObject(p).toString()).join(".");
   }
 
   #extractScanArgsFromAnnouncements(announcements: RawAnnouncement[]) {
