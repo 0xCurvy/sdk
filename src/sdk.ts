@@ -33,7 +33,7 @@ import type { MultiRpc } from "@/rpc/multi";
 import type { StarknetRpc } from "@/rpc/starknet";
 import { TemporaryStorage } from "@/storage/temporary-storage";
 import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
-import type { Currency, Network } from "@/types/api";
+import type { Network } from "@/types/api";
 import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
 import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
@@ -56,7 +56,7 @@ import {
   type EvmSignTypedDataParameters,
   type StarknetSignatureData,
 } from "@/types/signature";
-import { parseDecimal } from "@/utils/currency";
+import { parseUnits } from "viem";
 import { encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
@@ -773,7 +773,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     to: HexString,
     token: HexString,
-    _amount: bigint | string,
+    _amount: bigint, // Doesn't accept decimal numbers i.e. `0.001`
   ): Promise<CsucEstimatedActionCost> {
     const network = this.getNetwork(networkFilter);
 
@@ -782,8 +782,7 @@ class CurvySDK implements ICurvySDK {
     }
 
     // User creates an action payload, and determines the wanted cost/speed
-    // TODO: Get eth properly
-    const amount = parseDecimal("0.001", { decimals: 18 } as Currency).toString();
+    const amount = _amount.toString();
 
     const payload = await prepareCsucActionEstimationRequest(network, actionId, from, to, token, amount);
 
@@ -906,6 +905,10 @@ class CurvySDK implements ICurvySDK {
       R8: signature.R8.map((r) => BigInt(r)),
     }));
     return { inputNotes, signatures, destinationAddress };
+  }
+  
+  convertDecimalNumberIntoBigInt(value: string | number, decimals: number): bigint {
+    return parseUnits(value.toString(), decimals);
   }
 
   onSyncStarted(listener: (event: SyncStartedEvent) => void) {
