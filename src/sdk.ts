@@ -886,7 +886,6 @@ class CurvySDK implements ICurvySDK {
         return res;
       }
 
-      console.info(`Polling attempt ${i + 1} failed, retrying in ${delayMs / 1000} seconds...`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
 
