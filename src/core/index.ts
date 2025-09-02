@@ -89,7 +89,7 @@ class Core implements ICore {
     return core;
   }
 
-  #getbabyJubJubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
+  #getBabyJubJubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
     // @ts-expect-error
     const babyJubJubPublicKey = this.#eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
 
@@ -142,7 +142,7 @@ class Core implements ICore {
   generateKeyPairs(): CurvyKeyPairs {
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
-    const babyJubJubPublicKeyStringified = this.#getbabyJubJubPublicKey(keyPairs);
+    const babyJubJubPublicKeyStringified = this.#getBabyJubJubPublicKey(keyPairs);
 
     return {
       s: keyPairs.k,
@@ -157,7 +157,7 @@ class Core implements ICore {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const babyJubJubPublicKeyStringified = this.#getbabyJubJubPublicKey(result);
+    const babyJubJubPublicKeyStringified = this.#getBabyJubJubPublicKey(result);
 
     return {
       s: result.k,
