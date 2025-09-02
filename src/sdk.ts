@@ -128,6 +128,10 @@ class CurvySDK implements ICurvySDK {
   async #priceUpdate(_networks?: Array<Network>) {
     const networks = _networks ?? (await this.apiClient.network.GetNetworks());
     const priceMap = networksToPriceData(networks);
+    if (priceMap.size === 0) {
+      console.warn("Could not fetch any price data, skipping price update.");
+      return;
+    }
     await this.storage.updatePriceData(priceMap);
   }
 
