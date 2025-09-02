@@ -38,7 +38,7 @@ type Currency = {
   symbol: string;
   coinmarketcapId: string;
   iconUrl: string;
-  price: string;
+  price: string | null;
   updatedAt: string;
   decimals: number;
   contractAddress: string;
@@ -253,10 +253,7 @@ type SubmitGasSponsorshipRequestReturnType = {
   data: { actionIds: string[] };
 };
 
-export type {
-  SubmitGasSponsorshipRequest,
-  SubmitGasSponsorshipRequestReturnType,
-};
+export type { SubmitGasSponsorshipRequest, SubmitGasSponsorshipRequestReturnType };
 
 //#endregion
 
