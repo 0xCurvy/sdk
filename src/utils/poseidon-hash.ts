@@ -62,4 +62,4 @@ function poseidonHash(inputs: In[] | In): bigint {
   return fn(arr);
 }
 
-export default poseidonHash;
+export { poseidonHash };

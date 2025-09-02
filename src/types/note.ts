@@ -1,4 +1,4 @@
-import poseidonHash from "@/utils/poseidon-hash";
+import { poseidonHash } from "@/utils/poseidon-hash";
 
 type Balance = {
   amount: bigint;

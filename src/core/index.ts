@@ -17,7 +17,7 @@ import type {
 } from "@/types/core";
 import type { HexString } from "@/types/helper";
 import { isNode } from "@/utils/helpers";
-import PoseidonHash from "@/utils/poseidon-hash";
+import { poseidonHash } from "@/utils/poseidon-hash";
 
 declare const Go: {
   new (): {
@@ -216,7 +216,7 @@ class Core implements ICore {
 
     for (let i = 0; i < publicNotes.length; i++) {
       if (sharedSecrets[i] != null) {
-        const computedHash = PoseidonHash([...bjjKeyBigint, sharedSecrets[i]!]).toString();
+        const computedHash = poseidonHash([...bjjKeyBigint, sharedSecrets[i]!]).toString();
         if (computedHash === publicNotes[i].ownerHash) {
           ownedNotes.push({
             ownerHash: publicNotes[i].ownerHash,
@@ -305,7 +305,7 @@ class Core implements ICore {
 
   generateOutputNote(note: Note): OutputNote {
     return {
-      ownerHash: PoseidonHash([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]).toString(),
+      ownerHash: poseidonHash([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]).toString(),
       amount: note.amount,
       token: note.token,
       ephemeralKey: note.ephemeralKey,
