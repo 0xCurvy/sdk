@@ -29,7 +29,7 @@ type Currency = {
   symbol: string;
   coinmarketcapId: string;
   iconUrl: string;
-  price: string;
+  price: string | null;
   updatedAt: string;
   decimals: number;
   contractAddress: string;

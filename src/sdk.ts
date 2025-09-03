@@ -128,6 +128,10 @@ class CurvySDK implements ICurvySDK {
   async #priceUpdate(_networks?: Array<Network>) {
     const networks = _networks ?? (await this.apiClient.network.GetNetworks());
     const priceMap = networksToPriceData(networks);
+    if (priceMap.size === 0) {
+      console.warn("Could not fetch any price data, skipping price update.");
+      return;
+    }
     await this.storage.updatePriceData(priceMap);
   }
 
@@ -874,6 +878,25 @@ class CurvySDK implements ICurvySDK {
   }
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void) {
     this.#emitter.off(BALANCE_REFRESH_COMPLETE_EVENT, listener);
+  }
+
+  async pollForCriteria<T>(
+    pollFunction: () => Promise<T>,
+    pollCriteria: (res: T) => boolean,
+    maxRetries = 120,
+    delayMs = 10000,
+  ): Promise<T> {
+    for (let i = 0; i < maxRetries; i++) {
+      const res = await pollFunction();
+
+      if (pollCriteria(res)) {
+        return res;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    throw new Error(`Polling failed!`);
   }
 }
 

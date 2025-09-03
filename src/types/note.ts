@@ -1,6 +1,4 @@
-// TODO: remove this in the future
-//@ts-ignore
-import { poseidon3 } from "poseidon-lite";
+import { poseidonHash } from "@/utils/poseidon-hash";
 
 type Balance = {
   amount: bigint;
@@ -92,11 +90,11 @@ class Note {
       throw new Error("Missing balance");
     }
 
-    return poseidon3([this.ownerHash, this.balance.amount, this.balance.token]);
+    return poseidonHash([this.ownerHash, this.balance.amount, this.balance.token]);
   }
 
   static generateOwnerHash(owner: Owner): bigint {
-    return poseidon3([owner.babyJubPubKey.x, owner.babyJubPubKey.y, owner.sharedSecret]);
+    return poseidonHash([owner.babyJubPubKey.x, owner.babyJubPubKey.y, owner.sharedSecret]);
   }
 
   // Deposit note
