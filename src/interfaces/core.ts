@@ -9,7 +9,6 @@ interface ICore {
   send(S: string, V: string): CoreSendReturnType;
   sendNote(S: string, V: string, noteData: { ownerBabyJubPublicKey: string; amount: bigint; token: bigint }): Note;
   signNote(message: bigint, privateKey: string): StringifyBigInts<Signature>;
-  poseidonHash(inputs: bigint[]): any;
   getbabyJubJubPrivateKey(s: string): string;
   scan(s: string, v: string, announcements: RawAnnouncement[]): CoreScanReturnType;
   viewerScan(v: string, S: string, announcements: RawAnnouncement[]): CoreViewerScanReturnType;

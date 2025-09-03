@@ -33,7 +33,7 @@ import type { MultiRpc } from "@/rpc/multi";
 import type { StarknetRpc } from "@/rpc/starknet";
 import { TemporaryStorage } from "@/storage/temporary-storage";
 import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
-import type { Currency, Network } from "@/types/api";
+import type { Network } from "@/types/api";
 import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
 import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
@@ -56,7 +56,7 @@ import {
   type EvmSignTypedDataParameters,
   type StarknetSignatureData,
 } from "@/types/signature";
-import { parseDecimal } from "@/utils/currency";
+import { parseUnits } from "viem";
 import { encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
@@ -66,10 +66,11 @@ import { computePrivateKeys, deriveAddress } from "./utils/address";
 import { filterNetworks, type NetworkFilter, networksToPriceData } from "./utils/network";
 import { CurvyWallet } from "./wallet";
 import { WalletManager } from "./wallet-manager";
-import { AggregationPayloadParams, WithdrawPayloadParams } from "./exports";
+import { AggregationPayloadParams, WithdrawPayloadParams } from "./types/aggregator";
 import { AggregationPayload, DepositPayload, DepositPayloadParams, WithdrawPayload } from "./types/aggregator";
 import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
 import { Note } from "./types/note";
+import { poseidonHash } from "./utils/poseidon-hash";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -132,6 +133,10 @@ class CurvySDK implements ICurvySDK {
   async #priceUpdate(_networks?: Array<Network>) {
     const networks = _networks ?? (await this.apiClient.network.GetNetworks());
     const priceMap = networksToPriceData(networks);
+    if (priceMap.size === 0) {
+      console.warn("Could not fetch any price data, skipping price update.");
+      return;
+    }
     await this.storage.updatePriceData(priceMap);
   }
 
@@ -774,7 +779,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     to: HexString,
     token: HexString,
-    _amount: bigint | string,
+    _amount: bigint, // Doesn't accept decimal numbers i.e. `0.001`
   ): Promise<CsucEstimatedActionCost> {
     const network = this.getNetwork(networkFilter);
 
@@ -783,8 +788,7 @@ class CurvySDK implements ICurvySDK {
     }
 
     // User creates an action payload, and determines the wanted cost/speed
-    // TODO: Get eth properly
-    const amount = parseDecimal("0.001", { decimals: 18 } as Currency).toString();
+    const amount = _amount.toString();
 
     const payload = await prepareCsucActionEstimationRequest(network, actionId, from, to, token, amount);
 
@@ -907,12 +911,16 @@ class CurvySDK implements ICurvySDK {
       }));
     }
     const msgHash = generateOutputsHash(inputNotes);
-    const signature = this.#core.signNote(this.#core.poseidonHash([msgHash, BigInt(destinationAddress), 0n]), this.#core.getbabyJubJubPrivateKey(s));
+    const signature = this.#core.signNote(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), this.#core.getbabyJubJubPrivateKey(s));
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
     return { inputNotes, signatures, destinationAddress };
+  }
+  
+  convertDecimalNumberIntoBigInt(value: string | number, decimals: number): bigint {
+    return parseUnits(value.toString(), decimals);
   }
 
   onSyncStarted(listener: (event: SyncStartedEvent) => void) {
@@ -964,6 +972,25 @@ class CurvySDK implements ICurvySDK {
   }
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void) {
     this.#emitter.off(BALANCE_REFRESH_COMPLETE_EVENT, listener);
+  }
+
+  async pollForCriteria<T>(
+    pollFunction: () => Promise<T>,
+    pollCriteria: (res: T) => boolean,
+    maxRetries = 120,
+    delayMs = 10000,
+  ): Promise<T> {
+    for (let i = 0; i < maxRetries; i++) {
+      const res = await pollFunction();
+
+      if (pollCriteria(res)) {
+        return res;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    throw new Error(`Polling failed!`);
   }
 }
 
