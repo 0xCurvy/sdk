@@ -29,20 +29,18 @@ export async function executePlan(plan: CurvyPlan): Promise<CurvyPlanExecution> 
     }
 
     for (const item of plan.items) {
-      try {
-        results.push(await executePlan(item));
-      } catch (error) {
-        results.push({
-          success: false,
-          error
-        });
+        const result = await executePlan(item);
 
-        return <CurvyPlanUnsuccessfulExecution>{
-          success: false,
-          error: error,
-          items: results
-        };
-      }
+        results.push(result);
+
+        // If latest item is unsuccessful, fail entire serial flow node with that error.
+        if (!result.success) {
+          return <CurvyPlanUnsuccessfulExecution>{
+            success: false,
+            error: result.error,
+            items: results
+          };
+        }
     }
 
     // The output address of the successful serial flow is the last members address.
