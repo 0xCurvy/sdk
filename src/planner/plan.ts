@@ -27,15 +27,12 @@ export type CurvyPlanCommand = {
   // Some commands such as WithdrawFromCSUC and SendToEOA require an intent
   // Intent is not passed in commands where the `to` address is a new CSUC/Note/SA of the current user, e.g. the OnboardToCSUCCommand.
   intent?: CurvyIntent;
-  // All(?) commands require input. Input is a CurvyAddress object.
-  // Input must be explicitly passed to the top-most CurvyWalletCommand
-  // If it is undefined, then it will take the output of the previous CurvyPlanCommand/CurvyPlanStep as the input CurvyAddress.
-  input?: CurvyAddressLike;
+  input: CurvyAddressLike | CurvyAddressLike[];
 };
 
 export type CurvyPlanAddress = {
   type: "address";
-  address: CurvyAddressLike;
+  address: CurvyAddressLike | CurvyAddressLike[];
 };
 
 export type CurvyPlanFlowControl = {
@@ -48,31 +45,30 @@ export type CurvyPlan = CurvyPlanFlowControl | CurvyPlanCommand | CurvyPlanAddre
 export type CurvyPlanSuccessfulEstimation = {
   success: true;
   result: CurvyCommandEstimate;
+  items?: CurvyPlanEstimation[];
 };
 
 export type CurvyPlanUnsuccessfulEstimation = {
   success: false;
-  error: Error;
+  error: any;
 };
 
-export type CurvyPlanEstimationResult =
+export type CurvyPlanEstimation =
   | CurvyPlanSuccessfulEstimation
-  | CurvyPlanUnsuccessfulEstimation
-  // TODO: Do we need Arrays because of parallel in case of estimation?
-  | (CurvyPlanSuccessfulEstimation | CurvyPlanUnsuccessfulEstimation)[];
+  | CurvyPlanUnsuccessfulEstimation;
 
 export type CurvyPlanSuccessfulExecution = {
   success: true;
-  output: CurvyAddressLike;
+  address?: CurvyAddressLike;
+  items?: CurvyPlanExecution[];
 };
 
 export type CurvyPlanUnsuccessfulExecution = {
   success: false;
-  error: Error;
+  error: any;
+  items?: CurvyPlanExecution[];
 };
 
-export type CurvyPlanExecutionResult =
+export type CurvyPlanExecution =
   | CurvyPlanSuccessfulExecution
-  | CurvyPlanUnsuccessfulExecution
-  // Arrays because of parallel
-  | (CurvyPlanSuccessfulExecution | CurvyPlanUnsuccessfulExecution)[];
+  | CurvyPlanUnsuccessfulExecution;

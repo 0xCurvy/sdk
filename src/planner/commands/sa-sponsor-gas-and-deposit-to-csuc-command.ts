@@ -2,6 +2,8 @@ import type { CurvyAddressLike } from "@/planner/plan";
 import { CurvyCommand, CurvyCommandEstimate } from "@/planner/commands/abstract";
 
 export class SASponsorGasAndDepositToCSUCCommand extends CurvyCommand {
+  declare protected address: CurvyAddressLike;
+
   estimate(): Promise<CurvyCommandEstimate> {
     const estimateResult: CurvyCommandEstimate = {
       gas: 100n,
