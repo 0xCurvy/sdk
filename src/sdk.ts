@@ -734,7 +734,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     toAddress: HexString | string,
     currencySymbol: string,
-    amount: bigint | string,
+    amount: string,
   ) {
     const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
 
@@ -757,7 +757,7 @@ class CurvySDK implements ICurvySDK {
 
       // TODO For now we only support EVM RPCs for CSUC
       if (rpc instanceof EvmRpc) {
-        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount.toString());
+        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount);
       }
     }
 
