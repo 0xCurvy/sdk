@@ -58,6 +58,95 @@ test("should run a single command test", async () => {
     ]
   }
 
+  const plan: CurvyPlan = {
+    type: "series",
+    items: [
+      {
+        type: "parallel",
+        items: [
+          {
+            type: "serial",
+            items: [
+              {
+                type: "command",
+                name: "SponsorGas",
+                input: balances[0],
+              },
+              {
+                type: "command",
+                name: "OnboardToCSUC",
+              },
+              {
+                type: "command",
+                name: "OnboardToAggregator",
+              },
+              {
+                type: "command",
+                name: "AggregatorDeposit",
+              },
+            ],
+          },
+          {
+            type: "serial",
+            items: [
+              {
+                type: "command",
+                name: "OnboardToAggregator",
+                input: balances[2],
+              },
+              {
+                type: "command",
+                name: "AggregatorDeposit",
+              },
+            ],
+          },
+          {
+            type: "serial",
+            items: [
+              {
+                type: "command",
+                name: "OnboardToAggregator",
+                input: balances[3],
+              },
+              {
+                type: "command",
+                name: "AggregatorDeposit",
+                payload: null,
+              },
+            ],
+          },
+          {
+            // This is the note!
+            type: "address",
+            address: balances[3],
+          },
+        ],
+      },
+      {
+        type: "series",
+        items: [
+          {
+            type: "command",
+            name: "AggregatorAggregate",
+            payload: null,
+          },
+          {
+            type: "command",
+            name: "AggregatorWithdraw",
+            payload: null,
+          },
+          {
+            type: "command",
+            name: "CSUCWithdraw",
+            intent,
+          },
+        ],
+      },
+    ],
+  };
+
+
+
   // After fetching all the inputs, the algorithm should then
   // create an execution plan
   // thought: this can give similar interface to bankr.bot

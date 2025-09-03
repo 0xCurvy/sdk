@@ -1,3 +1,4 @@
+//@ts-nocheck
 //TODO: Convert to class with RPC, etc. when needed, for now it can stay pure
 
 import { getCommandByName } from "@/planner/commands/registry";

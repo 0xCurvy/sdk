@@ -1,14 +1,12 @@
-import type { CurvyCommand } from "@/planner/commands/interface";
-import { OnboardToCSUCCommand } from "@/planner/commands/onboard-to-csuc";
+import { CurvyCommand } from "@/planner/commands/abstract";
+import { SASponsorGasAndDepositToCSUCCommand } from "@/planner/commands/sa-sponsor-gas-and-deposit-to-csuc-command";
+import { CurvyAddressLike, CurvyIntent } from "@/planner/plan";
 
-const commands = {
-  "onboard-to-csuc": OnboardToCSUCCommand,
-};
-
-export function getCommandByName(commandName: string): CurvyCommand {
-  if (!commands[commandName]) {
-    throw new Error(`Command ${commandName} not found`);
+export function getCommandByName(commandName: string, addressLike: CurvyAddressLike, intent?: CurvyIntent): CurvyCommand {
+  switch (commandName) {
+    case "sa-sponsor-gas-and-deposit-to-csuc":
+      return new SASponsorGasAndDepositToCSUCCommand(addressLike);
   }
 
-  return commands[commandName];
+  throw new Error(`Command ${commandName} not found`);
 }

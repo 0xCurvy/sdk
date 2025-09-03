@@ -1,7 +1,7 @@
-import type { CurvyCommandEstimate } from "@/planner/commands/interface";
 import type { Currency, Network } from "@/types/api";
 import type { CurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
+import { CurvyCommandEstimate } from "@/planner/commands/abstract";
 
 // TODO: [Vanja] Reimplement CurvyAddress with balances
 // Curvy Address is tied to one currency and one network
