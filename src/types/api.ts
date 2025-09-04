@@ -46,6 +46,7 @@ type Network = {
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
   csucContractAddress?: string;
+  minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   nativeCurrency: string | null;
   chainId: string;
