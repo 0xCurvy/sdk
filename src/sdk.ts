@@ -59,7 +59,6 @@ import {
 import { parseUnits } from "viem";
 import { encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
-import { type CurvyWalletCommand, SendNativeCurrencyCommand } from "./commands/interface";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
@@ -87,8 +86,6 @@ class CurvySDK implements ICurvySDK {
 
   readonly #semaphore: Partial<Record<string, boolean>>;
 
-  readonly commmander: CurvyCommander;
-
   private constructor(
     apiKey: string,
     core: Core,
@@ -102,7 +99,6 @@ class CurvySDK implements ICurvySDK {
     this.storage = storage;
     this.#walletManager = new WalletManager(this.apiClient, this.#emitter, this.storage, this.#core);
     this.#semaphore = Object.create(null);
-    this.commander = new CurvyCommander(this);
   }
 
   static async init(
@@ -127,10 +123,6 @@ class CurvySDK implements ICurvySDK {
     }
 
     return sdk;
-  }
-
-  async newCommander() {
-
   }
 
   async #priceUpdate(_networks?: Array<Network>) {

@@ -6,12 +6,12 @@ export interface CurvyCommandEstimate {
 }
 
 export abstract class CurvyCommand {
-  protected address: CurvyAddressLike;
+  protected address: CurvyAddressLike | CurvyAddressLike[];
 
-  constructor(address: CurvyAddressLike) {
+  constructor(address: CurvyAddressLike | CurvyAddressLike[]) {
     this.address = address;
   }
 
-  abstract execute(): Promise<CurvyAddressLike>;
+  abstract execute(): Promise<CurvyAddressLike | CurvyAddressLike[]>;
   abstract estimate(): Promise<CurvyCommandEstimate>;
 }
