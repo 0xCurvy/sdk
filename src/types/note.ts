@@ -113,7 +113,7 @@ class Note {
     return this.serializeAuthenticatedNote();
   }
 
-  // TODO: Write when it is used
+  // Used when receiving deposit note from aggregator backend
   static deserializeDepositNote(depositNote: DepositNote): Note {
     return Note.deserializeAuthenticatedNote(depositNote);
   }
@@ -137,7 +137,7 @@ class Note {
     };
   }
 
-  // TODO: Write when it is used
+  // Used when receiving aggregation input note from aggregator backend
   static deserializeAggregationInputNote(aggregationInputNote: AggregationInputNote): Note {
     const note = new Note({
       ownerHash: Note.generateOwnerHash(aggregationInputNote.owner),
@@ -167,7 +167,7 @@ class Note {
     };
   }
 
-  // TODO: Write when it is used
+  // Used when receiving aggregation output note from aggregator backend
   static deserializeAggregationOutputNote(aggregationOutputNote: AggregationOutputNote): Note {
     const note = new Note({
       ownerHash: aggregationOutputNote.ownerHash,
@@ -191,6 +191,7 @@ class Note {
     return this.serializeAggregationInputNote();
   }
 
+  // Used when receiving withdrawal note from aggregator backend
   static deserializeWithdrawalNote(withdrawalNote: WithdrawalNote): Note {
     return Note.deserializeAggregationInputNote(withdrawalNote);
   }
@@ -276,7 +277,7 @@ class Note {
   // Public note
   // =========================================================
 
-  // Used when receiving notes from the note repository to scan notes for ownership
+  // Used when receiving notes from the trees repository to scan notes for ownership
   serializePublicNote(): PublicNote {
     if (!this.ownerHash) {
       throw new Error("Owner hash is not set");
@@ -292,7 +293,7 @@ class Note {
     };
   }
 
-  // Used when receiving notes from the note repository to scan notes for ownership
+  // Used when receiving notes from the trees repository to scan notes for ownership
   static deserializePublicNote(publicNote: PublicNote): Note {
     const note = new Note({
       ownerHash: publicNote.ownerHash,
