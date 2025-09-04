@@ -1,18 +1,14 @@
 import { CurvyCommand } from "@/planner/commands/abstract";
-import { SASponsorGasAndDepositToCSUCCommand } from "@/planner/commands/sa-sponsor-gas-and-deposit-to-csuc-command";
-import { CurvyAddressLike, CurvyIntent } from "@/planner/plan";
+import { CurvyIntent } from "@/planner/plan";
 import { MockFailCommand, MockSuccessCommand } from "@/planner/commands/mock-commands";
+import { CurvyCommandInput } from "@/planner/addresses/abstract";
 
-export function commandFactory(commandName: string, addressLike: CurvyAddressLike | CurvyAddressLike[], intent?: CurvyIntent): CurvyCommand {
+export function commandFactory(commandName: string, input: CurvyCommandInput, intent?: CurvyIntent): CurvyCommand {
   switch (commandName) {
-    case "sa-sponsor-gas-and-deposit-to-csuc":
-      return new SASponsorGasAndDepositToCSUCCommand(addressLike);
-
-
     case "mock-success":
-      return new MockSuccessCommand(addressLike)
+      return new MockSuccessCommand(input)
     case "mock-fail":
-      return new MockFailCommand(addressLike);
+      return new MockFailCommand(input);
   }
 
   throw new Error(`Command ${commandName} not found`);

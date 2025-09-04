@@ -1,9 +1,11 @@
 import { CurvyAddressLike } from "../plan";
 import { CurvyCommand, CurvyCommandEstimate } from "./abstract";
+import { CurvyCommandAddress, CurvyCommandInput } from "@/planner/addresses/abstract";
+import { CurvyCommandSAAddress } from "@/planner/addresses/sa";
 
 export class MockSuccessCommand extends CurvyCommand {
-  execute(): Promise<CurvyAddressLike> {
-    return Promise.resolve(mockAddressLike);
+  execute(): Promise<CurvyCommandInput> {
+    return Promise.resolve(this.input);
   }
 
   estimate(): Promise<CurvyCommandEstimate> {
@@ -15,7 +17,7 @@ export class MockSuccessCommand extends CurvyCommand {
 }
 
 export class MockFailCommand extends CurvyCommand {
-  execute(): Promise<CurvyAddressLike> {
+  execute(): Promise<CurvyCommandInput> {
     throw new Error("Execution failed! This is a mock command that always fails");
   }
 
@@ -24,9 +26,5 @@ export class MockFailCommand extends CurvyCommand {
   }
 }
 
-export const mockAddressLike: CurvyAddressLike = {
-  address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-  type: "sa",
-  balance: 20n,
-  privateKey: "..."
-};
+// @ts-ignore
+export const mockInput = new CurvyCommandSAAddress(20n, <Currency>{}, "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "...")

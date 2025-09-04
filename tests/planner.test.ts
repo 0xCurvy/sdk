@@ -1,25 +1,26 @@
 import { expect, test } from "vitest";
 import { CurvyPlan, CurvyPlanSuccessfulExecution, CurvyPlanUnsuccessfulExecution } from "@/planner/plan";
 import { executePlan } from "@/planner/planner";
-import { mockAddressLike } from "@/planner/commands/mock-commands";
+import { mockInput } from "@/planner/commands/mock-commands";
 
 const simpleSerialFail: CurvyPlan = {
   type: "serial",
   items: [
     {
+      type: "input",
+      input: mockInput
+    },
+    {
       type: "command",
       name: "mock-success",
-      input: mockAddressLike
     },
     {
       type: "command",
       name: "mock-fail",
-      input: mockAddressLike
     },
     {
       type: "command",
       name: "mock-success",
-      input: mockAddressLike
     }
   ]
 };
@@ -29,17 +30,14 @@ const simpleSerialSuccess: CurvyPlan = {
     {
       type: "command",
       name: "mock-success",
-      input: mockAddressLike
     },
     {
       type: "command",
       name: "mock-success",
-      input: mockAddressLike
     },
     {
       type: "command",
       name: "mock-success",
-      input: mockAddressLike
     }
   ]
 };
@@ -49,17 +47,14 @@ const simpleParallelFail: CurvyPlan = {
     {
       type: "command",
       name: "mock-success",
-      input: mockAddressLike
     },
     {
       type: "command",
       name: "mock-fail",
-      input: mockAddressLike
     },
     {
       type: "command",
       name: "mock-success",
-      input: mockAddressLike
     }
   ]
 };
@@ -69,17 +64,14 @@ const simpleParallelSuccess: CurvyPlan = {
     {
       type: "command",
       name: "mock-success",
-      input: mockAddressLike
     },
     {
       type: "command",
       name: "mock-success",
-      input: mockAddressLike
     },
     {
       type: "command",
       name: "mock-success",
-      input: mockAddressLike
     }
   ]
 };
@@ -88,14 +80,14 @@ test("simple serial fail", async () => {
   const result = await executePlan(simpleSerialFail);
 
   expect(result.success, "plan should fail if second command failed").toBe(false);
-  expect(result.items, "plan should have exactly two items").toHaveLength(2);
+  expect(result.items, "plan should have exactly 3 items").toHaveLength(3);
 
-  const successfulItem = result.items![0] as CurvyPlanSuccessfulExecution;
+  const successfulItem = result.items![1] as CurvyPlanSuccessfulExecution;
   expect(successfulItem.success, "plan should have first item succeed").toBe(true);
-  expect(successfulItem.address).toBe(mockAddressLike);
+  expect(successfulItem.address, "first item should have exact address in output").toBe(mockInput);
 
-  const unsuccesfulItem = result.items![1] as CurvyPlanUnsuccessfulExecution;
-  expect(unsuccesfulItem.success, "plan should have second item fail").toBe(false);
+  const unsuccessfulItem = result.items![1] as CurvyPlanUnsuccessfulExecution;
+  expect(unsuccessfulItem.success, "plan should have second item fail").toBe(false);
 });
 
 test("simple serial success", async () => {
@@ -106,7 +98,7 @@ test("simple serial success", async () => {
   for (let item of result.items!) {
     item = item as CurvyPlanSuccessfulExecution;
     expect(item.success, "plan should have first item succeed").toBe(true);
-    expect(item.address).toBe(mockAddressLike);
+    expect(item.address).toBe(mockInput);
   }
 });
 
@@ -149,7 +141,6 @@ test("complex fail from serial", async () => {
       {
         type: "command",
         name: "mock-fail",
-        input: mockAddressLike
       }
     ]
   }
@@ -178,7 +169,6 @@ test("complex fail from parallel", async () => {
       {
         type: "command",
         name: "mock-success",
-        input: mockAddressLike
       }
     ]
   }
@@ -211,7 +201,6 @@ test("complex fail from both serial and parallel", async () => {
       {
         type: "command",
         name: "mock-fail",
-        input: mockAddressLike
       }
     ]
   }
@@ -243,7 +232,6 @@ test("complex success", async () => {
       {
         type: "command",
         name: "mock-success",
-        input: mockAddressLike
       }
     ]
   }

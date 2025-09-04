@@ -7,8 +7,9 @@ import type {
 } from "@/planner/plan";
 
 import { commandFactory } from "@/planner/commands/factory";
+import { CurvyCommandInput } from "@/planner/addresses/abstract";
 
-export async function executePlan(plan: CurvyPlan): Promise<CurvyPlanExecution> {
+export async function executePlan(plan: CurvyPlan, input?: CurvyCommandInput): Promise<CurvyPlanExecution> {
   // CurvyPlanFlowControl, parallel
   if (plan.type === "parallel") {
     const result = await Promise.all(plan.items.map((item) => executePlan(item)));
@@ -53,8 +54,12 @@ export async function executePlan(plan: CurvyPlan): Promise<CurvyPlanExecution> 
 
   // CurvyPlanCommand
   if (plan.type === "command") {
+    if (!input) {
+      throw new Error("Input is required for command node!");
+    }
+
     try {
-      const command = commandFactory(plan.name, plan.input, plan.intent);
+      const command = commandFactory(plan.name, input, plan.intent);
       const address = await command.execute();
 
       return <CurvyPlanSuccessfulExecution> {
@@ -69,11 +74,11 @@ export async function executePlan(plan: CurvyPlan): Promise<CurvyPlanExecution> 
     }
   }
 
-  // CurvyPlanAddress
-  if (plan.type === "address") {
+  // CurvyPlanInput
+  if (plan.type === "input") {
     return <CurvyPlanSuccessfulExecution> {
       success: true,
-      address: plan.address
+      input: plan.input
     };
   }
 
@@ -81,6 +86,6 @@ export async function executePlan(plan: CurvyPlan): Promise<CurvyPlanExecution> 
 }
 
 // @ts-ignore
-export function estimatePlan(plan: CurvyPlan): Promise<CurvyPlanEstimation> {
+export function estimatePlan(_plan: CurvyPlan): Promise<CurvyPlanEstimation> {
   // TODO: Implement
 }

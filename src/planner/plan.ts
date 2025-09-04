@@ -2,6 +2,7 @@ import type { Currency, Network } from "@/types/api";
 import type { CurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { CurvyCommandEstimate } from "@/planner/commands/abstract";
+import { CurvyCommandInput } from "@/planner/addresses/abstract";
 
 // TODO: [Vanja] Reimplement CurvyAddress with balances
 // Curvy Address is tied to one currency and one network
@@ -24,15 +25,16 @@ export interface CurvyIntent {
 export type CurvyPlanCommand = {
   type: "command";
   name: string;
-  // Some commands such as WithdrawFromCSUC and SendToEOA require an intent
+  // Some commands such as WithdrawFromCSUC and SendToEOA require an intent.
   // Intent is not passed in commands where the `to` address is a new CSUC/Note/SA of the current user, e.g. the OnboardToCSUCCommand.
   intent?: CurvyIntent;
-  input: CurvyAddressLike | CurvyAddressLike[];
+  // Some commands (such as aggregate) can spend less than they have available. That's what we use this amount for.
+  amount?: bigint
 };
 
-export type CurvyPlanAddress = {
-  type: "address";
-  address: CurvyAddressLike | CurvyAddressLike[];
+export type CurvyPlanInput = {
+  type: "input";
+  input: CurvyCommandInput;
 };
 
 export type CurvyPlanFlowControl = {
@@ -40,7 +42,7 @@ export type CurvyPlanFlowControl = {
   items: CurvyPlan[];
 };
 
-export type CurvyPlan = CurvyPlanFlowControl | CurvyPlanCommand | CurvyPlanAddress;
+export type CurvyPlan = CurvyPlanFlowControl | CurvyPlanCommand | CurvyPlanInput;
 
 export type CurvyPlanSuccessfulEstimation = {
   success: true;
