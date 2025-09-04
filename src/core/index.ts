@@ -14,8 +14,9 @@ import type {
   CurvyKeyPairs,
   Note,
   OutputNote,
+  Signature,
 } from "@/types/core";
-import type { HexString } from "@/types/helper";
+import type { HexString, StringifyBigInts } from "@/types/helper";
 import { isNode } from "@/utils/helpers";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
@@ -337,6 +338,23 @@ class Core implements ICore {
       viewTag: notes[index].viewTag,
       ephemeralKey: notes[index].ephemeralKey,
     }));
+  }
+
+  signWithBabyJubPrivateKey(message: bigint, babyJubPrivateKey: string): StringifyBigInts<Signature> {
+    const privateKey = `0x${Buffer.from(babyJubPrivateKey, "hex").toString("hex")}`;
+
+    const privateKeyBuffer = Buffer.from(privateKey.slice(2), "hex");
+    const messageBuffer = this.#eddsa!.babyJub.F.e(message);
+
+    const signature = this.#eddsa!.signPoseidon(privateKeyBuffer, messageBuffer);
+
+    return {
+      R8: [
+        this.#eddsa!.babyJub.F.toObject(signature.R8[0]).toString(),
+        this.#eddsa!.babyJub.F.toObject(signature.R8[1]).toString(),
+      ],
+      S: signature.S.toString(),
+    };
   }
 
   isValidBN254Point(point: string): boolean {

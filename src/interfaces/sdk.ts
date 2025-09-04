@@ -2,15 +2,12 @@ import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/consta
 import type { MultiRpc } from "@/rpc/multi";
 import type { CurvyAddress } from "@/types/address";
 import type {
-  AggregationRequest,
   Currency,
-  DepositPayload,
   GetAggregatorRequestStatusReturnType,
   Network,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,
-  WithdrawPayload,
 } from "@/types/api";
 import type { CurvyHandle } from "@/types/curvy";
 import type {
@@ -30,6 +27,7 @@ import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/ty
 import type { CurvySignatureParameters, EvmSignatureData, StarknetSignatureData } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
 import type { CurvyWallet } from "@/wallet";
+import { AggregationPayload, DepositPayload, WithdrawPayload } from "@/types/aggregator";
 
 interface ICurvySDK {
   // Getters
@@ -108,7 +106,7 @@ interface ICurvySDK {
 
   createDeposit(payload: DepositPayload): Promise<SubmitDepositReturnType>;
   createWithdraw(payload: WithdrawPayload): Promise<SubmitWithdrawReturnType>;
-  createAggregation(payload: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType>;
+  createAggregation(payload: AggregationPayload): Promise<SubmitAggregationReturnType>;
   getAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
 
   // Event subscriptions

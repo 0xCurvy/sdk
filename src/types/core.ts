@@ -5,6 +5,11 @@ type PublicKey = {
   viewingKey: string;
 };
 
+type Signature = {
+  S: bigint;
+  R8: bigint[];
+};
+
 type CoreLegacyKeyPairs = {
   k: string;
   v: string;
@@ -81,6 +86,7 @@ type OutputNote = {
 
 export type {
   PublicKey,
+  Signature,
   CurvyKeyPairs,
   CurvyPublicKeys,
   CoreLegacyKeyPairs,

@@ -33,7 +33,7 @@ import type { MultiRpc } from "@/rpc/multi";
 import type { StarknetRpc } from "@/rpc/starknet";
 import { TemporaryStorage } from "@/storage/temporary-storage";
 import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
-import type { AggregationRequest, DepositPayload, Network, WithdrawPayload } from "@/types/api";
+import type { Network } from "@/types/api";
 import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
 import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
@@ -66,6 +66,10 @@ import { computePrivateKeys, deriveAddress } from "./utils/address";
 import { filterNetworks, type NetworkFilter, networksToPriceData } from "./utils/network";
 import { CurvyWallet } from "./wallet";
 import { WalletManager } from "./wallet-manager";
+import { AggregationPayloadParams, WithdrawPayloadParams } from "./types/aggregator";
+import { AggregationPayload, DepositPayload, DepositPayloadParams, WithdrawPayload } from "./types/aggregator";
+import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
+import { poseidonHash } from "./utils/poseidon-hash";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -721,7 +725,7 @@ class CurvySDK implements ICurvySDK {
     return this.apiClient.aggregator.SubmitWithdraw(payload);
   }
 
-  async createAggregation(payload: { aggregations: AggregationRequest[] }) {
+  async createAggregation(payload: AggregationPayload) {
     return this.apiClient.aggregator.SubmitAggregation(payload);
   }
 
@@ -825,6 +829,89 @@ class CurvySDK implements ICurvySDK {
     return { action, response: response.data };
   }
 
+  createDepositPayload(params: DepositPayloadParams): DepositPayload {
+    const { recipient, notes, csucTransferAllowanceSignature } = params;
+    if (!recipient || !notes || !csucTransferAllowanceSignature) {
+      throw new Error("Invalid deposit payload parameters");
+    }
+    const inputNotesStringified = notes.map((note) =>
+      this.#core.sendNote(recipient.S, recipient.V, {
+        ownerBabyJubPublicKey: note.babyJubPublicKey,
+        amount: BigInt(note.amount),
+        token: BigInt(note.token),
+      })
+    );
+
+    const outputNotesStringified = inputNotesStringified.map((note) => this.#core.generateOutputNote(note));
+
+    const { csucContractAddress } = this.getNetwork("localnet");
+
+    return {
+      outputNotes: outputNotesStringified,
+      csucAddress: csucContractAddress!,
+      csucTransferAllowanceSignature,
+    };
+  }
+
+  createAggregationPayload(params: AggregationPayloadParams): AggregationPayload {
+    const  { inputNotes, outputNotes } = params;
+
+    const { s } = this.activeWallet.keyPairs;
+
+    if (outputNotes.length < 2) {
+      outputNotes.push({
+        ownerHash: "0",
+        amount: "0",
+        token: "0",
+        viewTag: "0",
+        ephemeralKey: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+      })
+    }
+
+    const msgHash = generateAggregationHash(outputNotes);
+    const signature = this.#core.signWithBabyJubPrivateKey(msgHash, s);
+    const signatures = Array.from({ length: 10 }).map(() => ({
+      S: BigInt(signature.S),
+      R8: signature.R8.map((r) => BigInt(r)),
+    }));
+
+    return {
+      inputNotes,
+      outputNotes,
+      signatures,
+    }
+  }
+
+  createWithdrawPayload(params: WithdrawPayloadParams): WithdrawPayload {
+    const { inputNotes, destinationAddress } = params;
+    if (!inputNotes || !destinationAddress) {
+      throw new Error("Invalid withdraw payload parameters");
+    }
+    const { s } = this.activeWallet.keyPairs;
+    for (let i = inputNotes.length; i < 15; i++) {
+      inputNotes.push({
+        owner: {
+          babyJubPublicKey: [
+            `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+            `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+          ],
+          sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+        },
+        amount: "0",
+        token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE").toString(),
+        viewTag: "0",
+        ephemeralKey: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+      });
+    }
+    const msgHash = generateOutputsHash(inputNotes);
+    const signature = this.#core.signWithBabyJubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
+    const signatures = Array.from({ length: 10 }).map(() => ({
+      S: BigInt(signature.S),
+      R8: signature.R8.map((r) => BigInt(r)),
+    }));
+    return { inputNotes, signatures, destinationAddress };
+  }
+  
   convertDecimalNumberIntoBigInt(value: string | number, decimals: number): bigint {
     return parseUnits(value.toString(), decimals);
   }
