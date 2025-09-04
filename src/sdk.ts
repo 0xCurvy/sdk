@@ -739,7 +739,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     toAddress: HexString | string,
     currencySymbol: string,
-    amount: bigint | string,
+    amount: string,
   ) {
     const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
 
@@ -762,7 +762,7 @@ class CurvySDK implements ICurvySDK {
 
       // TODO For now we only support EVM RPCs for CSUC
       if (rpc instanceof EvmRpc) {
-        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount.toString());
+        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount);
       }
     }
 
@@ -872,7 +872,7 @@ class CurvySDK implements ICurvySDK {
     }
 
     const msgHash = generateAggregationHash(outputNotes);
-    const signature = this.#core.sign(msgHash, s);
+    const signature = this.#core.signWithBabyJubPrivateKey(msgHash, s);
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
@@ -911,7 +911,7 @@ class CurvySDK implements ICurvySDK {
       }));
     }
     const msgHash = generateOutputsHash(inputNotes);
-    const signature = this.#core.sign(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
+    const signature = this.#core.signWithBabyJubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
