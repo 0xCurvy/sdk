@@ -105,34 +105,34 @@ const getPublicKey = (privateKey: string) => {
 
 type EncryptedCurvyMessage = {
   data: string;
-  senderStealthPublicKey: string;
+  senderSAPublicKey: string;
 };
 const encryptCurvyMessage = async (
   message: string,
-  senderStealthPrivateKey: string,
-  recipientStealthPublicKey: string,
+  senderSAPrivateKey: string,
+  recipientSAPublicKey: string,
 ): Promise<EncryptedCurvyMessage> => {
-  const uncompressedHexPublicKey = decimalStringToHex(recipientStealthPublicKey);
+  const uncompressedHexPublicKey = decimalStringToHex(recipientSAPublicKey);
   const point = ProjectivePoint.fromHex(uncompressedHexPublicKey);
   const compressedBytes = point.toRawBytes(true);
-  const compressedHex = `0x${bytesToHex(compressedBytes)}`;
+  const compressedHex = bytesToHex(compressedBytes);
 
-  const _senderStealthPrivateKey = `0x${senderStealthPrivateKey.replace("0x", "").padStart(64, "0")}`;
-  const signer = new ethers.Wallet(_senderStealthPrivateKey);
+  const _senderSAPrivateKey = `0x${senderSAPrivateKey.replace("0x", "").padStart(64, "0")}`;
+  const signer = new ethers.Wallet(_senderSAPrivateKey);
 
   const password = signer.signingKey.computeSharedSecret(compressedHex);
 
-  return { data: await encryptData(message, password), senderStealthPublicKey: getPublicKey(senderStealthPrivateKey) };
+  return { data: await encryptData(message, password), senderSAPublicKey: getPublicKey(senderSAPrivateKey) };
 };
 
 const decryptCurvyMessage = async <T extends EncryptedCurvyMessage>(
   encryptedData: T,
-  recipientStealthPrivateKey: string,
+  recipientSAPrivateKey: string,
 ): Promise<string> => {
-  const { data, senderStealthPublicKey } = encryptedData;
+  const { data, senderSAPublicKey } = encryptedData;
 
-  const signer = new ethers.Wallet(recipientStealthPrivateKey);
-  const password = signer.signingKey.computeSharedSecret(senderStealthPublicKey);
+  const signer = new ethers.Wallet(recipientSAPrivateKey);
+  const password = signer.signingKey.computeSharedSecret(senderSAPublicKey);
 
   return decryptData(data, password);
 };

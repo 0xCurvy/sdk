@@ -19,4 +19,5 @@ export {
 } from "./helper";
 export * from "./rpc";
 export * from "./signature";
+export * from "./storage";
 export * from "./wallet";

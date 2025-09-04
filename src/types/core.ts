@@ -1,3 +1,5 @@
+import type { Groth16Proof } from "snarkjs";
+import type { PublicSignals } from "snarkjs/index";
 import type { HexString } from "@/types/helper";
 
 type PublicKey = {
@@ -60,6 +62,22 @@ type AuthenticatedNote = {
   amount: string;
 };
 
+type PublicNote = {
+  ownerHash: string;
+  viewTag: string;
+  ephemeralKey: string;
+};
+
+type NoteOwnershipData = {
+  ownerHash: string;
+  sharedSecret: bigint;
+};
+
+type NoteOwnershipProof = {
+  proof: Groth16Proof;
+  publicSignals: PublicSignals;
+};
+
 type Note = {
   owner: {
     babyJubPublicKey: [string, string];
@@ -93,4 +111,7 @@ export type {
   AuthenticatedNote,
   Note,
   OutputNote,
+  PublicNote,
+  NoteOwnershipData,
+  NoteOwnershipProof,
 };

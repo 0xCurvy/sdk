@@ -13,6 +13,7 @@ import type {
   CoreViewerScanArgs,
   CurvyKeyPairs,
   Note,
+  NoteOwnershipData,
   OutputNote,
 } from "@/types/core";
 import type { HexString } from "@/types/helper";
@@ -197,7 +198,7 @@ class Core implements ICore {
     };
   }
 
-  filterOwnedNotes(
+  getNoteOwnershipData(
     publicNotes: {
       ownerHash: string;
       ephemeralKey: string;
@@ -214,45 +215,41 @@ class Core implements ICore {
     const { bJJPublicKey: ownerBabyJubPublicKey } = this.getCurvyKeys(s, v);
     const bjjKeyBigint = ownerBabyJubPublicKey.split(".").map(BigInt);
 
-    const ownedNotes: any = [];
+    const ownershipData: NoteOwnershipData[] = [];
 
     for (let i = 0; i < publicNotes.length; i++) {
-      if (sharedSecrets[i] != null) {
-        const computedHash = poseidon.F.toObject(poseidon([...bjjKeyBigint, sharedSecrets[i]!])).toString();
+      const sharedSecret = sharedSecrets[i];
+
+      if (sharedSecret !== null) {
+        const computedHash = poseidon.F.toObject(poseidon([...bjjKeyBigint, sharedSecret])).toString();
 
         if (computedHash === publicNotes[i].ownerHash) {
-          ownedNotes.push({
+          ownershipData.push({
             ownerHash: publicNotes[i].ownerHash,
-            sharedSecret: sharedSecrets[i],
+            sharedSecret,
           });
         }
       }
     }
 
-    return ownedNotes;
+    return ownershipData;
   }
 
-  async generateNoteOwnershipProof(
-    ownedNotes: {
-      ownerHash: string;
-      sharedSecret: bigint;
-    }[],
-    babyJubPublicKey: string,
-  ) {
+  async generateNoteOwnershipProof(ownershipData: NoteOwnershipData[], babyJubPublicKey: string) {
     const NUM_NOTES = 10;
 
     const wasmFile = `../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm`;
     const zkeyFile = `../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey`;
 
-    const paddedOwnedNotes = ownedNotes.concat(
-      ...Array(NUM_NOTES - ownedNotes.length).fill({
+    const paddedOwnedNotes = ownershipData.concat(
+      ...Array(NUM_NOTES - ownershipData.length).fill({
         babyJubPublicKey: "0.0",
         sharedSecret: "0",
         ownerHash: "0",
       }),
     );
 
-    const { proof, publicSignals } = await groth16.fullProve(
+    return groth16.fullProve(
       {
         inputNoteOwners: paddedOwnedNotes.map(({ sharedSecret }) => [
           ...babyJubPublicKey.split("."),
@@ -263,11 +260,6 @@ class Core implements ICore {
       wasmFile,
       zkeyFile,
     );
-
-    return {
-      proof,
-      publicSignals,
-    };
   }
 
   scan(s: string, v: string, announcements: RawAnnouncement[]) {

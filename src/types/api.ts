@@ -6,11 +6,11 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
+import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES, NETWORKS } from "@/constants/networks";
 import type { InputNoteData, OutputNoteData, Signature } from "@/types/aggregator";
 import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
-import type { NetworkFilter } from "@/utils/network";
+import type { HexString } from "@/types/helper";
 
 type _Announcement = {
   createdAt: string;
@@ -196,7 +196,7 @@ type SubmitNoteOwnershipProofReturnType = {
     ownerHash: string;
     viewTag: string;
     ephemeralKey: string;
-    token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+    token: HexString;
     amount: string;
   }[];
 };
@@ -222,7 +222,7 @@ export type {
 //#region CSUC
 
 type GetCSAInfoRequest = {
-  network: NetworkFilter;
+  network: NETWORKS;
   csas: string[];
 };
 

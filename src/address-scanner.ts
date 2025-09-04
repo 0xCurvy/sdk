@@ -45,9 +45,7 @@ class AddressScanner implements IAddressScanner {
           ...announcement,
           publicKey,
           address,
-          balances: Object.create(null),
           walletId: wallet.id,
-          csuc: { balances: Object.create(null), nonces: Object.create(null) },
         } satisfies CurvyAddress;
       })
       .filter(Boolean);
@@ -142,10 +140,11 @@ class AddressScanner implements IAddressScanner {
 
       if (!isIncompleteSync) break; // If sync complete i.e. oldest cutoff reached, exit loop
 
-      // If syncing for the first time or if history sync was incomplete, we don't set a start time
+      // If syncing for the first time or if history sync was incomplete,
+      // we don't set a start time
       const startTime = oldestCutoff;
-      // If syncing for the first time or if history sync was incomplete, we use the oldest cursor to get announcements
-      // backwards
+      // If syncing for the first time or if history sync was incomplete,
+      // we use the oldest cursor to get announcements backwards
       const endTime = oldest ?? +dayjs();
 
       const { announcements, total: respTotal } = await this.#client.announcement.GetAnnouncements(

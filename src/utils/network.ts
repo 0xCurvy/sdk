@@ -1,5 +1,6 @@
 import type { TOKENS } from "@/constants/networks";
 import type { Network } from "@/types/api";
+import type { CurrencyMetadata } from "@/types/storage";
 import { toSlug } from "@/utils/helpers";
 
 // Network filter can be:
@@ -52,15 +53,36 @@ export function filterNetworks(networks: Network[], networkFilter: NetworkFilter
 }
 
 const networksToPriceData = (networks: Network[]) => {
-  return networks.reduce<Map<TOKENS, string>>((res, network) => {
-    for (const { price, symbol } of network.currencies) {
+  return networks.reduce((res, network) => {
+    for (const { price, symbol, decimals } of network.currencies) {
       if (!price) continue;
       if (res.has(symbol)) continue;
 
-      res.set(symbol, price);
+      res.set(symbol, { price, decimals });
     }
     return res;
-  }, new Map<TOKENS, string>());
+  }, new Map<TOKENS, { price: string; decimals: number }>());
 };
 
-export { networksToPriceData };
+const networksToCurrencyMetadata = (networks: Network[]) => {
+  return networks.reduce((res, network) => {
+    for (const { decimals, iconUrl, name, nativeCurrency, symbol, contractAddress: address } of network.currencies) {
+      const currencyMetadataKey = `${address}-${toSlug(network.name)}`;
+      if (res.has(currencyMetadataKey)) continue;
+
+      res.set(currencyMetadataKey, {
+        decimals,
+        iconUrl,
+        name,
+        symbol,
+        address,
+        native: nativeCurrency,
+        networkSlug: toSlug(network.name),
+        environment: network.testnet ? "testnet" : "mainnet",
+      });
+    }
+    return res;
+  }, new Map<string, CurrencyMetadata>());
+};
+
+export { networksToPriceData, networksToCurrencyMetadata };

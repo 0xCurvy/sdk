@@ -38,7 +38,7 @@ export function decimalStringToHex(publicKey: string, uncompressed = true): stri
     return BigInt(hex).toString(16).padStart(64, "0");
   };
 
-  return `0x${uncompressed ? "04" : ""}${formatHex(X)}${formatHex(Y)}`;
+  return `${uncompressed ? "04" : "0x"}${formatHex(X)}${formatHex(Y)}`;
 }
 
 export function bytesToDecimalString(bytes: Uint8Array | string): string {

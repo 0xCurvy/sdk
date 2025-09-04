@@ -30,6 +30,14 @@ export * from "../errors";
 export * from "../interfaces";
 export { CurvySDK } from "../sdk";
 export * from "../types";
+export {
+  BalanceEntry,
+  CurrencyMetadata,
+  isCsucBalanceEntry,
+  isNoteBalanceEntry,
+  isSaBalanceEntry,
+  TotalBalance,
+} from "../types/storage";
 export * from "../utils";
 export { filterNetworks, type NetworkFilter } from "../utils/network";
 export type { CurvyWallet } from "../wallet";

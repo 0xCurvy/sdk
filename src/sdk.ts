@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import { mul, toNumber } from "dnum";
 import { ec, validateAndParseAddress } from "starknet";
 import { getAddress, parseSignature, verifyTypedData } from "viem";
+import { BalanceScanner } from "@/balance-scanner";
 import {
   BALANCE_REFRESH_COMPLETE_EVENT,
   BALANCE_REFRESH_PROGRESS_EVENT,
@@ -31,8 +32,8 @@ import { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import type { StarknetRpc } from "@/rpc/starknet";
-import { TemporaryStorage } from "@/storage/temporary-storage";
-import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
+import { MapStorage } from "@/storage/map-storage";
+import type { CurvyAddress } from "@/types/address";
 import type { AggregationRequest, Currency, DepositPayload, Network, WithdrawPayload } from "@/types/api";
 import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
 import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
@@ -57,13 +58,13 @@ import {
   type StarknetSignatureData,
 } from "@/types/signature";
 import { parseDecimal } from "@/utils/currency";
-import { encryptCurvyMessage } from "@/utils/encryption";
+import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
 import { computePrivateKeys, deriveAddress } from "./utils/address";
-import { filterNetworks, type NetworkFilter, networksToPriceData } from "./utils/network";
+import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { CurvyWallet } from "./wallet";
 import { WalletManager } from "./wallet-manager";
 
@@ -76,6 +77,7 @@ class CurvySDK implements ICurvySDK {
   readonly #emitter: ICurvyEventEmitter;
   readonly #core: ICore;
   readonly #walletManager: IWalletManager;
+  #balanceScanner: BalanceScanner | undefined;
   #priceRefreshInterval: NodeJS.Timeout | undefined;
 
   #networks: Network[];
@@ -86,12 +88,7 @@ class CurvySDK implements ICurvySDK {
 
   readonly #semaphore: Partial<Record<string, boolean>>;
 
-  private constructor(
-    apiKey: string,
-    core: Core,
-    apiBaseUrl?: string,
-    storage: StorageInterface = new TemporaryStorage(),
-  ) {
+  private constructor(apiKey: string, core: Core, apiBaseUrl?: string, storage: StorageInterface = new MapStorage()) {
     this.#core = core;
     this.apiClient = new ApiClient(apiKey, apiBaseUrl);
     this.#emitter = new CurvyEventEmitter();
@@ -112,6 +109,7 @@ class CurvySDK implements ICurvySDK {
 
     const sdk = new CurvySDK(apiKey, core, apiBaseUrl, storage);
     sdk.#networks = await sdk.apiClient.network.GetNetworks();
+    await sdk.storage.upsertCurrencyMetadata(networksToCurrencyMetadata(sdk.#networks));
 
     await sdk.#priceUpdate(sdk.#networks);
     sdk.startPriceIntervalUpdate();
@@ -121,6 +119,15 @@ class CurvySDK implements ICurvySDK {
     } else {
       sdk.setActiveNetworks(networkFilter);
     }
+
+    sdk.#balanceScanner = new BalanceScanner(
+      sdk.rpcClient,
+      sdk.apiClient,
+      sdk.storage,
+      sdk.#emitter,
+      sdk.#core,
+      sdk.#walletManager,
+    );
 
     return sdk;
   }
@@ -238,7 +245,32 @@ class CurvySDK implements ICurvySDK {
 
     if (response.data?.message !== "Saved") throw new Error("Failed to register announcement");
 
-    return { address, id: response.data.id, pubKey: recipientStealthPublicKey };
+    return { address, addressId: response.data.id, pubKey: recipientStealthPublicKey };
+  }
+
+  async getAddressEncryptedMessage(address: CurvyAddress) {
+    const { data } = await this.apiClient.announcement.GetAnnouncementEncryptedMessage(address.id);
+
+    if (!data || !data.encryptedMessage || !data.encryptedMessageSenderPublicKey) {
+      throw new Error(`No encrypted message found for address ${address.address}`);
+    }
+
+    const { encryptedMessage, encryptedMessageSenderPublicKey } = data;
+
+    const wallet = this.#walletManager.getWalletById(address.walletId);
+    if (!wallet) {
+      throw new Error(`Cannot get message for address ${address.id} because it's wallet is not found!`);
+    }
+    const { s, v } = wallet.keyPairs;
+
+    const {
+      spendingPrivKeys: [privateKey],
+    } = this.#core.scan(s, v, [address]);
+
+    return decryptCurvyMessage(
+      { data: encryptedMessage, senderSAPublicKey: encryptedMessageSenderPublicKey },
+      privateKey,
+    );
   }
 
   getNativeCurrencyForNetwork(network: Network) {
@@ -277,12 +309,18 @@ class CurvySDK implements ICurvySDK {
     }
   }
 
+  //TODO Mainnet and testnet should not be active at the same time
+  // Add validation to network filter to prevent this
+
   setActiveNetworks(networkFilter: NetworkFilter) {
     const networks = this.getNetworks(networkFilter);
     if (!networks.length) {
       throw new Error(`Network array is empty after filtering with ${networkFilter}`);
     }
-    this.#rpcClient = newMultiRpc(networks);
+    const newRpc = newMultiRpc(networks);
+    this.#rpcClient = newRpc;
+
+    if (this.#balanceScanner) this.#balanceScanner.rpcClient = newRpc;
   }
 
   /* TODO: Think about how to handle networks better
@@ -506,29 +544,15 @@ class CurvySDK implements ICurvySDK {
       throw new Error(`Wallet with ID ${walletId} not found!`);
     }
 
-    const addresses = await this.storage.getCurvyAddressesByWalletId(walletId);
-    let processed = 0;
-
-    this.#emitter.emitBalanceRefreshStarted({
-      walletId,
-    });
-
-    for (const address of addresses) {
-      await this.refreshAddressBalances(address);
-      processed++;
-      this.#emitter.emitBalanceRefreshProgress({
-        walletId,
-        progress: Math.round((processed / addresses.length) * 100),
-      });
+    if (!this.#balanceScanner) {
+      throw new Error("Balance scanner not initialized!");
     }
 
-    this.#emitter.emitBalanceRefreshComplete({
-      walletId,
-    });
+    await this.#balanceScanner.scanWalletBalances(walletId);
+
     this.#semaphore[`refresh-balances-${walletId}`] = undefined;
   }
 
-  // refreshBalances refreshes balances for all wallets
   async refreshBalances() {
     if (this.#semaphore["refresh-balances"]) {
       return;
@@ -556,73 +580,6 @@ class CurvySDK implements ICurvySDK {
 
     if (!this.rpcClient) {
       throw new Error("rpcClient not initialized");
-    }
-
-    await this.storage.updateCurvyAddress(address.id, { balances: await this.rpcClient.getBalances(address) });
-
-    // TODO: Move to RPC
-    // TODO: Move to artifact
-    if (address.networkFlavour === NETWORK_FLAVOUR.EVM) {
-      const {
-        data: { csaInfo },
-      } = await this.apiClient.csuc.GetCSAInfo({
-        network: "localnet", // TODO: Make dynamic
-        csas: [address.address],
-      });
-
-      const csaData = csaInfo[0];
-      const network = this.getNetwork(csaData.network);
-      const networkSlug = toSlug(network.name);
-
-      // TODO: We don't  use token but currency in this context. Remove all mentions of token.
-      const { balances, nonces } = csaData.balances
-        .map(({ token, amount }, idx) => {
-          const currency = network.currencies.find((currency) => currency.contractAddress === token);
-          if (!currency) return null;
-
-          const { contractAddress, symbol, decimals, name, iconUrl } = currency;
-
-          const balance = BigInt(amount);
-
-          return balance
-            ? {
-                balance,
-                tokenMeta: {
-                  decimals,
-                  iconUrl,
-                  name,
-                  symbol,
-                },
-                networkMeta: {
-                  testnet: network.testnet,
-                  flavour: network.flavour,
-                  group: network.group,
-                  slug: networkSlug,
-                },
-                tokenAddress: contractAddress as HexString,
-                nonce: BigInt(csaData.nonce[idx].value),
-              }
-            : null;
-        })
-        .filter(Boolean)
-        .reduce<{ balances: CurvyAddressBalances; nonces: CurvyAddressCsucNonces }>(
-          (res, { nonce, ...rest }) => {
-            if (!res.balances[networkSlug]) res.balances[networkSlug] = Object.create(null);
-            res.balances[networkSlug]![rest.tokenMeta.symbol] = rest;
-
-            if (!res.nonces[networkSlug]) res.nonces[networkSlug] = Object.create(null);
-            res.nonces[networkSlug]![rest.tokenMeta.symbol] = nonce;
-
-            return res;
-          },
-          { balances: Object.create(null), nonces: Object.create(null) },
-        );
-      await this.storage.updateCurvyAddress(address.id, {
-        csuc: {
-          balances,
-          nonces,
-        },
-      });
     }
 
     this.#semaphore[`refresh-balance-${address.id}`] = undefined;
@@ -667,7 +624,9 @@ class CurvySDK implements ICurvySDK {
     const nativeToken = this.getNetwork(networkIdentifier).currencies.find((c) => c.nativeCurrency)!;
     const fee = await rpc.estimateFee(from, privateKey, recipientData.address, amount, currency);
     const raw = rpc.feeToAmount(fee);
-    const fiat = toNumber(mul([raw, nativeToken.decimals], await this.storage.getTokenPrice(nativeToken.symbol)));
+    const fiat = toNumber(
+      mul([raw, nativeToken.decimals], (await this.storage.getTokenPrice(nativeToken.symbol)).price),
+    );
 
     const tokenMeta = {
       decimals: nativeToken.decimals,
@@ -700,12 +659,15 @@ class CurvySDK implements ICurvySDK {
 
     if (isValidCurvyHandle(to)) {
       recipientData = await this.getNewStealthAddressForUser(networkIdentifier, to);
+      console.log("SDK", recipientData, message);
 
-      if (message && recipientData.addressId && recipientData.pubKey)
-        await this.apiClient.announcement.UpdateAnnouncementEncryptedMessage(recipientData.addressId, {
+      if (message && recipientData.addressId && recipientData.pubKey) {
+        const res = await this.apiClient.announcement.UpdateAnnouncementEncryptedMessage(recipientData.addressId, {
           encryptedMessage: JSON.stringify(await encryptCurvyMessage(message, privateKey, recipientData.pubKey)),
           encryptedMessageSenderPublicKey: from.publicKey,
         });
+        console.log("SDK", res);
+      }
     } else recipientData = { address: to };
 
     return this.rpcClient
