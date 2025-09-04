@@ -5,10 +5,10 @@ import type {
   CoreSendReturnType,
   CoreViewerScanReturnType,
   CurvyKeyPairs,
-  Note,
   NoteOwnershipData,
   NoteOwnershipProof,
   PublicNote,
+  UnpackedNote,
 } from "@/types/core";
 
 interface ICore {
@@ -27,7 +27,7 @@ interface ICore {
     v: string,
     notes: AuthenticatedNote[],
     babyJubPublicKey: [string, string],
-  ): Note[];
+  ): UnpackedNote[];
   version(): string;
 }
 

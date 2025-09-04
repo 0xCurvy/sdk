@@ -1,5 +1,10 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 
+type PriceData = {
+  price: string;
+  decimals: number;
+};
+
 type CurrencyMetadata = {
   address: string;
   symbol: string;
@@ -56,15 +61,6 @@ const isNoteBalanceEntry = (entry: BalanceEntry): entry is NoteBalanceEntry => {
 
 type BalanceEntry = SaBalanceEntry | CsucBalanceEntry | NoteBalanceEntry;
 
-type CachedNote = {
-  ownerHash: string;
-  viewTag: string;
-  ephemeralKey: string;
-  token: string | undefined;
-  amount: string | undefined;
-  walletId: string;
-};
-
 type TotalBalance = {
   walletId: string;
   environment: NETWORK_ENVIRONMENT_VALUES;
@@ -77,9 +73,9 @@ type TotalBalance = {
 
 export type {
   CurrencyMetadata,
+  PriceData,
   BalanceEntry,
   TotalBalance,
-  CachedNote,
   CsucBalanceEntry,
   SaBalanceEntry,
   NoteBalanceEntry,

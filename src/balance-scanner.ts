@@ -6,8 +6,7 @@ import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type { CsucBalanceEntry, CurvyAddress, NoteBalanceEntry, SaBalanceEntry } from "@/types";
-import type { Note } from "@/types/core";
+import type { CsucBalanceEntry, CurvyAddress, NoteBalanceEntry, SaBalanceEntry, UnpackedNote } from "@/types";
 import type { BalanceEntry } from "@/types/storage";
 import { toSlug } from "@/utils/helpers";
 
@@ -53,7 +52,7 @@ export class BalanceScanner implements IBalanceScanner {
     return this.#rpcClient;
   }
 
-  get scanProgress() {
+  get totalScanProgress() {
     return ((this.#scanProgress.notes + this.#scanProgress.addresses) / 2) * 100;
   }
 
@@ -145,11 +144,11 @@ export class BalanceScanner implements IBalanceScanner {
     }
     return entries;
   }
-  async #processNotes(notes: Note[]): Promise<BalanceEntry[]> {
+  async #processNotes(notes: UnpackedNote[]): Promise<BalanceEntry[]> {
     const entries: NoteBalanceEntry[] = [];
 
     for (let i = 0; i < notes.length; i++) {
-      const { token, amount, ...noteData } = notes[i];
+      const { token, amount, ownerHash, ...noteData } = notes[i];
 
       if (amount === "0") continue; // Skip zero balance notes
 
@@ -159,7 +158,7 @@ export class BalanceScanner implements IBalanceScanner {
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
-        source: "this should be ownerHash", // TODO Get ownerHash somehow
+        source: ownerHash,
         type: "note",
 
         networkSlug,
@@ -235,7 +234,7 @@ export class BalanceScanner implements IBalanceScanner {
           this.#scanProgress.notes = (batchNumber + 1) / noteBatchCount;
           this.#emitter.emitBalanceRefreshProgress({
             walletId,
-            progress: Math.round(this.scanProgress),
+            progress: Math.round(this.totalScanProgress),
           });
         }
       }
@@ -272,7 +271,7 @@ export class BalanceScanner implements IBalanceScanner {
           this.#scanProgress.addresses = (batchNumber + 1) / addressBatchCount;
           this.#emitter.emitBalanceRefreshProgress({
             walletId,
-            progress: Math.round(this.scanProgress),
+            progress: Math.round(this.totalScanProgress),
           });
         }
       }

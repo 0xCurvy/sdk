@@ -2,7 +2,7 @@ import merge from "lodash.merge";
 import type { TOKENS } from "@/constants/networks";
 import { StorageError } from "@/errors";
 import type { StorageInterface } from "@/interfaces/storage";
-import type { CachedNote, CurvyAddress, CurvyWalletData, MinifiedCurvyAddress } from "@/types";
+import type { CurvyAddress, CurvyWalletData, MinifiedCurvyAddress } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
 import { bytesToDecimalString, decimalStringToBytes } from "@/utils/decimal-conversions";
 import type { CurvyWallet } from "@/wallet";
@@ -10,7 +10,6 @@ import type { CurvyWallet } from "@/wallet";
 export class MapStorage implements StorageInterface {
   readonly #walletStorage = new Map<string, CurvyWalletData>();
   readonly #addresses = new Map<string, MinifiedCurvyAddress>();
-  readonly #notes = new Map<string, CachedNote>();
   readonly #currencyMetadata = new Map<string, CurrencyMetadata>();
   readonly #balances = new Map<string, BalanceEntry>();
   readonly #totalBalances = new Map<string, TotalBalance>();
@@ -39,26 +38,6 @@ export class MapStorage implements StorageInterface {
     } catch (error) {
       if (error instanceof StorageError) throw error;
       throw new StorageError("Failed to write address batch", error as Error);
-    }
-  }
-
-  async storeCurvyNote(note: CachedNote) {
-    try {
-      this.#notes.set(note.ownerHash, note);
-    } catch (error) {
-      if (error instanceof StorageError) throw error;
-      throw new StorageError("Failed to write note", error as Error);
-    }
-  }
-
-  async storeManyCurvyNotes(notes: CachedNote[]) {
-    try {
-      for (const note of notes) {
-        this.#notes.set(note.ownerHash, note);
-      }
-    } catch (error) {
-      if (error instanceof StorageError) throw error;
-      throw new StorageError("Failed to write notes batch", error as Error);
     }
   }
 
@@ -195,7 +174,7 @@ export class MapStorage implements StorageInterface {
     };
   }
 
-  async updatePriceData(data: Map<TOKENS, { price: string; decimals: number }>) {
+  async upsertPriceData(data: Map<TOKENS, { price: string; decimals: number }>) {
     this.#priceStorage.clear();
 
     for (const [key, value] of data.entries()) {
@@ -203,7 +182,7 @@ export class MapStorage implements StorageInterface {
     }
   }
 
-  async getTokenPrice(token: TOKENS) {
+  async getCurrencyPrice(token: TOKENS) {
     const price = this.#priceStorage.get(token);
     if (!price) {
       throw new StorageError(`Price for token ${token} not found`);
@@ -211,7 +190,7 @@ export class MapStorage implements StorageInterface {
     return price;
   }
 
-  async getAllTokenPrices() {
+  async getPriceFeed() {
     return this.#priceStorage;
   }
 
@@ -219,7 +198,6 @@ export class MapStorage implements StorageInterface {
     this.#walletStorage.clear();
     this.#priceStorage.clear();
     this.#addresses.clear();
-    this.#notes.clear();
     this.#currencyMetadata.clear();
     this.#balances.clear();
     this.#totalBalances.clear();
@@ -283,7 +261,7 @@ export class MapStorage implements StorageInterface {
     );
   }
 
-  async groupBalancesByAddress(walletId: string): Promise<Record<string, BalanceEntry[]>> {
+  async getBalancesGroupedBySource(walletId: string): Promise<Record<string, BalanceEntry[]>> {
     const grouped: Record<string, BalanceEntry[]> = {};
     for (const balance of this.#balances.values()) {
       if (balance.walletId === walletId) {

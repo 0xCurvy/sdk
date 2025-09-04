@@ -139,7 +139,7 @@ class CurvySDK implements ICurvySDK {
       console.warn("Could not fetch any price data, skipping price update.");
       return;
     }
-    await this.storage.updatePriceData(priceMap);
+    await this.storage.upsertPriceData(priceMap);
   }
 
   startPriceIntervalUpdate({ runImmediately }: { runImmediately?: boolean } = { runImmediately: false }) {
@@ -625,7 +625,7 @@ class CurvySDK implements ICurvySDK {
     const fee = await rpc.estimateFee(from, privateKey, recipientData.address, amount, currency);
     const raw = rpc.feeToAmount(fee);
     const fiat = toNumber(
-      mul([raw, nativeToken.decimals], (await this.storage.getTokenPrice(nativeToken.symbol)).price),
+      mul([raw, nativeToken.decimals], (await this.storage.getCurrencyPrice(nativeToken.symbol)).price),
     );
 
     const tokenMeta = {

@@ -89,6 +89,10 @@ type Note = {
   ephemeralKey: string;
 };
 
+type UnpackedNote = Note & {
+  ownerHash: string;
+};
+
 type OutputNote = {
   ownerHash: string;
   amount: string;
@@ -111,6 +115,7 @@ export type {
   AuthenticatedNote,
   Note,
   OutputNote,
+  UnpackedNote,
   PublicNote,
   NoteOwnershipData,
   NoteOwnershipProof,

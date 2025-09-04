@@ -310,12 +310,7 @@ class Core implements ICore {
     };
   }
 
-  unpackAuthenticatedNotes(
-    s: string,
-    v: string,
-    notes: AuthenticatedNote[],
-    babyJubPublicKey: [string, string],
-  ): Note[] {
+  unpackAuthenticatedNotes(s: string, v: string, notes: AuthenticatedNote[], babyJubPublicKey: [string, string]) {
     const scanResult = this.scanNotes(
       s,
       v,
@@ -331,6 +326,7 @@ class Core implements ICore {
         babyJubPublicKey,
         sharedSecret: pubKey.split(".")[0],
       },
+      ownerHash: notes[index].ownerHash,
       amount: notes[index].amount,
       token: notes[index].token,
       viewTag: notes[index].viewTag,
