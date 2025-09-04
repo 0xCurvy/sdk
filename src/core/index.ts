@@ -97,15 +97,6 @@ class Core implements ICore {
     return babyJubJubPublicKey.map((p) => this.#eddsa?.F.toObject(p).toString()).join(".");
   }
 
-  // getbabyJubJubPrivateKey(s: string): string {
-  //   if (!this.#eddsa)
-  //     throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
-
-  //   console.log("PRIVATE BABY KEY", `0x${Buffer.from(s, "hex").toString("hex")}`);
-
-  //   return `0x${Buffer.from(s, "hex").toString("hex")}`;
-  // }
-
   #extractScanArgsFromAnnouncements(announcements: RawAnnouncement[]) {
     const Rs: Array<string> = [];
     const viewTags: Array<string> = [];
@@ -349,8 +340,8 @@ class Core implements ICore {
     }));
   }
 
-  sign(message: bigint, s: string): StringifyBigInts<Signature> {
-    const privateKey = `0x${Buffer.from(s, "hex").toString("hex")}`;
+  signWithBabyJubPrivateKey(message: bigint, babyJubPrivateKey: string): StringifyBigInts<Signature> {
+    const privateKey = `0x${Buffer.from(babyJubPrivateKey, "hex").toString("hex")}`;
 
     const privateKeyBuffer = Buffer.from(privateKey.slice(2), "hex");
     const messageBuffer = this.#eddsa!.babyJub.F.e(message);

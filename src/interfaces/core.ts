@@ -8,7 +8,7 @@ interface ICore {
   generateOutputNote(note: Note): OutputNote;
   send(S: string, V: string): CoreSendReturnType;
   sendNote(S: string, V: string, noteData: { ownerBabyJubPublicKey: string; amount: bigint; token: bigint }): Note;
-  sign(message: bigint, s: string): StringifyBigInts<Signature>;
+  signWithBabyJubPrivateKey(message: bigint, babyJubPrivateKey: string): StringifyBigInts<Signature>;
   scan(s: string, v: string, announcements: RawAnnouncement[]): CoreScanReturnType;
   viewerScan(v: string, S: string, announcements: RawAnnouncement[]): CoreViewerScanReturnType;
   isValidBN254Point(point: string): boolean;
