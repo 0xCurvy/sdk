@@ -33,8 +33,8 @@ import type { MultiRpc } from "@/rpc/multi";
 import type { StarknetRpc } from "@/rpc/starknet";
 import { TemporaryStorage } from "@/storage/temporary-storage";
 import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
-import type { AggregationRequest, Currency, DepositPayload, Network, WithdrawPayload } from "@/types/api";
-import type { CsucActionPayload, CsucActionSet, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
+import type { AggregationRequest, DepositPayload, Network, WithdrawPayload } from "@/types/api";
+import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
 import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
   BalanceRefreshCompleteEvent,
@@ -56,7 +56,7 @@ import {
   type EvmSignTypedDataParameters,
   type StarknetSignatureData,
 } from "@/types/signature";
-import { parseDecimal } from "@/utils/currency";
+import { parseUnits } from "viem";
 import { encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
 import { type CurvyWalletCommand, SendNativeCurrencyCommand } from "./commands/interface";
@@ -136,6 +136,10 @@ class CurvySDK implements ICurvySDK {
   async #priceUpdate(_networks?: Array<Network>) {
     const networks = _networks ?? (await this.apiClient.network.GetNetworks());
     const priceMap = networksToPriceData(networks);
+    if (priceMap.size === 0) {
+      console.warn("Could not fetch any price data, skipping price update.");
+      return;
+    }
     await this.storage.updatePriceData(priceMap);
   }
 
@@ -570,7 +574,7 @@ class CurvySDK implements ICurvySDK {
       const {
         data: { csaInfo },
       } = await this.apiClient.csuc.GetCSAInfo({
-        network: "ethereum-sepolia",
+        network: "localnet", // TODO: Make dynamic
         csas: [address.address],
       });
 
@@ -734,15 +738,16 @@ class CurvySDK implements ICurvySDK {
   }
 
   async onboardToCSUC(
+    networkIdentifier: NetworkFilter,
     from: CurvyAddress,
     toAddress: HexString | string,
     currencySymbol: string,
     amount: bigint | string,
   ) {
-    const currency = this.getNetwork("ethereum-sepolia").currencies.find((c) => c.symbol === currencySymbol);
+    const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
 
     if (!currency) {
-      throw new Error(`Currency with symbol ${currencySymbol} not found on network ethereum-sepolia!`);
+      throw new Error(`Currency with symbol ${currencySymbol} not found on network ${networkIdentifier}!`);
     }
 
     const wallet = this.#walletManager.getWalletById(from.walletId);
@@ -756,7 +761,7 @@ class CurvySDK implements ICurvySDK {
     } = this.#core.scan(s, v, [from]);
 
     if (currency.nativeCurrency) {
-      const rpc = this.rpcClient.Network("ethereum-sepolia");
+      const rpc = this.rpcClient.Network(networkIdentifier);
 
       // TODO For now we only support EVM RPCs for CSUC
       if (rpc instanceof EvmRpc) {
@@ -765,8 +770,8 @@ class CurvySDK implements ICurvySDK {
     }
 
     const request = await this.rpcClient
-      .Network("ethereum-sepolia")
-      .prepareCSUCOnboardTransactions(privateKey, toAddress, currency.symbol, amount);
+      .Network(networkIdentifier)
+      .prepareCSUCOnboardTransactions(networkIdentifier as string, privateKey, toAddress, currency.symbol, amount);
 
     return await this.apiClient.gasSponsorship.SubmitRequest(request);
   }
@@ -777,7 +782,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     to: HexString,
     token: HexString,
-    _amount: bigint | string,
+    _amount: bigint, // Doesn't accept decimal numbers i.e. `0.001`
   ): Promise<CsucEstimatedActionCost> {
     const network = this.getNetwork(networkFilter);
 
@@ -786,8 +791,7 @@ class CurvySDK implements ICurvySDK {
     }
 
     // User creates an action payload, and determines the wanted cost/speed
-    // TODO: Get eth properly
-    const amount = parseDecimal("0.001", { decimals: 18 } as Currency).toString();
+    const amount = _amount.toString();
 
     const payload = await prepareCsucActionEstimationRequest(network, actionId, from, to, token, amount);
 
@@ -795,9 +799,7 @@ class CurvySDK implements ICurvySDK {
       payloads: [payload],
     });
 
-    // @ts-ignore
-    // TODO remove when we remove strinigify on BE.
-    return JSON.parse(response.data.estimatedCosts)[0];
+    return response.data[0];
   }
 
   async requestActionInsideCSUC(
@@ -805,7 +807,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     payload: CsucActionPayload,
     totalFee: string,
-  ): Promise<CsucActionStatus> {
+  ) {
     const network = this.getNetwork(networkFilter);
 
     if (!network.csucContractAddress) {
@@ -828,7 +830,11 @@ class CurvySDK implements ICurvySDK {
       action: action,
     });
 
-    return response.data.actionStatus;
+    return { action, response: response.data };
+  }
+
+  convertDecimalNumberIntoBigInt(value: string | number, decimals: number): bigint {
+    return parseUnits(value.toString(), decimals);
   }
 
   onSyncStarted(listener: (event: SyncStartedEvent) => void) {
@@ -880,6 +886,25 @@ class CurvySDK implements ICurvySDK {
   }
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void) {
     this.#emitter.off(BALANCE_REFRESH_COMPLETE_EVENT, listener);
+  }
+
+  async pollForCriteria<T>(
+    pollFunction: () => Promise<T>,
+    pollCriteria: (res: T) => boolean,
+    maxRetries = 120,
+    delayMs = 10000,
+  ): Promise<T> {
+    for (let i = 0; i < maxRetries; i++) {
+      const res = await pollFunction();
+
+      if (pollCriteria(res)) {
+        return res;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    throw new Error(`Polling failed!`);
   }
 }
 

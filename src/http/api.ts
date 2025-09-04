@@ -1,3 +1,4 @@
+import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
 import type {
@@ -10,6 +11,7 @@ import type {
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetAggregatorRequestStatusReturnType,
+  GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsResponse,
   GetCSAInfoRequest,
@@ -28,6 +30,8 @@ import type {
   UpdateAnnouncementEncryptedMessageReturnType,
   WithdrawPayload,
 } from "@/types/api";
+import type { CsucActionStatus } from "@/types/csuc";
+import type { SubmitNoteOwnershipProofReturnType } from "../types/api";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
@@ -147,6 +151,13 @@ class ApiClient extends HttpClient implements IApiClient {
   };
 
   aggregator = {
+    GetAllNotes: async () => {
+      return await this.request<GetAllNotesReturnType>({
+        method: "GET",
+        path: "/aggregator/get-all-notes",
+      });
+    },
+
     SubmitDeposit: async (data: DepositPayload) => {
       return await this.request<SubmitDepositReturnType>({
         method: "POST",
@@ -167,6 +178,14 @@ class ApiClient extends HttpClient implements IApiClient {
       return await this.request<SubmitAggregationReturnType>({
         method: "POST",
         path: "/aggregator/aggregation",
+        body: data,
+      });
+    },
+
+    SubmitNotesOwnerhipProof: async (data: { proof: Groth16Proof; ownerHashes: string[] }) => {
+      return await this.request<SubmitNoteOwnershipProofReturnType>({
+        method: "POST",
+        path: "/aggregator/verify-note-ownership-proof",
         body: data,
       });
     },
@@ -204,6 +223,13 @@ class ApiClient extends HttpClient implements IApiClient {
         body: {
           ...req,
         },
+      });
+    },
+    GetActionStatus: async (body: { actionIds: string[] }) => {
+      return await this.request<{ data: CsucActionStatus[]; error: null }>({
+        method: "POST",
+        path: "/csuc/action-status",
+        body,
       });
     },
   };

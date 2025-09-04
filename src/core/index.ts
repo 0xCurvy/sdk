@@ -1,17 +1,23 @@
 import "./wasm-exec.js";
 
+import { buildEddsa, type Eddsa } from "circomlibjs";
+import { groth16 } from "snarkjs";
 import type { ICore } from "@/interfaces/core";
 import type { RawAnnouncement } from "@/types/api";
 import type {
+  AuthenticatedNote,
   CoreLegacyKeyPairs,
   CoreScanArgs,
   CoreScanReturnType,
   CoreSendReturnType,
   CoreViewerScanArgs,
   CurvyKeyPairs,
+  Note,
+  OutputNote,
 } from "@/types/core";
 import type { HexString } from "@/types/helper";
 import { isNode } from "@/utils/helpers";
+import { poseidonHash } from "@/utils/poseidon-hash";
 
 declare const Go: {
   new (): {
@@ -72,10 +78,22 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 }
 
 class Core implements ICore {
+  #eddsa: Eddsa | null = null;
+
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
 
-    return new Core();
+    const core = new Core();
+
+    core.#eddsa = await buildEddsa();
+    return core;
+  }
+
+  #getBabyJubJubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
+    // @ts-expect-error
+    const babyJubJubPublicKey = this.#eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
+
+    return babyJubJubPublicKey.map((p) => this.#eddsa?.F.toObject(p).toString()).join(".");
   }
 
   #extractScanArgsFromAnnouncements(announcements: RawAnnouncement[]) {
@@ -101,6 +119,15 @@ class Core implements ICore {
     } satisfies CoreScanArgs;
   }
 
+  #prepareScanNotesArgs(s: string, v: string, noteData: { ephemeralKey: string; viewTag: string }[]): CoreScanArgs {
+    return {
+      k: s,
+      v,
+      Rs: noteData.map((note) => note.ephemeralKey),
+      viewTags: noteData.map((note) => note.viewTag),
+    } satisfies CoreScanArgs;
+  }
+
   #prepareViewerScanArgs(v: string, S: string, announcements: RawAnnouncement[]): CoreViewerScanArgs {
     const { viewTags, Rs } = this.#extractScanArgsFromAnnouncements(announcements);
 
@@ -115,22 +142,29 @@ class Core implements ICore {
   generateKeyPairs(): CurvyKeyPairs {
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
+    const babyJubJubPublicKeyStringified = this.#getBabyJubJubPublicKey(keyPairs);
+
     return {
       s: keyPairs.k,
       S: keyPairs.K,
       v: keyPairs.v,
       V: keyPairs.V,
-    } satisfies CurvyKeyPairs;
+      bJJPublicKey: babyJubJubPublicKeyStringified,
+    };
   }
 
   getCurvyKeys(s: string, v: string): CurvyKeyPairs {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
+
+    const babyJubJubPublicKeyStringified = this.#getBabyJubJubPublicKey(result);
+
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
+      bJJPublicKey: babyJubJubPublicKeyStringified,
     } satisfies CurvyKeyPairs;
   }
 
@@ -140,8 +174,112 @@ class Core implements ICore {
     return JSON.parse(curvy.send(input)) as CoreSendReturnType;
   }
 
+  sendNote(S: string, V: string, noteData: { ownerBabyJubPublicKey: string; amount: bigint; token: bigint }): Note {
+    const { R, viewTag, spendingPubKey } = this.send(S, V);
+
+    const note = {
+      owner: {
+        babyJubPublicKey: noteData.ownerBabyJubPublicKey.split(".") as [string, string],
+        sharedSecret: spendingPubKey.split(".")[0],
+      },
+      amount: noteData.amount.toString(),
+      token: noteData.token.toString(),
+    };
+
+    return {
+      ...note,
+      ephemeralKey: R,
+      viewTag,
+    };
+  }
+
+  filterOwnedNotes(
+    publicNotes: {
+      ownerHash: string;
+      ephemeralKey: string;
+      viewTag: string;
+    }[],
+    s: string,
+    v: string,
+  ) {
+    const scanResult = this.scanNotes(s, v, publicNotes);
+    const sharedSecrets = scanResult.spendingPubKeys.map((pubKey: string) =>
+      pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null,
+    );
+
+    const { bJJPublicKey: ownerBabyJubPublicKey } = this.getCurvyKeys(s, v);
+    const bjjKeyBigint = ownerBabyJubPublicKey.split(".").map(BigInt);
+
+    const ownedNotes: any = [];
+
+    for (let i = 0; i < publicNotes.length; i++) {
+      if (sharedSecrets[i] != null) {
+        const computedHash = poseidonHash([...bjjKeyBigint, sharedSecrets[i]!]).toString();
+        if (computedHash === publicNotes[i].ownerHash) {
+          ownedNotes.push({
+            ownerHash: publicNotes[i].ownerHash,
+            sharedSecret: sharedSecrets[i],
+          });
+        }
+      }
+    }
+
+    return ownedNotes;
+  }
+
+  async generateNoteOwnershipProof(
+    ownedNotes: {
+      ownerHash: string;
+      sharedSecret: bigint;
+    }[],
+    babyJubPublicKey: string,
+  ) {
+    const NUM_NOTES = 10;
+
+    const wasmFile = `../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm`;
+    const zkeyFile = `../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey`;
+
+    const paddedOwnedNotes = ownedNotes.concat(
+      ...Array(NUM_NOTES - ownedNotes.length).fill({
+        babyJubPublicKey: "0.0",
+        sharedSecret: "0",
+        ownerHash: "0",
+      }),
+    );
+
+    const { proof, publicSignals } = await groth16.fullProve(
+      {
+        inputNoteOwners: paddedOwnedNotes.map(({ sharedSecret }) => [
+          ...babyJubPublicKey.split("."),
+          sharedSecret.toString(),
+        ]),
+        ownerHashes: paddedOwnedNotes.map(({ ownerHash }) => ownerHash),
+      },
+      wasmFile,
+      zkeyFile,
+    );
+
+    return {
+      proof,
+      publicSignals,
+    };
+  }
+
   scan(s: string, v: string, announcements: RawAnnouncement[]) {
     const input = JSON.stringify(this.#prepareScanArgs(s, v, announcements));
+
+    const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
+
+    return {
+      spendingPubKeys: spendingPubKeys ?? [],
+      spendingPrivKeys: (spendingPrivKeys ?? []).map(
+        (pk) => `0x${pk.slice(2).padStart(64, "0")}` as const satisfies HexString,
+      ),
+    };
+  }
+
+  scanNotes(s: string, v: string, noteData: { ephemeralKey: string; viewTag: string }[]) {
+    const input = JSON.stringify(this.#prepareScanNotesArgs(s, v, noteData));
 
     const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
 
@@ -161,6 +299,44 @@ class Core implements ICore {
     return {
       spendingPubKeys: spendingPubKeys ?? [],
     };
+  }
+
+  generateOutputNote(note: Note): OutputNote {
+    return {
+      ownerHash: poseidonHash([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]).toString(),
+      amount: note.amount,
+      token: note.token,
+      ephemeralKey: note.ephemeralKey,
+      viewTag: note.viewTag,
+    };
+  }
+
+  unpackAuthenticatedNotes(
+    s: string,
+    v: string,
+    notes: AuthenticatedNote[],
+    babyJubPublicKey: [string, string],
+  ): Note[] {
+    const scanResult = this.scanNotes(
+      s,
+      v,
+      notes.map((note) => ({
+        ownerHash: note.ownerHash,
+        ephemeralKey: note.ephemeralKey,
+        viewTag: note.viewTag.slice(2),
+      })),
+    );
+
+    return scanResult.spendingPubKeys.map((pubKey: string, index: number) => ({
+      owner: {
+        babyJubPublicKey,
+        sharedSecret: pubKey.split(".")[0],
+      },
+      amount: notes[index].amount,
+      token: notes[index].token,
+      viewTag: notes[index].viewTag,
+      ephemeralKey: notes[index].ephemeralKey,
+    }));
   }
 
   isValidBN254Point(point: string): boolean {

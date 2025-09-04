@@ -16,6 +16,11 @@ const prepareCsucActionEstimationRequest = async (
 ) => {
   let parameters: EncodeAbiParametersReturnType;
 
+  // TODO: spaghetti code refactor
+  if (!["localnet", "ethereum-sepolia"].includes(toSlug(network.name))) {
+    throw new Error(`CSUC is not supported on ${network.name} network`);
+  }
+
   if ([CsucActionSet.TRANSFER, CsucActionSet.WITHDRAW].includes(action)) {
     parameters = encodeAbiParameters([{ name: "recipient", type: "address" }], [to]);
   } else if (action === CsucActionSet.DEPOSIT_TO_AGGREGATOR) {
@@ -47,7 +52,7 @@ const prepareCsucActionEstimationRequest = async (
       [
         [
           {
-            ownerHash: to as any,
+            ownerHash: BigInt(to),
             token: BigInt(token),
             amount: BigInt(amount),
           },
@@ -60,13 +65,18 @@ const prepareCsucActionEstimationRequest = async (
     );
   }
 
+  if (parameters.replace("0x", "").length % 64 !== 0) {
+    throw new Error(`Invalid parameters length: ${parameters.length}. Expected a multiple of 64.`);
+  }
+
   const encodedData = JSON.stringify({
     token,
     amount,
     parameters,
   });
+
   const payload: CsucActionPayload = {
-    networkId: 1,
+    networkId: network.id,
     from: from.address,
     actionType: {
       service: "CSUC",

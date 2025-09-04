@@ -29,7 +29,7 @@ type Currency = {
   symbol: string;
   coinmarketcapId: string;
   iconUrl: string;
-  price: string;
+  price: string | null;
   updatedAt: string;
   decimals: number;
   contractAddress: string;
@@ -46,6 +46,7 @@ type Network = {
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
   csucContractAddress?: string;
+  aggregatorContractAddress?: string;
   nativeCurrency: string | null;
   chainId: string;
   blockExplorerUrl: string;
@@ -112,7 +113,10 @@ type GetAnnouncementEncryptedMessageReturnType = {
 
 //#region Network
 
-type NetworksWithCurrenciesResponse = { data: Array<Network>; error: string | null };
+type NetworksWithCurrenciesResponse = {
+  data: Array<Network>;
+  error: string | null;
+};
 type GetNetworksReturnType = Array<Network>;
 
 //#endregion
@@ -179,18 +183,34 @@ type AggregationRequest = {
   aggregationGroupId: string;
 };
 
-type AggregatorRequestStatus = "pending" | "submitting" | "success" | "failed" | "cancelled";
+type AggregatorRequestStatusValuesType = "pending" | "submitting" | "success" | "failed" | "cancelled";
 
+type GetAllNotesReturnType = {
+  notes: { ownerHash: string; viewTag: string; ephemeralKey: string }[];
+};
 type SubmitDepositReturnType = { requestId: string };
 type SubmitWithdrawReturnType = { requestId: string };
 type SubmitAggregationReturnType = { requestId: string };
-type GetAggregatorRequestStatusReturnType = { requestId: string; status: AggregatorRequestStatus };
+type SubmitNoteOwnershipProofReturnType = {
+  notes: {
+    ownerHash: string;
+    viewTag: string;
+    ephemeralKey: string;
+    token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+    amount: string;
+  }[];
+};
+type GetAggregatorRequestStatusReturnType = {
+  requestId: string;
+  status: AggregatorRequestStatusValuesType;
+};
 
 export type {
   DepositPayload,
   WithdrawPayload,
   AggregationRequest,
-  AggregatorRequestStatus,
+  AggregatorRequestStatusValuesType,
+  GetAllNotesReturnType,
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,
   SubmitAggregationReturnType,
@@ -217,7 +237,7 @@ type GetActionEstimatedCostRequest = {
 };
 
 type GetActionEstimatedCostResponse = {
-  data: { estimatedCosts: CsucEstimatedActionCost[] };
+  data: CsucEstimatedActionCost[];
 };
 
 type CreateActionRequest = {
@@ -225,7 +245,11 @@ type CreateActionRequest = {
 };
 
 type CreateActionResponse = {
-  data: { actionStatus: CsucActionStatus };
+  data: CsucActionStatus;
+};
+
+type GetActionStatusResponse = {
+  data: CsucActionStatus[];
 };
 
 export type {
@@ -235,6 +259,7 @@ export type {
   GetActionEstimatedCostResponse,
   CreateActionRequest,
   CreateActionResponse,
+  GetActionStatusResponse,
 };
 
 //#endregion
@@ -269,6 +294,7 @@ export type {
   ResolveCurvyHandleReturnType,
   GetCurvyHandleByOwnerAddressResponse,
   GetCurvyHandleByOwnerAddressReturnType,
+  SubmitNoteOwnershipProofReturnType,
 };
 
 //#endregion

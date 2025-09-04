@@ -1,3 +1,4 @@
+import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
 import type {
   AggregationRequest,
@@ -8,7 +9,9 @@ import type {
   DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
+  GetActionStatusResponse,
   GetAggregatorRequestStatusReturnType,
+  GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsReturnType,
   GetCSAInfoRequest,
@@ -23,6 +26,7 @@ import type {
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
   SubmitGasSponsorshipRequestReturnType,
+  SubmitNoteOwnershipProofReturnType,
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
@@ -106,7 +110,6 @@ export class MockAPIClient implements IApiClient {
       });
 
       return {
-        // @ts-ignore
         announcements: announcements.slice(0, size),
         total: announcements.length,
       };
@@ -182,6 +185,9 @@ export class MockAPIClient implements IApiClient {
   };
 
   aggregator = {
+    GetAllNotes: async (): Promise<GetAllNotesReturnType> => {
+      throw new Error("Method not implemented.");
+    },
     SubmitDeposit: async (_data: DepositPayload): Promise<SubmitDepositReturnType> => {
       throw new Error("Method not implemented.");
     },
@@ -189,6 +195,12 @@ export class MockAPIClient implements IApiClient {
       throw new Error("Method not implemented.");
     },
     SubmitAggregation: async (_data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType> => {
+      throw new Error("Method not implemented.");
+    },
+    SubmitNotesOwnerhipProof: async (_data: {
+      proof: Groth16Proof;
+      ownerHashes: string[];
+    }): Promise<SubmitNoteOwnershipProofReturnType> => {
       throw new Error("Method not implemented.");
     },
     GetAggregatorRequestStatus: async (_requestId: string): Promise<GetAggregatorRequestStatusReturnType> => {
@@ -204,6 +216,9 @@ export class MockAPIClient implements IApiClient {
       throw new Error("Method not implemented.");
     },
     SubmitActionRequest: async (_req: CreateActionRequest): Promise<CreateActionResponse> => {
+      throw new Error("Method not implemented.");
+    },
+    GetActionStatus: async (_req: { actionIds: string[] }): Promise<GetActionStatusResponse> => {
       throw new Error("Method not implemented.");
     },
   };

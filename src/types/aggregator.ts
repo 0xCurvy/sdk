@@ -29,4 +29,12 @@ type AggregationPayload = {
   aggregations: Aggregation[];
 };
 
+export const AggregatorRequestStatus = {
+  PENDING: "pending",
+  SUCCESS: "success",
+  FAILED: "failed",
+  CANCELLED: "cancelled",
+  SUBMITTED: "submitted",
+}
+
 export type { OutputNoteData, InputNoteData, Signature, Aggregation, AggregationPayload };
