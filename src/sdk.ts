@@ -869,7 +869,7 @@ class CurvySDK implements ICurvySDK {
     }
 
     const msgHash = generateAggregationHash(outputNotes);
-    const signature = this.#core.signNote(msgHash, this.#core.getbabyJubJubPrivateKey(s));
+    const signature = this.#core.sign(msgHash, s);
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
@@ -904,7 +904,7 @@ class CurvySDK implements ICurvySDK {
       });
     }
     const msgHash = generateOutputsHash(inputNotes);
-    const signature = this.#core.signNote(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), this.#core.getbabyJubJubPrivateKey(s));
+    const signature = this.#core.sign(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
