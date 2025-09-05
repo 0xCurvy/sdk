@@ -2,7 +2,7 @@ import merge from "lodash.merge";
 import type { TOKENS } from "@/constants/networks";
 import { StorageError } from "@/errors";
 import type { StorageInterface } from "@/interfaces/storage";
-import type { CurvyAddress, CurvyWalletData, MinifiedCurvyAddress } from "@/types";
+import type { BALANCE_TYPE_VALUES, CurvyAddress, CurvyWalletData, MinifiedCurvyAddress } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
 import { bytesToDecimalString, decimalStringToBytes } from "@/utils/decimal-conversions";
 import type { CurvyWallet } from "@/wallet";
@@ -76,7 +76,7 @@ export class MapStorage implements StorageInterface {
     return Array.from(networks);
   }
 
-  async getAddressBalance(address: string, currencyAddress: string, networkSlug: string, type: "sa" | "csuc" | "note") {
+  async getAddressBalance(address: string, currencyAddress: string, networkSlug: string, type: BALANCE_TYPE_VALUES) {
     return this.#balances.get(this.#getBalanceKey({ source: address, type, currencyAddress, networkSlug }));
   }
 
@@ -276,7 +276,7 @@ export class MapStorage implements StorageInterface {
     return grouped;
   }
 
-  async getBalanceEntry(address: string, currencyAddress: string, networkSlug: string, type: "sa" | "csuc" | "note") {
+  async getBalanceEntry(address: string, currencyAddress: string, networkSlug: string, type: BALANCE_TYPE_VALUES) {
     const balance = this.#balances.get(this.#getBalanceKey({ source: address, type, currencyAddress, networkSlug }));
     if (!balance) {
       throw new StorageError(

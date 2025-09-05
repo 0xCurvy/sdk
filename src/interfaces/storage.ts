@@ -1,5 +1,5 @@
 import type { TOKENS } from "@/constants/networks";
-import type { CurvyAddress, CurvyWalletData, PriceData, ScanInfo } from "@/types";
+import type { BALANCE_TYPE_VALUES, CurvyAddress, CurvyWalletData, PriceData, ScanInfo } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
 import type { CurvyWallet } from "@/wallet";
 
@@ -35,6 +35,6 @@ export interface StorageInterface {
     address: string,
     currencyAddress: string,
     networkSlug: string,
-    type: "sa" | "csuc" | "note",
+    type: BALANCE_TYPE_VALUES,
   ): Promise<BalanceEntry>;
 }

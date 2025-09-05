@@ -6,7 +6,14 @@ import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type { CsucBalanceEntry, CurvyAddress, NoteBalanceEntry, SaBalanceEntry, UnpackedNote } from "@/types";
+import {
+  BALANCE_TYPE,
+  type CsucBalanceEntry,
+  type CurvyAddress,
+  type NoteBalanceEntry,
+  type SaBalanceEntry,
+  type UnpackedNote,
+} from "@/types";
 import type { BalanceEntry } from "@/types/storage";
 import { toSlug } from "@/utils/helpers";
 
@@ -82,7 +89,7 @@ export class BalanceScanner implements IBalanceScanner {
           entries.push({
             walletId: address.walletId,
             source: address.address,
-            type: "sa",
+            type: BALANCE_TYPE.SA,
 
             networkSlug,
             environment: balanceData.environment,
@@ -127,7 +134,7 @@ export class BalanceScanner implements IBalanceScanner {
         entries.push({
           walletId: addresses[i].walletId,
           source: address,
-          type: "csuc",
+          type: BALANCE_TYPE.CSUC,
 
           networkSlug: toSlug(network),
           environment,
@@ -159,7 +166,7 @@ export class BalanceScanner implements IBalanceScanner {
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
         source: ownerHash,
-        type: "note",
+        type: BALANCE_TYPE.NOTE,
 
         networkSlug,
         environment,

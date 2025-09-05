@@ -1,4 +1,13 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import type { ExtractValues } from "@/types/helper";
+
+const BALANCE_TYPE = {
+  SA: "sa",
+  CSUC: "csuc",
+  NOTE: "note",
+} as const;
+type BALANCE_TYPE = typeof BALANCE_TYPE;
+type BALANCE_TYPE_VALUES = ExtractValues<BALANCE_TYPE>;
 
 type PriceData = {
   price: string;
@@ -31,23 +40,23 @@ type BalanceEntryBase = {
 };
 
 type SaBalanceEntry = BalanceEntryBase & {
-  type: "sa";
+  type: BALANCE_TYPE["SA"];
   createdAt: string;
 };
 const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
-  return entry.type === "sa";
+  return entry.type === BALANCE_TYPE.SA;
 };
 
 type CsucBalanceEntry = BalanceEntryBase & {
-  type: "csuc";
+  type: BALANCE_TYPE["CSUC"];
   nonce: bigint;
 };
 const isCsucBalanceEntry = (entry: BalanceEntry): entry is CsucBalanceEntry => {
-  return entry.type === "csuc";
+  return entry.type === BALANCE_TYPE.CSUC;
 };
 
 type NoteBalanceEntry = BalanceEntryBase & {
-  type: "note";
+  type: BALANCE_TYPE["NOTE"];
   owner: {
     babyJubPublicKey: [string, string];
     sharedSecret: string;
@@ -56,7 +65,7 @@ type NoteBalanceEntry = BalanceEntryBase & {
   viewTag: string;
 };
 const isNoteBalanceEntry = (entry: BalanceEntry): entry is NoteBalanceEntry => {
-  return entry.type === "note";
+  return entry.type === BALANCE_TYPE.NOTE;
 };
 
 type BalanceEntry = SaBalanceEntry | CsucBalanceEntry | NoteBalanceEntry;
@@ -79,5 +88,6 @@ export type {
   CsucBalanceEntry,
   SaBalanceEntry,
   NoteBalanceEntry,
+  BALANCE_TYPE_VALUES,
 };
-export { isSaBalanceEntry, isCsucBalanceEntry, isNoteBalanceEntry };
+export { isSaBalanceEntry, isCsucBalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };
