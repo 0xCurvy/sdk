@@ -6,6 +6,8 @@ import {
   SBStealthAddressBalance,
 } from "@/types/scenario-builder";
 
+// TODO: VELIKA GRESKA SE PROVUKLA! CSUC-DEPOSIT JE ZAPRAVO SA NA CSUC A DEPOSIT JE NA AGG
+
 type CsucDepositActionParams = {
   recipientBabyJubJubPublicKey: string;
   recipientK: string;
@@ -45,6 +47,7 @@ export class CsucDepositAction {
   /**
    * Generate actions for deposit
    */
+  // ova funkcija
   generateAggregationActions(
     inputAddresses: SBCsucBalance[]
   ): SBSequenceItem[] {
@@ -84,6 +87,7 @@ export class CsucDepositAction {
     const addressAmountsMap = this.generateAddressAmountsMap();
 
     // Sort notes
+    // sortiramo naopako da uzimamo vece komade da bismo pravili manje noteova
     this.state.stealthAddressBalances.sort((a, b) =>
       a.amount > b.amount ? -1 : 1
     ); // Descending order!
@@ -101,6 +105,7 @@ export class CsucDepositAction {
         inputAddresses.push(addressAmountsMap[stringifiedAmount][0]);
         remainingAmount = 0n;
 
+        // todo: ovo ti ne treba jer se ne zove rekurzivno, treba samo u returnu
         this.isExecutable = true;
         address.isSpent = true;
 
@@ -115,6 +120,7 @@ export class CsucDepositAction {
       if (address.amount > remainingAmount) {
         this.isExecutable = true;
         address.isSpent = true;
+        //TODO: OVDE FALI INPUT ADDRESSES PUSH, I FALI TEST ZA TO KAD PREMASUJEMO U CSUC
 
         const actions = this.generateAggregationActions(inputAddresses);
 

@@ -1,3 +1,4 @@
+// TODO: VAZI SVE ISTO STO I ZA CSUC DERPOSIT TS
 import {
   SBAction,
   SBCsucBalance,
