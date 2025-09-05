@@ -1,4 +1,4 @@
-import { CurvyCommandInput } from "../addresses/abstract";
+import { CurvyCommandData } from "../addresses/abstract";
 
 export interface CurvyCommandEstimate {
   curvyFee: bigint;
@@ -6,12 +6,12 @@ export interface CurvyCommandEstimate {
 }
 
 export abstract class CurvyCommand {
-  protected input: CurvyCommandInput;
+  protected input: CurvyCommandData;
 
-  constructor(input: CurvyCommandInput) {
+  constructor(input: CurvyCommandData) {
     this.input = input;
   }
 
-  abstract execute(): Promise<CurvyCommandInput>;
+  abstract execute(): Promise<CurvyCommandData>;
   abstract estimate(): Promise<CurvyCommandEstimate>;
 }

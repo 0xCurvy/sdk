@@ -2,7 +2,7 @@ import type { Currency, Network } from "@/types/api";
 import type { CurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { CurvyCommandInput } from "@/planner/addresses/abstract";
+import { CurvyCommandData } from "@/planner/addresses/abstract";
 
 // TODO: [Vanja] Reimplement CurvyAddress with balances
 // Curvy Address is tied to one currency and one network
@@ -32,9 +32,9 @@ export type CurvyPlanCommand = {
   amount?: bigint
 };
 
-export type CurvyPlanInput = {
-  type: "input";
-  input: CurvyCommandInput;
+export type CurvyPlanData = {
+  type: "data";
+  data: CurvyCommandData;
 };
 
 export type CurvyPlanFlowControl = {
@@ -42,7 +42,7 @@ export type CurvyPlanFlowControl = {
   items: CurvyPlan[];
 };
 
-export type CurvyPlan = CurvyPlanFlowControl | CurvyPlanCommand | CurvyPlanInput;
+export type CurvyPlan = CurvyPlanFlowControl | CurvyPlanCommand | CurvyPlanData;
 
 export type CurvyPlanSuccessfulEstimation = {
   success: true;
@@ -61,7 +61,7 @@ export type CurvyPlanEstimation =
 
 export type CurvyPlanSuccessfulExecution = {
   success: true;
-  address?: CurvyAddressLike;
+  data?: CurvyCommandData;
   items?: CurvyPlanExecution[];
 };
 

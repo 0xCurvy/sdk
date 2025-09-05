@@ -7,9 +7,9 @@ import type {
 } from "@/planner/plan";
 
 import { commandFactory } from "@/planner/commands/factory";
-import { CurvyCommandInput } from "@/planner/addresses/abstract";
+import { CurvyCommandData } from "@/planner/addresses/abstract";
 
-export async function executePlan(plan: CurvyPlan, input?: CurvyCommandInput): Promise<CurvyPlanExecution> {
+export async function executePlan(plan: CurvyPlan, input?: CurvyCommandData): Promise<CurvyPlanExecution> {
   // CurvyPlanFlowControl, parallel
   if (plan.type === "parallel") {
     const result = await Promise.all(plan.items.map((item) => executePlan(item)));
@@ -29,8 +29,9 @@ export async function executePlan(plan: CurvyPlan, input?: CurvyCommandInput): P
       throw new Error("No items in serial node!");
     }
 
+    let data = input;
     for (const item of plan.items) {
-        const result = await executePlan(item);
+        const result = await executePlan(item, data);
 
         results.push(result);
 
@@ -42,12 +43,15 @@ export async function executePlan(plan: CurvyPlan, input?: CurvyCommandInput): P
             items: results
           };
         }
+
+        // Set the output of current as data of next step
+        data = result.data;
     }
 
     // The output address of the successful serial flow is the last members address.
     return <CurvyPlanSuccessfulExecution>{
       success: true,
-      address: (results[results.length - 1] as CurvyPlanSuccessfulExecution).address,
+      data: (results[results.length - 1] as CurvyPlanSuccessfulExecution).data,
       items: results
     };
   }
@@ -64,7 +68,7 @@ export async function executePlan(plan: CurvyPlan, input?: CurvyCommandInput): P
 
       return <CurvyPlanSuccessfulExecution> {
         success: true,
-        address
+        data: address
       }
     } catch (error) {
       return <CurvyPlanUnsuccessfulExecution> {
@@ -75,10 +79,10 @@ export async function executePlan(plan: CurvyPlan, input?: CurvyCommandInput): P
   }
 
   // CurvyPlanInput
-  if (plan.type === "input") {
+  if (plan.type === "data") {
     return <CurvyPlanSuccessfulExecution> {
       success: true,
-      input: plan.input
+      data: plan.data
     };
   }
 

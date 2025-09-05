@@ -12,4 +12,4 @@ export abstract class CurvyCommandAddress {
   abstract sign(message: string): Promise<string>;
 }
 
-export type CurvyCommandInput = CurvyCommandAddress | CurvyCommandAddress[];
+export type CurvyCommandData = CurvyCommandAddress | CurvyCommandAddress[];
