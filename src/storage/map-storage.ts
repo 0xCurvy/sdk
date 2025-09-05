@@ -47,6 +47,19 @@ export class MapStorage implements StorageInterface {
     }
   }
 
+  async getCurvyAddress(address: string): Promise<CurvyAddress> {
+    const foundAddress = Array.from(this.#addresses.values()).find((addr) => addr.address === address);
+    if (foundAddress) {
+      return {
+        ...foundAddress,
+        ephemeralPublicKey: bytesToDecimalString(foundAddress.ephemeralPublicKey),
+        publicKey: bytesToDecimalString(foundAddress.publicKey),
+      } as CurvyAddress;
+    }
+
+    throw new StorageError(`Address ${address} not found`);
+  }
+
   async getCurvyAddressById(id: string) {
     const address = this.#addresses.get(id);
     if (address) {
@@ -290,13 +303,25 @@ export class MapStorage implements StorageInterface {
     );
   }
 
-  async getBalancesGroupedBySource(walletId: string): Promise<Record<string, BalanceEntry[]>> {
+  async getBalancesGroupedBySource(
+    walletId: string,
+    environment?: NETWORK_ENVIRONMENT_VALUES,
+    networkSlug?: string,
+    type?: BALANCE_TYPE_VALUES,
+  ): Promise<Record<string, BalanceEntry[]>> {
     const grouped: Record<string, BalanceEntry[]> = {};
-    for (const balance of this.#balances.values()) {
-      if (balance.walletId === walletId) {
-        if (!grouped[balance.source]) grouped[balance.source] = [];
-        grouped[balance.source].push(balance);
-      }
+    const balances = this.#balances.values().filter((balanceEntry) => {
+      if (balanceEntry.walletId !== walletId) return false;
+      if (environment && balanceEntry.environment !== environment) return false;
+      if (networkSlug && balanceEntry.networkSlug !== networkSlug) return false;
+      if (type && balanceEntry.type !== type) return false;
+
+      return true;
+    });
+
+    for (const balance of balances) {
+      if (!grouped[balance.source]) grouped[balance.source] = [];
+      grouped[balance.source].push(balance);
     }
     return grouped;
   }

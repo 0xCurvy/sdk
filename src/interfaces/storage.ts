@@ -28,6 +28,7 @@ export interface StorageInterface {
   storeCurvyAddress(address: CurvyAddress): Promise<void>;
   storeManyCurvyAddresses(addresses: CurvyAddress[]): Promise<void>;
   getCurvyAddressById(id: string): Promise<CurvyAddress>;
+  getCurvyAddress(address: string): Promise<CurvyAddress>;
   getCurvyAddressesByWalletId(walletId: string): Promise<CurvyAddress[]>;
 
   /**
@@ -89,9 +90,17 @@ export interface StorageInterface {
 
   /**
    * Gets all balance entries for a given wallet, grouped by their source.
-   * @param walletId
+   * @param walletId {string} - The ID of the wallet to get balances for.
+   * @param environment {NETWORK_ENVIRONMENT_VALUES} - The network environment to filter balances by (optional).
+   * @param networkSlug {string} - The network slug to filter balances by (optional).
+   * @param type {BALANCE_TYPE_VALUES} - The type of balance to filter by (optional).
    */
-  getBalancesGroupedBySource(walletId: string): Promise<Record<string, BalanceEntry[]>>;
+  getBalancesGroupedBySource(
+    walletId: string,
+    environment?: NETWORK_ENVIRONMENT_VALUES,
+    networkSlug?: string,
+    type?: BALANCE_TYPE_VALUES,
+  ): Promise<Record<string, BalanceEntry[]>>;
 
   /**
    * Gets a specific balance entry for a given address, currency, network, and type.
