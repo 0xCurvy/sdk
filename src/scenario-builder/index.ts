@@ -56,9 +56,10 @@ export class ScenarioBuilder {
     amount: bigint,
     token: bigint,
     recipientPublicKey: string,
-    recipientBabyJubJubPublicKey: string
+    recipientBabyJubJubPublicKey: string,
+    targetAction: 'aggregate' | 'deposit' | 'csuc' = 'aggregate'
   ): SBSequence {
-    const sequence = this.computeSequence(this.state, "aggregate", {
+    const sequence = this.computeSequence(this.state, targetAction, {
       targetAmount: amount,
       token,
       recipientPublicKey,
