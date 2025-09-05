@@ -6,17 +6,8 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type {
-  NETWORK_FLAVOUR_VALUES,
-  NETWORK_GROUP_VALUES,
-} from "@/constants/networks";
-import type {
-  CSAInfo,
-  CsucAction,
-  CsucActionPayload,
-  CsucActionStatus,
-  CsucEstimatedActionCost,
-} from "@/types/csuc";
+import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
+import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { NetworkFilter } from "@/utils/network";
 
@@ -270,6 +261,7 @@ export type {
   Currency,
   NetworksWithCurrenciesResponse,
   GetNetworksReturnType,
+  AggregatorRequestStatusValuesType,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
