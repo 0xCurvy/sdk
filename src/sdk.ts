@@ -66,8 +66,7 @@ import { computePrivateKeys, deriveAddress } from "./utils/address";
 import { filterNetworks, type NetworkFilter, networksToPriceData } from "./utils/network";
 import { CurvyWallet } from "./wallet";
 import { WalletManager } from "./wallet-manager";
-import { AggregationPayloadParams, WithdrawPayloadParams } from "./types/aggregator";
-import { AggregationPayload, DepositPayload, DepositPayloadParams, WithdrawPayload } from "./types/aggregator";
+import { DepositRequest, DepositRequestParams, AggregationRequestParams, AggregationRequest, WithdrawRequestParams, WithdrawRequest } from "./types/aggregator";
 import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
 import { Note } from "./types/note";
 import { poseidonHash } from "./utils/poseidon-hash";
@@ -718,15 +717,15 @@ class CurvySDK implements ICurvySDK {
       .sendToAddress(from, privateKey, recipientData.address, amount, currency, fee);
   }
 
-  async createDeposit(payload: DepositPayload) {
+  async createDeposit(payload: DepositRequest) {
     return this.apiClient.aggregator.SubmitDeposit(payload);
   }
 
-  async createWithdraw(payload: WithdrawPayload) {
+  async createWithdraw(payload: WithdrawRequest) {
     return this.apiClient.aggregator.SubmitWithdraw(payload);
   }
 
-  async createAggregation(payload: AggregationPayload) {
+  async createAggregation(payload: AggregationRequest) {
     return this.apiClient.aggregator.SubmitAggregation(payload);
   }
 
@@ -830,7 +829,7 @@ class CurvySDK implements ICurvySDK {
     return { action, response: response.data };
   }
 
-  createDepositPayload(params: DepositPayloadParams): DepositPayload {
+  createDepositPayload(params: DepositRequestParams): DepositRequest {
     const { recipient, notes, csucTransferAllowanceSignature } = params;
     if (!recipient || !notes || !csucTransferAllowanceSignature) {
       throw new Error("Invalid deposit payload parameters");
@@ -852,7 +851,7 @@ class CurvySDK implements ICurvySDK {
     };
   }
 
-  createAggregationPayload(params: AggregationPayloadParams): AggregationPayload {
+  createAggregationPayload(params: AggregationRequestParams): AggregationRequest {
     const  { inputNotes, outputNotes } = params;
 
     const { s } = this.activeWallet.keyPairs;
@@ -885,7 +884,7 @@ class CurvySDK implements ICurvySDK {
     }
   }
 
-  createWithdrawPayload(params: WithdrawPayloadParams): WithdrawPayload {
+  createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest {
     const { inputNotes, destinationAddress } = params;
     if (!inputNotes || !destinationAddress) {
       throw new Error("Invalid withdraw payload parameters");

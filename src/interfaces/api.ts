@@ -27,7 +27,7 @@ import type {
   UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
 import type { CsucAction } from "@/types/csuc";
-import { AggregationPayload, DepositPayload, WithdrawPayload } from "@/types/aggregator";
+import { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
@@ -65,9 +65,9 @@ interface IApiClient {
 
   aggregator: {
     GetAllNotes(): Promise<GetAllNotesReturnType>;
-    SubmitDeposit(data: DepositPayload): Promise<SubmitDepositReturnType>;
-    SubmitWithdraw(data: WithdrawPayload): Promise<SubmitWithdrawReturnType>;
-    SubmitAggregation(data: AggregationPayload): Promise<SubmitAggregationReturnType>;
+    SubmitDeposit(data: DepositRequest): Promise<SubmitDepositReturnType>;
+    SubmitWithdraw(data: WithdrawRequest): Promise<SubmitWithdrawReturnType>;
+    SubmitAggregation(data: AggregationRequest): Promise<SubmitAggregationReturnType>;
     SubmitNotesOwnerhipProof(data: {
       proof: Groth16Proof;
       ownerHashes: string[];

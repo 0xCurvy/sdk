@@ -1,7 +1,7 @@
 import { Signature } from "./core";
 import { Note } from "./note";
 
-type DepositPayloadParams = {
+type DepositRequestParams = {
   recipient: {
     S: string;
     V: string;
@@ -10,32 +10,32 @@ type DepositPayloadParams = {
   csucTransferAllowanceSignature: string;
 }
 
-type DepositPayload = {
+type DepositRequest = {
   outputNotes: Note[];
   csucAddress: string;
   csucTransferAllowanceSignature: string;
 }
 
-type AggregationPayloadParams = {
+type AggregationRequestParams = {
   inputNotes: Note[];
   outputNotes: Note[];
 }
 
-type AggregationPayload = {
+type AggregationRequest = {
   inputNotes: Note[];
   outputNotes: Note[];
   signatures: Signature[];
 };
 
-type WithdrawPayloadParams = {
+type WithdrawRequestParams = {
   inputNotes: Note[];
   destinationAddress: string;
 }
 
-type WithdrawPayload = {
+type WithdrawRequest = {
   inputNotes: Note[];
   signatures: Signature[];
   destinationAddress: string;
 }
 
-export type { DepositPayloadParams, DepositPayload, AggregationPayloadParams, AggregationPayload, WithdrawPayloadParams, WithdrawPayload };
+export type { DepositRequestParams, DepositRequest, AggregationRequestParams, AggregationRequest, WithdrawRequestParams, WithdrawRequest };
