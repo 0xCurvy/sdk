@@ -1,7 +1,16 @@
 import type { RawAnnouncement } from "@/types/api";
-import type { CoreScanReturnType, CoreSendReturnType, CoreViewerScanReturnType, CurvyKeyPairs, Signature, PublicNote, NoteOwnershipData, NoteOwnershipProof, AuthenticatedNote, UnpackedNote } from "@/types/core";
+import type {
+  CoreScanReturnType,
+  CoreSendReturnType,
+  CoreViewerScanReturnType,
+  CurvyKeyPairs,
+  NoteOwnershipData,
+  NoteOwnershipProof,
+  PublicNote,
+  Signature,
+} from "@/types/core";
 import type { StringifyBigInts } from "@/types/helper";
-import { Note } from "@/types/note";
+import type { Note } from "@/types/note";
 
 interface ICore {
   generateKeyPairs(): CurvyKeyPairs;
@@ -16,12 +25,7 @@ interface ICore {
 
   getNoteOwnershipData(publicNotes: PublicNote[], s: string, v: string): NoteOwnershipData[];
   generateNoteOwnershipProof(ownershipData: NoteOwnershipData[], babyJubPublicKey: string): Promise<NoteOwnershipProof>;
-  unpackAuthenticatedNotes(
-    s: string,
-    v: string,
-    notes: AuthenticatedNote[],
-    babyJubPublicKey: [string, string],
-  ): UnpackedNote[];
+  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubPublicKey: [string, string]): Note[];
   version(): string;
 }
 

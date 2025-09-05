@@ -10,10 +10,11 @@ import {
   BALANCE_TYPE,
   type CsucBalanceEntry,
   type CurvyAddress,
+  Note,
   type NoteBalanceEntry,
   type SaBalanceEntry,
-  type UnpackedNote,
 } from "@/types";
+import type { FullNoteData } from "@/types/note";
 import type { BalanceEntry } from "@/types/storage";
 import { toSlug } from "@/utils/helpers";
 import type { NETWORK_ENVIRONMENT_VALUES } from "./constants/networks";
@@ -154,21 +155,25 @@ export class BalanceScanner implements IBalanceScanner {
     }
     return entries;
   }
-  async #processNotes(notes: UnpackedNote[]): Promise<BalanceEntry[]> {
+  async #processNotes(notes: FullNoteData[]): Promise<BalanceEntry[]> {
     const entries: NoteBalanceEntry[] = [];
 
     for (let i = 0; i < notes.length; i++) {
-      const { token, amount, ownerHash, ...noteData } = notes[i];
+      const {
+        balance: { token, amount },
+        ownerHash,
+        ...noteData
+      } = notes[i];
 
-      if (amount === "0") continue; // Skip zero balance notes
+      if (amount === 0n) continue; // Skip zero balance notes
 
       const networkSlug = "ethereum-sepolia"; // TODO Support multiple networks
 
-      const { symbol, environment, address } = await this.#storage.getCurrencyMetadata(token, networkSlug);
+      const { symbol, environment, address } = await this.#storage.getCurrencyMetadata(token.toString(16), networkSlug);
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
-        source: ownerHash,
+        source: ownerHash.toString(16),
         type: BALANCE_TYPE.NOTE,
 
         networkSlug,
@@ -239,10 +244,15 @@ export class BalanceScanner implements IBalanceScanner {
           ownerHashes,
         });
 
-        const unpackedNotes = this.#core.unpackAuthenticatedNotes(s, v, authenticatedNotes, babyJubPublicKey);
+        const unpackedNotes = this.#core.unpackAuthenticatedNotes(
+          s,
+          v,
+          authenticatedNotes.map((an) => Note.deserializeAuthenticatedNote(an)),
+          babyJubPublicKey,
+        );
 
         try {
-          const noteEntries = await this.#processNotes(unpackedNotes);
+          const noteEntries = await this.#processNotes(unpackedNotes.map((n) => n.serializeFullNote()));
           if (noteEntries.length > 0) {
             if (onProgress) onProgress(noteEntries);
             await this.#storage.updateBalancesAndTotals(walletId, noteEntries);
@@ -278,8 +288,6 @@ export class BalanceScanner implements IBalanceScanner {
       const addresses = await this.#storage.getScannableAddresses(walletId, environment, scanAll ? 0 : undefined);
 
       const addressCount = addresses.length;
-
-      console.log(addressCount);
 
       const addressBatchCount = Math.ceil(addressCount / this.#ADDRESS_BATCH_SIZE);
 

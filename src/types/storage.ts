@@ -58,11 +58,13 @@ const isCsucBalanceEntry = (entry: BalanceEntry): entry is CsucBalanceEntry => {
 type NoteBalanceEntry = BalanceEntryBase & {
   type: BALANCE_TYPE["NOTE"];
   owner: {
-    babyJubPublicKey: [string, string];
-    sharedSecret: string;
+    babyJubPubKey: {
+      x: bigint;
+      y: bigint;
+    };
+    sharedSecret: bigint;
   };
-  ephemeralKey: string;
-  viewTag: string;
+  deliveryTag: { ephemeralKey: bigint; viewTag: bigint };
 };
 const isNoteBalanceEntry = (entry: BalanceEntry): entry is NoteBalanceEntry => {
   return entry.type === BALANCE_TYPE.NOTE;

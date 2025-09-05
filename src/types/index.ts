@@ -17,6 +17,7 @@ export {
   isStringArray,
   type Prettify,
 } from "./helper";
+export * from "./note";
 export * from "./rpc";
 export * from "./signature";
 export * from "./storage";

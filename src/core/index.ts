@@ -5,13 +5,14 @@ import { groth16 } from "snarkjs";
 import type { ICore } from "@/interfaces/core";
 import type { RawAnnouncement } from "@/types/api";
 import type {
-    CoreLegacyKeyPairs,
-    CoreScanArgs,
-    CoreScanReturnType,
-    CoreSendReturnType,
-    CoreViewerScanArgs,
-    CurvyKeyPairs, NoteOwnershipData,
-    Signature,
+  CoreLegacyKeyPairs,
+  CoreScanArgs,
+  CoreScanReturnType,
+  CoreSendReturnType,
+  CoreViewerScanArgs,
+  CurvyKeyPairs,
+  NoteOwnershipData,
+  Signature,
 } from "@/types/core";
 import type { HexString, StringifyBigInts } from "@/types/helper";
 import { Note } from "@/types/note";
@@ -178,8 +179,7 @@ class Core implements ICore {
 
     return new Note({
       owner: {
-        babyJubPubKey:
-        {
+        babyJubPubKey: {
           x: noteData.ownerBabyJubPublicKey.split(".").map(BigInt)[0],
           y: noteData.ownerBabyJubPublicKey.split(".").map(BigInt)[1],
         },
@@ -300,12 +300,7 @@ class Core implements ICore {
     };
   }
 
-  unpackAuthenticatedNotes(
-    s: string,
-    v: string,
-    notes: Note[],
-    babyJubPublicKey: [string, string],
-  ): Note[] {
+  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubPublicKey: [string, string]): Note[] {
     const scanResult = this.scanNotes(
       s,
       v,
@@ -324,6 +319,7 @@ class Core implements ICore {
           },
           sharedSecret: BigInt(pubKey.split(".")[0]),
         },
+        ownerHash: notes[index].ownerHash,
         balance: {
           amount: notes[index].balance!.amount,
           token: notes[index].balance!.token,

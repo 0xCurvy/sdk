@@ -43,5 +43,3 @@ export * from "../utils";
 export { filterNetworks, type NetworkFilter } from "../utils/network";
 export * from "../utils/poseidon-hash";
 export type { CurvyWallet } from "../wallet";
-export * from "../types/note";
-export * from "../types/aggregator";
