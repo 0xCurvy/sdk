@@ -1,7 +1,8 @@
 import { expect, test } from "vitest";
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api.js";
-import { AggregatorRequestStatus } from "@/types/aggregator";
+import { AggregatorRequestStatus } from "@/constants/aggregator";
+import { Note } from "@/types/note";
 
 const BEARER_TOKEN =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzZGt0ZXN0LnN0YWdpbmctY3VydnkubmFtZSIsImlhdCI6MTc1NTg2Nzk5NiwiZXhwIjoyMTE1ODY3OTk2fQ.jl6KWZHGPVwIozMsgkSYNlxNUur0G4VtoP7WU-XoWUk";
@@ -66,7 +67,7 @@ test("should generate note, deposit and scan", async () => {
 
     rawNotes.push(note);
 
-    outputNotes.push(core.generateOutputNote(note));
+    outputNotes.push(note.serializeDepositNote());
   }
 
   const api = new ApiClient("local", "http://localhost:4000");
@@ -109,11 +110,23 @@ test("should generate note, deposit and scan", async () => {
 
   expect(authenticatedNotes.notes.length).toBe(NUM_NOTES);
 
+  const notes = authenticatedNotes.notes.map((note) => new Note({
+    ownerHash: BigInt(note.ownerHash),
+    balance: {
+      amount: BigInt(note.amount),
+      token: BigInt(note.token),
+    },
+    deliveryTag: {
+      ephemeralKey: BigInt(note.ephemeralKey),
+      viewTag: BigInt(note.viewTag),
+    },
+  }));
+
   const unpackedNotes = core.unpackAuthenticatedNotes(
     keyPairs.s,
     keyPairs.v,
-    authenticatedNotes.notes,
-    bJJPublicKey.split(".") as [string, string],
+    notes,
+    bJJPublicKey.split(".") as [string, string]
   );
 
   expect(unpackedNotes.length).toBe(NUM_NOTES);
@@ -122,11 +135,11 @@ test("should generate note, deposit and scan", async () => {
     const note = unpackedNotes[i];
     const rawNote = rawNotes[i];
 
-    expect(note.owner.babyJubPublicKey).toEqual(rawNote.owner.babyJubPublicKey);
-    expect(note.owner.sharedSecret).toEqual(rawNote.owner.sharedSecret);
-    expect(note.amount).toBe(rawNote.amount);
-    expect(note.token).toBe("0x" + BigInt(rawNote.token).toString(16));
-    expect(note.viewTag.slice(2)).toBe(rawNote.viewTag);
-    expect(note.ephemeralKey).toBe(rawNote.ephemeralKey);
+    expect(note.owner!.babyJubPubKey).toEqual(rawNote.owner.babyJubPubKey);
+    expect(note.owner!.sharedSecret).toEqual(rawNote.owner.sharedSecret);
+    expect(note.balance!.amount).toBe(rawNote.amount);
+    expect(note.balance!.token).toBe(rawNote.token);
+    expect(note.deliveryTag!.viewTag).toBe(rawNote.viewTag);
+    expect(note.deliveryTag!.ephemeralKey).toBe(rawNote.ephemeralKey);
   }
 }, 10_000);

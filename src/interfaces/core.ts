@@ -1,24 +1,11 @@
 import type { RawAnnouncement } from "@/types/api";
-import type {
-  AuthenticatedNote,
-  CoreScanReturnType,
-  CoreSendReturnType,
-  CoreViewerScanReturnType,
-  CurvyKeyPairs,
-  Note,
-  NoteOwnershipData,
-  NoteOwnershipProof,
-  OutputNote,
-  PublicNote,
-  Signature,
-  UnpackedNote,
-} from "@/types/core";
+import type { CoreScanReturnType, CoreSendReturnType, CoreViewerScanReturnType, CurvyKeyPairs, Signature, PublicNote, NoteOwnershipData, NoteOwnershipProof, AuthenticatedNote, UnpackedNote } from "@/types/core";
 import type { StringifyBigInts } from "@/types/helper";
+import { Note } from "@/types/note";
 
 interface ICore {
   generateKeyPairs(): CurvyKeyPairs;
   getCurvyKeys(s: string, v: string): CurvyKeyPairs;
-  generateOutputNote(note: Note): OutputNote;
   send(S: string, V: string): CoreSendReturnType;
   sendNote(S: string, V: string, noteData: { ownerBabyJubPublicKey: string; amount: bigint; token: bigint }): Note;
   signWithBabyJubPrivateKey(message: bigint, babyJubPrivateKey: string): StringifyBigInts<Signature>;

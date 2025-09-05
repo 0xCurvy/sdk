@@ -18,7 +18,6 @@ import type {
   CsucEstimatedActionCost,
 } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
-import type { AggregatorRequestStatus } from "./aggregator";
 import type { HexString } from "@/types/helper";
 
 type _Announcement = {
@@ -185,7 +184,7 @@ type SubmitNoteOwnershipProofReturnType = {
     amount: string;
   }[];
 };
-type AggregatorRequestStatusValuesType = keyof typeof AggregatorRequestStatus;
+type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed";
 type GetAggregatorRequestStatusReturnType = {
   requestId: string;
   status: AggregatorRequestStatusValuesType;
