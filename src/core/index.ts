@@ -215,9 +215,9 @@ class Core implements ICore {
     const ownershipData: NoteOwnershipData[] = [];
 
     for (let i = 0; i < publicNotes.length; i++) {
-        const sharedSecret = sharedSecrets[i];
+      const sharedSecret = sharedSecrets[i];
 
-        if (sharedSecret !== null) {
+      if (sharedSecret !== null) {
         const computedHash = poseidonHash([...bjjKeyBigint, sharedSecrets[i]!]).toString();
         if (computedHash === publicNotes[i].ownerHash) {
           ownershipData.push({
@@ -334,17 +334,19 @@ class Core implements ICore {
   }
 
   signWithBabyJubPrivateKey(message: bigint, babyJubPrivateKey: string): StringifyBigInts<Signature> {
+    if (!this.#eddsa) throw new Error("EDDSA not initialized");
+
     const privateKey = `0x${Buffer.from(babyJubPrivateKey, "hex").toString("hex")}`;
 
     const privateKeyBuffer = Buffer.from(privateKey.slice(2), "hex");
-    const messageBuffer = this.#eddsa!.babyJub.F.e(message);
+    const messageBuffer = this.#eddsa.babyJub.F.e(message);
 
-    const signature = this.#eddsa!.signPoseidon(privateKeyBuffer, messageBuffer);
+    const signature = this.#eddsa.signPoseidon(privateKeyBuffer, messageBuffer);
 
     return {
       R8: [
-        this.#eddsa!.babyJub.F.toObject(signature.R8[0]).toString(),
-        this.#eddsa!.babyJub.F.toObject(signature.R8[1]).toString(),
+        this.#eddsa.babyJub.F.toObject(signature.R8[0]).toString(),
+        this.#eddsa.babyJub.F.toObject(signature.R8[1]).toString(),
       ],
       S: signature.S.toString(),
     };

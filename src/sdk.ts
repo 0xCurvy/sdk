@@ -1,81 +1,81 @@
-import {Buffer as BufferPolyfill} from "buffer";
+import { Buffer as BufferPolyfill } from "buffer";
 import dayjs from "dayjs";
-import {mul, toNumber} from "dnum";
-import {ec, validateAndParseAddress} from "starknet";
-import {getAddress, parseSignature, verifyTypedData} from "viem";
-import {BalanceScanner} from "@/balance-scanner";
+import { mul, toNumber } from "dnum";
+import { ec, validateAndParseAddress } from "starknet";
+import { getAddress, parseSignature, verifyTypedData } from "viem";
+import { BalanceScanner } from "@/balance-scanner";
 import {
-    BALANCE_REFRESH_COMPLETE_EVENT,
-    BALANCE_REFRESH_PROGRESS_EVENT,
-    BALANCE_REFRESH_STARTED_EVENT,
-    SCAN_COMPLETE_EVENT,
-    SCAN_ERROR_EVENT,
-    SCAN_MATCH_EVENT,
-    SCAN_PROGRESS_EVENT,
-    SYNC_COMPLETE_EVENT,
-    SYNC_ERROR_EVENT,
-    SYNC_PROGRESS_EVENT,
-    SYNC_STARTED_EVENT,
+  BALANCE_REFRESH_COMPLETE_EVENT,
+  BALANCE_REFRESH_PROGRESS_EVENT,
+  BALANCE_REFRESH_STARTED_EVENT,
+  SCAN_COMPLETE_EVENT,
+  SCAN_ERROR_EVENT,
+  SCAN_MATCH_EVENT,
+  SCAN_PROGRESS_EVENT,
+  SYNC_COMPLETE_EVENT,
+  SYNC_ERROR_EVENT,
+  SYNC_PROGRESS_EVENT,
+  SYNC_STARTED_EVENT,
 } from "@/constants/events";
-import {NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES, type NETWORKS} from "@/constants/networks";
-import {CURVY_HANDLE_REGEX} from "@/constants/regex";
-import {prepareCsucActionEstimationRequest, prepareCuscActionRequest} from "@/csuc";
-import {CurvyEventEmitter} from "@/events";
-import {ApiClient} from "@/http/api";
-import type {IApiClient} from "@/interfaces/api";
-import type {ICore} from "@/interfaces/core";
-import type {ICurvyEventEmitter} from "@/interfaces/events";
-import type {ICurvySDK} from "@/interfaces/sdk";
-import type {StorageInterface} from "@/interfaces/storage";
-import type {IWalletManager} from "@/interfaces/wallet-manager";
-import {EvmRpc} from "@/rpc/evm";
-import {newMultiRpc} from "@/rpc/factory";
-import type {MultiRpc} from "@/rpc/multi";
-import type {StarknetRpc} from "@/rpc/starknet";
-import {MapStorage} from "@/storage/map-storage";
-import {BALANCE_TYPE, isCsucBalanceEntry} from "@/types";
-import type {CurvyAddress} from "@/types/address";
-import type {CsucActionPayload, CsucActionSet, CsucEstimatedActionCost} from "@/types/csuc";
-import {assertCurvyHandle, type CurvyHandle, isValidCurvyHandle} from "@/types/curvy";
+import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES, type NETWORKS } from "@/constants/networks";
+import { CURVY_HANDLE_REGEX } from "@/constants/regex";
+import { prepareCsucActionEstimationRequest, prepareCuscActionRequest } from "@/csuc";
+import { CurvyEventEmitter } from "@/events";
+import { ApiClient } from "@/http/api";
+import type { IApiClient } from "@/interfaces/api";
+import type { ICore } from "@/interfaces/core";
+import type { ICurvyEventEmitter } from "@/interfaces/events";
+import type { ICurvySDK } from "@/interfaces/sdk";
+import type { StorageInterface } from "@/interfaces/storage";
+import type { IWalletManager } from "@/interfaces/wallet-manager";
+import { EvmRpc } from "@/rpc/evm";
+import { newMultiRpc } from "@/rpc/factory";
+import type { MultiRpc } from "@/rpc/multi";
+import type { StarknetRpc } from "@/rpc/starknet";
+import { MapStorage } from "@/storage/map-storage";
+import { BALANCE_TYPE, isCsucBalanceEntry, type Network } from "@/types";
+import type { CurvyAddress } from "@/types/address";
+import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
+import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
-    BalanceRefreshCompleteEvent,
-    BalanceRefreshProgressEvent,
-    BalanceRefreshStartedEvent,
-    ScanCompleteEvent,
-    ScanErrorEvent,
-    ScanMatchEvent,
-    SyncCompleteEvent,
-    SyncErrorEvent,
-    SyncProgressEvent,
-    SyncStartedEvent,
+  BalanceRefreshCompleteEvent,
+  BalanceRefreshProgressEvent,
+  BalanceRefreshStartedEvent,
+  ScanCompleteEvent,
+  ScanErrorEvent,
+  ScanMatchEvent,
+  SyncCompleteEvent,
+  SyncErrorEvent,
+  SyncProgressEvent,
+  SyncStartedEvent,
 } from "@/types/events";
-import {type HexString, isHexString, isStarkentSignature} from "@/types/helper";
-import type {RecipientData, StarknetFeeEstimate} from "@/types/rpc";
+import { type HexString, isHexString, isStarkentSignature } from "@/types/helper";
+import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
 import {
-    assertIsStarkentSignatureData,
-    type EvmSignatureData,
-    type EvmSignTypedDataParameters,
-    type StarknetSignatureData,
+  assertIsStarkentSignatureData,
+  type EvmSignatureData,
+  type EvmSignTypedDataParameters,
+  type StarknetSignatureData,
 } from "@/types/signature";
-import {decryptCurvyMessage, encryptCurvyMessage} from "@/utils/encryption";
-import {arrayBufferToHex, generateWalletId, toSlug} from "@/utils/helpers";
-import {getSignatureParams as evmGetSignatureParams} from "./constants/evm";
-import {getSignatureParams as starknetGetSignatureParams} from "./constants/starknet";
-import {Core} from "./core";
-import {computePrivateKeys, deriveAddress} from "./utils/address";
-import {filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData} from "./utils/network";
-import {CurvyWallet} from "./wallet";
-import {WalletManager} from "./wallet-manager";
-import {
-    AggregationPayload,
-    AggregationPayloadParams,
-    DepositPayload,
-    DepositPayloadParams,
-    WithdrawPayload,
-    WithdrawPayloadParams
+import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
+import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
+import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
+import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
+import { Core } from "./core";
+import type {
+  AggregationPayload,
+  AggregationPayloadParams,
+  DepositPayload,
+  DepositPayloadParams,
+  WithdrawPayload,
+  WithdrawPayloadParams,
 } from "./types/aggregator";
-import {generateAggregationHash, generateOutputsHash} from "./utils/aggregator";
-import {poseidonHash} from "./utils/poseidon-hash";
+import { computePrivateKeys, deriveAddress } from "./utils/address";
+import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
+import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
+import { poseidonHash } from "./utils/poseidon-hash";
+import { CurvyWallet } from "./wallet";
+import { WalletManager } from "./wallet-manager";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -799,7 +799,7 @@ class CurvySDK implements ICurvySDK {
         ownerBabyJubPublicKey: note.babyJubPublicKey,
         amount: BigInt(note.amount),
         token: BigInt(note.token),
-      })
+      }),
     );
 
     const outputNotesStringified = inputNotesStringified.map((note) => this.#core.generateOutputNote(note));
@@ -814,7 +814,7 @@ class CurvySDK implements ICurvySDK {
   }
 
   createAggregationPayload(params: AggregationPayloadParams): AggregationPayload {
-    const  { inputNotes, outputNotes } = params;
+    const { inputNotes, outputNotes } = params;
 
     const { s } = this.activeWallet.keyPairs;
 
@@ -825,7 +825,7 @@ class CurvySDK implements ICurvySDK {
         token: "0",
         viewTag: "0",
         ephemeralKey: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-      })
+      });
     }
 
     const msgHash = generateAggregationHash(outputNotes);
@@ -839,7 +839,7 @@ class CurvySDK implements ICurvySDK {
       inputNotes,
       outputNotes,
       signatures,
-    }
+    };
   }
 
   createWithdrawPayload(params: WithdrawPayloadParams): WithdrawPayload {
@@ -870,10 +870,6 @@ class CurvySDK implements ICurvySDK {
       R8: signature.R8.map((r) => BigInt(r)),
     }));
     return { inputNotes, signatures, destinationAddress };
-  }
-
-  convertDecimalNumberIntoBigInt(value: string | number, decimals: number): bigint {
-    return parseUnits(value.toString(), decimals);
   }
 
   onSyncStarted(listener: (event: SyncStartedEvent) => void) {

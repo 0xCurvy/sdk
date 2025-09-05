@@ -217,6 +217,8 @@ export class MapStorage implements StorageInterface {
       this.#balances.set(this.#getBalanceKey(entry), entry);
     }
 
+    // TODO remove notes that are spent / balances that went to zero
+
     const totalBalanceUpdates = entries.reduce(
       (acc, entry) => {
         const key = this.#getTotalBalanceKey(entry);

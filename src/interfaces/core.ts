@@ -1,9 +1,18 @@
 import type { RawAnnouncement } from "@/types/api";
-import type { CoreScanReturnType, CoreSendReturnType, CoreViewerScanReturnType, CurvyKeyPairs, Note, OutputNote, Signature, NoteOwnershipData,
-    NoteOwnershipProof,
-    PublicNote,
-    AuthenticatedNote,
-    UnpackedNote } from "@/types/core";
+import type {
+  AuthenticatedNote,
+  CoreScanReturnType,
+  CoreSendReturnType,
+  CoreViewerScanReturnType,
+  CurvyKeyPairs,
+  Note,
+  NoteOwnershipData,
+  NoteOwnershipProof,
+  OutputNote,
+  PublicNote,
+  Signature,
+  UnpackedNote,
+} from "@/types/core";
 import type { StringifyBigInts } from "@/types/helper";
 
 interface ICore {
