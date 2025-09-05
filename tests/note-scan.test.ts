@@ -14,7 +14,8 @@ test("Decode note shared secret", async () => {
     token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
   });
 
-  expect(recipientNoteData.owner.babyJubPublicKey.length).toBe(2);
+  expect(recipientNoteData!.owner!.babyJubPubKey.x).toBe(BigInt(bJJPublicKey.split(".")[0]));
+  expect(recipientNoteData!.owner!.babyJubPubKey.y).toBe(BigInt(bJJPublicKey.split(".")[1]));
 });
 
 test.skip("Scan notes", async () => {

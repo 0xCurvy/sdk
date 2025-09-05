@@ -27,7 +27,7 @@ import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/ty
 import type { CurvySignatureParameters, EvmSignatureData, StarknetSignatureData } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
 import type { CurvyWallet } from "@/wallet";
-import { AggregationPayload, DepositPayload, WithdrawPayload } from "@/types/aggregator";
+import { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 
 interface ICurvySDK {
   // Getters
@@ -104,9 +104,9 @@ interface ICurvySDK {
     message?: string,
   ): Promise<SendReturnType>;
 
-  createDeposit(payload: DepositPayload): Promise<SubmitDepositReturnType>;
-  createWithdraw(payload: WithdrawPayload): Promise<SubmitWithdrawReturnType>;
-  createAggregation(payload: AggregationPayload): Promise<SubmitAggregationReturnType>;
+  createDeposit(payload: DepositRequest): Promise<SubmitDepositReturnType>;
+  createWithdraw(payload: WithdrawRequest): Promise<SubmitWithdrawReturnType>;
+  createAggregation(payload: AggregationRequest): Promise<SubmitAggregationReturnType>;
   getAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
 
   // Event subscriptions

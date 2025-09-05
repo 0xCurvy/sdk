@@ -1,52 +1,41 @@
-import { Note, OutputNote, Signature } from "./core";
+import { Signature } from "./core";
+import { Note } from "./note";
 
-export const AggregatorRequestStatus = {
-  PENDING: "pending",
-  SUCCESS: "success",
-  FAILED: "failed",
-  CANCELLED: "cancelled",
-  SUBMITTED: "submitted",
-}
-
-type DepositPayloadParams = {
+type DepositRequestParams = {
   recipient: {
     S: string;
     V: string;
   };
-  notes: {
-    babyJubPublicKey: string;
-    amount: string;
-    token: string;
-  }[];
+  notes: Note[];
   csucTransferAllowanceSignature: string;
 }
 
-type DepositPayload = {
-  outputNotes: OutputNote[];
+type DepositRequest = {
+  outputNotes: Note[];
   csucAddress: string;
   csucTransferAllowanceSignature: string;
 }
 
-type AggregationPayloadParams = {
+type AggregationRequestParams = {
   inputNotes: Note[];
-  outputNotes: OutputNote[];
+  outputNotes: Note[];
 }
 
-type AggregationPayload = {
+type AggregationRequest = {
   inputNotes: Note[];
-  outputNotes: OutputNote[];
+  outputNotes: Note[];
   signatures: Signature[];
 };
 
-type WithdrawPayloadParams = {
+type WithdrawRequestParams = {
   inputNotes: Note[];
   destinationAddress: string;
 }
 
-type WithdrawPayload = {
+type WithdrawRequest = {
   inputNotes: Note[];
   signatures: Signature[];
   destinationAddress: string;
 }
 
-export type { DepositPayloadParams, DepositPayload, AggregationPayloadParams, AggregationPayload, WithdrawPayloadParams, WithdrawPayload };
+export type { DepositRequestParams, DepositRequest, AggregationRequestParams, AggregationRequest, WithdrawRequestParams, WithdrawRequest };

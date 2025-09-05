@@ -66,9 +66,9 @@ import { computePrivateKeys, deriveAddress } from "./utils/address";
 import { filterNetworks, type NetworkFilter, networksToPriceData } from "./utils/network";
 import { CurvyWallet } from "./wallet";
 import { WalletManager } from "./wallet-manager";
-import { AggregationPayloadParams, WithdrawPayloadParams } from "./types/aggregator";
-import { AggregationPayload, DepositPayload, DepositPayloadParams, WithdrawPayload } from "./types/aggregator";
+import { DepositRequest, DepositRequestParams, AggregationRequestParams, AggregationRequest, WithdrawRequestParams, WithdrawRequest } from "./types/aggregator";
 import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
+import { Note } from "./types/note";
 import { poseidonHash } from "./utils/poseidon-hash";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
@@ -717,15 +717,15 @@ class CurvySDK implements ICurvySDK {
       .sendToAddress(from, privateKey, recipientData.address, amount, currency, fee);
   }
 
-  async createDeposit(payload: DepositPayload) {
+  async createDeposit(payload: DepositRequest) {
     return this.apiClient.aggregator.SubmitDeposit(payload);
   }
 
-  async createWithdraw(payload: WithdrawPayload) {
+  async createWithdraw(payload: WithdrawRequest) {
     return this.apiClient.aggregator.SubmitWithdraw(payload);
   }
 
-  async createAggregation(payload: AggregationPayload) {
+  async createAggregation(payload: AggregationRequest) {
     return this.apiClient.aggregator.SubmitAggregation(payload);
   }
 
@@ -829,43 +829,45 @@ class CurvySDK implements ICurvySDK {
     return { action, response: response.data };
   }
 
-  createDepositPayload(params: DepositPayloadParams): DepositPayload {
+  createDepositPayload(params: DepositRequestParams): DepositRequest {
     const { recipient, notes, csucTransferAllowanceSignature } = params;
     if (!recipient || !notes || !csucTransferAllowanceSignature) {
       throw new Error("Invalid deposit payload parameters");
     }
-    const inputNotesStringified = notes.map((note) =>
+    const outputNotes = notes.map((note) =>
       this.#core.sendNote(recipient.S, recipient.V, {
-        ownerBabyJubPublicKey: note.babyJubPublicKey,
-        amount: BigInt(note.amount),
-        token: BigInt(note.token),
+        ownerBabyJubPublicKey: note.owner!.babyJubPubKey.toString(),
+        amount: note.balance!.amount,
+        token: note.balance!.token,
       })
     );
-
-    const outputNotesStringified = inputNotesStringified.map((note) => this.#core.generateOutputNote(note));
 
     const { csucContractAddress } = this.getNetwork("localnet");
 
     return {
-      outputNotes: outputNotesStringified,
+      outputNotes,
       csucAddress: csucContractAddress!,
       csucTransferAllowanceSignature,
     };
   }
 
-  createAggregationPayload(params: AggregationPayloadParams): AggregationPayload {
+  createAggregationPayload(params: AggregationRequestParams): AggregationRequest {
     const  { inputNotes, outputNotes } = params;
 
     const { s } = this.activeWallet.keyPairs;
 
     if (outputNotes.length < 2) {
-      outputNotes.push({
-        ownerHash: "0",
-        amount: "0",
-        token: "0",
-        viewTag: "0",
-        ephemeralKey: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-      })
+      outputNotes.push(new Note({
+        ownerHash: 0n,
+        balance: {
+          amount: 0n,
+          token: 0n,
+        },
+        deliveryTag: {
+          ephemeralKey: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+          viewTag: 0n,
+        },
+      }));
     }
 
     const msgHash = generateAggregationHash(outputNotes);
@@ -882,26 +884,30 @@ class CurvySDK implements ICurvySDK {
     }
   }
 
-  createWithdrawPayload(params: WithdrawPayloadParams): WithdrawPayload {
+  createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest {
     const { inputNotes, destinationAddress } = params;
     if (!inputNotes || !destinationAddress) {
       throw new Error("Invalid withdraw payload parameters");
     }
     const { s } = this.activeWallet.keyPairs;
     for (let i = inputNotes.length; i < 15; i++) {
-      inputNotes.push({
+      inputNotes.push(new Note({
         owner: {
-          babyJubPublicKey: [
-            `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-            `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-          ],
-          sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+          babyJubPubKey: {
+            x: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+            y: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+          },
+          sharedSecret: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
         },
-        amount: "0",
-        token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE").toString(),
-        viewTag: "0",
-        ephemeralKey: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-      });
+        balance: {
+          amount: 0n,
+          token: 0n,
+        },
+        deliveryTag: {
+          ephemeralKey: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+          viewTag: 0n,
+        },
+      }));
     }
     const msgHash = generateOutputsHash(inputNotes);
     const signature = this.#core.signWithBabyJubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);

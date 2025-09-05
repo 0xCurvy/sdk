@@ -19,7 +19,6 @@ import type {
 } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { NetworkFilter } from "@/utils/network";
-import type { AggregatorRequestStatus } from "./aggregator";
 
 type _Announcement = {
   createdAt: string;
@@ -185,7 +184,7 @@ type SubmitNoteOwnershipProofReturnType = {
     amount: string;
   }[];
 };
-type AggregatorRequestStatusValuesType = keyof typeof AggregatorRequestStatus;
+type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed";
 type GetAggregatorRequestStatusReturnType = {
   requestId: string;
   status: AggregatorRequestStatusValuesType;
