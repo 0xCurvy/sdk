@@ -66,7 +66,7 @@ export class MapStorage implements StorageInterface {
       }));
   }
 
-  async getCurvyAddressBalanceNetworks(address: string) {
+  async getNetworkSlugsOfAddressBalances(address: string) {
     const networks = new Set<string>();
     for (const balance of this.#balances.values()) {
       if (balance.source === address) {
@@ -74,6 +74,10 @@ export class MapStorage implements StorageInterface {
       }
     }
     return Array.from(networks);
+  }
+
+  async getAddressBalance(address: string, currencyAddress: string, networkSlug: string, type: "sa" | "csuc" | "note") {
+    return this.#balances.get(this.#getBalanceKey({ source: address, type, currencyAddress, networkSlug }));
   }
 
   async upsertCurrencyMetadata(metadata: Map<string, CurrencyMetadata>) {
@@ -270,5 +274,15 @@ export class MapStorage implements StorageInterface {
       }
     }
     return grouped;
+  }
+
+  async getBalanceEntry(address: string, currencyAddress: string, networkSlug: string, type: "sa" | "csuc" | "note") {
+    const balance = this.#balances.get(this.#getBalanceKey({ source: address, type, currencyAddress, networkSlug }));
+    if (!balance) {
+      throw new StorageError(
+        `Balance entry for address ${address} with currency ${currencyAddress} on network ${networkSlug} and type ${type} not found`,
+      );
+    }
+    return balance;
   }
 }

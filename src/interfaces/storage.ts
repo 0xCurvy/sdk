@@ -17,7 +17,7 @@ export interface StorageInterface {
   storeManyCurvyAddresses(addresses: CurvyAddress[]): Promise<void>;
   getCurvyAddressById(id: string): Promise<CurvyAddress>;
   getCurvyAddressesByWalletId(walletId: string): Promise<CurvyAddress[]>;
-  getCurvyAddressBalanceNetworks(address: string): Promise<string[]>;
+  getNetworkSlugsOfAddressBalances(address: string): Promise<string[]>;
 
   upsertCurrencyMetadata(metadata: Map<string, CurrencyMetadata>): Promise<void>;
   getCurrencyMetadata(address: string, networkSlug: string): Promise<CurrencyMetadata>;
@@ -31,4 +31,10 @@ export interface StorageInterface {
   getTotalsByCurrencyAndNetwork(walletId: string): Promise<TotalBalance[]>;
   getCurrencyHolders(walletId: string, currencyAddress: string, networkSlug: string): Promise<BalanceEntry[]>;
   getBalancesGroupedBySource(walletId: string): Promise<Record<string, BalanceEntry[]>>;
+  getBalanceEntry(
+    address: string,
+    currencyAddress: string,
+    networkSlug: string,
+    type: "sa" | "csuc" | "note",
+  ): Promise<BalanceEntry>;
 }

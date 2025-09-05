@@ -149,9 +149,9 @@ class StarknetRpc extends Rpc {
     });
   }
 
-  async #checkIsStarknetAccountDeployed(stealthAddress: CurvyAddress): Promise<boolean> {
+  async checkIsStarknetAccountDeployed(accountAddress: string): Promise<boolean> {
     return this.#provider
-      .getClassHashAt(stealthAddress.address)
+      .getClassHashAt(accountAddress)
       .then(() => true)
       .catch(() => false);
   }
@@ -210,7 +210,7 @@ class StarknetRpc extends Rpc {
   }
 
   async estimateDeployFee(curvyAddress: CurvyAddress, privateKey: HexString, skipCheck = false): Promise<bigint> {
-    if (!skipCheck && (await this.#checkIsStarknetAccountDeployed(curvyAddress)))
+    if (!skipCheck && (await this.checkIsStarknetAccountDeployed(curvyAddress.address)))
       throw new Error(`Starknet account with address: ${curvyAddress.address} already deployed.`);
 
     const deployFeeEstimate = await this.#estimateDeployFee(curvyAddress, privateKey);
@@ -223,7 +223,7 @@ class StarknetRpc extends Rpc {
     skipCheck = false,
     fee?: EstimateFee,
   ): Promise<DeployContractResponse> {
-    if (!skipCheck && (await this.#checkIsStarknetAccountDeployed(curvyAddress)))
+    if (!skipCheck && (await this.checkIsStarknetAccountDeployed(curvyAddress.address)))
       throw new Error(`Starknet account with address: ${curvyAddress.address} already deployed.`);
 
     const { starknetAccount, deployPayload } = await this.#prepareDeploy(curvyAddress, privateKey);
@@ -250,7 +250,7 @@ class StarknetRpc extends Rpc {
     currency: string,
     fee?: StarknetFeeEstimate,
   ) {
-    if (!(await this.#checkIsStarknetAccountDeployed(curvyAddress))) {
+    if (!(await this.checkIsStarknetAccountDeployed(curvyAddress.address))) {
       await this.deployStarknetAccount(curvyAddress, privateKey, true, fee?.deployFee);
     }
 
@@ -296,7 +296,7 @@ class StarknetRpc extends Rpc {
     currency: string,
   ): Promise<StarknetFeeEstimate> {
     let deployFee: EstimateFee | undefined;
-    const isDeployed = await this.#checkIsStarknetAccountDeployed(curvyAddress);
+    const isDeployed = await this.checkIsStarknetAccountDeployed(curvyAddress.address);
     if (!isDeployed) {
       deployFee = await this.#estimateDeployFee(curvyAddress, privateKey);
     }

@@ -33,6 +33,7 @@ import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import type { StarknetRpc } from "@/rpc/starknet";
 import { MapStorage } from "@/storage/map-storage";
+import { isCsucBalanceEntry } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { AggregationRequest, Currency, DepositPayload, Network, WithdrawPayload } from "@/types/api";
 import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
@@ -779,7 +780,16 @@ class CurvySDK implements ICurvySDK {
       spendingPrivKeys: [privateKey],
     } = this.#core.scan(s, v, [from]);
 
-    const action = await prepareCuscActionRequest(network, from, privateKey, payload, totalFee);
+    const { token: currencyAddress } = JSON.parse(payload.encodedData) as any;
+    const networkSlug = toSlug(network.name);
+
+    const balanceEntry = await this.storage.getBalanceEntry(from.address, currencyAddress, networkSlug, "csuc");
+
+    if (!isCsucBalanceEntry(balanceEntry)) {
+      throw new Error(`Got an incompatible balance entry`);
+    }
+
+    const action = await prepareCuscActionRequest(network, balanceEntry.nonce, privateKey, payload, totalFee);
 
     const response = await this.apiClient.csuc.SubmitActionRequest({
       action: action,

@@ -69,7 +69,7 @@ export class BalanceScanner implements IBalanceScanner {
 
     for (let i = 0; i < arrLength; i++) {
       const address = addresses[i];
-      const networks = await this.#storage.getCurvyAddressBalanceNetworks(address.address);
+      const networks = await this.#storage.getNetworkSlugsOfAddressBalances(address.address);
 
       const saData = await this.rpcClient.getBalances(address, networks);
 
