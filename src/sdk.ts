@@ -17,7 +17,13 @@ import {
   SYNC_PROGRESS_EVENT,
   SYNC_STARTED_EVENT,
 } from "@/constants/events";
-import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES, type NETWORKS } from "@/constants/networks";
+import {
+  NETWORK_ENVIRONMENT,
+  type NETWORK_ENVIRONMENT_VALUES,
+  NETWORK_FLAVOUR,
+  type NETWORK_FLAVOUR_VALUES,
+  type NETWORKS,
+} from "@/constants/networks";
 import { CURVY_HANDLE_REGEX } from "@/constants/regex";
 import { prepareCsucActionEstimationRequest, prepareCuscActionRequest } from "@/csuc";
 import { CurvyEventEmitter } from "@/events";
@@ -82,6 +88,11 @@ import { WalletManager } from "./wallet-manager";
 
 const PRICE_UPDATE_INTERVAL = 5 * 60 * 10 ** 3;
 
+type SdkState = {
+  environment: NETWORK_ENVIRONMENT_VALUES;
+  activeNetworks: Network[];
+};
+
 class CurvySDK implements ICurvySDK {
   readonly #emitter: ICurvyEventEmitter;
   readonly #core: ICore;
@@ -91,6 +102,7 @@ class CurvySDK implements ICurvySDK {
 
   #networks: Network[];
   #rpcClient: MultiRpc | undefined;
+  #state: SdkState;
 
   readonly apiClient: IApiClient;
   readonly storage: StorageInterface;
@@ -102,6 +114,10 @@ class CurvySDK implements ICurvySDK {
     this.#networks = [];
     this.storage = storage;
     this.#walletManager = new WalletManager(this.apiClient, this.#emitter, this.storage, this.#core);
+    this.#state = {
+      environment: "mainnet",
+      activeNetworks: [],
+    };
   }
 
   static async init(
@@ -181,6 +197,14 @@ class CurvySDK implements ICurvySDK {
 
   get activeWallet() {
     return this.#walletManager.activeWallet;
+  }
+
+  get activeNetworks() {
+    return this.#state.activeNetworks;
+  }
+
+  get activeEnvironment() {
+    return this.#state.environment;
   }
 
   hasActiveWallet() {
@@ -320,11 +344,27 @@ class CurvySDK implements ICurvySDK {
 
   setActiveNetworks(networkFilter: NetworkFilter) {
     const networks = this.getNetworks(networkFilter);
+
+    const uniqueEnvSet = new Set(networks.map((n) => n.testnet));
+    if (uniqueEnvSet.size > 1) {
+      throw new Error("Cannot mix mainnet and testnet networks!");
+    }
+
     if (!networks.length) {
       throw new Error(`Network array is empty after filtering with ${networkFilter}`);
     }
+
     const newRpc = newMultiRpc(networks);
     this.#rpcClient = newRpc;
+
+    const environment = uniqueEnvSet.values().next().value;
+
+    if (environment === undefined) throw new Error("No environment set.");
+
+    this.#state = {
+      environment: environment ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
+      activeNetworks: networks,
+    };
 
     if (this.#balanceScanner) this.#balanceScanner.rpcClient = newRpc;
   }
@@ -544,7 +584,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanNoteBalances(walletId);
+    return await this.#balanceScanner.scanNoteBalances(walletId, this.#state.environment);
   }
 
   async refreshAddressBalances(address: CurvyAddress) {
@@ -553,7 +593,7 @@ class CurvySDK implements ICurvySDK {
     return this.#balanceScanner.scanAddressBalances(address);
   }
 
-  async refreshWalletBalances(walletId: string) {
+  async refreshWalletBalances(walletId: string, scanAll = false) {
     if (!this.#walletManager.hasWallet(walletId)) {
       throw new Error(`Wallet with ID ${walletId} not found!`);
     }
@@ -562,14 +602,14 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanWalletBalances(walletId);
+    return await this.#balanceScanner.scanWalletBalances(walletId, this.#state.environment, { scanAll });
   }
 
-  async refreshBalances() {
+  async refreshBalances(scanAll = false) {
     if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
     for (const wallet of this.wallets) {
-      await this.#balanceScanner.scanWalletBalances(wallet.id);
+      await this.#balanceScanner.scanWalletBalances(wallet.id, this.#state.environment, { scanAll });
     }
   }
 

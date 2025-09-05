@@ -1,11 +1,17 @@
+import dayjs from "dayjs";
+import duration from "dayjs/plugin/duration";
 import merge from "lodash.merge";
-import type { TOKENS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES, TOKENS } from "@/constants/networks";
 import { StorageError } from "@/errors";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { BALANCE_TYPE_VALUES, CurvyAddress, CurvyWalletData, MinifiedCurvyAddress } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
 import { bytesToDecimalString, decimalStringToBytes } from "@/utils/decimal-conversions";
 import type { CurvyWallet } from "@/wallet";
+
+dayjs.extend(duration);
+
+const ADDRESS_STALENESS_THRESHOLD_MS = dayjs.duration(3, "days").asMilliseconds();
 
 export class MapStorage implements StorageInterface {
   readonly #walletStorage = new Map<string, CurvyWalletData>();
@@ -64,6 +70,23 @@ export class MapStorage implements StorageInterface {
         ephemeralPublicKey: bytesToDecimalString(address.ephemeralPublicKey),
         publicKey: bytesToDecimalString(address.publicKey),
       }));
+  }
+
+  async getScannableAddresses(
+    walletId: string,
+    environment: NETWORK_ENVIRONMENT_VALUES,
+    stalenessThresholdMs = ADDRESS_STALENESS_THRESHOLD_MS,
+  ) {
+    const stalenessCutoff = +dayjs() - stalenessThresholdMs;
+
+    const walletAddresses = await this.getCurvyAddressesByWalletId(walletId);
+
+    return walletAddresses.filter((address) => {
+      const isNew = !address.lastScannedAt;
+      const isStale = address.lastScannedAt ? address.lastScannedAt[environment] < stalenessCutoff : false;
+
+      return isNew || isStale;
+    });
   }
 
   async getNetworkSlugsOfAddressBalances(address: string) {

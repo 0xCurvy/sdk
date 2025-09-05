@@ -16,6 +16,7 @@ import {
 } from "@/types";
 import type { BalanceEntry } from "@/types/storage";
 import { toSlug } from "@/utils/helpers";
+import type { NETWORK_ENVIRONMENT_VALUES } from "./constants/networks";
 
 export class BalanceScanner implements IBalanceScanner {
   readonly #NOTE_BATCH_SIZE = 10;
@@ -202,8 +203,17 @@ export class BalanceScanner implements IBalanceScanner {
     return resultsForBatch.flat();
   }
 
-  async #noteScan(walletId: string, onProgress?: (entries: BalanceEntry[]) => void) {
+  async #noteScan(
+    walletId: string,
+    _environment: NETWORK_ENVIRONMENT_VALUES,
+    options?: {
+      onProgress?: (entries: BalanceEntry[]) => void;
+      scanAll?: boolean;
+    },
+  ) {
     // TODO This process happens in memory, may be a problem with thousands of notes on mobile phones
+
+    const onProgress = options?.onProgress;
 
     try {
       const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes();
@@ -253,10 +263,23 @@ export class BalanceScanner implements IBalanceScanner {
     }
   }
 
-  async #addressScan(walletId: string, onProgress?: (entries: BalanceEntry[]) => void) {
+  async #addressScan(
+    walletId: string,
+    environment: NETWORK_ENVIRONMENT_VALUES,
+    options?: {
+      onProgress?: (entries: BalanceEntry[]) => void;
+      scanAll?: boolean;
+    },
+  ) {
+    const onProgress = options?.onProgress;
+    const scanAll = options?.scanAll ?? false;
+
     try {
-      const addresses = await this.#storage.getCurvyAddressesByWalletId(walletId);
+      const addresses = await this.#storage.getScannableAddresses(walletId, environment, scanAll ? 0 : undefined);
+
       const addressCount = addresses.length;
+
+      console.log(addressCount);
 
       const addressBatchCount = Math.ceil(addressCount / this.#ADDRESS_BATCH_SIZE);
 
@@ -274,6 +297,13 @@ export class BalanceScanner implements IBalanceScanner {
 
             await this.#storage.updateBalancesAndTotals(walletId, combinedEntries);
           }
+
+          await this.#storage.storeManyCurvyAddresses(
+            addressBatch.map((address) => ({
+              ...address,
+              lastScannedAt: { ...address.lastScannedAt, [environment]: +dayjs() },
+            })),
+          );
         } catch (error) {
           console.error(`[BalanceScanner] Error while processing address batch ${batchNumber}:`, error);
         } finally {
@@ -293,12 +323,15 @@ export class BalanceScanner implements IBalanceScanner {
   /**
    * The main scan coordinator function.
    * @param walletId The ID of the wallet to sync.
+   * @param environment {NETWORK_ENVIRONMENT_VALUES} The network environment to scan
    * @param options An object containing the onProgress callback and the batchSize.
    */
   async scanWalletBalances(
     walletId: string,
+    environment: NETWORK_ENVIRONMENT_VALUES,
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
+      scanAll?: boolean;
     },
   ): Promise<void> {
     if (this.#semaphore[`refresh-balances-${walletId}`]) return;
@@ -307,14 +340,15 @@ export class BalanceScanner implements IBalanceScanner {
 
     this.#resetScanProgress();
 
-    const onProgress = options?.onProgress;
-
     this.#emitter.emitBalanceRefreshStarted({
       walletId,
     });
 
     try {
-      await Promise.all([this.#addressScan(walletId, onProgress), this.#noteScan(walletId, onProgress)]);
+      await Promise.all([
+        this.#addressScan(walletId, environment, options),
+        this.#noteScan(walletId, environment, options),
+      ]);
     } finally {
       this.#semaphore[`refresh-balances-${walletId}`] = undefined;
 
@@ -358,19 +392,21 @@ export class BalanceScanner implements IBalanceScanner {
     }
   }
 
-  async scanNoteBalances(walletId: string, options?: { onProgress?: (entries: BalanceEntry[]) => void }) {
+  async scanNoteBalances(
+    walletId: string,
+    environment: NETWORK_ENVIRONMENT_VALUES,
+    options?: { onProgress?: (entries: BalanceEntry[]) => void; scanAll?: boolean },
+  ) {
     if (this.#semaphore[`refresh-notes-${walletId}`]) return;
 
     this.#semaphore[`refresh-notes-${walletId}`] = true;
-
-    const onProgress = options?.onProgress;
 
     this.#emitter.emitBalanceRefreshStarted({
       walletId,
     });
 
     try {
-      await this.#noteScan(walletId, onProgress);
+      await this.#noteScan(walletId, environment, options);
     } catch (error) {
       console.error(`[BalanceScanner] Error while scanning note balances:`, error);
     } finally {

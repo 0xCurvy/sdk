@@ -1,5 +1,6 @@
 import type { RawAnnouncement } from "@/types/api";
 import type { HexString } from "@/types/helper";
+import { NETWORK_ENVIRONMENT } from "../constants/networks";
 
 type ScannedAnnouncement = RawAnnouncement & {
   publicKey: string;
@@ -13,7 +14,12 @@ type AnnouncementBase = {
   recipientStealthPublicKey: string;
 };
 
-interface CurvyAddress extends ScannedAnnouncement {}
+interface CurvyAddress extends ScannedAnnouncement {
+  lastScannedAt: {
+    [NETWORK_ENVIRONMENT.MAINNET]: number;
+    [NETWORK_ENVIRONMENT.TESTNET]: number;
+  };
+}
 
 interface MinifiedCurvyAddress extends Omit<CurvyAddress, "ephemeralPublicKey" | "publicKey"> {
   ephemeralPublicKey: Uint8Array;

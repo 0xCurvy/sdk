@@ -1,4 +1,4 @@
-import type { TOKENS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES, TOKENS } from "@/constants/networks";
 import type { BALANCE_TYPE_VALUES, CurvyAddress, CurvyWalletData, PriceData, ScanInfo } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
 import type { CurvyWallet } from "@/wallet";
@@ -29,6 +29,18 @@ export interface StorageInterface {
   storeManyCurvyAddresses(addresses: CurvyAddress[]): Promise<void>;
   getCurvyAddressById(id: string): Promise<CurvyAddress>;
   getCurvyAddressesByWalletId(walletId: string): Promise<CurvyAddress[]>;
+
+  /**
+   * Gets all addresses for a given wallet that have not been scanned within the specified staleness threshold (including new addresses).
+   * @param walletId The ID of the wallet to get addresses for.
+   * @param environment {NETWORK_ENVIRONMENT_VALUES} The network environment to get addresses for.
+   * @param stalenessThresholdMs The staleness threshold in milliseconds. Addresses not scanned within this threshold are considered stale, default is 3 days
+   */
+  getScannableAddresses(
+    walletId: string,
+    environment: NETWORK_ENVIRONMENT_VALUES,
+    stalenessThresholdMs?: number,
+  ): Promise<CurvyAddress[]>;
   /**
    * Gets the network slugs for which the specified address has balances.
    * @param address The address to get the network slugs for.

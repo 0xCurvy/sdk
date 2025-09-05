@@ -1,6 +1,12 @@
-import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
+import type {
+  NETWORK_ENVIRONMENT_VALUES,
+  NETWORK_FLAVOUR,
+  NETWORK_FLAVOUR_VALUES,
+  NETWORKS,
+} from "@/constants/networks";
 import type { MultiRpc } from "@/rpc/multi";
 import type { CurvyAddress } from "@/types/address";
+import type { AggregationPayload, DepositPayload, WithdrawPayload } from "@/types/aggregator";
 import type {
   Currency,
   GetAggregatorRequestStatusReturnType,
@@ -27,13 +33,14 @@ import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/ty
 import type { CurvySignatureParameters, EvmSignatureData, StarknetSignatureData } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
 import type { CurvyWallet } from "@/wallet";
-import { AggregationPayload, DepositPayload, WithdrawPayload } from "@/types/aggregator";
 
 interface ICurvySDK {
   // Getters
   get rpcClient(): MultiRpc;
   get wallets(): CurvyWallet[];
   get activeWallet(): CurvyWallet;
+  get activeNetworks(): Network[];
+  get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
   hasActiveWallet(): boolean;
 
   getStealthAddressById(id: string): Promise<CurvyAddress>;

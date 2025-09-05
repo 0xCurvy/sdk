@@ -46,6 +46,10 @@ class AddressScanner implements IAddressScanner {
           publicKey,
           address,
           walletId: wallet.id,
+          lastScannedAt: {
+            mainnet: 0,
+            testnet: 0,
+          },
         } satisfies CurvyAddress;
       })
       .filter(Boolean);
