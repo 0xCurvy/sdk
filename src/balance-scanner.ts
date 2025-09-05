@@ -358,9 +358,7 @@ export class BalanceScanner implements IBalanceScanner {
     }
   }
 
-  async scanNoteBalances(options?: { onProgress?: (entries: BalanceEntry[]) => void }) {
-    const walletId = this.#walletManager.activeWallet.id;
-
+  async scanNoteBalances(walletId: string, options?: { onProgress?: (entries: BalanceEntry[]) => void }) {
     if (this.#semaphore[`refresh-notes-${walletId}`]) return;
 
     this.#semaphore[`refresh-notes-${walletId}`] = true;

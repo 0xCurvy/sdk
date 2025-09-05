@@ -86,9 +86,11 @@ interface ICurvySDK {
 
   removeWallet(walletId: string): Promise<void>;
 
+  refreshNoteBalances(walletId: string): Promise<void>;
+  refreshAddressBalances(address: CurvyAddress): Promise<void>;
   refreshWalletBalances(walletId: string): Promise<void>;
   refreshBalances(): Promise<void>;
-  refreshAddressBalances(address: CurvyAddress): Promise<void>;
+
   resetStorage(): Promise<void>;
 
   estimateFee(

@@ -16,7 +16,7 @@ interface IBalanceScanner {
     },
   ): Promise<void>;
 
-  scanNoteBalances(options?: { onProgress?: (entries: BalanceEntry[]) => void }): Promise<void>;
+  scanNoteBalances(walletId: string, options?: { onProgress?: (entries: BalanceEntry[]) => void }): Promise<void>;
 
   get rpcClient(): MultiRpc;
   set rpcClient(value: MultiRpc);

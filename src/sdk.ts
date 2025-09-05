@@ -527,6 +527,24 @@ class CurvySDK implements ICurvySDK {
     return this.#walletManager.removeWallet(walletId);
   }
 
+  async refreshNoteBalances(walletId: string) {
+    if (!this.#walletManager.hasWallet(walletId)) {
+      throw new Error(`Wallet with ID ${walletId} not found!`);
+    }
+
+    if (!this.#balanceScanner) {
+      throw new Error("Balance scanner not initialized!");
+    }
+
+    return await this.#balanceScanner.scanNoteBalances(walletId);
+  }
+
+  async refreshAddressBalances(address: CurvyAddress) {
+    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
+
+    return this.#balanceScanner.scanAddressBalances(address);
+  }
+
   async refreshWalletBalances(walletId: string) {
     if (!this.#walletManager.hasWallet(walletId)) {
       throw new Error(`Wallet with ID ${walletId} not found!`);
@@ -545,12 +563,6 @@ class CurvySDK implements ICurvySDK {
     for (const wallet of this.wallets) {
       await this.#balanceScanner.scanWalletBalances(wallet.id);
     }
-  }
-
-  async refreshAddressBalances(address: CurvyAddress) {
-    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
-
-    return this.#balanceScanner.scanAddressBalances(address);
   }
 
   async resetStorage() {
