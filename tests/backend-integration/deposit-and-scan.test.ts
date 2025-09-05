@@ -52,14 +52,14 @@ test("should generate note, deposit and scan", async () => {
   const core = await Core.init();
 
   const keyPairs = core.generateKeyPairs();
-  const { bJJPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
+  const { bJPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
 
   const rawNotes: any[] = [];
   const outputNotes: any[] = [];
 
   for (let i = 0; i < NUM_NOTES; i++) {
     const note = core.sendNote(keyPairs.S, keyPairs.V, {
-      ownerBabyJubPublicKey: bJJPublicKey,
+      ownerBabyJubjubPublicKey: bJPublicKey,
       amount: 1000000000000000000n,
       token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
     });
@@ -102,7 +102,7 @@ test("should generate note, deposit and scan", async () => {
     expect(sharedSecret.toString()).toBe(noteSharedSecret.toString());
   }
 
-  const { proof, publicSignals: ownerHashes } = await core.generateNoteOwnershipProof(ownedNotes, bJJPublicKey);
+  const { proof, publicSignals: ownerHashes } = await core.generateNoteOwnershipProof(ownedNotes, bJPublicKey);
 
   const authenticatedNotes = await api.aggregator.SubmitNotesOwnerhipProof({ proof, ownerHashes });
 
@@ -124,7 +124,7 @@ test("should generate note, deposit and scan", async () => {
     keyPairs.s, 
     keyPairs.v, 
     notes,
-    bJJPublicKey.split(".") as [string, string]
+    bJPublicKey.split(".") as [string, string]
   );
 
   expect(unpackedNotes.length).toBe(NUM_NOTES);
@@ -133,7 +133,7 @@ test("should generate note, deposit and scan", async () => {
     const note = unpackedNotes[i];
     const rawNote = rawNotes[i];
 
-    expect(note.owner!.babyJubPubKey).toEqual(rawNote.owner.babyJubPubKey);
+    expect(note.owner!.babyJubjubPubKey).toEqual(rawNote.owner.babyJubjubPubKey);
     expect(note.owner!.sharedSecret).toEqual(rawNote.owner.sharedSecret);
     expect(note.balance!.amount).toBe(rawNote.amount);
     expect(note.balance!.token).toBe(rawNote.token);

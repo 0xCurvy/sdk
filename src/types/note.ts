@@ -5,13 +5,13 @@ type Balance = {
   token: bigint;
 };
 
-type BabyJubPubKey = {
+type BabyJubjubPubKey = {
   x: bigint;
   y: bigint;
 };
 
 type Owner = {
-  babyJubPubKey: BabyJubPubKey;
+  babyJubjubPubKey: BabyJubjubPubKey;
   sharedSecret: bigint;
 };
 
@@ -98,11 +98,11 @@ class Note {
       throw new Error("Missing owner");
     }
 
-    return poseidonHash([this.owner.babyJubPubKey.x, this.owner.babyJubPubKey.y, this.owner.sharedSecret]);
+    return poseidonHash([this.owner.babyJubjubPubKey.x, this.owner.babyJubjubPubKey.y, this.owner.sharedSecret]);
   }
 
   static generateOwnerHash(owner: Owner): bigint {
-    return poseidonHash([owner.babyJubPubKey.x, owner.babyJubPubKey.y, owner.sharedSecret]);
+    return poseidonHash([owner.babyJubjubPubKey.x, owner.babyJubjubPubKey.y, owner.sharedSecret]);
   }
 
   // Deposit note
@@ -211,7 +211,7 @@ class Note {
 
     return {
       owner: {
-        babyJubPubKey: this.owner.babyJubPubKey,
+        babyJubjubPubKey: this.owner.babyJubjubPubKey,
         sharedSecret: this.owner.sharedSecret,
       },
       ...this.balance,
