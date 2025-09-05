@@ -68,6 +68,7 @@ export class CsucDepositAction {
     return [
       {
         type: "parallel",
+        shouldSkip: false,
         actions,
       },
     ];

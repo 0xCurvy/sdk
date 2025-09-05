@@ -53,8 +53,6 @@ test("Should aggregate two notes into one", async () => {
 
   const sequence: SBSequence = scenarioBuilder.build(3n, 1n, "0x1", "0x2");
 
-  console.log(sequence);
-
   expect(sequence).toBeDefined();
   expect(sequence.actions.length).toBe(1);
 
@@ -84,15 +82,16 @@ test("Should deposit from two SA to CSUC, then deposit two notes from CSUC to ag
   expect(sequence.actions.length).toBe(3);
 });
 
-test("Should create multiple aggregations", async () => {
+test("Should create multiple aggregations and end up with one note", async () => {
   const scenarioBuilder = new ScenarioBuilder(generateDemoStateAggregatorHeavy(11));
 
   const sequence: SBSequence = scenarioBuilder.build(11n, 1n, "0x2", "0x3");
 
   expect(sequence).toBeDefined();
-  expect(sequence.actions.length).toBe(1);
 
   const item = sequence.actions[0] as SBParallel;
+
+  expect(sequence.actions.length).toBe(2);
 
   expect(sequence.actions[0].type).toBe("parallel");
   expect(item.actions.length).toBe(2);

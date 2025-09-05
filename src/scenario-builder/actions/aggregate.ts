@@ -3,6 +3,7 @@ import {
   SBNote,
   SBSequenceItem,
   SBState,
+  SBParallel,
 } from "@/types/scenario-builder";
 
 const MAX_INPUTS = 10;
@@ -22,6 +23,7 @@ export class AggregateAction {
   public isExecutable: boolean = false;
   private inputNotes: SBNote[] = [];
   private remainingAmount: bigint = 0n;
+  private actions: (SBAction | SBParallel)[] = [];
 
   constructor(state: SBState, params: AggregationActionParams) {
     this.state = state;
@@ -73,13 +75,16 @@ export class AggregateAction {
   generateAggregationActions(
     inputNotes: SBNote[],
     changeData?: { note: SBNote; changeAmount: bigint }
-  ): SBSequenceItem[] {
-    const actions: SBAction[] = [];
+  ): (SBSequenceItem | SBParallel)[] {
+    const previousActions: (SBAction | SBParallel)[] = this.actions;
+    const actions: (SBAction | SBParallel)[] = [];
     const outputNotes: SBNote[] = [];
 
     for (let i = 0; i < inputNotes.length; i += MAX_INPUTS) {
       const inputNotesBatch = inputNotes.slice(i, i + MAX_INPUTS);
-      const outputNote = this.generateOutputNote(this.params.targetAmount);
+      const outputNote = this.generateOutputNote(
+        inputNotesBatch.reduce((acc, note) => acc + note.amount, 0n)
+      );
       const dummyNote = this.generateOutputNote(0n);
 
       outputNotes.push(outputNote, dummyNote);
@@ -95,6 +100,8 @@ export class AggregateAction {
           outputNotes: [outputNote, dummyNote],
         },
       });
+
+      this.state.notes.push(outputNote);
     }
 
     if (changeData) {
@@ -110,18 +117,25 @@ export class AggregateAction {
           outputNotes: [changeNote, changeDummyNote],
         },
       });
+
+      this.state.notes.push(changeNote);
     }
 
     if (actions.length === 1) {
-      return actions;
+      this.actions = [...previousActions, ...actions];
+      return this.actions;
     }
 
-    return [
-      {
-        type: "parallel",
-        actions,
-      },
-    ];
+    const parallelAction: SBParallel = {
+      type: "parallel",
+      actions,
+    };
+
+    this.remainingAmount = this.params.targetAmount;
+    this.actions = [...previousActions, parallelAction];
+    this.inputNotes = [];
+
+    return this.schedule().actions || [];
   }
 
   /**

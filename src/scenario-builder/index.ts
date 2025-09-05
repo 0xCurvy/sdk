@@ -31,7 +31,21 @@ export class ScenarioBuilder {
 
     let subSequence: SBAction[];
 
-    const currentSequence = builder.schedule();
+    let currentSequence: any; //  TODO: Define type
+
+    // do {
+    //   console.log(currentState);
+    //   currentSequence = builder.schedule();
+
+    //   // Applying to aggregation only
+    //   if (!currentSequence.isExecutable || currentAction !== "aggregate") {
+    //     break;
+    //   }
+
+    // } while (currentSequence.actions.length > 0 && currentSequence.actions[currentSequence.actions.length - 1].type === "parallel");
+
+    currentSequence = builder.schedule();
+
     if (currentSequence.isExecutable) {
       return currentSequence.actions;
     }
@@ -49,6 +63,7 @@ export class ScenarioBuilder {
       const repeatedSequence = builder.schedule();
       return [...subSequence, ...repeatedSequence.actions];
     }
+
     return [];
   }
 
@@ -61,7 +76,7 @@ export class ScenarioBuilder {
   ): SBSequence {
     const sequence = this.computeSequence(this.state, targetAction, {
       targetAmount: amount,
-      token,
+      targetToken: token,
       recipientPublicKey,
       recipientBabyJubJubPublicKey,
     });

@@ -32,11 +32,12 @@ export type SBAction = {
     type: "action";
     shouldSkip: boolean;
     action: string;
-    params: any; // TODO: Define aplicable types
+    params?: any; // TODO: Define aplicable types
 }
 
 export type SBParallel = {
     type: "parallel";
+    shouldSkip?: boolean;
     actions: SBSequenceItem[];
 }
 

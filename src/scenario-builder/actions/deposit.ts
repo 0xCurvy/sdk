@@ -4,6 +4,7 @@ import {
   SBState,
   SBNote,
   SBSequenceItem,
+  SBParallel,
 } from "@/types/scenario-builder";
 
 type DepositActionParams = {
@@ -91,12 +92,11 @@ export class DepositAction {
       return actions;
     }
 
-    return [
-      {
-        type: "parallel",
-        actions,
-      },
-    ];
+    const parallelAction: SBParallel = {
+      type: "parallel",
+      actions,
+    };
+    return [parallelAction];
   }
 
   /**
