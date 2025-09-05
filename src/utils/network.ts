@@ -44,7 +44,7 @@ export function filterNetworks(networks: Network[], networkFilter: NetworkFilter
       return networkFilter(network);
       // NetworkFilter is a number (or number string)
     } else if (isNumber(networkFilter)) {
-      return networkFilter === network.id;
+      return Number(networkFilter) === network.id;
       // NetworkFilter is a regular string
     } else {
       return toSlug(networkFilter) === toSlug(network.name);

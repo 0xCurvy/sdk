@@ -1,6 +1,6 @@
 import "./wasm-exec.js";
 
-import { buildEddsa, buildPoseidon, type Eddsa, type Poseidon } from "circomlibjs";
+import { buildEddsa, type Eddsa } from "circomlibjs";
 import { groth16 } from "snarkjs";
 import type { ICore } from "@/interfaces/core";
 import type { RawAnnouncement } from "@/types/api";
@@ -15,9 +15,11 @@ import type {
   Note,
   NoteOwnershipData,
   OutputNote,
+  Signature,
 } from "@/types/core";
-import type { HexString } from "@/types/helper";
+import type { HexString, StringifyBigInts } from "@/types/helper";
 import { isNode } from "@/utils/helpers";
+import { poseidonHash } from "@/utils/poseidon-hash";
 
 declare const Go: {
   new (): {
@@ -41,17 +43,6 @@ declare const curvy: {
   dbg_isValidSECP256k1Point: (args: string) => boolean;
   version: () => string;
 };
-
-let babyJubEddsa: Eddsa;
-let poseidon: Poseidon;
-
-async function loadBabyJubJub() {
-  babyJubEddsa = await buildEddsa();
-}
-
-async function loadPoseidon() {
-  poseidon = await buildPoseidon();
-}
 
 async function loadWasm(wasmUrl?: string): Promise<void> {
   const go = new Go();
@@ -89,12 +80,22 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 }
 
 class Core implements ICore {
+  #eddsa: Eddsa | null = null;
+
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
-    await loadBabyJubJub();
-    await loadPoseidon();
 
-    return new Core();
+    const core = new Core();
+
+    core.#eddsa = await buildEddsa();
+    return core;
+  }
+
+  #getBabyJubJubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
+    // @ts-expect-error
+    const babyJubJubPublicKey = this.#eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
+
+    return babyJubJubPublicKey.map((p) => this.#eddsa?.F.toObject(p).toString()).join(".");
   }
 
   #extractScanArgsFromAnnouncements(announcements: RawAnnouncement[]) {
@@ -143,16 +144,14 @@ class Core implements ICore {
   generateKeyPairs(): CurvyKeyPairs {
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
-    const bJJPublicKey = babyJubEddsa.prv2pub(babyJubEddsa.F.e("0x" + keyPairs.k));
-
-    const bJJPublicKeyStringified = bJJPublicKey.map((p: any) => babyJubEddsa.F.toObject(p).toString()).join(".");
+    const babyJubJubPublicKeyStringified = this.#getBabyJubJubPublicKey(keyPairs);
 
     return {
       s: keyPairs.k,
       S: keyPairs.K,
       v: keyPairs.v,
       V: keyPairs.V,
-      bJJPublicKey: bJJPublicKeyStringified,
+      bJJPublicKey: babyJubJubPublicKeyStringified,
     };
   }
 
@@ -160,16 +159,14 @@ class Core implements ICore {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const bJJPublicKey = babyJubEddsa.prv2pub(babyJubEddsa.F.e("0x" + result.k));
-
-    const bJJPublicKeyStringified = bJJPublicKey.map((p: any) => babyJubEddsa.F.toObject(p).toString()).join(".");
+    const babyJubJubPublicKeyStringified = this.#getBabyJubJubPublicKey(result);
 
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
-      bJJPublicKey: bJJPublicKeyStringified,
+      bJJPublicKey: babyJubJubPublicKeyStringified,
     } satisfies CurvyKeyPairs;
   }
 
@@ -218,11 +215,10 @@ class Core implements ICore {
     const ownershipData: NoteOwnershipData[] = [];
 
     for (let i = 0; i < publicNotes.length; i++) {
-      const sharedSecret = sharedSecrets[i];
+        const sharedSecret = sharedSecrets[i];
 
-      if (sharedSecret !== null) {
-        const computedHash = poseidon.F.toObject(poseidon([...bjjKeyBigint, sharedSecret])).toString();
-
+        if (sharedSecret !== null) {
+        const computedHash = poseidonHash([...bjjKeyBigint, sharedSecrets[i]!]).toString();
         if (computedHash === publicNotes[i].ownerHash) {
           ownershipData.push({
             ownerHash: publicNotes[i].ownerHash,
@@ -249,7 +245,7 @@ class Core implements ICore {
       }),
     );
 
-    return groth16.fullProve(
+    const { proof, publicSignals } = await groth16.fullProve(
       {
         inputNoteOwners: paddedOwnedNotes.map(({ sharedSecret }) => [
           ...babyJubPublicKey.split("."),
@@ -260,6 +256,11 @@ class Core implements ICore {
       wasmFile,
       zkeyFile,
     );
+
+    return {
+      proof,
+      publicSignals,
+    };
   }
 
   scan(s: string, v: string, announcements: RawAnnouncement[]) {
@@ -300,9 +301,7 @@ class Core implements ICore {
 
   generateOutputNote(note: Note): OutputNote {
     return {
-      ownerHash: poseidon.F.toObject(
-        poseidon([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]),
-      ),
+      ownerHash: poseidonHash([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]).toString(),
       amount: note.amount,
       token: note.token,
       ephemeralKey: note.ephemeralKey,
@@ -332,6 +331,23 @@ class Core implements ICore {
       viewTag: notes[index].viewTag,
       ephemeralKey: notes[index].ephemeralKey,
     }));
+  }
+
+  signWithBabyJubPrivateKey(message: bigint, babyJubPrivateKey: string): StringifyBigInts<Signature> {
+    const privateKey = `0x${Buffer.from(babyJubPrivateKey, "hex").toString("hex")}`;
+
+    const privateKeyBuffer = Buffer.from(privateKey.slice(2), "hex");
+    const messageBuffer = this.#eddsa!.babyJub.F.e(message);
+
+    const signature = this.#eddsa!.signPoseidon(privateKeyBuffer, messageBuffer);
+
+    return {
+      R8: [
+        this.#eddsa!.babyJub.F.toObject(signature.R8[0]).toString(),
+        this.#eddsa!.babyJub.F.toObject(signature.R8[1]).toString(),
+      ],
+      S: signature.S.toString(),
+    };
   }
 
   isValidBN254Point(point: string): boolean {

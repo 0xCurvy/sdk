@@ -1,10 +1,8 @@
 import type { Groth16Proof } from "snarkjs";
 import type {
-  AggregationRequest,
   CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetActionStatusResponse,
@@ -27,9 +25,9 @@ import type {
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
-  WithdrawPayload,
 } from "@/types/api";
 import type { CsucAction } from "@/types/csuc";
+import { AggregationPayload, DepositPayload, WithdrawPayload } from "@/types/aggregator";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
@@ -69,7 +67,7 @@ interface IApiClient {
     GetAllNotes(): Promise<GetAllNotesReturnType>;
     SubmitDeposit(data: DepositPayload): Promise<SubmitDepositReturnType>;
     SubmitWithdraw(data: WithdrawPayload): Promise<SubmitWithdrawReturnType>;
-    SubmitAggregation(data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType>;
+    SubmitAggregation(data: AggregationPayload): Promise<SubmitAggregationReturnType>;
     SubmitNotesOwnerhipProof(data: {
       proof: Groth16Proof;
       ownerHashes: string[];

@@ -1,73 +1,81 @@
-import { Buffer as BufferPolyfill } from "buffer";
+import {Buffer as BufferPolyfill} from "buffer";
 import dayjs from "dayjs";
-import { mul, toNumber } from "dnum";
-import { ec, validateAndParseAddress } from "starknet";
-import { getAddress, parseSignature, verifyTypedData } from "viem";
-import { BalanceScanner } from "@/balance-scanner";
+import {mul, toNumber} from "dnum";
+import {ec, validateAndParseAddress} from "starknet";
+import {getAddress, parseSignature, verifyTypedData} from "viem";
+import {BalanceScanner} from "@/balance-scanner";
 import {
-  BALANCE_REFRESH_COMPLETE_EVENT,
-  BALANCE_REFRESH_PROGRESS_EVENT,
-  BALANCE_REFRESH_STARTED_EVENT,
-  SCAN_COMPLETE_EVENT,
-  SCAN_ERROR_EVENT,
-  SCAN_MATCH_EVENT,
-  SCAN_PROGRESS_EVENT,
-  SYNC_COMPLETE_EVENT,
-  SYNC_ERROR_EVENT,
-  SYNC_PROGRESS_EVENT,
-  SYNC_STARTED_EVENT,
+    BALANCE_REFRESH_COMPLETE_EVENT,
+    BALANCE_REFRESH_PROGRESS_EVENT,
+    BALANCE_REFRESH_STARTED_EVENT,
+    SCAN_COMPLETE_EVENT,
+    SCAN_ERROR_EVENT,
+    SCAN_MATCH_EVENT,
+    SCAN_PROGRESS_EVENT,
+    SYNC_COMPLETE_EVENT,
+    SYNC_ERROR_EVENT,
+    SYNC_PROGRESS_EVENT,
+    SYNC_STARTED_EVENT,
 } from "@/constants/events";
-import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES, type NETWORKS } from "@/constants/networks";
-import { CURVY_HANDLE_REGEX } from "@/constants/regex";
-import { prepareCsucActionEstimationRequest, prepareCuscActionRequest } from "@/csuc";
-import { CurvyEventEmitter } from "@/events";
-import { ApiClient } from "@/http/api";
-import type { IApiClient } from "@/interfaces/api";
-import type { ICore } from "@/interfaces/core";
-import type { ICurvyEventEmitter } from "@/interfaces/events";
-import type { ICurvySDK } from "@/interfaces/sdk";
-import type { StorageInterface } from "@/interfaces/storage";
-import type { IWalletManager } from "@/interfaces/wallet-manager";
-import { EvmRpc } from "@/rpc/evm";
-import { newMultiRpc } from "@/rpc/factory";
-import type { MultiRpc } from "@/rpc/multi";
-import type { StarknetRpc } from "@/rpc/starknet";
-import { MapStorage } from "@/storage/map-storage";
-import { BALANCE_TYPE, isCsucBalanceEntry } from "@/types";
-import type { CurvyAddress } from "@/types/address";
-import type { AggregationRequest, Currency, DepositPayload, Network, WithdrawPayload } from "@/types/api";
-import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
-import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
+import {NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES, type NETWORKS} from "@/constants/networks";
+import {CURVY_HANDLE_REGEX} from "@/constants/regex";
+import {prepareCsucActionEstimationRequest, prepareCuscActionRequest} from "@/csuc";
+import {CurvyEventEmitter} from "@/events";
+import {ApiClient} from "@/http/api";
+import type {IApiClient} from "@/interfaces/api";
+import type {ICore} from "@/interfaces/core";
+import type {ICurvyEventEmitter} from "@/interfaces/events";
+import type {ICurvySDK} from "@/interfaces/sdk";
+import type {StorageInterface} from "@/interfaces/storage";
+import type {IWalletManager} from "@/interfaces/wallet-manager";
+import {EvmRpc} from "@/rpc/evm";
+import {newMultiRpc} from "@/rpc/factory";
+import type {MultiRpc} from "@/rpc/multi";
+import type {StarknetRpc} from "@/rpc/starknet";
+import {MapStorage} from "@/storage/map-storage";
+import {BALANCE_TYPE, isCsucBalanceEntry} from "@/types";
+import type {CurvyAddress} from "@/types/address";
+import type {CsucActionPayload, CsucActionSet, CsucEstimatedActionCost} from "@/types/csuc";
+import {assertCurvyHandle, type CurvyHandle, isValidCurvyHandle} from "@/types/curvy";
 import type {
-  BalanceRefreshCompleteEvent,
-  BalanceRefreshProgressEvent,
-  BalanceRefreshStartedEvent,
-  ScanCompleteEvent,
-  ScanErrorEvent,
-  ScanMatchEvent,
-  SyncCompleteEvent,
-  SyncErrorEvent,
-  SyncProgressEvent,
-  SyncStartedEvent,
+    BalanceRefreshCompleteEvent,
+    BalanceRefreshProgressEvent,
+    BalanceRefreshStartedEvent,
+    ScanCompleteEvent,
+    ScanErrorEvent,
+    ScanMatchEvent,
+    SyncCompleteEvent,
+    SyncErrorEvent,
+    SyncProgressEvent,
+    SyncStartedEvent,
 } from "@/types/events";
-import { type HexString, isHexString, isStarkentSignature } from "@/types/helper";
-import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
+import {type HexString, isHexString, isStarkentSignature} from "@/types/helper";
+import type {RecipientData, StarknetFeeEstimate} from "@/types/rpc";
 import {
-  assertIsStarkentSignatureData,
-  type EvmSignatureData,
-  type EvmSignTypedDataParameters,
-  type StarknetSignatureData,
+    assertIsStarkentSignatureData,
+    type EvmSignatureData,
+    type EvmSignTypedDataParameters,
+    type StarknetSignatureData,
 } from "@/types/signature";
-import { parseDecimal } from "@/utils/currency";
-import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
-import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
-import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
-import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
-import { Core } from "./core";
-import { computePrivateKeys, deriveAddress } from "./utils/address";
-import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
-import { CurvyWallet } from "./wallet";
-import { WalletManager } from "./wallet-manager";
+import {decryptCurvyMessage, encryptCurvyMessage} from "@/utils/encryption";
+import {arrayBufferToHex, generateWalletId, toSlug} from "@/utils/helpers";
+import {getSignatureParams as evmGetSignatureParams} from "./constants/evm";
+import {getSignatureParams as starknetGetSignatureParams} from "./constants/starknet";
+import {Core} from "./core";
+import {computePrivateKeys, deriveAddress} from "./utils/address";
+import {filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData} from "./utils/network";
+import {CurvyWallet} from "./wallet";
+import {WalletManager} from "./wallet-manager";
+import {
+    AggregationPayload,
+    AggregationPayloadParams,
+    DepositPayload,
+    DepositPayloadParams,
+    WithdrawPayload,
+    WithdrawPayloadParams
+} from "./types/aggregator";
+import {generateAggregationHash, generateOutputsHash} from "./utils/aggregator";
+import {poseidonHash} from "./utils/poseidon-hash";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -663,7 +671,7 @@ class CurvySDK implements ICurvySDK {
     return this.apiClient.aggregator.SubmitWithdraw(payload);
   }
 
-  async createAggregation(payload: { aggregations: AggregationRequest[] }) {
+  async createAggregation(payload: AggregationPayload) {
     return this.apiClient.aggregator.SubmitAggregation(payload);
   }
 
@@ -676,7 +684,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     toAddress: HexString | string,
     currencySymbol: string,
-    amount: bigint | string,
+    amount: string,
   ) {
     const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
 
@@ -699,7 +707,7 @@ class CurvySDK implements ICurvySDK {
 
       // TODO For now we only support EVM RPCs for CSUC
       if (rpc instanceof EvmRpc) {
-        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount.toString());
+        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount);
       }
     }
 
@@ -716,7 +724,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     to: HexString,
     token: HexString,
-    _amount: bigint | string,
+    _amount: bigint, // Doesn't accept decimal numbers i.e. `0.001`
   ): Promise<CsucEstimatedActionCost> {
     const network = this.getNetwork(networkFilter);
 
@@ -725,8 +733,7 @@ class CurvySDK implements ICurvySDK {
     }
 
     // User creates an action payload, and determines the wanted cost/speed
-    // TODO: Get eth properly
-    const amount = parseDecimal("0.001", { decimals: 18 } as Currency).toString();
+    const amount = _amount.toString();
 
     const payload = await prepareCsucActionEstimationRequest(network, actionId, from, to, token, amount);
 
@@ -782,6 +789,93 @@ class CurvySDK implements ICurvySDK {
     return { action, response: response.data };
   }
 
+  createDepositPayload(params: DepositPayloadParams): DepositPayload {
+    const { recipient, notes, csucTransferAllowanceSignature } = params;
+    if (!recipient || !notes || !csucTransferAllowanceSignature) {
+      throw new Error("Invalid deposit payload parameters");
+    }
+    const inputNotesStringified = notes.map((note) =>
+      this.#core.sendNote(recipient.S, recipient.V, {
+        ownerBabyJubPublicKey: note.babyJubPublicKey,
+        amount: BigInt(note.amount),
+        token: BigInt(note.token),
+      })
+    );
+
+    const outputNotesStringified = inputNotesStringified.map((note) => this.#core.generateOutputNote(note));
+
+    const { csucContractAddress } = this.getNetwork("localnet");
+
+    return {
+      outputNotes: outputNotesStringified,
+      csucAddress: csucContractAddress!,
+      csucTransferAllowanceSignature,
+    };
+  }
+
+  createAggregationPayload(params: AggregationPayloadParams): AggregationPayload {
+    const  { inputNotes, outputNotes } = params;
+
+    const { s } = this.activeWallet.keyPairs;
+
+    if (outputNotes.length < 2) {
+      outputNotes.push({
+        ownerHash: "0",
+        amount: "0",
+        token: "0",
+        viewTag: "0",
+        ephemeralKey: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+      })
+    }
+
+    const msgHash = generateAggregationHash(outputNotes);
+    const signature = this.#core.signWithBabyJubPrivateKey(msgHash, s);
+    const signatures = Array.from({ length: 10 }).map(() => ({
+      S: BigInt(signature.S),
+      R8: signature.R8.map((r) => BigInt(r)),
+    }));
+
+    return {
+      inputNotes,
+      outputNotes,
+      signatures,
+    }
+  }
+
+  createWithdrawPayload(params: WithdrawPayloadParams): WithdrawPayload {
+    const { inputNotes, destinationAddress } = params;
+    if (!inputNotes || !destinationAddress) {
+      throw new Error("Invalid withdraw payload parameters");
+    }
+    const { s } = this.activeWallet.keyPairs;
+    for (let i = inputNotes.length; i < 15; i++) {
+      inputNotes.push({
+        owner: {
+          babyJubPublicKey: [
+            `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+            `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+          ],
+          sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+        },
+        amount: "0",
+        token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE").toString(),
+        viewTag: "0",
+        ephemeralKey: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+      });
+    }
+    const msgHash = generateOutputsHash(inputNotes);
+    const signature = this.#core.signWithBabyJubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
+    const signatures = Array.from({ length: 10 }).map(() => ({
+      S: BigInt(signature.S),
+      R8: signature.R8.map((r) => BigInt(r)),
+    }));
+    return { inputNotes, signatures, destinationAddress };
+  }
+
+  convertDecimalNumberIntoBigInt(value: string | number, decimals: number): bigint {
+    return parseUnits(value.toString(), decimals);
+  }
+
   onSyncStarted(listener: (event: SyncStartedEvent) => void) {
     this.#emitter.on(SYNC_STARTED_EVENT, listener);
   }
@@ -831,6 +925,25 @@ class CurvySDK implements ICurvySDK {
   }
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void) {
     this.#emitter.off(BALANCE_REFRESH_COMPLETE_EVENT, listener);
+  }
+
+  async pollForCriteria<T>(
+    pollFunction: () => Promise<T>,
+    pollCriteria: (res: T) => boolean,
+    maxRetries = 120,
+    delayMs = 10000,
+  ): Promise<T> {
+    for (let i = 0; i < maxRetries; i++) {
+      const res = await pollFunction();
+
+      if (pollCriteria(res)) {
+        return res;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    throw new Error(`Polling failed!`);
   }
 }
 
