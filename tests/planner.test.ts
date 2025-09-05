@@ -1,4 +1,17 @@
-// TODO: Fix tests!
+/*
+ * TODO: Add tests:
+ * * Parallel to command that requires [] input (add MockSuccessArrayDataCommand)
+ * * Parallel to command that doesn't accept [] input => fail
+ * * Serial to command that accepts [] input => fail
+ * * Filtering by amount with MockSuccess command (like AggregatorAggreggate)
+ *
+ * TODO: Fix tests (and add data checks):
+ * * simple parallel fail
+ * * simple parallel success
+ * * complex fail from serial
+ * * complex fail from parallel
+ * * complex fail from both serial and parallel
+ */
 
 import { expect, test } from "vitest";
 import { CurvyPlan, CurvyPlanSuccessfulExecution } from "@/planner/plan";
