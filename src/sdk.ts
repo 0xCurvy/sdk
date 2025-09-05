@@ -87,8 +87,6 @@ class CurvySDK implements ICurvySDK {
   readonly apiClient: IApiClient;
   readonly storage: StorageInterface;
 
-  readonly #semaphore: Partial<Record<string, boolean>>;
-
   private constructor(apiKey: string, core: Core, apiBaseUrl?: string, storage: StorageInterface = new MapStorage()) {
     this.#core = core;
     this.apiClient = new ApiClient(apiKey, apiBaseUrl);
@@ -96,7 +94,6 @@ class CurvySDK implements ICurvySDK {
     this.#networks = [];
     this.storage = storage;
     this.#walletManager = new WalletManager(this.apiClient, this.#emitter, this.storage, this.#core);
-    this.#semaphore = Object.create(null);
   }
 
   static async init(
@@ -531,16 +528,6 @@ class CurvySDK implements ICurvySDK {
   }
 
   async refreshWalletBalances(walletId: string) {
-    if (this.#semaphore[`refresh-balances-${walletId}`]) {
-      return;
-    }
-
-    this.#semaphore[`refresh-balances-${walletId}`] = true;
-
-    if (!this.rpcClient) {
-      throw new Error("RpcClient not initialized!");
-    }
-
     if (!this.#walletManager.hasWallet(walletId)) {
       throw new Error(`Wallet with ID ${walletId} not found!`);
     }
@@ -549,41 +536,21 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    await this.#balanceScanner.scanWalletBalances(walletId);
-
-    this.#semaphore[`refresh-balances-${walletId}`] = undefined;
+    return await this.#balanceScanner.scanWalletBalances(walletId);
   }
 
   async refreshBalances() {
-    if (this.#semaphore["refresh-balances"]) {
-      return;
-    }
-
-    this.#semaphore["refresh-balances"] = true;
-
-    if (!this.rpcClient) {
-      throw new Error("rpcClient not initialized");
-    }
+    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
     for (const wallet of this.wallets) {
-      await this.refreshWalletBalances(wallet.id);
+      await this.#balanceScanner.scanWalletBalances(wallet.id);
     }
-
-    this.#semaphore["refresh-balances"] = undefined;
   }
 
   async refreshAddressBalances(address: CurvyAddress) {
-    if (this.#semaphore[`refresh-balance-${address.id}`]) {
-      return;
-    }
+    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
-    this.#semaphore[`refresh-balance-${address.id}`] = true;
-
-    if (!this.rpcClient) {
-      throw new Error("rpcClient not initialized");
-    }
-
-    this.#semaphore[`refresh-balance-${address.id}`] = undefined;
+    return this.#balanceScanner.scanAddressBalances(address);
   }
 
   async resetStorage() {

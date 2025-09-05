@@ -20,6 +20,7 @@ import { toSlug } from "@/utils/helpers";
 export class BalanceScanner implements IBalanceScanner {
   readonly #NOTE_BATCH_SIZE = 10;
   readonly #ADDRESS_BATCH_SIZE = 10;
+  readonly #semaphore: Partial<Record<string, boolean>>;
   #scanProgress = {
     addresses: 0,
     notes: 0,
@@ -46,6 +47,7 @@ export class BalanceScanner implements IBalanceScanner {
     this.#emitter = emitter;
     this.#core = core;
     this.#walletManager = walletManager;
+    this.#semaphore = Object.create(null);
   }
 
   set rpcClient(rpcClient: MultiRpc) {
@@ -299,6 +301,10 @@ export class BalanceScanner implements IBalanceScanner {
       onProgress?: (entries: BalanceEntry[]) => void;
     },
   ): Promise<void> {
+    if (this.#semaphore[`refresh-balances-${walletId}`]) return;
+
+    this.#semaphore[`refresh-balances-${walletId}`] = true;
+
     this.#resetScanProgress();
 
     const onProgress = options?.onProgress;
@@ -307,10 +313,76 @@ export class BalanceScanner implements IBalanceScanner {
       walletId,
     });
 
-    await Promise.all([this.#addressScan(walletId, onProgress), this.#noteScan(walletId, onProgress)]);
+    try {
+      await Promise.all([this.#addressScan(walletId, onProgress), this.#noteScan(walletId, onProgress)]);
+    } finally {
+      this.#semaphore[`refresh-balances-${walletId}`] = undefined;
 
-    this.#emitter.emitBalanceRefreshComplete({
+      // TODO add event emitter for error states
+
+      this.#emitter.emitBalanceRefreshComplete({
+        walletId,
+      });
+    }
+  }
+
+  async scanAddressBalances(address: CurvyAddress, options?: { onProgress?: (entries: BalanceEntry[]) => void }) {
+    if (this.#semaphore[`refresh-balance-${address.id}`]) return;
+
+    this.#semaphore[`refresh-balance-${address.id}`] = true;
+
+    const onProgress = options?.onProgress;
+
+    this.#emitter.emitBalanceRefreshStarted({
+      walletId: address.walletId,
+    });
+
+    try {
+      const combinedEntries = await this.#processAddressBatch([address]);
+
+      if (combinedEntries.length > 0) {
+        if (onProgress) onProgress(combinedEntries);
+
+        await this.#storage.updateBalancesAndTotals(address.walletId, combinedEntries);
+      }
+    } catch (error) {
+      console.error(`[BalanceScanner] Error while scanning address balances for address ${address.address}:`, error);
+    } finally {
+      this.#semaphore[`refresh-balance-${address.id}`] = undefined;
+
+      // TODO add event emitter for error states
+
+      this.#emitter.emitBalanceRefreshComplete({
+        walletId: address.walletId,
+      });
+    }
+  }
+
+  async scanNoteBalances(options?: { onProgress?: (entries: BalanceEntry[]) => void }) {
+    const walletId = this.#walletManager.activeWallet.id;
+
+    if (this.#semaphore[`refresh-notes-${walletId}`]) return;
+
+    this.#semaphore[`refresh-notes-${walletId}`] = true;
+
+    const onProgress = options?.onProgress;
+
+    this.#emitter.emitBalanceRefreshStarted({
       walletId,
     });
+
+    try {
+      await this.#noteScan(walletId, onProgress);
+    } catch (error) {
+      console.error(`[BalanceScanner] Error while scanning note balances:`, error);
+    } finally {
+      this.#semaphore[`refresh-notes-${walletId}`] = undefined;
+
+      // TODO add event emitter for error states
+
+      this.#emitter.emitBalanceRefreshComplete({
+        walletId,
+      });
+    }
   }
 }
