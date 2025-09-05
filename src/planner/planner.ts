@@ -12,6 +12,8 @@ import { CurvyCommandData } from "@/planner/addresses/abstract";
 export async function executePlan(plan: CurvyPlan, input?: CurvyCommandData): Promise<CurvyPlanExecution> {
   // CurvyPlanFlowControl, parallel
   if (plan.type === "parallel") {
+    // Parallel plans don't take any input,
+    // because that would mean that each of its children is getting the same Address as input
     const result = await Promise.all(plan.items.map((item) => executePlan(item)));
     const success = result.every((r) => r.success);
 
@@ -52,7 +54,7 @@ export async function executePlan(plan: CurvyPlan, input?: CurvyCommandData): Pr
     return <CurvyPlanSuccessfulExecution>{
       success: true,
       data: (results[results.length - 1] as CurvyPlanSuccessfulExecution).data,
-      items: results
+      items: results // TODO: I don't think this is needed
     };
   }
 
@@ -64,11 +66,11 @@ export async function executePlan(plan: CurvyPlan, input?: CurvyCommandData): Pr
 
     try {
       const command = commandFactory(plan.name, input, plan.intent);
-      const address = await command.execute();
+      const data = await command.execute();
 
       return <CurvyPlanSuccessfulExecution> {
         success: true,
-        data: address
+        data
       }
     } catch (error) {
       return <CurvyPlanUnsuccessfulExecution> {
@@ -78,7 +80,7 @@ export async function executePlan(plan: CurvyPlan, input?: CurvyCommandData): Pr
     }
   }
 
-  // CurvyPlanInput
+  // CurvyPlanData
   if (plan.type === "data") {
     return <CurvyPlanSuccessfulExecution> {
       success: true,

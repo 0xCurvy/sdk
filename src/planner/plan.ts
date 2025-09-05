@@ -4,16 +4,6 @@ import type { HexString } from "@/types/helper";
 import { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { CurvyCommandData } from "@/planner/addresses/abstract";
 
-// TODO: [Vanja] Reimplement CurvyAddress with balances
-// Curvy Address is tied to one currency and one network
-// TODO: Find a better name, CurvyAddress is already taken
-export type CurvyAddressLike = {
-  address: string;
-  type: "sa" | "note" | "csuc";
-  balance: bigint;
-  privateKey: string;
-};
-
 export interface CurvyIntent {
   amount: bigint;
   toAddress: CurvyHandle | HexString;
