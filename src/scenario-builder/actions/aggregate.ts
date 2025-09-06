@@ -77,6 +77,12 @@ export class AggregateAction {
    * @param changeData
    * @returns
    */
+  /*
+   * Ova funkcija uzima niz inputNote-ova
+   * i instrukcije da li od poslednjeg note-a treba da vrati neku lovu nazad
+   * zatim generise onoliko Aggregate komandi koliko treba da bismo mogli
+   * da imamo agregacije od po 10 note-ova
+   */
   generateAggregationActions(
     inputNotes: SBNote[],
     changeData?: { note: SBNote; changeAmount: bigint }
@@ -230,6 +236,7 @@ export class AggregateAction {
           changeAmount: note.amount - remainingAmount,
         };
 
+        // ovde se realno zavrsava
         const actions = this.generateAggregationActions(inputNotes, changeData);
 
         return {
