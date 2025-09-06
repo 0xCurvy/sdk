@@ -15,8 +15,8 @@
 
 import { expect, test } from "vitest";
 import { CurvyPlan, CurvyPlanSuccessfulExecution } from "@/planner/plan";
-import { executePlan } from "@/planner/planner";
 import { mockAddress } from "@/planner/commands/mock-commands";
+import { executePlan } from "@/planner/executor";
 
 const simpleSerialFail: CurvyPlan = {
   type: "serial",
@@ -103,7 +103,7 @@ test("simple serial fail", async () => {
 
   const expectedSuccessState = [true, true, false];
   const actualSuccessState = result.items!.map(item => item.success);
-  expect(actualSuccessState).toBe(expectedSuccessState);
+  expect(actualSuccessState).toStrictEqual(expectedSuccessState);
 });
 
 test("simple serial success", async () => {
