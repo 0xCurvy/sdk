@@ -1,12 +1,8 @@
-// TODO: Suffix all CurvyPlanData/Command/FlowControl with Node
-
+import type { CurvyCommandAddress } from "@/planner/addresses/abstract";
 import type { CurvyCommandCSUCAddress } from "@/planner/addresses/csuc";
 import type { CurvyCommandNoteAddress } from "@/planner/addresses/note";
 import type { CurvyCommandSAAddress } from "@/planner/addresses/sa";
-import { tryCSUC } from "@/planner/algorithms/csuc";
-import { tryNotes } from "@/planner/algorithms/note";
-import { trySA } from "@/planner/algorithms/sa";
-import type { CurvyIntent, CurvyPlan } from "./plan";
+import type { CurvyIntent, CurvyPlan } from "@/planner/plan";
 
 // Planner balances are already sorted and filtered for Network and Currency
 export type PlannerBalances = {
@@ -15,48 +11,117 @@ export type PlannerBalances = {
   note: CurvyCommandNoteAddress[];
 };
 
-// TODO: We should probably create a factory method for returning different addressType variations.
-const orderedAddressTypeCallbacks = [tryNotes, tryCSUC, trySA];
+const generatePlanToUpgradeAddressToNote = (address: CurvyCommandAddress): CurvyPlan => {
+  const plan: CurvyPlan = {
+    type: "serial",
+    items: [
+      {
+        type: "data",
+        data: address,
+      },
+    ],
+  };
 
-export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): CurvyPlan | undefined => {
-  return planAddressType(balances, intent.amount);
+  // Stealth addresses need to be first deposited to CSUC
+  if (address.type === "sa") {
+    plan.items.push({
+      type: "command",
+      name: "sa-deposit-to-csuc", // This includes gas sponsorship as well.
+    });
+  }
+
+  // Then addresses can be deposited from CSUC to Aggregator
+  if (address.type === "sa" || address.type === "csuc") {
+    plan.items.push({
+      type: "command",
+      name: "csuc-deposit-to-aggregator",
+    });
+  }
+
+  // ...and if the address is already a note on the aggregator
+  // then it's already taken care of by including it in the plan variable
+  // at the top of this function.
+  return plan;
 };
 
-const planAddressType = (
-  balances: PlannerBalances,
-  remainingAmount: bigint,
-  addressTypeIndex = 0,
-): CurvyPlan | undefined => {
-  // TODO: We can create a quick optimization to try and sum up the balances first before we try anything.
+const sortByBalanceDescending = (a: CurvyCommandAddress, b: CurvyCommandAddress): number =>
+  a.balance > b.balance ? 1 : -1;
 
-  // We have exhausted all options, we cannot aggregate this.
-  if (addressTypeIndex >= orderedAddressTypeCallbacks.length) {
+const MAX_INPUT_NOTES_PER_AGGREGATION = 10;
+
+const chunk = (array: Array<any>, chunkSize: number) => {
+  const chunks: Array<Array<any>> = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+
+  return chunks;
+};
+
+const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): CurvyPlan => {
+  if (items.length <= MAX_INPUT_NOTES_PER_AGGREGATION) {
+    return {
+      type: "serial",
+      items: [
+        {
+          type: "parallel",
+          items,
+        },
+        {
+          type: "command",
+          name: "aggregator-aggregate",
+          amount: intendedAmount,
+        },
+      ],
+    };
+  }
+
+  const chunks = chunk(items, MAX_INPUT_NOTES_PER_AGGREGATION);
+  return {
+    type: "serial",
+    items: [
+      {
+        type: "parallel",
+        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item)),
+      },
+      {
+        type: "command",
+        name: "aggregator-aggregate",
+      },
+    ],
+  };
+};
+
+export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): CurvyPlan | undefined => {
+  balances.sa = balances.sa.sort(sortByBalanceDescending);
+  balances.csuc = balances.csuc.sort(sortByBalanceDescending);
+  balances.note = balances.note.sort(sortByBalanceDescending);
+
+  const plansToUpgradeNecessaryAddressesToNotes: CurvyPlan[] = [];
+
+  let remainingAmount = intent.amount;
+
+  for (const address of [...balances.note, ...balances.csuc, ...balances.sa]) {
+    if (remainingAmount <= 0n) {
+      // Success! We are done with the plan
+      break;
+    }
+
+    // Deduct the current address balance from the remaining amount
+    remainingAmount -= address.balance;
+
+    plansToUpgradeNecessaryAddressesToNotes.push(generatePlanToUpgradeAddressToNote(address));
+  }
+
+  if (remainingAmount > 0n) {
+    // We weren't successful, there's still some amount remaining.
     return;
   }
 
-  // We execute the plan for the current address type
-  const currentAddressTypeResult = orderedAddressTypeCallbacks[addressTypeIndex](balances, remainingAmount);
+  // TODO: Skip unnecessary aggregation (if exact amount)
+  // TODO: Add exit withdrawal flow to end
 
-  // Valid plan was returned, as it wasn't a bigint signifying how short we fell from gathering the funds on that addressType.
-  if (typeof currentAddressTypeResult !== "bigint") {
-    return currentAddressTypeResult;
-  }
-
-  // If the return type is bigint, we cannot generate a valid plan with the current address type
-  // Proceed to trying the next address type
-  const nextAddressTypeResult = planAddressType(balances, currentAddressTypeResult, addressTypeIndex + 1);
-
-  // We succeeded the aggregation in the nextAddressType, now retry the current and concat the two
-  if (nextAddressTypeResult) {
-    const retriedCurrentAddressTypeResult = planAddressType(balances, remainingAmount, addressTypeIndex);
-
-    if (!retriedCurrentAddressTypeResult) {
-      throw new Error("This shouldn't happen, all the funds should be here and available");
-    }
-
-    return {
-      type: "serial",
-      items: [nextAddressTypeResult, retriedCurrentAddressTypeResult],
-    };
-  }
+  // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
+  // into aggregator supported batch sizes
+  return generateAggregationPlan(intent.amount, plansToUpgradeNecessaryAddressesToNotes);
 };

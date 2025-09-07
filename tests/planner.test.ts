@@ -72,7 +72,7 @@ const exampleBalances: PlannerBalances = {
   note: generateMockNoteBalances(1n, 2n),
 };
 
-test("should skip unnecessary aggregation", () => {
+test("should generate something", () => {
   const intent: CurvyIntent = generateMockIntent(1n);
 
   const plan = generatePlan(exampleBalances, intent);
