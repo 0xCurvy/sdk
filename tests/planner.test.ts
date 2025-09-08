@@ -107,11 +107,9 @@ const exampleEmptySAHeavy2: PlannerBalances = {
 test("should generate something", () => {
   const intent: CurvyIntent = generateMockIntent(1n);
 
-  const plan = generatePlan(exampleBalances, intent);
-  expect(plan).toBeDefined();
+  const topLevelAggregation = generatePlan(exampleBalances, intent) as any;
+  expect(topLevelAggregation).toBeDefined();
 
-  // TODO: Check types
-  const topLevelAggregation = (plan as any);
   expect(topLevelAggregation.type).toBe("serial");
   expect(topLevelAggregation.items.length).toBe(2);
 
@@ -124,15 +122,14 @@ test("should generate something", () => {
   expect(topLevelAggregationCommand.type).toBe("command");
   expect(topLevelAggregationCommand.amount).toBe(1n);
 
-  console.dir(plan, { depth: null });
+  console.dir(topLevelAggregation, { depth: null });
 });
 
 test("simple, but go through all three levels", () => {
   const intent: CurvyIntent = generateMockIntent(8n);
 
-  const plan = generatePlan(exampleBalances, intent);
-
-  const topLevelAggregation = (plan as any);
+  const topLevelAggregation = generatePlan(exampleBalances, intent) as any;
+  expect(topLevelAggregation).toBeDefined();
 
   expect(topLevelAggregation.items.length).toBe(2);
 
@@ -201,21 +198,20 @@ test("simple, but go through all three levels", () => {
   expect(newNote6.items[2].type).toBe('command');
   expect(newNote6.items[2].name).toBe('csuc-deposit-to-aggregator');
 
-  expect(plan).toBeDefined();
+  expect(topLevelAggregation).toBeDefined();
 
-  console.dir(plan, { depth: null });
+  console.dir(topLevelAggregation, { depth: null });
 });
 
 test("should create multiple aggregations", () => {
   const intent: CurvyIntent = generateMockIntent(11n);
 
-  const plan = generatePlan(exampleBalancesAggregatorHeavy, intent);
-  expect(plan).toBeDefined();
+  const topLevelAggregation = generatePlan(exampleBalancesAggregatorHeavy, intent) as any;
+  expect(topLevelAggregation).toBeDefined();
 
-  expect((plan as any).items.length).toBe(2); // Parallel inputs (11n as two notes (10 + 1)), command 
+  expect(topLevelAggregation.items.length).toBe(2); // Parallel inputs (11n as two notes (10 + 1)), command 
 
   // Top level ---------------
-  const topLevelAggregation = (plan as any);
   expect(topLevelAggregation.type).toBe('serial')
   expect(topLevelAggregation.items.length).toBe(2)
 
@@ -257,20 +253,20 @@ test("should create multiple aggregations", () => {
   expect(aggregation1Command.type).toBe("command");
   expect(aggregation2Command.type).toBe("command");
 
-  console.dir(plan, { depth: null });
+  console.dir(topLevelAggregation, { depth: null });
 });
 
 test("should create single aggregations with change", () => {
   const intent: CurvyIntent = generateMockIntent(11n);
 
-  const plan = generatePlan(exampleBalancesAggregatorHeavy2, intent);
+  const topLevelAggregation = generatePlan(exampleBalancesAggregatorHeavy2, intent) as any;
 
-  expect(plan).toBeDefined();
+  expect(topLevelAggregation).toBeDefined();
 
   // TODO: Check types
-  expect((plan as any).items.length).toBe(2); // One parallel inputs, one aggregation
+  expect(topLevelAggregation.items.length).toBe(2); // One parallel inputs, one aggregation
 
-  const parallelInputs = (plan as any).items[0];
+  const parallelInputs = topLevelAggregation.items[0];
   expect(parallelInputs.type).toBe("parallel");
   expect(parallelInputs.items.length).toBe(2);
 
@@ -283,23 +279,21 @@ test("should create single aggregations with change", () => {
   expect(parallelInputs.items[1].items[0].data.balance).toBe(6n);
 
   // Final aggregation
-  const aggregation = (plan as any).items[1];
+  const aggregation = topLevelAggregation.items[1];
   expect(aggregation.type).toBe("command");
   expect(aggregation.amount).toBe(11n);
 
-  console.dir(plan, { depth: null });
+  console.dir(topLevelAggregation, { depth: null });
 });
 
 
 test("should deposit all funds from SA to aggregator and create single aggregations with change", () => {
   const intent: CurvyIntent = generateMockIntent(9n);
 
-  const plan = generatePlan(exampleBalancesSAHeavy2, intent);
-
-  expect(plan).toBeDefined();
+  const topLevelAggregation = generatePlan(exampleBalancesSAHeavy2, intent) as any;
+  expect(topLevelAggregation).toBeDefined();
 
   // TODO: Check types
-  const topLevelAggregation = (plan as any);
   expect(topLevelAggregation.type).toBe("serial");
   expect(topLevelAggregation.items.length).toBe(2);
 
@@ -322,7 +316,7 @@ test("should deposit all funds from SA to aggregator and create single aggregati
     expect(item.items[2].type).toBe("command");
   });
 
-  console.dir(plan, { depth: null });
+  console.dir(topLevelAggregation, { depth: null });
 });
 
 test("should fail to create plan with insufficient funds", () => {

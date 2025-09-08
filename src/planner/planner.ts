@@ -91,7 +91,7 @@ const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): Cu
   };
 };
 
-export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): CurvyPlan | undefined => {
+export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): CurvyPlanFlowControl  | undefined => {
   balances.sa = balances.sa.sort(sortByBalanceDescending);
   balances.csuc = balances.csuc.sort(sortByBalanceDescending);
   balances.note = balances.note.sort(sortByBalanceDescending);
