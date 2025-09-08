@@ -36,22 +36,31 @@ const mockNetwork: Network = {
   currencies: [mockCurrency],
 };
 
-const generateMockSABalances = (...balances: bigint[]): CurvyCommandSAAddress[] => {
+const generateMockSABalances = (
+  ...balances: bigint[]
+): CurvyCommandSAAddress[] => {
   return balances.map((balance) => {
     return new CurvyCommandSAAddress(balance, mockCurrency, "", "");
   });
 };
 
-const generateMockCSUCBalances = (...balances: bigint[]): CurvyCommandSAAddress[] => {
+const generateMockCSUCBalances = (
+  ...balances: bigint[]
+): CurvyCommandSAAddress[] => {
   return balances.map((balance) => {
     return new CurvyCommandSAAddress(balance, mockCurrency, "", "");
   });
 };
 
-const generateMockNoteBalances = (...balances: bigint[]): CurvyCommandNoteAddress[] => {
+const generateMockNoteBalances = (
+  ...balances: bigint[]
+): CurvyCommandNoteAddress[] => {
   return balances.map((balance) => {
-    //@ts-expect-error
-    return new CurvyCommandNoteAddress(new Note({ balance: { amount: balance }, ownerHash: 1n }), "");
+    
+    return new CurvyCommandNoteAddress(
+      new Note({ balance: { amount: balance, token: 1n }, ownerHash: 1n }),
+      ""
+    );
   });
 };
 
@@ -71,20 +80,186 @@ const exampleBalances: PlannerBalances = {
   note: generateMockNoteBalances(1n, 2n),
 };
 
+const exampleBalancesAggregatorHeavy: PlannerBalances = {
+  sa: [],
+  csuc: [],
+  note: generateMockNoteBalances(1n, 1n, 1n, 1n, 1n, 1n, 1n, 1n, 1n, 1n, 1n),
+};
+
+const exampleBalancesAggregatorHeavy2: PlannerBalances = {
+  sa: [],
+  csuc: [],
+  note: generateMockNoteBalances(6n, 6n),
+};
+
 test("should generate something", () => {
   const intent: CurvyIntent = generateMockIntent(1n);
 
   const plan = generatePlan(exampleBalances, intent);
   expect(plan).toBeDefined();
 
-  console.dir(plan, { depth: null });
+  // console.dir(plan, { depth: null });
 });
 
 test("simple, but go through all three levels", () => {
   const intent: CurvyIntent = generateMockIntent(8n);
 
   const plan = generatePlan(exampleBalances, intent);
+
+  const topLevelAggregation = (plan as any);
+
+  expect(topLevelAggregation.items.length).toBe(2);
+
+  const topLevelAggregationInputs = topLevelAggregation.items[0];
+  const topLevelAggregationCommand = topLevelAggregation.items[1];
+
+  expect(topLevelAggregationInputs.type).toBe("parallel");
+
+  // Use 2 existing notes, deposit 4 more from SA to SCUC to Aggregator
+  expect(topLevelAggregationInputs.items.length).toBe(6); 
+
+  expect(topLevelAggregationCommand.type).toBe("command");
+  expect(topLevelAggregationCommand.amount).toBe(8n);
+
+  for (const item of topLevelAggregationInputs.items) {
+    expect(item.type).toBe("serial");
+    expect(item.items.length).toBeGreaterThanOrEqual(0);
+  }
+
+  const [
+    existingNote1,
+    existingNote2,
+    newNote3,
+    newNote4,
+    newNote5,
+    newNote6,
+  ] = topLevelAggregationInputs.items;
+
+  expect(existingNote1.type).toBe("serial");
+  expect(existingNote1.items.length).toBe(1);
+  expect(existingNote1.items[0].type).toBe('data');
+
+  expect(existingNote2.type).toBe("serial");
+  expect(existingNote2.items.length).toBe(1);
+  expect(existingNote2.items[0].type).toBe('data');
+
+  expect(newNote3.type).toBe("serial");
+  expect(newNote3.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
+  expect(newNote3.items[0].type).toBe('data');
+  expect(newNote3.items[1].type).toBe('command');
+  expect(newNote3.items[1].name).toBe('sa-deposit-to-csuc');
+  expect(newNote3.items[2].type).toBe('command');
+  expect(newNote3.items[2].name).toBe('csuc-deposit-to-aggregator');
+
+  expect(newNote4.type).toBe("serial");
+  expect(newNote4.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
+  expect(newNote4.items[0].type).toBe('data');
+  expect(newNote4.items[1].type).toBe('command');
+  expect(newNote4.items[1].name).toBe('sa-deposit-to-csuc');
+  expect(newNote4.items[2].type).toBe('command');
+  expect(newNote4.items[2].name).toBe('csuc-deposit-to-aggregator');
+
+  expect(newNote5.type).toBe("serial");
+  expect(newNote5.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
+  expect(newNote5.items[0].type).toBe('data');
+  expect(newNote5.items[1].type).toBe('command');
+  expect(newNote5.items[1].name).toBe('sa-deposit-to-csuc');
+  expect(newNote5.items[2].type).toBe('command');
+  expect(newNote5.items[2].name).toBe('csuc-deposit-to-aggregator');
+
+  expect(newNote6.type).toBe("serial");
+  expect(newNote6.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
+  expect(newNote6.items[0].type).toBe('data');
+  expect(newNote6.items[1].type).toBe('command');
+  expect(newNote6.items[1].name).toBe('sa-deposit-to-csuc');
+  expect(newNote6.items[2].type).toBe('command');
+  expect(newNote6.items[2].name).toBe('csuc-deposit-to-aggregator');
+
   expect(plan).toBeDefined();
 
-  console.dir(plan, { depth: null });
+  // console.dir(plan, { depth: null });
+});
+
+test("should create multiple aggregations", () => {
+  const intent: CurvyIntent = generateMockIntent(11n);
+
+  const plan = generatePlan(exampleBalancesAggregatorHeavy, intent);
+  expect(plan).toBeDefined();
+
+  expect((plan as any).items.length).toBe(2); // Parallel inputs (11n as two notes (10 + 1)), command 
+
+  // Top level ---------------
+  const topLevelAggregation = (plan as any);
+  expect(topLevelAggregation.type).toBe('serial')
+  expect(topLevelAggregation.items.length).toBe(2)
+
+  const topLevelAggregationInputs = topLevelAggregation.items[0];
+  const topLevelAggregationCommand = topLevelAggregation.items[1];
+
+  expect(topLevelAggregationInputs.type).toBe("parallel");
+  expect(topLevelAggregationInputs.items.length).toBe(2);
+
+  expect(topLevelAggregationCommand.type).toBe("command");
+  expect(topLevelAggregationCommand.amount).toBe(11n);
+
+  // Aggregations 1 and 2  -----------------
+  // Aggregating 10 * 1n -> 10n and 10n + 1n -> 11n (two output notes)
+
+  expect(topLevelAggregationInputs.items.length).toBe(2);
+  
+  const aggregation1 = topLevelAggregationInputs.items[0];
+  const aggregation2 = topLevelAggregationInputs.items[1];
+  
+  expect(aggregation1.type).toBe("serial"); // (10 * 1n -> 10n)
+  expect(aggregation2.type).toBe("serial"); // (1n -> 1n), TODO: Optimize the algorithm to exclude this step (should use existing note)
+  
+  expect(aggregation1.items.length).toBe(2);
+  expect(aggregation2.items.length).toBe(2);
+
+  const aggregation1Inputs = aggregation1.items[0];
+  const aggregation1Command = aggregation1.items[1];
+
+  const aggregation2Inputs = aggregation2.items[0];
+  const aggregation2Command = aggregation2.items[1];
+
+  expect(aggregation1Inputs.type).toBe("parallel");
+  expect(aggregation2Inputs.type).toBe("parallel");
+
+  expect(aggregation1Inputs.items.length).toBe(10); // 10 input notes
+  expect(aggregation2Inputs.items.length).toBe(1); // 1 input note
+
+  expect(aggregation1Command.type).toBe("command");
+  expect(aggregation2Command.type).toBe("command");
+
+  // console.dir(plan, { depth: null });
+});
+
+test("should create single aggregations with change", () => {
+  const intent: CurvyIntent = generateMockIntent(11n);
+
+  const plan = generatePlan(exampleBalancesAggregatorHeavy2, intent);
+
+  expect(plan).toBeDefined();
+
+  // TODO: Check types
+  expect((plan as any).items.length).toBe(2); // One parallel inputs, one aggregation
+
+  const parallelInputs = (plan as any).items[0];
+  expect(parallelInputs.type).toBe("parallel");
+  expect(parallelInputs.items.length).toBe(2);
+
+  // Input note 1
+  expect(parallelInputs.items[0].type).toBe("serial");
+  expect(parallelInputs.items[0].items[0].data.balance).toBe(6n);
+
+  // Input note 2
+  expect(parallelInputs.items[1].type).toBe("serial");
+  expect(parallelInputs.items[1].items[0].data.balance).toBe(6n);
+
+  // Final aggregation
+  const aggregation = (plan as any).items[1];
+  expect(aggregation.type).toBe("command");
+  expect(aggregation.amount).toBe(11n);
+
+  // console.dir(plan, { depth: null });
 });
