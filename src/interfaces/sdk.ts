@@ -1,4 +1,9 @@
-import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
+import type {
+  NETWORK_ENVIRONMENT_VALUES,
+  NETWORK_FLAVOUR,
+  NETWORK_FLAVOUR_VALUES,
+  NETWORKS,
+} from "@/constants/networks";
 import type { MultiRpc } from "@/rpc/multi";
 import type { CurvyAddress } from "@/types/address";
 import type {
@@ -27,13 +32,15 @@ import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/ty
 import type { CurvySignatureParameters, EvmSignatureData, StarknetSignatureData } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
 import type { CurvyWallet } from "@/wallet";
-import { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
+import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 
 interface ICurvySDK {
   // Getters
   get rpcClient(): MultiRpc;
   get wallets(): CurvyWallet[];
   get activeWallet(): CurvyWallet;
+  get activeNetworks(): Network[];
+  get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
   hasActiveWallet(): boolean;
 
   getStealthAddressById(id: string): Promise<CurvyAddress>;
@@ -44,7 +51,9 @@ interface ICurvySDK {
   getNewStealthAddressForUser(
     networkIdentifier: NetworkFilter,
     handle: string,
-  ): Promise<{ address: HexString; id: string; pubKey: string }>;
+  ): Promise<{ address: HexString; addressId: string; pubKey: string }>;
+
+  getAddressEncryptedMessage(address: CurvyAddress): Promise<string>;
 
   getNativeCurrencyForNetwork(network: Network): Currency;
   getSignatureParamsForNetworkFlavour(
@@ -82,9 +91,11 @@ interface ICurvySDK {
 
   removeWallet(walletId: string): Promise<void>;
 
+  refreshNoteBalances(walletId: string): Promise<void>;
+  refreshAddressBalances(address: CurvyAddress): Promise<void>;
   refreshWalletBalances(walletId: string): Promise<void>;
   refreshBalances(): Promise<void>;
-  refreshAddressBalances(address: CurvyAddress): Promise<void>;
+
   resetStorage(): Promise<void>;
 
   estimateFee(
