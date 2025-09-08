@@ -269,6 +269,7 @@ export type {
   Network,
   Currency,
   NetworksWithCurrenciesResponse,
+  AggregatorRequestStatusValuesType,
   GetNetworksReturnType,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
