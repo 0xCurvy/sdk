@@ -424,15 +424,7 @@ class CurvySDK implements ICurvySDK {
     amount: string,
     currency: string,
   ) {
-    const wallet = this.walletManager.getWalletById(from.walletId);
-    if (!wallet) {
-      throw new Error(`Cannot send from address ${from.id} because it's wallet is not found!`);
-    }
-    const { s, v } = wallet.keyPairs;
-
-    const {
-      spendingPrivKeys: [privateKey],
-    } = this.#core.scan(s, v, [from]);
+    const privateKey = this.walletManager.getAddressPrivateKey(from);
 
     let recipientData: RecipientData;
 
@@ -464,15 +456,7 @@ class CurvySDK implements ICurvySDK {
     fee: StarknetFeeEstimate | bigint,
     message?: string,
   ) {
-    const wallet = this.walletManager.getWalletById(from.walletId);
-    if (!wallet) {
-      throw new Error(`Cannot send from address ${from.id} because it's wallet is not found!`);
-    }
-    const { s, v } = wallet.keyPairs;
-
-    const {
-      spendingPrivKeys: [privateKey],
-    } = this.#core.scan(s, v, [from]);
+    const privateKey = this.walletManager.getAddressPrivateKey(from);
 
     let recipientData: RecipientData;
 
