@@ -1,4 +1,5 @@
 import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
+import type { IApiClient } from "@/interfaces/api";
 import type { MultiRpc } from "@/rpc/multi";
 import type { CurvyAddress } from "@/types/address";
 import type { AggregationRequest, AggregationRequestParams, DepositRequest, WithdrawRequest } from "@/types/aggregator";
@@ -31,6 +32,7 @@ import type { CurvyWallet } from "@/wallet";
 
 interface ICurvySDK {
   // Getters
+  get getApiClient(): IApiClient;
   get rpcClient(): MultiRpc;
   get wallets(): CurvyWallet[];
   get activeWallet(): CurvyWallet;

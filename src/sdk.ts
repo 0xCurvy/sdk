@@ -174,6 +174,10 @@ class CurvySDK implements ICurvySDK {
     return this.#walletManager.activeWallet;
   }
 
+  get getApiClient() {
+    return this.apiClient;
+  }
+
   hasActiveWallet() {
     return this.#walletManager.hasActiveWallet();
   }

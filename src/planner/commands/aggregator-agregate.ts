@@ -6,12 +6,10 @@ import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abst
 import type { CurvyIntent } from "@/planner/plan";
 
 export class AgregatorAgregateCommand extends CurvyCommand {
-  apiClient: IApiClient; // TODO: Sta ce ti API client ako uvlacis ceo SDK? Slobodno sta god treba exposuj kroz gettere
   sdk: ICurvySDK;
   constructor(input: CurvyCommandData, intent: CurvyIntent, apiClient: IApiClient, sdk: ICurvySDK) {
     // TODO: Slobodno ovde dodaj check da kao input moras da dobijes niz CurvyCommandAddress i da svaki element u tom nizu mora da bude type==="note"
     super(input);
-    this.apiClient = apiClient;
     this.sdk = sdk;
   }
 
@@ -24,14 +22,15 @@ export class AgregatorAgregateCommand extends CurvyCommand {
     //   ako je suma jednaga, onda ces praviti drugi output note kao dummy note
 
     // TODO: takodje da bi mogao da prosledis inputNoteove iz CurvyCommandData, napravi getter za note u ovoj klasi: https://github.com/0xCurvy/curvy-monorepo/blob/experiment/command-pattern/packages/sdk/src/planner/addresses/note.ts
-
     //@ts-expect-error
     const payload = this.sdk.createAggregationPayload(this.input);
 
-    const requestId = await this.apiClient.aggregator.SubmitAggregation(payload);
+    const apiClient = this.sdk.getApiClient;
+
+    const requestId = await apiClient.aggregator.SubmitAggregation(payload);
 
     await this.sdk.pollForCriteria(
-      () => this.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
+      () => apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
       (res: { status: AggregatorRequestStatusValuesType }) => {
         if (res.status === "failed") {
           throw new Error(`Aggregator withdraw ${res.status}`);
