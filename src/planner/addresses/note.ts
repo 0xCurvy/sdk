@@ -1,10 +1,10 @@
-import { Currency } from "@/types";
+import type { Currency } from "@/types";
+import type { Note } from "@/types/note";
 import { CurvyCommandAddress } from "./abstract";
-import { Note } from "@/types/note";
 
 export class CurvyCommandNoteAddress extends CurvyCommandAddress {
   #note: Note;
-  // @ts-ignore
+  // @ts-expect-error
   #babyJubJubPrivateKey: string;
 
   constructor(note: Note, babyJubJubPrivateKey: string) {
@@ -17,6 +17,10 @@ export class CurvyCommandNoteAddress extends CurvyCommandAddress {
     this.#note = note;
 
     this.#babyJubJubPrivateKey = babyJubJubPrivateKey;
+  }
+
+  get note(): Note {
+    return this.#note;
   }
 
   get type(): string {
