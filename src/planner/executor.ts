@@ -1,14 +1,15 @@
+import type { CurvyCommandData } from "@/planner/addresses/abstract";
+
+import { commandFactory } from "@/planner/commands/factory";
 import type {
   CurvyPlan,
   CurvyPlanEstimation,
   CurvyPlanExecution,
   CurvyPlanSuccessfulExecution,
-  CurvyPlanUnsuccessfulExecution
+  CurvyPlanUnsuccessfulExecution,
 } from "@/planner/plan";
 
-import { commandFactory } from "@/planner/commands/factory";
-import { CurvyCommandData } from "@/planner/addresses/abstract";
-
+// TODO: Ovde zelimo negde da uradimo injection commandFacotry typa radi boljih testova
 export async function executePlan(plan: CurvyPlan, input?: CurvyCommandData): Promise<CurvyPlanExecution> {
   // CurvyPlanFlowControl, parallel
   if (plan.type === "parallel") {
@@ -17,10 +18,10 @@ export async function executePlan(plan: CurvyPlan, input?: CurvyCommandData): Pr
     const result = await Promise.all(plan.items.map((item) => executePlan(item)));
     const success = result.every((r) => r.success);
 
-    return <CurvyPlanExecution> {
+    return <CurvyPlanExecution>{
       success,
       items: result,
-    }
+    };
   }
 
   // CurvyPlanFlowControl, serial
@@ -33,28 +34,28 @@ export async function executePlan(plan: CurvyPlan, input?: CurvyCommandData): Pr
 
     let data = input;
     for (const item of plan.items) {
-        const result = await executePlan(item, data);
+      const result = await executePlan(item, data);
 
-        results.push(result);
+      results.push(result);
 
-        // If latest item is unsuccessful, fail entire serial flow node with that error.
-        if (!result.success) {
-          return <CurvyPlanUnsuccessfulExecution>{
-            success: false,
-            error: result.error,
-            items: results
-          };
-        }
+      // If latest item is unsuccessful, fail entire serial flow node with that error.
+      if (!result.success) {
+        return <CurvyPlanUnsuccessfulExecution>{
+          success: false,
+          error: result.error,
+          items: results,
+        };
+      }
 
-        // Set the output of current as data of next step
-        data = result.data;
+      // Set the output of current as data of next step
+      data = result.data;
     }
 
     // The output address of the successful serial flow is the last members address.
     return <CurvyPlanSuccessfulExecution>{
       success: true,
       data: (results[results.length - 1] as CurvyPlanSuccessfulExecution).data,
-      items: results // TODO: I don't think this is needed
+      items: results, // TODO: I don't think this is needed
     };
   }
 
@@ -68,30 +69,30 @@ export async function executePlan(plan: CurvyPlan, input?: CurvyCommandData): Pr
       const command = commandFactory(plan.name, input, plan.intent);
       const data = await command.execute();
 
-      return <CurvyPlanSuccessfulExecution> {
+      return <CurvyPlanSuccessfulExecution>{
         success: true,
-        data
-      }
+        data,
+      };
     } catch (error) {
-      return <CurvyPlanUnsuccessfulExecution> {
+      return <CurvyPlanUnsuccessfulExecution>{
         success: false,
-        error
+        error,
       };
     }
   }
 
   // CurvyPlanData
   if (plan.type === "data") {
-    return <CurvyPlanSuccessfulExecution> {
+    return <CurvyPlanSuccessfulExecution>{
       success: true,
-      data: plan.data
+      data: plan.data,
     };
   }
 
   throw new Error(`Unrecognized type for plan node: ${plan.type}`);
 }
 
-// @ts-ignore
+// @ts-expect-error
 export function estimatePlan(_plan: CurvyPlan): Promise<CurvyPlanEstimation> {
   // TODO: Implement
 }
