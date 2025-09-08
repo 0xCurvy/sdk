@@ -6,15 +6,25 @@ import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abst
 import type { CurvyIntent } from "@/planner/plan";
 
 export class AgregatorAgregateCommand extends CurvyCommand {
-  apiClient: IApiClient;
+  apiClient: IApiClient; // TODO: Sta ce ti API client ako uvlacis ceo SDK? Slobodno sta god treba exposuj kroz gettere
   sdk: ICurvySDK;
   constructor(input: CurvyCommandData, intent: CurvyIntent, apiClient: IApiClient, sdk: ICurvySDK) {
+    // TODO: Slobodno ovde dodaj check da kao input moras da dobijes niz CurvyCommandAddress i da svaki element u tom nizu mora da bude type==="note"
     super(input);
     this.apiClient = apiClient;
     this.sdk = sdk;
   }
 
   async execute(): Promise<CurvyCommandData> {
+    // TODO:  Payload ti ovde nije dobar
+    //   nisi dobro struktuirao ulazni argument koji je Params koji se sastoji od input i output noteova, ovo sto je this.input su samo input Noteovi
+    //   outpuut notove nisi definisao a njih trebas da definises tako sto
+    //   ces da proveris da li je suma input noteova veca od amounta prosledjenog u ovu komandu (pogledaj parent granu vidi da ova komanda prima i amount argument)
+    //   ako je suma veca, onda ces umesto dummy nota da pravis change note kao output koji tebi vraca pare
+    //   ako je suma jednaga, onda ces praviti drugi output note kao dummy note
+
+    // TODO: takodje da bi mogao da prosledis inputNoteove iz CurvyCommandData, napravi getter za note u ovoj klasi: https://github.com/0xCurvy/curvy-monorepo/blob/experiment/command-pattern/packages/sdk/src/planner/addresses/note.ts
+
     //@ts-expect-error
     const payload = this.sdk.createAggregationPayload(this.input);
 
