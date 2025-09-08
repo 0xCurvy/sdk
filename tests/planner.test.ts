@@ -1,10 +1,7 @@
 import { NETWORK_FLAVOUR, NETWORK_GROUP } from "@/constants/networks";
-import { CurvyCommandNoteAddress } from "@/planner/addresses/note";
-import { CurvyCommandSAAddress } from "@/planner/addresses/sa";
 import type { CurvyIntent } from "@/planner/plan";
 import { generatePlan, type PlannerBalances } from "@/planner/planner";
-import type { Currency, Network } from "@/types";
-import { Note } from "@/types/note";
+import type { CsucBalanceEntry, Currency, Network, NoteBalanceEntry, SaBalanceEntry } from "@/types";
 
 const mockCurrency: Currency = {
   id: 0,
@@ -36,31 +33,66 @@ const mockNetwork: Network = {
   currencies: [mockCurrency],
 };
 
-const generateMockSABalances = (
-  ...balances: bigint[]
-): CurvyCommandSAAddress[] => {
+const generateMockSABalances = (...balances: bigint[]): SaBalanceEntry[] => {
   return balances.map((balance) => {
-    return new CurvyCommandSAAddress(balance, mockCurrency, "", "");
+    return {
+      source: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      currencyAddress: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      networkSlug: "ethereum-sepolia",
+      type: "sa",
+      symbol: "ETH",
+      balance,
+      environment: "testnet",
+      createdAt: Date.now().toString(),
+      walletId: "mock-wallet-id",
+      lastUpdated: Date.now(),
+    };
   });
 };
 
-const generateMockCSUCBalances = (
-  ...balances: bigint[]
-): CurvyCommandSAAddress[] => {
+const generateMockCSUCBalances = (...balances: bigint[]): CsucBalanceEntry[] => {
   return balances.map((balance) => {
-    return new CurvyCommandSAAddress(balance, mockCurrency, "", "");
+    return {
+      source: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      currencyAddress: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      networkSlug: "ethereum-sepolia",
+      type: "csuc",
+      symbol: "ETH",
+      balance,
+      nonce: 0n,
+      environment: "testnet",
+      createdAt: Date.now().toString(),
+      walletId: "mock-wallet-id",
+      lastUpdated: Date.now(),
+    };
   });
 };
 
-const generateMockNoteBalances = (
-  ...balances: bigint[]
-): CurvyCommandNoteAddress[] => {
+const generateMockNoteBalances = (...balances: bigint[]): NoteBalanceEntry[] => {
   return balances.map((balance) => {
-
-    return new CurvyCommandNoteAddress(
-      new Note({ balance: { amount: balance, token: 1n }, ownerHash: 1n }),
-      ""
-    );
+    return {
+      source: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      currencyAddress: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      networkSlug: "ethereum-sepolia",
+      type: "note",
+      symbol: "ETH",
+      balance,
+      environment: "testnet",
+      createdAt: Date.now().toString(),
+      walletId: "mock-wallet-id",
+      lastUpdated: Date.now(),
+      deliveryTag: {
+        viewTag: 0n,
+        ephemeralKey: 0n,
+      },
+      owner: {
+        babyJubPubKey: {
+          x: 0n,
+          y: 0n,
+        },
+        sharedSecret: 0n,
+      },
+    };
   });
 };
 
@@ -209,7 +241,7 @@ test("should create multiple aggregations", () => {
   const topLevelAggregation = generatePlan(exampleBalancesAggregatorHeavy, intent) as any;
   expect(topLevelAggregation).toBeDefined();
 
-  expect(topLevelAggregation.items.length).toBe(2); // Parallel inputs (11n as two notes (10 + 1)), command 
+  expect(topLevelAggregation.items.length).toBe(2); // Parallel inputs (11n as two notes (10 + 1)), command
 
   // Top level ---------------
   expect(topLevelAggregation.type).toBe('serial')

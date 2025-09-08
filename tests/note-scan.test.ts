@@ -1,21 +1,21 @@
+import { buildPoseidon } from "circomlibjs";
 import { expect, test } from "vitest";
 import { Core } from "@/core";
-import { buildPoseidon } from "circomlibjs";
 
 test("Decode note shared secret", async () => {
   const core = await Core.init();
 
   const keyPairs = core.generateKeyPairs();
-  const { bJJPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
+  const { bJPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
 
   const recipientNoteData = core.sendNote(keyPairs.S, keyPairs.V, {
-    ownerBabyJubPublicKey: bJJPublicKey,
+    ownerBabyJubjubPublicKey: bJPublicKey,
     amount: 1000000000000000000n,
     token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
   });
 
-  expect(recipientNoteData!.owner!.babyJubPubKey.x).toBe(BigInt(bJJPublicKey.split(".")[0]));
-  expect(recipientNoteData!.owner!.babyJubPubKey.y).toBe(BigInt(bJJPublicKey.split(".")[1]));
+  expect(recipientNoteData!.owner!.babyJubjubPubKey.x).toBe(BigInt(bJPublicKey.split(".")[0]));
+  expect(recipientNoteData!.owner!.babyJubjubPubKey.y).toBe(BigInt(bJPublicKey.split(".")[1]));
 });
 
 test.skip("Scan notes", async () => {
@@ -29,12 +29,13 @@ test.skip("Scan notes", async () => {
   const {
     S: ownerS,
     V: ownerV,
-    bJJPublicKey: ownerBJJPublicKey,
+    bJPublicKey: ownerBJPublicKey,
   } = core.getCurvyKeys(keyPair1.s, keyPair1.v);
+  
   const {
     S: otherS,
     V: otherV,
-    bJJPublicKey: otherBJJPublicKey,
+    bJPublicKey: otherBJPublicKey,
   } = core.getCurvyKeys(keyPair2.s, keyPair2.v);
 
   const notes: any = [];
@@ -44,9 +45,9 @@ test.skip("Scan notes", async () => {
       isOwnedNote ? ownerS : otherS,
       isOwnedNote ? ownerV : otherV,
       {
-        ownerBabyJubPublicKey: isOwnedNote
-          ? ownerBJJPublicKey
-          : otherBJJPublicKey,
+        ownerBabyJubjubPublicKey: isOwnedNote
+          ? ownerBJPublicKey
+          : otherBJPublicKey,
         amount: 1000000000000000000n,
         token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
       }
@@ -80,12 +81,13 @@ test("Scan owned notes", async () => {
   const {
     S: ownerS,
     V: ownerV,
-    bJJPublicKey: ownerBJJPublicKey,
+    bJPublicKey: ownerBJPublicKey,
   } = core.getCurvyKeys(keyPair1.s, keyPair1.v);
+  
   const {
     S: otherS,
     V: otherV,
-    bJJPublicKey: otherBJJPublicKey,
+    bJPublicKey: otherBJPublicKey,
   } = core.getCurvyKeys(keyPair2.s, keyPair2.v);
 
   const notes: any = [];
@@ -95,9 +97,9 @@ test("Scan owned notes", async () => {
       isOwnedNote ? ownerS : otherS,
       isOwnedNote ? ownerV : otherV,
       {
-        ownerBabyJubPublicKey: isOwnedNote
-          ? ownerBJJPublicKey
-          : otherBJJPublicKey,
+        ownerBabyJubjubPublicKey: isOwnedNote
+          ? ownerBJPublicKey
+          : otherBJPublicKey,
         amount: 1000000000000000000n,
         token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
       }
@@ -109,13 +111,13 @@ test("Scan owned notes", async () => {
   const poseidon = await buildPoseidon();
   const publicNotes = notes.map((note: any) => ({
     ownerHash: poseidon.F.toObject(
-      poseidon([...note.owner.babyJubPublicKey, note.owner.sharedSecret])
+      poseidon([...note.owner.babyJubjubPublicKey, note.owner.sharedSecret])
     ),
     ephemeralKey: note.ephemeralKey,
     viewTag: note.viewTag,
   }));
 
-  const ownedNotes = core.filterOwnedNotes(publicNotes, keyPair1.s, keyPair1.v);
+  const ownedNotes = core.getNoteOwnershipData(publicNotes, keyPair1.s, keyPair1.v);
 
   expect(ownedNotes.length).toBe(NUM_VALID_NOTES);
 
@@ -136,7 +138,7 @@ test("Generate note ownership proof", async () => {
   const {
     S: ownerS,
     V: ownerV,
-    bJJPublicKey: ownerBJJPublicKey,
+    bJPublicKey: ownerBJPublicKey,
   } = core.getCurvyKeys(keyPair.s, keyPair.v);
 
   const notes: any = [];
@@ -145,7 +147,7 @@ test("Generate note ownership proof", async () => {
       ownerS,
       ownerV,
       {
-        ownerBabyJubPublicKey: ownerBJJPublicKey,
+        ownerBabyJubjubPublicKey: ownerBJPublicKey,
         amount: 1000000000000000000n,
         token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
       }
@@ -157,15 +159,15 @@ test("Generate note ownership proof", async () => {
   const poseidon = await buildPoseidon();
   const publicNotes = notes.map((note: any) => ({
     ownerHash: poseidon.F.toObject(
-      poseidon([...note.owner.babyJubPublicKey, note.owner.sharedSecret])
+      poseidon([...note.owner.babyJubjubPublicKey, note.owner.sharedSecret])
     ).toString(),
     ephemeralKey: note.ephemeralKey,
     viewTag: note.viewTag,
   }));
 
-  const ownedNotes = core.filterOwnedNotes(publicNotes, keyPair.s, keyPair.v);
+  const ownedNotes = core.getNoteOwnershipData(publicNotes, keyPair.s, keyPair.v);
 
-  const { proof, publicSignals } = await core.generateNoteOwnershipProof(ownedNotes, ownerBJJPublicKey);
+  const { proof, publicSignals } = await core.generateNoteOwnershipProof(ownedNotes, ownerBJPublicKey);
 
   expect(proof).toBeDefined();
   expect(publicSignals).toBeDefined();
@@ -175,7 +177,7 @@ test("Generate note ownership proof", async () => {
     if (i < NUM_NOTES) {
       expect(publicSignals[i].toString()).toBe(publicNotes[i].ownerHash.toString());
     } else {
-      expect(publicSignals[i].toString()).toBe('0');
+      expect(publicSignals[i].toString()).toBe("0");
     }
   }
 });

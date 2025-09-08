@@ -1,29 +1,32 @@
-import type { CurvyCommandAddress } from "@/planner/addresses/abstract";
-import type { CurvyCommandCSUCAddress } from "@/planner/addresses/csuc";
-import type { CurvyCommandNoteAddress } from "@/planner/addresses/note";
-import type { CurvyCommandSAAddress } from "@/planner/addresses/sa";
 import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
+import {
+  BALANCE_TYPE,
+  type BalanceEntry,
+  type CsucBalanceEntry,
+  type NoteBalanceEntry,
+  type SaBalanceEntry,
+} from "@/types";
 
 // Planner balances are already sorted and filtered for Network and Currency
 export type PlannerBalances = {
-  sa: CurvyCommandSAAddress[];
-  csuc: CurvyCommandCSUCAddress[];
-  note: CurvyCommandNoteAddress[];
+  sa: SaBalanceEntry[];
+  csuc: CsucBalanceEntry[];
+  note: NoteBalanceEntry[];
 };
 
-const generatePlanToUpgradeAddressToNote = (address: CurvyCommandAddress): CurvyPlan => {
+const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
   const plan: CurvyPlan = {
     type: "serial",
     items: [
       {
         type: "data",
-        data: address,
+        data: balanceEntry,
       },
     ],
   };
 
   // Stealth addresses need to be first deposited to CSUC
-  if (address.type === "sa") {
+  if (balanceEntry.type === BALANCE_TYPE.SA) {
     plan.items.push({
       type: "command",
       name: "sa-deposit-to-csuc", // This includes gas sponsorship as well.
@@ -31,7 +34,7 @@ const generatePlanToUpgradeAddressToNote = (address: CurvyCommandAddress): Curvy
   }
 
   // Then addresses can be deposited from CSUC to Aggregator
-  if (address.type === "sa" || address.type === "csuc") {
+  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.CSUC) {
     plan.items.push({
       type: "command",
       name: "csuc-deposit-to-aggregator",
@@ -43,9 +46,6 @@ const generatePlanToUpgradeAddressToNote = (address: CurvyCommandAddress): Curvy
   // at the top of this function.
   return plan;
 };
-
-const sortByBalanceDescending = (a: CurvyCommandAddress, b: CurvyCommandAddress): number =>
-  a.balance > b.balance ? 1 : -1;
 
 const MAX_INPUT_NOTES_PER_AGGREGATION = 10;
 
@@ -91,25 +91,21 @@ const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): Cu
   };
 };
 
-export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): CurvyPlanFlowControl  | undefined => {
-  balances.sa = balances.sa.sort(sortByBalanceDescending);
-  balances.csuc = balances.csuc.sort(sortByBalanceDescending);
-  balances.note = balances.note.sort(sortByBalanceDescending);
-
+export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): CurvyPlanFlowControl | undefined => {
   const plansToUpgradeNecessaryAddressesToNotes: CurvyPlan[] = [];
 
   let remainingAmount = intent.amount;
 
-  for (const address of [...balances.note, ...balances.csuc, ...balances.sa]) {
+  for (const balanceEntry of [...balances.note, ...balances.csuc, ...balances.sa]) {
     if (remainingAmount <= 0n) {
       // Success! We are done with the plan
       break;
     }
 
     // Deduct the current address balance from the remaining amount
-    remainingAmount -= address.balance;
+    remainingAmount -= balanceEntry.balance;
 
-    plansToUpgradeNecessaryAddressesToNotes.push(generatePlanToUpgradeAddressToNote(address));
+    plansToUpgradeNecessaryAddressesToNotes.push(generatePlanToUpgradeAddressToNote(balanceEntry));
   }
 
   if (remainingAmount > 0n) {

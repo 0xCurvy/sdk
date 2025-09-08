@@ -91,7 +91,7 @@ const prepareCsucActionEstimationRequest = async (
 
 const prepareCuscActionRequest = async (
   network: Network,
-  from: CurvyAddress,
+  nonce: bigint,
   privateKey: HexString,
   payload: CsucActionPayload,
   totalFee: string,
@@ -99,21 +99,6 @@ const prepareCuscActionRequest = async (
   // TODO: Think whether we need validation here at all because backend will fail.
 
   const chainId = network.chainId;
-  const networkName = toSlug(network.name);
-
-  const { token: currencyContractAddress } = JSON.parse(payload.encodedData) as any;
-  const currency = network.currencies.find((currency) => {
-    return currency.contractAddress === currencyContractAddress;
-  });
-  if (!currency) {
-    throw new Error(`Token ${currencyContractAddress} not found on network ${network}`);
-  }
-
-  const nonce = from.csuc.nonces[networkName]?.[currency.symbol];
-
-  if (nonce === undefined) {
-    throw new Error(`Nonce for ${currency.symbol} not found on ${from.address}`);
-  }
 
   const signature = await signActionPayload(chainId, payload, totalFee, nonce.toString(), privateKey);
 
