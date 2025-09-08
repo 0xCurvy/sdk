@@ -609,7 +609,7 @@ class CurvySDK implements ICurvySDK {
     }
     const outputNotes = notes.map((note) =>
       this.#core.sendNote(recipient.S, recipient.V, {
-        ownerBabyJubPublicKey: note.owner!.babyJubPubKey.toString(),
+        ownerBabyJubjubPublicKey: note.owner!.babyJubjubPubKey.toString(),
         amount: note.balance!.amount,
         token: note.balance!.token,
       }),
@@ -646,7 +646,7 @@ class CurvySDK implements ICurvySDK {
     }
 
     const msgHash = generateAggregationHash(outputNotes);
-    const signature = this.#core.signWithBabyJubPrivateKey(msgHash, s);
+    const signature = this.#core.signWithBabyJubjubPrivateKey(msgHash, s);
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
@@ -661,6 +661,7 @@ class CurvySDK implements ICurvySDK {
 
   createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest {
     const { inputNotes, destinationAddress } = params;
+
     if (!inputNotes || !destinationAddress) {
       throw new Error("Invalid withdraw payload parameters");
     }
@@ -671,7 +672,7 @@ class CurvySDK implements ICurvySDK {
       inputNotes.push(
         new Note({
           owner: {
-            babyJubPubKey: {
+            babyJubjubPubKey: {
               x: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
               y: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
             },
@@ -688,12 +689,14 @@ class CurvySDK implements ICurvySDK {
         }),
       );
     }
+
     const msgHash = generateOutputsHash(inputNotes);
-    const signature = this.#core.signWithBabyJubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
+    const signature = this.#core.signWithBabyJubjubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
+    
     return { inputNotes, signatures, destinationAddress };
   }
 

@@ -23,7 +23,7 @@ type CurvyPrivateKeys = {
 type CurvyPublicKeys = {
   S: string;
   V: string;
-  bJJPublicKey: string;
+  bJPublicKey: string;
 };
 
 type CurvyKeyPairs = CurvyPrivateKeys & CurvyPublicKeys;
