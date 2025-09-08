@@ -1,7 +1,6 @@
 import { NETWORK_FLAVOUR, NETWORK_GROUP } from "@/constants/networks";
 import { CurvyCommandNoteAddress } from "@/planner/addresses/note";
 import { CurvyCommandSAAddress } from "@/planner/addresses/sa";
-import { planToGraphviz } from "@/planner/graphviz";
 import type { CurvyIntent } from "@/planner/plan";
 import { generatePlan, type PlannerBalances } from "@/planner/planner";
 import type { Currency, Network } from "@/types";
@@ -79,7 +78,6 @@ test("should generate something", () => {
   expect(plan).toBeDefined();
 
   console.dir(plan, { depth: null });
-  console.log(planToGraphviz(plan!));
 });
 
 test("simple, but go through all three levels", () => {
@@ -89,5 +87,4 @@ test("simple, but go through all three levels", () => {
   expect(plan).toBeDefined();
 
   console.dir(plan, { depth: null });
-  console.log(planToGraphviz(plan!));
 });

@@ -82,7 +82,7 @@ const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): Cu
     items: [
       {
         type: "parallel",
-        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item)),
+        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item)), // TODO: We need to update the intendedAmount!
       },
       {
         type: "command",
@@ -118,7 +118,9 @@ export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): Cu
     return;
   }
 
-  // TODO: Skip unnecessary aggregation (if exact amount)
+  // FUTURE TODO: Skip unnecessary aggregation (if exact amount)
+  // FUTURE TODO: Check if we have exact amount on CSUC/SA, and  skip the aggregator altogether
+
   // TODO: Add exit withdrawal flow to end
 
   // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
