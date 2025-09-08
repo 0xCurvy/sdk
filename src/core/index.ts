@@ -11,6 +11,7 @@ import type {
   CoreSendReturnType,
   CoreViewerScanArgs,
   CurvyKeyPairs,
+  NoteOwnershipData,
   Signature,
 } from "@/types/core";
 import type { HexString, StringifyBigInts } from "@/types/helper";
@@ -196,7 +197,7 @@ class Core implements ICore {
     });
   }
 
-  filterOwnedNotes(
+  getNoteOwnershipData(
     publicNotes: {
       ownerHash: string;
       ephemeralKey: string;
@@ -213,21 +214,23 @@ class Core implements ICore {
     const { bJPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
     const bjjKeyBigint = ownerBabyJubjubPublicKey.split(".").map(BigInt);
 
-    const ownedNotes: any = [];
+    const ownershipData: NoteOwnershipData[] = [];
 
     for (let i = 0; i < publicNotes.length; i++) {
-      if (sharedSecrets[i] != null) {
+      const sharedSecret = sharedSecrets[i];
+
+      if (sharedSecret !== null) {
         const computedHash = poseidonHash([...bjjKeyBigint, sharedSecrets[i]!]).toString();
         if (computedHash === publicNotes[i].ownerHash) {
-          ownedNotes.push({
+          ownershipData.push({
             ownerHash: publicNotes[i].ownerHash,
-            sharedSecret: sharedSecrets[i],
+            sharedSecret,
           });
         }
       }
     }
 
-    return ownedNotes;
+    return ownershipData;
   }
 
   async generateNoteOwnershipProof(
@@ -328,6 +331,7 @@ class Core implements ICore {
           },
           sharedSecret: BigInt(pubKey.split(".")[0]),
         },
+        ownerHash: notes[index].ownerHash,
         balance: {
           amount: notes[index].balance!.amount,
           token: notes[index].balance!.token,

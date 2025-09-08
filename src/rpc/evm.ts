@@ -13,10 +13,12 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
+import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { ARTIFACT as CSUC_ETH_SEPOLIA_ARTIFACT } from "@/contracts/evm/curvy-artifacts/ethereum-sepolia/CSUC";
 import { Rpc } from "@/rpc/abstract";
-import type { CurvyAddress, CurvyAddressBalances } from "@/types/address";
+import type { RpcBalance, RpcBalances } from "@/types";
+import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
@@ -94,26 +96,11 @@ class EvmRpc extends Rpc {
 
     return tokenBalances
       .map((encodedTokenBalance, idx) => {
-        const { contractAddress: tokenAddress, ...token } = this.network.currencies[idx];
-
-        const tokenMeta = {
-          decimals: token.decimals,
-          iconUrl: token.iconUrl,
-          name: token.name,
-          symbol: token.symbol,
-          native: token.nativeCurrency,
-        };
-
-        const networkMeta = {
-          testnet: this.network.testnet,
-          flavour: this.network.flavour,
-          group: this.network.group,
-          slug: networkSlug,
-        };
+        const { contractAddress: currencyAddress, nativeCurrency, symbol } = this.network.currencies[idx];
 
         let balance: bigint;
 
-        if (token.nativeCurrency)
+        if (nativeCurrency)
           balance = decodeFunctionResult({
             abi: evmMulticall3Abi,
             functionName: "getEthBalance",
@@ -127,13 +114,18 @@ class EvmRpc extends Rpc {
           });
 
         return balance
-          ? { balance, tokenAddress: tokenAddress as HexString | undefined, tokenMeta, networkMeta }
+          ? {
+              balance,
+              currencyAddress: currencyAddress as HexString,
+              symbol,
+              environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
+            }
           : null;
       })
       .filter(Boolean)
-      .reduce<CurvyAddressBalances>((res, data) => {
+      .reduce<RpcBalances>((res, { balance, currencyAddress, symbol, environment }) => {
         if (!res[networkSlug]) res[networkSlug] = Object.create(null);
-        res[networkSlug]![data.tokenMeta.symbol] = data;
+        res[networkSlug]![currencyAddress] = { balance, currencyAddress, symbol, environment };
         return res;
       }, Object.create(null));
   }
@@ -142,39 +134,29 @@ class EvmRpc extends Rpc {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contractAddress: tokenAddress } = token;
-
-    const tokenMeta = {
-      decimals: token.decimals,
-      iconUrl: token.iconUrl,
-      name: token.name,
-      symbol: token.symbol,
-      native: token.nativeCurrency,
-    };
-
-    const networkMeta = {
-      testnet: this.network.testnet,
-      flavour: this.network.flavour,
-      group: this.network.group,
-      slug: toSlug(this.network.name),
-    };
+    const { contractAddress: currencyAddress, nativeCurrency } = token;
 
     let balance: bigint;
 
-    if (token.nativeCurrency) {
+    if (nativeCurrency) {
       balance = await getBalance(this.#publicClient, {
         address: stealthAddress.address as Address,
       });
     } else {
       balance = await readContract(this.#publicClient, {
-        address: token.contractAddress as Address,
+        address: currencyAddress as Address,
         abi: erc20Abi,
         functionName: "balanceOf",
         args: [stealthAddress.address as Address],
       });
     }
 
-    return { balance, tokenAddress: tokenAddress as HexString | undefined, tokenMeta, networkMeta };
+    return {
+      balance,
+      currencyAddress: currencyAddress as HexString,
+      symbol,
+      environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
+    } satisfies RpcBalance;
   }
 
   async #prepareTx(privateKey: HexString, address: Address, amount: string, currencySymbol: string) {

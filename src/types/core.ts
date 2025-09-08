@@ -1,9 +1,6 @@
+import type { Groth16Proof } from "snarkjs";
+import type { PublicSignals } from "snarkjs/index";
 import type { HexString } from "@/types/helper";
-
-type PublicKey = {
-  spendingKey: string;
-  viewingKey: string;
-};
 
 type Signature = {
   S: bigint;
@@ -61,8 +58,23 @@ type CoreViewerScanReturnType = {
   spendingPubKeys: Array<string>;
 };
 
+type PublicNote = {
+  ownerHash: string;
+  viewTag: string;
+  ephemeralKey: string;
+};
+
+type NoteOwnershipData = {
+  ownerHash: string;
+  sharedSecret: bigint;
+};
+
+type NoteOwnershipProof = {
+  proof: Groth16Proof;
+  publicSignals: PublicSignals;
+};
+
 export type {
-  PublicKey,
   Signature,
   CurvyKeyPairs,
   CurvyPublicKeys,
@@ -73,4 +85,7 @@ export type {
   CoreScanReturnType,
   CoreViewerScanArgs,
   CoreViewerScanReturnType,
+  PublicNote,
+  NoteOwnershipData,
+  NoteOwnershipProof,
 };
