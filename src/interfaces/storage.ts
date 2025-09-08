@@ -88,7 +88,7 @@ export interface StorageInterface {
   getTotalsByCurrencyAndNetwork(walletId: string): Promise<TotalBalance[]>;
 
   /**
-   * Gets all holders of a specific currency on a specific network within a wallet.
+   * Gets all sources of a specific currency on a specific network within a wallet.
    * @param walletId
    * @param currencyAddress
    * @param networkSlug
@@ -96,7 +96,7 @@ export interface StorageInterface {
    * @param {CurrencyHoldersOptions['sortByTypeRanking']} [options.sortTypeRanking] - A record defining the ranking of balance types for sorting purposes.
    * @param {CurrencyHoldersOptions['sortByBalance']} [options.sortByBalance] - The order to sort by balance, either "asc" for ascending or "desc" for descending.
    */
-  getCurrencyHolders(
+  getBalanceSources(
     walletId: string,
     currencyAddress: string,
     networkSlug: string,
