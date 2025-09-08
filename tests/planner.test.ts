@@ -181,54 +181,47 @@ test("simple, but go through all three levels", () => {
     expect(item.items.length).toBeGreaterThanOrEqual(0);
   }
 
-  const [
-    existingNote1,
-    existingNote2,
-    newNote3,
-    newNote4,
-    newNote5,
-    newNote6,
-  ] = topLevelAggregationInputs.items;
+  const [existingNote1, existingNote2, newNote3, newNote4, newNote5, newNote6] = topLevelAggregationInputs.items;
 
   expect(existingNote1.type).toBe("serial");
   expect(existingNote1.items.length).toBe(1);
-  expect(existingNote1.items[0].type).toBe('data');
+  expect(existingNote1.items[0].type).toBe("data");
 
   expect(existingNote2.type).toBe("serial");
   expect(existingNote2.items.length).toBe(1);
-  expect(existingNote2.items[0].type).toBe('data');
+  expect(existingNote2.items[0].type).toBe("data");
 
   expect(newNote3.type).toBe("serial");
   expect(newNote3.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
-  expect(newNote3.items[0].type).toBe('data');
-  expect(newNote3.items[1].type).toBe('command');
-  expect(newNote3.items[1].name).toBe('sa-deposit-to-csuc');
-  expect(newNote3.items[2].type).toBe('command');
-  expect(newNote3.items[2].name).toBe('csuc-deposit-to-aggregator');
+  expect(newNote3.items[0].type).toBe("data");
+  expect(newNote3.items[1].type).toBe("command");
+  expect(newNote3.items[1].name).toBe("sa-deposit-to-csuc");
+  expect(newNote3.items[2].type).toBe("command");
+  expect(newNote3.items[2].name).toBe("csuc-deposit-to-aggregator");
 
   expect(newNote4.type).toBe("serial");
   expect(newNote4.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
-  expect(newNote4.items[0].type).toBe('data');
-  expect(newNote4.items[1].type).toBe('command');
-  expect(newNote4.items[1].name).toBe('sa-deposit-to-csuc');
-  expect(newNote4.items[2].type).toBe('command');
-  expect(newNote4.items[2].name).toBe('csuc-deposit-to-aggregator');
+  expect(newNote4.items[0].type).toBe("data");
+  expect(newNote4.items[1].type).toBe("command");
+  expect(newNote4.items[1].name).toBe("sa-deposit-to-csuc");
+  expect(newNote4.items[2].type).toBe("command");
+  expect(newNote4.items[2].name).toBe("csuc-deposit-to-aggregator");
 
   expect(newNote5.type).toBe("serial");
   expect(newNote5.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
-  expect(newNote5.items[0].type).toBe('data');
-  expect(newNote5.items[1].type).toBe('command');
-  expect(newNote5.items[1].name).toBe('sa-deposit-to-csuc');
-  expect(newNote5.items[2].type).toBe('command');
-  expect(newNote5.items[2].name).toBe('csuc-deposit-to-aggregator');
+  expect(newNote5.items[0].type).toBe("data");
+  expect(newNote5.items[1].type).toBe("command");
+  expect(newNote5.items[1].name).toBe("sa-deposit-to-csuc");
+  expect(newNote5.items[2].type).toBe("command");
+  expect(newNote5.items[2].name).toBe("csuc-deposit-to-aggregator");
 
   expect(newNote6.type).toBe("serial");
   expect(newNote6.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
-  expect(newNote6.items[0].type).toBe('data');
-  expect(newNote6.items[1].type).toBe('command');
-  expect(newNote6.items[1].name).toBe('sa-deposit-to-csuc');
-  expect(newNote6.items[2].type).toBe('command');
-  expect(newNote6.items[2].name).toBe('csuc-deposit-to-aggregator');
+  expect(newNote6.items[0].type).toBe("data");
+  expect(newNote6.items[1].type).toBe("command");
+  expect(newNote6.items[1].name).toBe("sa-deposit-to-csuc");
+  expect(newNote6.items[2].type).toBe("command");
+  expect(newNote6.items[2].name).toBe("csuc-deposit-to-aggregator");
 
   expect(topLevelAggregation).toBeDefined();
 
@@ -244,8 +237,8 @@ test("should create multiple aggregations", () => {
   expect(topLevelAggregation.items.length).toBe(2); // Parallel inputs (11n as two notes (10 + 1)), command
 
   // Top level ---------------
-  expect(topLevelAggregation.type).toBe('serial')
-  expect(topLevelAggregation.items.length).toBe(2)
+  expect(topLevelAggregation.type).toBe("serial");
+  expect(topLevelAggregation.items.length).toBe(2);
 
   const topLevelAggregationInputs = topLevelAggregation.items[0];
   const topLevelAggregationCommand = topLevelAggregation.items[1];
@@ -295,7 +288,6 @@ test("should create single aggregations with change", () => {
 
   expect(topLevelAggregation).toBeDefined();
 
-  // TODO: Check types
   expect(topLevelAggregation.items.length).toBe(2); // One parallel inputs, one aggregation
 
   const parallelInputs = topLevelAggregation.items[0];
@@ -318,14 +310,12 @@ test("should create single aggregations with change", () => {
   console.dir(topLevelAggregation, { depth: null });
 });
 
-
 test("should deposit all funds from SA to aggregator and create single aggregations with change", () => {
   const intent: CurvyIntent = generateMockIntent(9n);
 
   const topLevelAggregation = generatePlan(exampleBalancesSAHeavy2, intent) as any;
   expect(topLevelAggregation).toBeDefined();
 
-  // TODO: Check types
   expect(topLevelAggregation.type).toBe("serial");
   expect(topLevelAggregation.items.length).toBe(2);
 
