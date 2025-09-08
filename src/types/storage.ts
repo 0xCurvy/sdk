@@ -82,6 +82,11 @@ type TotalBalance = {
   lastUpdated: number;
 };
 
+type CurrencyHoldersOptions = {
+  sortByTypeRanking: Record<BALANCE_TYPE_VALUES, number>;
+  sortByBalance?: "asc" | "desc";
+};
+
 export type {
   CurrencyMetadata,
   PriceData,
@@ -91,5 +96,6 @@ export type {
   SaBalanceEntry,
   NoteBalanceEntry,
   BALANCE_TYPE_VALUES,
+  CurrencyHoldersOptions,
 };
 export { isSaBalanceEntry, isCsucBalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };
