@@ -31,6 +31,7 @@ test.skip("Scan notes", async () => {
     V: ownerV,
     bJPublicKey: ownerBJPublicKey,
   } = core.getCurvyKeys(keyPair1.s, keyPair1.v);
+  
   const {
     S: otherS,
     V: otherV,
@@ -82,6 +83,7 @@ test("Scan owned notes", async () => {
     V: ownerV,
     bJPublicKey: ownerBJPublicKey,
   } = core.getCurvyKeys(keyPair1.s, keyPair1.v);
+  
   const {
     S: otherS,
     V: otherV,

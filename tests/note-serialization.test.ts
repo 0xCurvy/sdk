@@ -2,13 +2,13 @@ import { expect, test } from "vitest";
 import { type FullNoteData, Note } from "@/types/note";
 
 test("Should serialize and deserialize notes", async () => {
-  const owner = {
-    babyJubjubPubKey: {
-        x: 1n,
-        y: 2n,
-    },
-    sharedSecret: 3n,
-  }
+    const owner = {
+        babyJubjubPubKey: {
+            x: 1n,
+            y: 2n,
+        },
+        sharedSecret: 3n,
+    }
 
   const ownerHash = Note.generateOwnerHash(owner);
 
