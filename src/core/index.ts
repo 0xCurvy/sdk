@@ -5,17 +5,16 @@ import { groth16 } from "snarkjs";
 import type { ICore } from "@/interfaces/core";
 import type { RawAnnouncement } from "@/types/api";
 import type {
-  AuthenticatedNote,
   CoreLegacyKeyPairs,
   CoreScanArgs,
   CoreScanReturnType,
   CoreSendReturnType,
   CoreViewerScanArgs,
   CurvyKeyPairs,
-  Note,
-  OutputNote,
+  Signature,
 } from "@/types/core";
-import type { HexString } from "@/types/helper";
+import type { HexString, StringifyBigInts } from "@/types/helper";
+import { Note } from "@/types/note";
 import { isNode } from "@/utils/helpers";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
@@ -177,20 +176,24 @@ class Core implements ICore {
   sendNote(S: string, V: string, noteData: { ownerBabyJubPublicKey: string; amount: bigint; token: bigint }): Note {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
-    const note = {
+    return new Note({
       owner: {
-        babyJubPublicKey: noteData.ownerBabyJubPublicKey.split(".") as [string, string],
-        sharedSecret: spendingPubKey.split(".")[0],
+        babyJubPubKey: 
+        {
+          x: noteData.ownerBabyJubPublicKey.split(".").map(BigInt)[0],
+          y: noteData.ownerBabyJubPublicKey.split(".").map(BigInt)[1],
+        },
+        sharedSecret: BigInt(spendingPubKey.split(".")[0]),
       },
-      amount: noteData.amount.toString(),
-      token: noteData.token.toString(),
-    };
-
-    return {
-      ...note,
-      ephemeralKey: R,
-      viewTag,
-    };
+      balance: {
+        amount: noteData.amount,
+        token: noteData.token,
+      },
+      deliveryTag: {
+        ephemeralKey: BigInt(R),
+        viewTag: BigInt(viewTag),
+      },
+    });
   }
 
   filterOwnedNotes(
@@ -301,42 +304,59 @@ class Core implements ICore {
     };
   }
 
-  generateOutputNote(note: Note): OutputNote {
-    return {
-      ownerHash: poseidonHash([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]).toString(),
-      amount: note.amount,
-      token: note.token,
-      ephemeralKey: note.ephemeralKey,
-      viewTag: note.viewTag,
-    };
-  }
-
   unpackAuthenticatedNotes(
     s: string,
     v: string,
-    notes: AuthenticatedNote[],
+    notes: Note[],
     babyJubPublicKey: [string, string],
   ): Note[] {
     const scanResult = this.scanNotes(
       s,
       v,
       notes.map((note) => ({
-        ownerHash: note.ownerHash,
-        ephemeralKey: note.ephemeralKey,
-        viewTag: note.viewTag.slice(2),
+        ephemeralKey: note.deliveryTag!.ephemeralKey.toString(),
+        viewTag: note.deliveryTag!.viewTag.toString(),
       })),
     );
 
-    return scanResult.spendingPubKeys.map((pubKey: string, index: number) => ({
-      owner: {
-        babyJubPublicKey,
-        sharedSecret: pubKey.split(".")[0],
-      },
-      amount: notes[index].amount,
-      token: notes[index].token,
-      viewTag: notes[index].viewTag,
-      ephemeralKey: notes[index].ephemeralKey,
-    }));
+    const unpackedNotes = scanResult.spendingPubKeys.map((pubKey: string, index: number) => {
+      return new Note({
+        owner: {
+          babyJubPubKey: {
+            x: BigInt(babyJubPublicKey[0]),
+            y: BigInt(babyJubPublicKey[1]),
+          },
+          sharedSecret: BigInt(pubKey.split(".")[0]),
+        },
+        balance: {
+          amount: notes[index].balance!.amount,
+          token: notes[index].balance!.token,
+        },
+        deliveryTag: {
+          ephemeralKey: notes[index].deliveryTag!.ephemeralKey,
+          viewTag: notes[index].deliveryTag!.viewTag,
+        },
+      });
+    });
+
+    return unpackedNotes;
+  }
+
+  signWithBabyJubPrivateKey(message: bigint, babyJubPrivateKey: string): StringifyBigInts<Signature> {
+    const privateKey = `0x${Buffer.from(babyJubPrivateKey, "hex").toString("hex")}`;
+
+    const privateKeyBuffer = Buffer.from(privateKey.slice(2), "hex");
+    const messageBuffer = this.#eddsa!.babyJub.F.e(message);
+
+    const signature = this.#eddsa!.signPoseidon(privateKeyBuffer, messageBuffer);
+
+    return {
+      R8: [
+        this.#eddsa!.babyJub.F.toObject(signature.R8[0]).toString(),
+        this.#eddsa!.babyJub.F.toObject(signature.R8[1]).toString(),
+      ],
+      S: signature.S.toString(),
+    };
   }
 
   isValidBN254Point(point: string): boolean {

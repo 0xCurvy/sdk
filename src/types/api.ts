@@ -6,9 +6,17 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
-import type { InputNoteData, OutputNoteData, Signature } from "@/types/aggregator";
-import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
+import type {
+  NETWORK_FLAVOUR_VALUES,
+  NETWORK_GROUP_VALUES,
+} from "@/constants/networks";
+import type {
+  CSAInfo,
+  CsucAction,
+  CsucActionPayload,
+  CsucActionStatus,
+  CsucEstimatedActionCost,
+} from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { NetworkFilter } from "@/utils/network";
 
@@ -46,6 +54,7 @@ type Network = {
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
   csucContractAddress?: string;
+  minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   nativeCurrency: string | null;
   chainId: string;
@@ -160,31 +169,6 @@ type GetCurvyHandleByOwnerAddressReturnType = string | null;
 
 //#region Aggregator
 
-type DepositPayload = {
-  outputNotes: OutputNoteData[];
-  csucAddress: string;
-  csucTransferAllowanceSignature: string;
-};
-
-type WithdrawPayload = {
-  inputNotes: InputNoteData[];
-  signatures: Signature[];
-  destinationAddress: string;
-};
-
-type AggregationRequest = {
-  id?: string;
-  isDummy: boolean;
-  userId: string;
-  ephemeralKeys: bigint[];
-  inputNotesData: InputNoteData[];
-  outputNotesData: OutputNoteData[];
-  outputSignatures: Signature[];
-  aggregationGroupId: string;
-};
-
-type AggregatorRequestStatusValuesType = "pending" | "submitting" | "success" | "failed" | "cancelled";
-
 type GetAllNotesReturnType = {
   notes: { ownerHash: string; viewTag: string; ephemeralKey: string }[];
 };
@@ -200,16 +184,13 @@ type SubmitNoteOwnershipProofReturnType = {
     amount: string;
   }[];
 };
+type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed";
 type GetAggregatorRequestStatusReturnType = {
   requestId: string;
   status: AggregatorRequestStatusValuesType;
 };
 
 export type {
-  DepositPayload,
-  WithdrawPayload,
-  AggregationRequest,
-  AggregatorRequestStatusValuesType,
   GetAllNotesReturnType,
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,

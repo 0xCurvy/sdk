@@ -1,12 +1,10 @@
 import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
 import type {
-  AggregationRequest,
   CreateActionRequest,
   CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetActionStatusResponse,
@@ -30,8 +28,8 @@ import type {
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
-  WithdrawPayload,
 } from "@/types/api";
+import { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 
 export class MockAPIClient implements IApiClient {
   private announcementLimit = -1; // -1 will indicate there's no limit
@@ -188,13 +186,13 @@ export class MockAPIClient implements IApiClient {
     GetAllNotes: async (): Promise<GetAllNotesReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitDeposit: async (_data: DepositPayload): Promise<SubmitDepositReturnType> => {
+    SubmitDeposit: async (_data: DepositRequest): Promise<SubmitDepositReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitWithdraw: async (_data: WithdrawPayload): Promise<SubmitWithdrawReturnType> => {
+    SubmitWithdraw: async (_data: WithdrawRequest): Promise<SubmitWithdrawReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitAggregation: async (_data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType> => {
+    SubmitAggregation: async (_data: AggregationRequest): Promise<SubmitAggregationReturnType> => {
       throw new Error("Method not implemented.");
     },
     SubmitNotesOwnerhipProof: async (_data: {

@@ -33,7 +33,7 @@ import type { MultiRpc } from "@/rpc/multi";
 import type { StarknetRpc } from "@/rpc/starknet";
 import { TemporaryStorage } from "@/storage/temporary-storage";
 import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
-import type { AggregationRequest, DepositPayload, Network, WithdrawPayload } from "@/types/api";
+import type { Network } from "@/types/api";
 import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
 import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
@@ -66,6 +66,10 @@ import { computePrivateKeys, deriveAddress } from "./utils/address";
 import { filterNetworks, type NetworkFilter, networksToPriceData } from "./utils/network";
 import { CurvyWallet } from "./wallet";
 import { WalletManager } from "./wallet-manager";
+import { DepositRequest, DepositRequestParams, AggregationRequestParams, AggregationRequest, WithdrawRequestParams, WithdrawRequest } from "./types/aggregator";
+import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
+import { Note } from "./types/note";
+import { poseidonHash } from "./utils/poseidon-hash";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -713,15 +717,15 @@ class CurvySDK implements ICurvySDK {
       .sendToAddress(from, privateKey, recipientData.address, amount, currency, fee);
   }
 
-  async createDeposit(payload: DepositPayload) {
+  async createDeposit(payload: DepositRequest) {
     return this.apiClient.aggregator.SubmitDeposit(payload);
   }
 
-  async createWithdraw(payload: WithdrawPayload) {
+  async createWithdraw(payload: WithdrawRequest) {
     return this.apiClient.aggregator.SubmitWithdraw(payload);
   }
 
-  async createAggregation(payload: { aggregations: AggregationRequest[] }) {
+  async createAggregation(payload: AggregationRequest) {
     return this.apiClient.aggregator.SubmitAggregation(payload);
   }
 
@@ -734,7 +738,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     toAddress: HexString | string,
     currencySymbol: string,
-    amount: bigint | string,
+    amount: string,
   ) {
     const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
 
@@ -757,7 +761,7 @@ class CurvySDK implements ICurvySDK {
 
       // TODO For now we only support EVM RPCs for CSUC
       if (rpc instanceof EvmRpc) {
-        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount.toString());
+        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount);
       }
     }
 
@@ -825,6 +829,95 @@ class CurvySDK implements ICurvySDK {
     return { action, response: response.data };
   }
 
+  createDepositPayload(params: DepositRequestParams): DepositRequest {
+    const { recipient, notes, csucTransferAllowanceSignature } = params;
+    if (!recipient || !notes || !csucTransferAllowanceSignature) {
+      throw new Error("Invalid deposit payload parameters");
+    }
+    const outputNotes = notes.map((note) =>
+      this.#core.sendNote(recipient.S, recipient.V, {
+        ownerBabyJubPublicKey: note.owner!.babyJubPubKey.toString(),
+        amount: note.balance!.amount,
+        token: note.balance!.token,
+      })
+    );
+
+    const { csucContractAddress } = this.getNetwork("localnet");
+
+    return {
+      outputNotes,
+      csucAddress: csucContractAddress!,
+      csucTransferAllowanceSignature,
+    };
+  }
+
+  createAggregationPayload(params: AggregationRequestParams): AggregationRequest {
+    const  { inputNotes, outputNotes } = params;
+
+    const { s } = this.activeWallet.keyPairs;
+
+    if (outputNotes.length < 2) {
+      outputNotes.push(new Note({
+        ownerHash: 0n,
+        balance: {
+          amount: 0n,
+          token: 0n,
+        },
+        deliveryTag: {
+          ephemeralKey: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+          viewTag: 0n,
+        },
+      }));
+    }
+
+    const msgHash = generateAggregationHash(outputNotes);
+    const signature = this.#core.signWithBabyJubPrivateKey(msgHash, s);
+    const signatures = Array.from({ length: 10 }).map(() => ({
+      S: BigInt(signature.S),
+      R8: signature.R8.map((r) => BigInt(r)),
+    }));
+
+    return {
+      inputNotes,
+      outputNotes,
+      signatures,
+    }
+  }
+
+  createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest {
+    const { inputNotes, destinationAddress } = params;
+    if (!inputNotes || !destinationAddress) {
+      throw new Error("Invalid withdraw payload parameters");
+    }
+    const { s } = this.activeWallet.keyPairs;
+    for (let i = inputNotes.length; i < 15; i++) {
+      inputNotes.push(new Note({
+        owner: {
+          babyJubPubKey: {
+            x: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+            y: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+          },
+          sharedSecret: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+        },
+        balance: {
+          amount: 0n,
+          token: 0n,
+        },
+        deliveryTag: {
+          ephemeralKey: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+          viewTag: 0n,
+        },
+      }));
+    }
+    const msgHash = generateOutputsHash(inputNotes);
+    const signature = this.#core.signWithBabyJubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
+    const signatures = Array.from({ length: 10 }).map(() => ({
+      S: BigInt(signature.S),
+      R8: signature.R8.map((r) => BigInt(r)),
+    }));
+    return { inputNotes, signatures, destinationAddress };
+  }
+  
   convertDecimalNumberIntoBigInt(value: string | number, decimals: number): bigint {
     return parseUnits(value.toString(), decimals);
   }
