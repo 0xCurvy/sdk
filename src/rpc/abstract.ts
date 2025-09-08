@@ -1,8 +1,8 @@
-import type { CurvyAddress, CurvyAddressBalance, CurvyAddressBalances } from "@/types/address";
+import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
-import type { SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
+import type { RpcBalance, RpcBalances, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
 
 abstract class Rpc {
   readonly #network: Network;
@@ -15,9 +15,9 @@ abstract class Rpc {
     return this.#network;
   }
 
-  abstract getBalances(stealthAddress: CurvyAddress): Promise<CurvyAddressBalances>;
+  abstract getBalances(stealthAddress: CurvyAddress): Promise<RpcBalances>;
 
-  abstract getBalance(stealthAddress: CurvyAddress, symbol: string): Promise<CurvyAddressBalance>;
+  abstract getBalance(stealthAddress: CurvyAddress, symbol: string): Promise<RpcBalance>;
 
   abstract sendToAddress(
     _curvyAddress: CurvyAddress,

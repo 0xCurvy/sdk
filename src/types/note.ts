@@ -1,3 +1,4 @@
+import type { StringifyBigInts } from "@/types/helper";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
 type Balance = {
@@ -114,7 +115,7 @@ class Note {
   }
 
   // Used when receiving deposit note from aggregator backend
-  static deserializeDepositNote(depositNote: DepositNote): Note {
+  static deserializeDepositNote(depositNote: StringifyBigInts<DepositNote>): Note {
     return Note.deserializeAuthenticatedNote(depositNote);
   }
 
@@ -259,16 +260,16 @@ class Note {
   }
 
   // Used when receiving note with balances after verification of clientside proof of ownership
-  static deserializeAuthenticatedNote(authenticatedNote: AuthenticatedNote): Note {
+  static deserializeAuthenticatedNote(authenticatedNote: StringifyBigInts<AuthenticatedNote>): Note {
     const note = new Note({
-      ownerHash: authenticatedNote.ownerHash,
+      ownerHash: BigInt(authenticatedNote.ownerHash),
       balance: {
-        token: authenticatedNote.token,
-        amount: authenticatedNote.amount,
+        token: BigInt(authenticatedNote.token),
+        amount: BigInt(authenticatedNote.amount),
       },
       deliveryTag: {
-        ephemeralKey: authenticatedNote.ephemeralKey,
-        viewTag: authenticatedNote.viewTag,
+        ephemeralKey: BigInt(authenticatedNote.ephemeralKey),
+        viewTag: BigInt(authenticatedNote.viewTag),
       },
     });
     return note;
@@ -290,6 +291,19 @@ class Note {
     return {
       ownerHash: this.ownerHash,
       ...this.deliveryTag,
+    };
+  }
+
+  serializeFullNote(): FullNoteData {
+    if (!this.owner || !this.ownerHash || !this.balance || !this.deliveryTag) {
+      throw new Error("Note is not fully initialized");
+    }
+
+    return {
+      owner: this.owner,
+      ownerHash: this.ownerHash,
+      balance: this.balance,
+      deliveryTag: this.deliveryTag,
     };
   }
 

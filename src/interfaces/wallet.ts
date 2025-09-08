@@ -7,7 +7,7 @@ interface ICurvyWallet {
   readonly ownerAddress: string;
   readonly curvyHandle: string;
 
-  get keyPairs(): CurvyKeyPairs;
+  get keyPairs(): Readonly<CurvyKeyPairs>;
 
   serialize(): SerializedCurvyWallet;
 }
