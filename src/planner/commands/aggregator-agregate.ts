@@ -1,5 +1,4 @@
 import type { AggregatorRequestStatusValuesType } from "@/exports";
-import type { IApiClient } from "@/interfaces/api";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandData } from "@/planner/addresses/abstract";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
@@ -7,7 +6,7 @@ import type { CurvyIntent } from "@/planner/plan";
 
 export class AgregatorAgregateCommand extends CurvyCommand {
   sdk: ICurvySDK;
-  constructor(input: CurvyCommandData, intent: CurvyIntent, apiClient: IApiClient, sdk: ICurvySDK) {
+  constructor(input: CurvyCommandData, intent: CurvyIntent, sdk: ICurvySDK) {
     // TODO: Slobodno ovde dodaj check da kao input moras da dobijes niz CurvyCommandAddress i da svaki element u tom nizu mora da bude type==="note"
     super(input);
     this.sdk = sdk;
