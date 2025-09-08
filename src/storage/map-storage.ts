@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
+import duration from "dayjs/plugin/duration.js";
 import merge from "lodash.merge";
 import type { NETWORK_ENVIRONMENT_VALUES, TOKENS } from "@/constants/networks";
 import { StorageError } from "@/errors";

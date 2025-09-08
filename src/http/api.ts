@@ -1,6 +1,8 @@
 import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
+import type { SubmitNoteOwnershipProofReturnType } from "@/types";
+import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
   CreateActionRequest,
   CreateActionResponse,
@@ -28,8 +30,6 @@ import type {
   UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
 import type { CsucActionStatus } from "@/types/csuc";
-import type { SubmitNoteOwnershipProofReturnType } from "../types/api";
-import { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {

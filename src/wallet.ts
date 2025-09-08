@@ -20,7 +20,7 @@ class CurvyWallet implements ICurvyWallet {
   }
 
   get keyPairs() {
-    return this.#keyPairs;
+    return Object.freeze(this.#keyPairs);
   }
 
   serialize(): SerializedCurvyWallet {
