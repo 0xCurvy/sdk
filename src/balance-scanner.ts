@@ -223,8 +223,8 @@ export class BalanceScanner implements IBalanceScanner {
     try {
       const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes();
 
-      const { s, v, bJJPublicKey } = this.#walletManager.activeWallet.keyPairs;
-      const bjjParts = bJJPublicKey.split(".");
+      const { s, v, babyJubjubPubKey } = this.#walletManager.activeWallet.keyPairs;
+      const bjjParts = babyJubjubPubKey.split(".");
       if (bjjParts.length !== 2) {
         throw new Error("Invalid BabyJubJub public key format.");
       }
@@ -236,7 +236,7 @@ export class BalanceScanner implements IBalanceScanner {
       for (let batchNumber = 0; batchNumber < noteBatchCount; batchNumber += 1) {
         const { proof, publicSignals: ownerHashes } = await this.#core.generateNoteOwnershipProof(
           noteOwnershipData.slice(batchNumber * this.#NOTE_BATCH_SIZE, (batchNumber + 1) * this.#NOTE_BATCH_SIZE),
-          bJJPublicKey,
+          babyJubjubPubKey,
         );
 
         const { notes: authenticatedNotes } = await this.apiClient.aggregator.SubmitNotesOwnerhipProof({

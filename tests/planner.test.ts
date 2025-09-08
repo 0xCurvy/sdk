@@ -86,7 +86,7 @@ const generateMockNoteBalances = (...balances: bigint[]): NoteBalanceEntry[] => 
         ephemeralKey: 0n,
       },
       owner: {
-        babyJubPubKey: {
+        babyJubjubPubKey: {
           x: 0n,
           y: 0n,
         },

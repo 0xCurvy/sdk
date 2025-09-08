@@ -149,7 +149,7 @@ class Core implements ICore {
       S: keyPairs.K,
       v: keyPairs.v,
       V: keyPairs.V,
-      bJPublicKey: babyJubjubPublicKeyStringified,
+      babyJubjubPubKey: babyJubjubPublicKeyStringified,
     };
   }
 
@@ -164,7 +164,7 @@ class Core implements ICore {
       v: result.v,
       S: result.K,
       V: result.V,
-      bJPublicKey: babyJubjubPublicKeyStringified,
+      babyJubjubPubKey: babyJubjubPublicKeyStringified,
     } satisfies CurvyKeyPairs;
   }
 
@@ -179,8 +179,7 @@ class Core implements ICore {
 
     return new Note({
       owner: {
-        babyJubjubPubKey: 
-        {
+        babyJubjubPubKey: {
           x: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[0],
           y: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[1],
         },
@@ -211,7 +210,7 @@ class Core implements ICore {
       pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null,
     );
 
-    const { bJPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
+    const { babyJubjubPubKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
     const bjjKeyBigint = ownerBabyJubjubPublicKey.split(".").map(BigInt);
 
     const ownershipData: NoteOwnershipData[] = [];
@@ -307,12 +306,7 @@ class Core implements ICore {
     };
   }
 
-  unpackAuthenticatedNotes(
-    s: string,
-    v: string,
-    notes: Note[],
-    babyJubjubPublicKey: [string, string],
-  ): Note[] {
+  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubjubPublicKey: [string, string]): Note[] {
     const scanResult = this.scanNotes(
       s,
       v,
