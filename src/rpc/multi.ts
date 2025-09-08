@@ -12,10 +12,10 @@ class MultiRpc {
     this.#rpcArray = rpcs;
     this.#environment = rpcs[0].network.testnet ? "testnet" : "mainnet";
 
-    //TODO improve this check
-
-    if (!rpcs.every((rpc) => rpc.network.testnet) && !rpcs.every((rpc) => !rpc.network.testnet))
+    const uniqueEnvSet = new Set(rpcs.map((rpc) => rpc.network.testnet));
+    if (uniqueEnvSet.size > 1) {
       throw new Error("All RPCs must be either testnet or mainnet");
+    }
   }
 
   getBalances(stealthAddress: CurvyAddress, networks: string[]): Promise<RpcBalances> {

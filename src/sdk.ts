@@ -690,14 +690,12 @@ class CurvySDK implements ICurvySDK {
 
     if (isValidCurvyHandle(to)) {
       recipientData = await this.getNewStealthAddressForUser(networkIdentifier, to);
-      console.log("SDK", recipientData, message);
 
       if (message && recipientData.addressId && recipientData.pubKey) {
-        const res = await this.apiClient.announcement.UpdateAnnouncementEncryptedMessage(recipientData.addressId, {
+        await this.apiClient.announcement.UpdateAnnouncementEncryptedMessage(recipientData.addressId, {
           encryptedMessage: JSON.stringify(await encryptCurvyMessage(message, privateKey, recipientData.pubKey)),
           encryptedMessageSenderPublicKey: from.publicKey,
         });
-        console.log("SDK", res);
       }
     } else recipientData = { address: to };
 
