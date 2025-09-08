@@ -56,7 +56,7 @@ const generateMockNoteBalances = (
   ...balances: bigint[]
 ): CurvyCommandNoteAddress[] => {
   return balances.map((balance) => {
-    
+
     return new CurvyCommandNoteAddress(
       new Note({ balance: { amount: balance, token: 1n }, ownerHash: 1n }),
       ""
@@ -92,13 +92,39 @@ const exampleBalancesAggregatorHeavy2: PlannerBalances = {
   note: generateMockNoteBalances(6n, 6n),
 };
 
+const exampleBalancesSAHeavy2: PlannerBalances = {
+  sa: generateMockSABalances(5n, 5n),
+  csuc: [],
+  note: [],
+};
+
+const exampleEmptySAHeavy2: PlannerBalances = {
+  sa: [],
+  csuc: [],
+  note: [],
+};
+
 test("should generate something", () => {
   const intent: CurvyIntent = generateMockIntent(1n);
 
   const plan = generatePlan(exampleBalances, intent);
   expect(plan).toBeDefined();
 
-  // console.dir(plan, { depth: null });
+  // TODO: Check types
+  const topLevelAggregation = (plan as any);
+  expect(topLevelAggregation.type).toBe("serial");
+  expect(topLevelAggregation.items.length).toBe(2);
+
+  const topLevelAggregationInputs = topLevelAggregation.items[0];
+  const topLevelAggregationCommand = topLevelAggregation.items[1];
+
+  expect(topLevelAggregationInputs.type).toBe("parallel");
+  expect(topLevelAggregationInputs.items.length).toBe(1);
+
+  expect(topLevelAggregationCommand.type).toBe("command");
+  expect(topLevelAggregationCommand.amount).toBe(1n);
+
+  console.dir(plan, { depth: null });
 });
 
 test("simple, but go through all three levels", () => {
@@ -116,7 +142,7 @@ test("simple, but go through all three levels", () => {
   expect(topLevelAggregationInputs.type).toBe("parallel");
 
   // Use 2 existing notes, deposit 4 more from SA to SCUC to Aggregator
-  expect(topLevelAggregationInputs.items.length).toBe(6); 
+  expect(topLevelAggregationInputs.items.length).toBe(6);
 
   expect(topLevelAggregationCommand.type).toBe("command");
   expect(topLevelAggregationCommand.amount).toBe(8n);
@@ -177,7 +203,7 @@ test("simple, but go through all three levels", () => {
 
   expect(plan).toBeDefined();
 
-  // console.dir(plan, { depth: null });
+  console.dir(plan, { depth: null });
 });
 
 test("should create multiple aggregations", () => {
@@ -206,13 +232,13 @@ test("should create multiple aggregations", () => {
   // Aggregating 10 * 1n -> 10n and 10n + 1n -> 11n (two output notes)
 
   expect(topLevelAggregationInputs.items.length).toBe(2);
-  
+
   const aggregation1 = topLevelAggregationInputs.items[0];
   const aggregation2 = topLevelAggregationInputs.items[1];
-  
+
   expect(aggregation1.type).toBe("serial"); // (10 * 1n -> 10n)
   expect(aggregation2.type).toBe("serial"); // (1n -> 1n), TODO: Optimize the algorithm to exclude this step (should use existing note)
-  
+
   expect(aggregation1.items.length).toBe(2);
   expect(aggregation2.items.length).toBe(2);
 
@@ -231,7 +257,7 @@ test("should create multiple aggregations", () => {
   expect(aggregation1Command.type).toBe("command");
   expect(aggregation2Command.type).toBe("command");
 
-  // console.dir(plan, { depth: null });
+  console.dir(plan, { depth: null });
 });
 
 test("should create single aggregations with change", () => {
@@ -261,5 +287,46 @@ test("should create single aggregations with change", () => {
   expect(aggregation.type).toBe("command");
   expect(aggregation.amount).toBe(11n);
 
-  // console.dir(plan, { depth: null });
+  console.dir(plan, { depth: null });
+});
+
+
+test("should deposit all funds from SA to aggregator and create single aggregations with change", () => {
+  const intent: CurvyIntent = generateMockIntent(9n);
+
+  const plan = generatePlan(exampleBalancesSAHeavy2, intent);
+
+  expect(plan).toBeDefined();
+
+  // TODO: Check types
+  const topLevelAggregation = (plan as any);
+  expect(topLevelAggregation.type).toBe("serial");
+  expect(topLevelAggregation.items.length).toBe(2);
+
+  const topLevelAggregationInputs = topLevelAggregation.items[0];
+  const topLevelAggregationCommand = topLevelAggregation.items[1];
+
+  expect(topLevelAggregationInputs.type).toBe("parallel");
+  expect(topLevelAggregationInputs.items.length).toBe(2);
+
+  expect(topLevelAggregationCommand.type).toBe("command");
+  expect(topLevelAggregationCommand.amount).toBe(9n);
+
+  topLevelAggregationInputs.items.forEach((item: any) => {
+    expect(item.type).toBe("serial");
+    expect(item.items.length).toBe(3);
+    expect(item.items[0].type).toBe("data");
+    expect(item.items[1].name).toBe("sa-deposit-to-csuc");
+    expect(item.items[1].type).toBe("command");
+    expect(item.items[2].name).toBe("csuc-deposit-to-aggregator");
+    expect(item.items[2].type).toBe("command");
+  });
+
+  console.dir(plan, { depth: null });
+});
+
+test("should fail to create plan with insufficient funds", () => {
+  const intent: CurvyIntent = generateMockIntent(10n);
+  const plan = generatePlan(exampleEmptySAHeavy2, intent);
+  expect(plan).toBeUndefined();
 });
