@@ -1,7 +1,16 @@
 import type { RawAnnouncement } from "@/types/api";
-import type { CoreScanReturnType, CoreSendReturnType, CoreViewerScanReturnType, CurvyKeyPairs, Signature } from "@/types/core";
+import type {
+  CoreScanReturnType,
+  CoreSendReturnType,
+  CoreViewerScanReturnType,
+  CurvyKeyPairs,
+  NoteOwnershipData,
+  NoteOwnershipProof,
+  PublicNote,
+  Signature,
+} from "@/types/core";
 import type { StringifyBigInts } from "@/types/helper";
-import { Note } from "@/types/note";
+import type { Note } from "@/types/note";
 
 interface ICore {
   generateKeyPairs(): CurvyKeyPairs;
@@ -13,6 +22,10 @@ interface ICore {
   viewerScan(v: string, S: string, announcements: RawAnnouncement[]): CoreViewerScanReturnType;
   isValidBN254Point(point: string): boolean;
   isValidSECP256k1Point(point: string): boolean;
+
+  getNoteOwnershipData(publicNotes: PublicNote[], s: string, v: string): NoteOwnershipData[];
+  generateNoteOwnershipProof(ownershipData: NoteOwnershipData[], babyJubPublicKey: string): Promise<NoteOwnershipProof>;
+  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubPublicKey: [string, string]): Note[];
   version(): string;
 }
 
