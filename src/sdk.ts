@@ -886,10 +886,13 @@ class CurvySDK implements ICurvySDK {
 
   createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest {
     const { inputNotes, destinationAddress } = params;
+
     if (!inputNotes || !destinationAddress) {
       throw new Error("Invalid withdraw payload parameters");
     }
+
     const { s } = this.activeWallet.keyPairs;
+
     for (let i = inputNotes.length; i < 15; i++) {
       inputNotes.push(new Note({
         owner: {
@@ -909,12 +912,14 @@ class CurvySDK implements ICurvySDK {
         },
       }));
     }
+
     const msgHash = generateOutputsHash(inputNotes);
     const signature = this.#core.signWithBabyJubjubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
+    
     return { inputNotes, signatures, destinationAddress };
   }
   
