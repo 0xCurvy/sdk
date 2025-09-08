@@ -15,6 +15,7 @@ import type { MultiRpc } from "@/rpc/multi";
 import {
   assertCurvyHandle,
   assertIsStarkentSignatureData,
+  type CurvyAddress,
   type CurvyHandle,
   type EvmSignatureData,
   type EvmSignTypedDataParameters,
@@ -353,6 +354,20 @@ class WalletManager implements IWalletManager {
 
     clearInterval(this.#scanInterval);
     this.#scanInterval = null;
+  }
+
+  getAddressPrivateKey(address: CurvyAddress) {
+    const wallet = this.getWalletById(address.walletId);
+    if (!wallet) {
+      throw new Error(`Cannot send from address ${address.address} because it's wallet is not found!`);
+    }
+    const { s, v } = wallet.keyPairs;
+
+    const {
+      spendingPrivKeys: [privateKey],
+    } = this.#core.scan(s, v, [address]);
+
+    return privateKey;
   }
 }
 
