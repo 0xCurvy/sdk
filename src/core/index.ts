@@ -11,6 +11,7 @@ import type {
   CoreSendReturnType,
   CoreViewerScanArgs,
   CurvyKeyPairs,
+  NoteOwnershipData,
   Signature,
 } from "@/types/core";
 import type { HexString, StringifyBigInts } from "@/types/helper";
@@ -178,8 +179,7 @@ class Core implements ICore {
 
     return new Note({
       owner: {
-        babyJubPubKey: 
-        {
+        babyJubPubKey: {
           x: noteData.ownerBabyJubPublicKey.split(".").map(BigInt)[0],
           y: noteData.ownerBabyJubPublicKey.split(".").map(BigInt)[1],
         },
@@ -196,7 +196,7 @@ class Core implements ICore {
     });
   }
 
-  filterOwnedNotes(
+  getNoteOwnershipData(
     publicNotes: {
       ownerHash: string;
       ephemeralKey: string;
@@ -213,37 +213,33 @@ class Core implements ICore {
     const { bJJPublicKey: ownerBabyJubPublicKey } = this.getCurvyKeys(s, v);
     const bjjKeyBigint = ownerBabyJubPublicKey.split(".").map(BigInt);
 
-    const ownedNotes: any = [];
+    const ownershipData: NoteOwnershipData[] = [];
 
     for (let i = 0; i < publicNotes.length; i++) {
-      if (sharedSecrets[i] != null) {
+      const sharedSecret = sharedSecrets[i];
+
+      if (sharedSecret !== null) {
         const computedHash = poseidonHash([...bjjKeyBigint, sharedSecrets[i]!]).toString();
         if (computedHash === publicNotes[i].ownerHash) {
-          ownedNotes.push({
+          ownershipData.push({
             ownerHash: publicNotes[i].ownerHash,
-            sharedSecret: sharedSecrets[i],
+            sharedSecret,
           });
         }
       }
     }
 
-    return ownedNotes;
+    return ownershipData;
   }
 
-  async generateNoteOwnershipProof(
-    ownedNotes: {
-      ownerHash: string;
-      sharedSecret: bigint;
-    }[],
-    babyJubPublicKey: string,
-  ) {
+  async generateNoteOwnershipProof(ownershipData: NoteOwnershipData[], babyJubPublicKey: string) {
     const NUM_NOTES = 10;
 
     const wasmFile = `../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm`;
     const zkeyFile = `../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey`;
 
-    const paddedOwnedNotes = ownedNotes.concat(
-      ...Array(NUM_NOTES - ownedNotes.length).fill({
+    const paddedOwnedNotes = ownershipData.concat(
+      ...Array(NUM_NOTES - ownershipData.length).fill({
         babyJubPublicKey: "0.0",
         sharedSecret: "0",
         ownerHash: "0",
@@ -304,12 +300,7 @@ class Core implements ICore {
     };
   }
 
-  unpackAuthenticatedNotes(
-    s: string,
-    v: string,
-    notes: Note[],
-    babyJubPublicKey: [string, string],
-  ): Note[] {
+  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubPublicKey: [string, string]): Note[] {
     const scanResult = this.scanNotes(
       s,
       v,
@@ -328,6 +319,7 @@ class Core implements ICore {
           },
           sharedSecret: BigInt(pubKey.split(".")[0]),
         },
+        ownerHash: notes[index].ownerHash,
         balance: {
           amount: notes[index].balance!.amount,
           token: notes[index].balance!.token,
@@ -343,17 +335,19 @@ class Core implements ICore {
   }
 
   signWithBabyJubPrivateKey(message: bigint, babyJubPrivateKey: string): StringifyBigInts<Signature> {
+    if (!this.#eddsa) throw new Error("EDDSA not initialized");
+
     const privateKey = `0x${Buffer.from(babyJubPrivateKey, "hex").toString("hex")}`;
 
     const privateKeyBuffer = Buffer.from(privateKey.slice(2), "hex");
-    const messageBuffer = this.#eddsa!.babyJub.F.e(message);
+    const messageBuffer = this.#eddsa.babyJub.F.e(message);
 
-    const signature = this.#eddsa!.signPoseidon(privateKeyBuffer, messageBuffer);
+    const signature = this.#eddsa.signPoseidon(privateKeyBuffer, messageBuffer);
 
     return {
       R8: [
-        this.#eddsa!.babyJub.F.toObject(signature.R8[0]).toString(),
-        this.#eddsa!.babyJub.F.toObject(signature.R8[1]).toString(),
+        this.#eddsa.babyJub.F.toObject(signature.R8[0]).toString(),
+        this.#eddsa.babyJub.F.toObject(signature.R8[1]).toString(),
       ],
       S: signature.S.toString(),
     };
