@@ -82,7 +82,7 @@ const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): Cu
     items: [
       {
         type: "parallel",
-        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item)), // TODO: We need to update the intendedAmount!
+        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item)),
       },
       {
         type: "command",
