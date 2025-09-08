@@ -4,7 +4,14 @@ import merge from "lodash.merge";
 import type { NETWORK_ENVIRONMENT_VALUES, TOKENS } from "@/constants/networks";
 import { StorageError } from "@/errors";
 import type { StorageInterface } from "@/interfaces/storage";
-import type { BALANCE_TYPE_VALUES, CurvyAddress, CurvyWalletData, MinifiedCurvyAddress } from "@/types";
+import {
+  BALANCE_TYPE,
+  type BALANCE_TYPE_VALUES,
+  type CurrencyHoldersOptions,
+  type CurvyAddress,
+  type CurvyWalletData,
+  type MinifiedCurvyAddress,
+} from "@/types";
 import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
 import { bytesToDecimalString, decimalStringToBytes } from "@/utils/decimal-conversions";
 import type { CurvyWallet } from "@/wallet";
@@ -297,10 +304,33 @@ export class MapStorage implements StorageInterface {
     return Array.from(this.#totalBalances.values()).filter((t) => t.walletId === walletId);
   }
 
-  async getCurrencyHolders(walletId: string, currencyAddress: string, networkSlug: string): Promise<BalanceEntry[]> {
-    return Array.from(this.#balances.values()).filter(
+  async getCurrencyHolders(
+    walletId: string,
+    currencyAddress: string,
+    networkSlug: string,
+    options: CurrencyHoldersOptions = {
+      sortByTypeRanking: {
+        [BALANCE_TYPE.NOTE]: 1,
+        [BALANCE_TYPE.CSUC]: 2,
+        [BALANCE_TYPE.SA]: 3,
+      },
+      sortByBalance: "asc",
+    },
+  ): Promise<BalanceEntry[]> {
+    const balances = Array.from(this.#balances.values()).filter(
       (b) => b.walletId === walletId && b.currencyAddress === currencyAddress && b.networkSlug === networkSlug,
     );
+
+    return balances.sort((a, b) => {
+      const typeComparison = options.sortByTypeRanking[a.type] - options.sortByTypeRanking[b.type];
+      if (typeComparison !== 0) return typeComparison;
+
+      if (options.sortByBalance === "asc") {
+        return Number(a.balance - b.balance);
+      } else {
+        return Number(b.balance - a.balance);
+      }
+    });
   }
 
   async getBalancesGroupedBySource(

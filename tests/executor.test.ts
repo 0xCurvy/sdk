@@ -14,16 +14,16 @@
  */
 
 import { expect, test } from "vitest";
-import { CurvyPlan, CurvyPlanSuccessfulExecution } from "@/planner/plan";
 import { mockAddress } from "@/planner/commands/mock-commands";
 import { executePlan } from "@/planner/executor";
+import type { CurvyPlan, CurvyPlanSuccessfulExecution } from "@/planner/plan";
 
 const simpleSerialFail: CurvyPlan = {
   type: "serial",
   items: [
     {
       type: "data",
-      data: mockAddress
+      data: mockAddress,
     },
     {
       type: "command",
@@ -36,15 +36,15 @@ const simpleSerialFail: CurvyPlan = {
     {
       type: "command",
       name: "mock-success",
-    }
-  ]
+    },
+  ],
 };
 const simpleSerialSuccess: CurvyPlan = {
   type: "serial",
   items: [
     {
       type: "data",
-      data: mockAddress
+      data: mockAddress,
     },
     {
       type: "command",
@@ -57,8 +57,8 @@ const simpleSerialSuccess: CurvyPlan = {
     {
       type: "command",
       name: "mock-success",
-    }
-  ]
+    },
+  ],
 };
 // const simpleParallelFail: CurvyPlan = {
 //   type: "parallel",
@@ -102,7 +102,7 @@ test("simple serial fail", async () => {
   expect(result.items, "plan should have exactly 3 items").toHaveLength(3);
 
   const expectedSuccessState = [true, true, false];
-  const actualSuccessState = result.items!.map(item => item.success);
+  const actualSuccessState = result.items!.map((item) => item.success);
   expect(actualSuccessState).toStrictEqual(expectedSuccessState);
 });
 

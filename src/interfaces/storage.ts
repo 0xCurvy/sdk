@@ -1,5 +1,12 @@
 import type { NETWORK_ENVIRONMENT_VALUES, TOKENS } from "@/constants/networks";
-import type { BALANCE_TYPE_VALUES, CurvyAddress, CurvyWalletData, PriceData, ScanInfo } from "@/types";
+import type {
+  BALANCE_TYPE_VALUES,
+  CurrencyHoldersOptions,
+  CurvyAddress,
+  CurvyWalletData,
+  PriceData,
+  ScanInfo,
+} from "@/types";
 import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
 import type { CurvyWallet } from "@/wallet";
 
@@ -85,8 +92,16 @@ export interface StorageInterface {
    * @param walletId
    * @param currencyAddress
    * @param networkSlug
+   * @param options - Optional parameters for sorting the results.
+   * @param {CurrencyHoldersOptions['sortByTypeRanking']} [options.sortTypeRanking] - A record defining the ranking of balance types for sorting purposes.
+   * @param {CurrencyHoldersOptions['sortByBalance']} [options.sortByBalance] - The order to sort by balance, either "asc" for ascending or "desc" for descending.
    */
-  getCurrencyHolders(walletId: string, currencyAddress: string, networkSlug: string): Promise<BalanceEntry[]>;
+  getCurrencyHolders(
+    walletId: string,
+    currencyAddress: string,
+    networkSlug: string,
+    options?: CurrencyHoldersOptions,
+  ): Promise<BalanceEntry[]>;
 
   /**
    * Gets all balance entries for a given wallet, grouped by their source.

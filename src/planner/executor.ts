@@ -1,7 +1,6 @@
-import type { CurvyCommandData } from "@/planner/addresses/abstract";
-
 import { commandFactory } from "@/planner/commands/factory";
 import type {
+  CurvyCommandData,
   CurvyPlan,
   CurvyPlanEstimation,
   CurvyPlanExecution,
