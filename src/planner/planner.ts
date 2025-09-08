@@ -2,7 +2,7 @@ import type { CurvyCommandAddress } from "@/planner/addresses/abstract";
 import type { CurvyCommandCSUCAddress } from "@/planner/addresses/csuc";
 import type { CurvyCommandNoteAddress } from "@/planner/addresses/note";
 import type { CurvyCommandSAAddress } from "@/planner/addresses/sa";
-import type { CurvyIntent, CurvyPlan } from "@/planner/plan";
+import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
 
 // Planner balances are already sorted and filtered for Network and Currency
 export type PlannerBalances = {
@@ -58,7 +58,7 @@ const chunk = (array: Array<any>, chunkSize: number) => {
   return chunks;
 };
 
-const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): CurvyPlan => {
+const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): CurvyPlanFlowControl => {
   if (items.length <= MAX_INPUT_NOTES_PER_AGGREGATION) {
     return {
       type: "serial",
@@ -70,7 +70,6 @@ const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): Cu
         {
           type: "command",
           name: "aggregator-aggregate",
-          amount: intendedAmount,
         },
       ],
     };
@@ -125,5 +124,10 @@ export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): Cu
 
   // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
   // into aggregator supported batch sizes
-  return generateAggregationPlan(intent.amount, plansToUpgradeNecessaryAddressesToNotes);
+  const aggregationPlan = generateAggregationPlan(intent.amount, plansToUpgradeNecessaryAddressesToNotes);
+
+  // The last aggregation needs to be exact as intended
+  (aggregationPlan.items![1] as CurvyPlanCommand).amount = intent.amount;
+
+  return aggregationPlan;
 };
