@@ -1,5 +1,9 @@
+import dayjs from "dayjs";
+import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { StringifyBigInts } from "@/types/helper";
+import { NoteBalanceEntry } from "@/types/storage";
 import { poseidonHash } from "@/utils/poseidon-hash";
+import { BALANCE_TYPE, type NoteBalanceEntry } from "./storage";
 
 type Balance = {
   amount: bigint;
@@ -317,6 +321,45 @@ class Note {
       },
     });
     return note;
+  }
+
+  static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress, source }: NoteBalanceEntry): Note {
+    return new Note({
+      balance: { amount: balance, token: BigInt(currencyAddress) },
+      owner,
+      deliveryTag,
+      ownerHash: BigInt(source),
+    });
+  }
+  serializeNoteToBalanceEntry(
+    symbol: string,
+    walletId: string,
+    environment: NETWORK_ENVIRONMENT_VALUES,
+    networkSlug: string,
+  ): NoteBalanceEntry {
+    if (!this.balance || !this.owner || !this.deliveryTag) {
+      throw new Error("Note is not fully initialized");
+    }
+    const {
+      balance: { token, amount },
+      ownerHash,
+      owner,
+      deliveryTag,
+    } = this;
+
+    return {
+      walletId,
+      source: ownerHash.toString(16),
+      type: BALANCE_TYPE.NOTE,
+      networkSlug,
+      environment,
+      currencyAddress: token.toString(16),
+      symbol,
+      balance: BigInt(amount),
+      owner,
+      deliveryTag,
+      lastUpdated: +dayjs(), // TODO: @vanja remove
+    };
   }
 }
 
