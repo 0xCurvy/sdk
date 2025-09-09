@@ -1,6 +1,5 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand } from "@/planner/commands/abstract";
-import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
 import { AggregatorWithdrawToCsucCommand } from "@/planner/commands/aggregator/aggregator-withdraw-to-csuc-command";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 
@@ -32,7 +31,7 @@ export class CurvyCommandFactory implements ICommandFactory {
         if (amount === undefined) {
           throw new Error("Amount is required for aggregator-aggregate command.");
         }
-        return new AggregatorAggregateCommand(this.#sdk, input, amount);
+        throw new Error("TODO: merge Aggregator cmds");
       case "aggregator-withdraw-to-csuc":
         return new AggregatorWithdrawToCsucCommand(input, this.#sdk);
     }

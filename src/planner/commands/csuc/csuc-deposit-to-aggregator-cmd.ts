@@ -2,7 +2,7 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import type { CsucBalanceEntry } from "@/types";
+import { Note, type CsucBalanceEntry } from "@/types";
 
 import { createActionExecutionRequest } from "@/planner/commands/csuc/internal-utils";
 
@@ -23,11 +23,13 @@ export class CSUCDepositToAggregatorCommand extends CSUCAbstractCommand {
     // Amount that can be moved from CSUC to Aggregator
     const amount: bigint = availableBalance - this.totalFee;
 
-    // TODO: resolve owner hash based on this.intent.toAddress
-    this.sdk.walletManager.activeWallet.curvyHandle;
-    // const owner = this.sdk.resolveOwnerFromAddress(this.intent.toAddress);
-    // const ownerHash = this.sdk.generateOwnerHash(owner);
-    const ownerHash = "not-implemented!";
+    // Resolve owner hash based on .curvy.handle
+    const note = await this.sdk.getNewNoteForUser(
+      this.sdk.walletManager.activeWallet.curvyHandle,
+      BigInt(this.input.currencyAddress),
+      amount,
+    );
+    // const { ownerHash } = note;
 
     // Create the action request ...
     const network = this.sdk.getNetworkBySlug(this.input.networkSlug);
@@ -41,18 +43,14 @@ export class CSUCDepositToAggregatorCommand extends CSUCAbstractCommand {
       action: actionRequest,
     });
 
-    // Artifact that leaves a trace for the next command in the sequence
-    const artifact: CurvyCommandAddress = {
-      type: "note",
-      address: ownerHash,
-      currency: this.input.currencyAddress,
-      balance: amount,
-      sign: async (_message: string): Promise<string> => {
-        return "not-implemented!"; // TODO: .sign should be optional?
-      },
-    };
+    // TODO: result check...
 
-    return artifact;
+    return note.serializeNoteToBalanceEntry(
+      this.input.symbol,
+      this.input.walletId,
+      this.input.environment,
+      this.input.networkSlug,
+    );
   }
 
   async estimate(): Promise<CurvyCommandEstimate> {
@@ -66,7 +64,7 @@ export class CSUCDepositToAggregatorCommand extends CSUCAbstractCommand {
     // );
 
     // this.totalFee = await fetchActionExecutionFee(this.actionPayload);
-    this.totalFee = 123n;
+    this.totalFee = 0n;
 
     const estimateResult: CurvyCommandEstimate = {
       gas: 100n,

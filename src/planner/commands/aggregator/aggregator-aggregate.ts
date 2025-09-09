@@ -1,7 +1,7 @@
 import type { AggregationRequestParams, AggregatorRequestStatusValuesType } from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
-import type {CurvyCommandData, CurvyIntent} from "@/planner/plan";
+import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { Note } from "@/types/note";
 
 export class AggregatorAggregateCommand extends CurvyCommand {
@@ -38,11 +38,6 @@ export class AggregatorAggregateCommand extends CurvyCommand {
 
     if (balance > this.#amount) {
       const nekiAmount = this.#intent.amount;
-      if (...)
-      {
-        const ownerHash = this.sdk.getNewNoteForUser(,nekiAmount,inputNotes[0].balance.token);
-        const noviNote = new Note();
-      }
       const outputNote = inputNotes[0].serializeAggregationOutputNote();
       let note = new Note(outputNote);
       if (note.balance === undefined) {
