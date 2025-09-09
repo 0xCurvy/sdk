@@ -6,17 +6,8 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type {
-    NETWORK_FLAVOUR_VALUES,
-    NETWORK_GROUP_VALUES, NETWORKS,
-} from "@/constants/networks";
-import type {
-  CSAInfo,
-  CsucAction,
-  CsucActionPayload,
-  CsucActionStatus,
-  CsucEstimatedActionCost,
-} from "@/types/csuc";
+import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES, NETWORKS } from "@/constants/networks";
+import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 
@@ -135,10 +126,11 @@ type GetNetworksReturnType = Array<Network>;
 type RegisterCurvyHandleRequestBody = {
   handle: string;
   ownerAddress: string;
-  publicKeys: Array<{
+  publicKeys: {
     spendingKey: string;
     viewingKey: string;
-  }>;
+    BabyJubjubKey: string;
+  };
 };
 type RegisterCurvyHandleReturnType =
   | {
@@ -150,10 +142,11 @@ type RegisterCurvyHandleReturnType =
 type ResolveCurvyHandleReturnType = {
   data: {
     createdAt: string;
-    publicKeys: Array<{
+    publicKeys: {
       spendingKey: string;
       viewingKey: string;
-    }>;
+      babyJubjubPublicKey: string | null;
+    };
   } | null;
   error?: string | null;
 };
@@ -164,6 +157,21 @@ type GetCurvyHandleByOwnerAddressResponse = {
   error?: string | null;
 };
 type GetCurvyHandleByOwnerAddressReturnType = string | null;
+
+type SetBabyJubjubPublicKeyRequestBody = {
+  BabyJubjubKey: string;
+};
+
+type SetBabyJubjubPublicKeyReturnType =
+  | {
+      data: {
+        message: string;
+      };
+      error: null;
+    }
+  | {
+      error?: string;
+    };
 
 //#endregion
 
@@ -276,6 +284,8 @@ export type {
   ResolveCurvyHandleReturnType,
   GetCurvyHandleByOwnerAddressResponse,
   GetCurvyHandleByOwnerAddressReturnType,
+  SetBabyJubjubPublicKeyRequestBody,
+  SetBabyJubjubPublicKeyReturnType,
   SubmitNoteOwnershipProofReturnType,
 };
 

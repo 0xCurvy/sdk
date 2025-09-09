@@ -3,7 +3,7 @@ import { type FullNoteData, Note } from "@/types/note";
 
 test("Should serialize and deserialize notes", async () => {
     const owner = {
-        babyJubjubPubKey: {
+        babyJubjubPublicKey: {
             x: 1n,
             y: 2n,
         },
