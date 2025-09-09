@@ -1,9 +1,9 @@
 import dayjs from "dayjs";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { StringifyBigInts } from "@/types/helper";
-import { NoteBalanceEntry } from "@/types/storage";
+import type { NoteBalanceEntry } from "@/types/storage";
 import { poseidonHash } from "@/utils/poseidon-hash";
-import { BALANCE_TYPE, type NoteBalanceEntry } from "./storage";
+import { BALANCE_TYPE } from "./storage";
 
 type Balance = {
   amount: bigint;

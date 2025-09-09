@@ -49,10 +49,9 @@ export class AggregatorWithdrawToCsucCommand extends CurvyCommand {
     );
 
     // TODO: Create utility methods for creating balance entries in commands
-    const destinationCSUCBalanceEntry: CsucBalanceEntry = {
-      type: BALANCE_TYPE["CSUC"],
-      nonce:
-    };
+    // const destinationCSUCBalanceEntry: CsucBalanceEntry = {
+    //   type: BALANCE_TYPE["CSUC"],
+    // };
 
     return Promise.resolve(destinationAddress);
   }
