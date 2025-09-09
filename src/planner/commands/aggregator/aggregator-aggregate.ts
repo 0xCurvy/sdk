@@ -1,18 +1,21 @@
-import type { AggregationRequestParams, AggregatorRequestStatusValuesType } from "@/exports";
+import { type AggregationRequestParams, type AggregatorRequestStatusValuesType, isValidCurvyHandle } from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
-import type {CurvyCommandData, CurvyIntent} from "@/planner/plan";
+import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { Note } from "@/types/note";
 
 export class AggregatorAggregateCommand extends CurvyCommand {
   sdk: ICurvySDK;
   #amount: bigint;
-  #intent: CurvyIntent;
+  #intent: CurvyIntent | undefined;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, amount: bigint, intent: CurvyIntent) {
+  constructor(sdk: ICurvySDK, input: CurvyCommandData, amount: bigint, intent?: CurvyIntent) {
     super(input);
     this.sdk = sdk;
     this.#amount = amount;
+    if (intent && !isValidCurvyHandle(intent.toAddress)) {
+      throw new Error("Intent is not valid, toAddress must be a valid curvy handle");
+    }
     this.#intent = intent;
   }
 
@@ -24,6 +27,8 @@ export class AggregatorAggregateCommand extends CurvyCommand {
     //   ako je suma veca, onda ces umesto dummy nota da pravis change note kao output koji tebi vraca pare
     //   ako je suma jednaka, onda ces praviti drugi output note kao dummy note
 
+    const curvyHandle = this.sdk.walletManager.activeWallet.curvyHandle;
+
     const addresses = Array.isArray(this.input) ? this.input : [this.input];
 
     const noteAddresses = addresses.filter((addr) => addr.type === "note");
@@ -32,37 +37,76 @@ export class AggregatorAggregateCommand extends CurvyCommand {
     const outputNotes: Note[] = [];
     const balance = inputNotes.reduce((acc, note) => acc + BigInt(note.balance!.amount), 0n);
 
+    if (this.#intent?.amount) {
+      throw new Error("Amount is need to be > 0");
+    }
     const change = balance - this.#amount;
     const fee = balance / 1000n; // 0.1% = 1/1000
     //generateOutputNote () i vrati dole
 
+    // 10
+    // 10 = 4 + 6
+
+    // agg -> seb [10] -> 10
+    // agg -> tebi [10] -> 10
+
+    // agg -> seb [4,6] -> 6
+    // agg -> tebi [6] & seb [4]
+
+    let outputNote: Note;
     if (balance > this.#amount) {
-      const nekiAmount = this.#intent.amount;
-      if (...)
-      {
-        const ownerHash = this.sdk.getNewNoteForUser(,nekiAmount,inputNotes[0].balance.token);
-        const noviNote = new Note();
-      }
-      const outputNote = inputNotes[0].serializeAggregationOutputNote();
-      let note = new Note(outputNote);
-      if (note.balance === undefined) {
-        throw new Error("Invalid note");
-      }
-      note.balance.amount = this.#amount;
-      outputNotes.push(note);
+      if (this.#intent) {
+        //TODO: When can token be undefined?
+        if (!inputNotes[0].balance?.token) {
+          throw new Error("Invalid token");
+        }
+        outputNote = await this.sdk.getNewNoteForUser(
+          this.#intent.toAddress,
+          this.#intent.amount,
+          //TODO: How this is change with multi asset note?
+          inputNotes[0].balance.token,
+        );
+        outputNotes.push(outputNote);
 
-      note = new Note(outputNote);
-      if (note.balance === undefined) {
-        throw new Error("Invalid note");
-      }
-      note.balance.amount = change - fee;
-      outputNotes.push(note);
+        //TODO: Keep intent, drop amount, if intent.toAddress is EOA then just treat intent.amount as we right now do amount
+        const changeFromIntent = balance - this.#intent.amount;
 
-      //generateOutputNote (4,6-0.1% od sume svih noteva koji ulaze u agg) i vrati mi ga dole posle
-    } else if (balance === this.#amount) {
-      const outputNote = inputNotes[0].serializeAggregationOutputNote();
-      outputNote.amount = balance - fee;
-      outputNotes.push(Note.deserializeAggregationOutputNote(outputNote));
+        const outputAggregateNote = await this.sdk.getNewNoteForUser(
+          curvyHandle,
+          inputNotes[0].balance.token,
+          changeFromIntent - fee,
+        );
+        outputNotes.push(outputAggregateNote);
+      } else {
+        if (!inputNotes[0].balance?.token) {
+          throw new Error("Invalid token");
+        }
+
+        const outputSplitedNote = await this.sdk.getNewNoteForUser(
+          curvyHandle,
+          inputNotes[0].balance.token,
+          balance - this.#amount,
+        );
+        const outputAggregateNote = await this.sdk.getNewNoteForUser(
+          curvyHandle,
+          inputNotes[0].balance.token,
+          change - fee,
+        );
+
+        outputNotes.push(outputSplitedNote);
+        outputNotes.push(outputAggregateNote);
+      }
+    }
+
+    //generateOutputNote (4,6-0.1% od sume svih noteva koji ulaze u agg) i vrati mi ga dole posle
+    else if (balance === this.#amount) {
+      if (!inputNotes[0].balance?.token) {
+        throw new Error("Invalid token");
+      }
+
+      const outputNote = await this.sdk.getNewNoteForUser(curvyHandle, inputNotes[0].balance.token, balance - fee);
+
+      outputNotes.push(outputNote);
 
       const dummy = new Note({
         owner: {

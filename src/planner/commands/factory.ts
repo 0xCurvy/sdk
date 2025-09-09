@@ -29,10 +29,10 @@ export class CurvyCommandFactory implements ICommandFactory {
 
         throw new Error("Command not implemented.");
       case "aggregator-aggregate":
-        if (amount === undefined) {
+        if (amount === undefined || intent === undefined) {
           throw new Error("Amount is required for aggregator-aggregate command.");
         }
-        return new AggregatorAggregateCommand(this.#sdk, input, amount);
+        return new AggregatorAggregateCommand(this.#sdk, input, amount, intent);
       case "aggregator-withdraw-to-csuc":
         return new AggregatorWithdrawToCsucCommand(input, this.#sdk);
     }
