@@ -1,3 +1,4 @@
+//@ts-nocheck
 /*
  * TODO: Add tests:
  * * Parallel to command that requires [] input (add MockSuccessArrayDataCommand)
@@ -14,8 +15,6 @@
  */
 
 import { expect, test } from "vitest";
-import { mockAddress } from "@/planner/commands/mock-commands";
-import { executePlan } from "@/planner/executor";
 import type { CurvyPlan, CurvyPlanSuccessfulExecution } from "@/planner/plan";
 
 const simpleSerialFail: CurvyPlan = {

@@ -1,15 +1,36 @@
+import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand } from "@/planner/commands/abstract";
-import { MockFailCommand, MockSuccessCommand } from "@/planner/commands/mock-commands";
+import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate-command";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 
-// TODO: Napravi interfefjs ili definiciju tipa za commandFactory i u testovima samo injectuj drugi CommandFactoryt u executor
-export function commandFactory(commandName: string, input: CurvyCommandData, intent?: CurvyIntent): CurvyCommand {
-  switch (commandName) {
-    case "mock-success":
-      return new MockSuccessCommand(input);
-    case "mock-fail":
-      return new MockFailCommand(input);
+export interface ICommandFactory {
+  createCommand(name: string, input: CurvyCommandData, amount?: bigint, _intent?: CurvyIntent): CurvyCommand;
+}
+
+export class CurvyCommandFactory implements ICommandFactory {
+  // TODO: Don't pass entire SDK, but pass only things that are needed
+  #sdk: ICurvySDK;
+
+  constructor(sdk: ICurvySDK) {
+    this.#sdk = sdk;
   }
 
-  throw new Error(`Command ${commandName} not found`);
+  createCommand(name: string, input: CurvyCommandData, amount?: bigint, _intent?: CurvyIntent): CurvyCommand {
+    switch (name) {
+      case "csuc-deposit-to-aggregator":
+        throw new Error("Command not implemented.");
+      case "csuc-withdraw":
+        throw new Error("Command not implemented.");
+      case "aggregator-aggregate":
+        if (!amount) {
+          throw new Error("Amount is required for aggregator-aggregate command");
+        }
+
+        return new AggregatorAggregateCommand(this.#sdk, input, amount);
+      case "aggregator-withdraw-to-csuc":
+        throw new Error("Command not implemented.");
+    }
+
+    throw new Error(`Unknown command name: ${name}`);
+  }
 }

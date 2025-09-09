@@ -30,6 +30,8 @@ import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
+import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
+import { CommandExecutor } from "@/planner/executor";
 import { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
@@ -95,10 +97,18 @@ class CurvySDK implements ICurvySDK {
   #rpcClient: MultiRpc | undefined;
   #state: SdkState;
 
+  #commandExecutor: CommandExecutor;
+
   readonly apiClient: IApiClient;
   readonly storage: StorageInterface;
 
-  private constructor(apiKey: string, core: Core, apiBaseUrl?: string, storage: StorageInterface = new MapStorage()) {
+  private constructor(
+    apiKey: string,
+    core: Core,
+    apiBaseUrl?: string,
+    storage: StorageInterface = new MapStorage(),
+    commandFactory: ICommandFactory = new CurvyCommandFactory(this),
+  ) {
     this.#core = core;
     this.apiClient = new ApiClient(apiKey, apiBaseUrl);
     this.#emitter = new CurvyEventEmitter();
@@ -108,6 +118,7 @@ class CurvySDK implements ICurvySDK {
       environment: "mainnet",
       activeNetworks: [],
     };
+    this.#commandExecutor = new CommandExecutor(commandFactory);
   }
 
   get walletManager(): IWalletManager {
@@ -151,6 +162,11 @@ class CurvySDK implements ICurvySDK {
     );
 
     return sdk;
+  }
+
+  // TODO: Think about calling it just executor
+  get commandExecutor() {
+    return this.#commandExecutor;
   }
 
   async #priceUpdate(_networks?: Array<Network>) {
@@ -691,12 +707,15 @@ class CurvySDK implements ICurvySDK {
     }
 
     const msgHash = generateOutputsHash(inputNotes);
-    const signature = this.#core.signWithBabyJubjubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
+    const signature = this.#core.signWithBabyJubjubPrivateKey(
+      poseidonHash([msgHash, BigInt(destinationAddress), 0n]),
+      s,
+    );
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
-    
+
     return { inputNotes, signatures, destinationAddress };
   }
 
