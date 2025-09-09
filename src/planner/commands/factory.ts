@@ -1,6 +1,7 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand } from "@/planner/commands/abstract";
-import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate-command";
+import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
+import { AggregatorWithdrawToCsucCommand } from "@/planner/commands/aggregator/aggregator-withdraw-to-csuc-command";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 
 export interface ICommandFactory {
@@ -31,10 +32,9 @@ export class CurvyCommandFactory implements ICommandFactory {
         if (amount === undefined) {
           throw new Error("Amount is required for aggregator-aggregate command.");
         }
-
         return new AggregatorAggregateCommand(this.#sdk, input, amount);
       case "aggregator-withdraw-to-csuc":
-        throw new Error("Command not implemented.");
+        return new AggregatorWithdrawToCsucCommand(input, this.#sdk);
     }
 
     throw new Error(`Unknown command name: ${name}`);
