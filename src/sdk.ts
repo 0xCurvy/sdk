@@ -121,6 +121,10 @@ class CurvySDK implements ICurvySDK {
     this.#commandExecutor = new CommandExecutor(commandFactory);
   }
 
+  get getApiClient(): IApiClient {
+    return this.apiClient;
+  }
+
   get walletManager(): IWalletManager {
     if (!this.#walletManager) {
       throw new Error("Wallet manager is not initialized!");

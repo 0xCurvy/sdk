@@ -1,6 +1,8 @@
-import { Currency } from "@/types";
+import type { Currency } from "@/types";
 
 export abstract class CurvyCommandAddress {
+  abstract get network(): string;
+
   abstract get type(): string;
 
   abstract get balance(): bigint;

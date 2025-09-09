@@ -1,5 +1,6 @@
 import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
+import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
 import type { CurvyAddress } from "@/types/address";
 import type { AggregationRequest, AggregationRequestParams, DepositRequest, WithdrawRequest } from "@/types/aggregator";
@@ -30,11 +31,13 @@ import type { NetworkFilter } from "@/utils/network";
 
 interface ICurvySDK {
   // Getters
-  get getApiClient(): IApiClient;
   get rpcClient(): MultiRpc;
   get activeNetworks(): Network[];
   get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
+  get getApiClient(): IApiClient;
+  get walletManager(): IWalletManager;
 
+  createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest;
   getStealthAddressById(id: string): Promise<CurvyAddress>;
   getNetwork(networkFilter?: NetworkFilter): Network;
   getNetworks(networkFilter?: NetworkFilter): Network[];
