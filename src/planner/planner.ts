@@ -141,6 +141,7 @@ export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): Cu
       {
         type: "command",
         name: "csuc-withdraw-to-eoa",
+        intent,
       },
     );
   } else {
