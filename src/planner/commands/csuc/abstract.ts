@@ -1,15 +1,15 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
-import { CsucActionSet } from "@/types/csuc";
-import type { CurvyAddressLike, CurvyIntent } from "@/planner/plan";
-import { CurvyCommand, CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { CurvyCommandData } from "@/planner/addresses/abstract";
-import { CurvyCommandCSUCAddress } from "@/planner/addresses/csuc";
-import { CsucActionPayload } from "@/types";
+import type { CsucActionSet } from "@/types/csuc";
+import type { CurvyIntent } from "@/planner/plan";
+import type { CsucBalanceEntry } from "@/types";
+import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
+import type { CurvyCommandData } from "@/planner/addresses/abstract";
+import type { CurvyCommandCSUCAddress } from "@/planner/addresses/csuc";
+import type { CsucActionPayload } from "@/types";
 
 // This command automatically sends all available balance from CSUC to Aggregator
 export abstract class CSUCAbstractCommand extends CurvyCommand {
   protected sdk!: ICurvySDK;
-  protected intent!: CurvyIntent;
 
   // Action to be estimated / executed
   protected action!: CsucActionSet;
@@ -17,7 +17,7 @@ export abstract class CSUCAbstractCommand extends CurvyCommand {
   // CSUC address that will sign / auth. the action to be executed
   protected from!: CurvyCommandCSUCAddress;
   // Destination to which funds will be sent
-  protected to!: CurvyAddressLike;
+  protected to!: CsucBalanceEntry;
 
   // Payload that will be used for estimation / execution of the action
   protected actionPayload!: CsucActionPayload;
@@ -25,12 +25,10 @@ export abstract class CSUCAbstractCommand extends CurvyCommand {
   // The inside CSUC total fee (in the currency being moved) that will be taken by Curvy
   protected totalFee!: bigint;
 
-  constructor(sdk: ICurvySDK, intent: CurvyIntent, input: CurvyCommandData, to: CurvyAddressLike) {
+  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent?: CurvyIntent) {
     super(input);
-    this.intent = intent;
     this.from = input as CurvyCommandCSUCAddress;
     this.sdk = sdk;
-    this.to = to;
     this.totalFee = 0n;
   }
 

@@ -11,8 +11,8 @@ import { CSUCAbstractCommand } from "@/planner/commands/csuc/abstract";
 
 // This command automatically sends all available balance from CSUC to Aggregator
 export class CSUCDepositToAggregatorCommand extends CSUCAbstractCommand {
-  constructor(sdk: ICurvySDK, intent: CurvyIntent, input: CurvyCommandData) {
-    super(sdk, intent, input, intent.aggregatorAddress);
+  constructor(sdk: ICurvySDK, input: CurvyCommandData) {
+    super(sdk, input);
     this.action = CsucActionSet.DEPOSIT_TO_AGGREGATOR;
   }
 
