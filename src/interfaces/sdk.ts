@@ -1,7 +1,15 @@
 import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
+import type { IApiClient } from "@/interfaces/api";
+import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
 import type { CurvyAddress } from "@/types/address";
-import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
+import type {
+  AggregationRequest,
+  AggregationRequestParams,
+  DepositRequest,
+  WithdrawRequest,
+  WithdrawRequestParams,
+} from "@/types/aggregator";
 import type {
   Currency,
   GetAggregatorRequestStatusReturnType,
@@ -32,7 +40,10 @@ interface ICurvySDK {
   get rpcClient(): MultiRpc;
   get activeNetworks(): Network[];
   get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
+  get apiClient(): IApiClient;
+  get walletManager(): IWalletManager;
 
+  createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest;
   getStealthAddressById(id: string): Promise<CurvyAddress>;
   getNetwork(networkFilter?: NetworkFilter): Network;
   getNetworks(networkFilter?: NetworkFilter): Network[];
@@ -103,6 +114,7 @@ interface ICurvySDK {
   offBalanceRefreshProgress(listener: (event: BalanceRefreshProgressEvent) => void): void;
   onBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void): void;
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void): void;
+  createAggregationPayload(params: AggregationRequestParams): AggregationRequest;
   pollForCriteria<T>(
     pollFunction: () => Promise<T>,
     pollCriteria: (res: T) => boolean,

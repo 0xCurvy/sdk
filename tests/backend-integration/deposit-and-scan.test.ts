@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
-import { AggregatorRequestStatus } from "@/constants/aggregator";
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api.js";
+import { AggregatorRequestStatus } from "@/constants/aggregator";
 import { Note } from "@/types/note";
 
 const BEARER_TOKEN =
@@ -110,20 +110,17 @@ test("should generate note, deposit and scan", async () => {
 
   expect(authenticatedNotes.notes.length).toBe(NUM_NOTES);
 
-  const notes = authenticatedNotes.notes.map(
-    (note) =>
-      new Note({
-        ownerHash: BigInt(note.ownerHash),
-        balance: {
-          amount: BigInt(note.amount),
-          token: BigInt(note.token),
-        },
-        deliveryTag: {
-          ephemeralKey: BigInt(note.ephemeralKey),
-          viewTag: BigInt(note.viewTag),
-        },
-      }),
-  );
+  const notes = authenticatedNotes.notes.map((note) => new Note({
+    ownerHash: BigInt(note.ownerHash),
+    balance: {
+      amount: BigInt(note.amount),
+      token: BigInt(note.token),
+    },
+    deliveryTag: {
+      ephemeralKey: BigInt(note.ephemeralKey),
+      viewTag: BigInt(note.viewTag),
+    },
+  }));
 
   const unpackedNotes = core.unpackAuthenticatedNotes(
     keyPairs.s,
