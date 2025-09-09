@@ -6,6 +6,8 @@ import {
   type NoteBalanceEntry,
   type SaBalanceEntry,
 } from "@/types";
+import { isValidCurvyHandle } from "@/types/curvy";
+import { isHexString } from "@/types/helper";
 
 // Planner balances are already sorted and filtered for Network and Currency
 export type PlannerBalances = {
@@ -116,14 +118,34 @@ export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): Cu
   // FUTURE TODO: Skip unnecessary aggregation (if exact amount)
   // FUTURE TODO: Check if we have exact amount on CSUC/SA, and  skip the aggregator altogether
 
-  // TODO: Add exit withdrawal flow to end
-
   // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
   // into aggregator supported batch sizes
   const aggregationPlan = generateAggregationPlan(intent.amount, plansToUpgradeNecessaryAddressesToNotes);
 
   // The last aggregation needs to be exact as intended
   (aggregationPlan.items![1] as CurvyPlanCommand).amount = intent.amount;
+
+  if (isValidCurvyHandle(intent.toAddress)) {
+    // If the intent is to send to the CurvyHandle, then we want to pass the intent to the aggregator-aggregate command as well
+    // because the intent will tell that command not to resolve my own CurvyHandle as the recipient,
+    // but to send to the end recipient on the aggregator level.
+    (aggregationPlan.items![1] as CurvyPlanCommand).intent = intent;
+  } else if (isHexString(intent.toAddress)) {
+    // If we are sending to EOA, push two more commands
+    // to move from Aggregator => CSUC => EOA
+    aggregationPlan.items.push(
+      {
+        type: "command",
+        name: "aggregator-withdraw-to-csuc",
+      },
+      {
+        type: "command",
+        name: "csuc-withdraw-to-eoa",
+      },
+    );
+  } else {
+    throw new Error("Intent toAddress must be a CurvyHandle or a HexString");
+  }
 
   return aggregationPlan;
 };

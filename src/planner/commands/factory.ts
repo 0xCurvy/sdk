@@ -19,7 +19,7 @@ export class CurvyCommandFactory implements ICommandFactory {
     switch (name) {
       case "csuc-deposit-to-aggregator":
         throw new Error("Command not implemented.");
-      case "csuc-withdraw":
+      case "csuc-withdraw-to-eoa":
         throw new Error("Command not implemented.");
       case "aggregator-aggregate":
         if (!amount) {
