@@ -1,3 +1,5 @@
+import type { Groth16Proof } from "snarkjs";
+import type { PublicSignals } from "snarkjs/index";
 import type { HexString } from "@/types/helper";
 
 type PublicKey = {
@@ -6,22 +8,30 @@ type PublicKey = {
   babyJubJubPublicKey: string;
 };
 
+type Signature = {
+  S: bigint;
+  R8: bigint[];
+};
+
 type CoreLegacyKeyPairs = {
   k: string;
   v: string;
   K: string;
   V: string;
+  bJJPublicKey: string;
 };
 
 type CurvyPrivateKeys = {
   s: string;
   v: string;
 };
+
 type CurvyPublicKeys = {
   S: string;
   V: string;
   babyJubJubPublicKey: string;
 };
+
 type CurvyKeyPairs = CurvyPrivateKeys & CurvyPublicKeys;
 
 type CoreSendReturnType = {
@@ -37,6 +47,7 @@ type CoreScanArgs = {
   Rs: Array<string>;
   viewTags: Array<string>;
 };
+
 type CoreScanReturnType = {
   spendingPubKeys: Array<string>;
   spendingPrivKeys: Array<HexString>;
@@ -48,12 +59,30 @@ type CoreViewerScanArgs = {
   Rs: Array<string>;
   viewTags: Array<string>;
 };
+
 type CoreViewerScanReturnType = {
   spendingPubKeys: Array<string>;
 };
 
+type PublicNote = {
+  ownerHash: string;
+  viewTag: string;
+  ephemeralKey: string;
+};
+
+type NoteOwnershipData = {
+  ownerHash: string;
+  sharedSecret: bigint;
+};
+
+type NoteOwnershipProof = {
+  proof: Groth16Proof;
+  publicSignals: PublicSignals;
+};
+
 export type {
   PublicKey,
+  Signature,
   CurvyKeyPairs,
   CurvyPublicKeys,
   CoreLegacyKeyPairs,
@@ -63,4 +92,7 @@ export type {
   CoreScanReturnType,
   CoreViewerScanArgs,
   CoreViewerScanReturnType,
+  PublicNote,
+  NoteOwnershipData,
+  NoteOwnershipProof,
 };

@@ -1,5 +1,6 @@
 import type { TOKENS } from "@/constants/networks";
 import type { Network } from "@/types/api";
+import type { CurrencyMetadata } from "@/types/storage";
 import { toSlug } from "@/utils/helpers";
 
 // Network filter can be:
@@ -23,20 +24,18 @@ export function filterNetworks(networks: Network[], networkFilter: NetworkFilter
     return networks;
   }
 
-  const isNumber = (item: string | number) => typeof item === "number" || !Number.isNaN(Number(item));
+  const isNumber = (item: string | number): item is number => typeof item === "number" || !Number.isNaN(Number(item));
 
   return networks.filter((network) => {
     // Is NetworkFilter an array?
     if (Array.isArray(networkFilter)) {
       // Is NetworkFilter a number array?
       if (networkFilter.every((item) => isNumber(item))) {
-        return networkFilter.map((n) => Number(n)).includes(network.id);
+        return networkFilter.includes(network.id);
       }
-
       // NetworkFilter must be a string array
-      if (networkFilter.every((item) => typeof item === "string")) {
-        return (networkFilter as string[]).map((n) => toSlug(n)).includes(toSlug(network.name));
-      }
+      else return networkFilter.map((n) => toSlug(n)).includes(toSlug(network.name));
+
       // NetworkFilter is a testnet boolean
     } else if (typeof networkFilter === "boolean") {
       return network.testnet === networkFilter;
@@ -48,20 +47,42 @@ export function filterNetworks(networks: Network[], networkFilter: NetworkFilter
       return Number(networkFilter) === network.id;
       // NetworkFilter is a regular string
     } else {
-      return toSlug(networkFilter as string) === toSlug(network.name);
+      return toSlug(networkFilter) === toSlug(network.name);
     }
   });
 }
 
 const networksToPriceData = (networks: Network[]) => {
-  return networks.reduce<Map<TOKENS, string>>((res, network) => {
-    for (const { price, symbol } of network.currencies) {
+  return networks.reduce((res, network) => {
+    for (const { price, symbol, decimals } of network.currencies) {
+      if (!price) continue;
       if (res.has(symbol)) continue;
 
-      res.set(symbol, price);
+      res.set(symbol, { price, decimals });
     }
     return res;
-  }, new Map<TOKENS, string>());
+  }, new Map<TOKENS, { price: string; decimals: number }>());
 };
 
-export { networksToPriceData };
+const networksToCurrencyMetadata = (networks: Network[]) => {
+  return networks.reduce((res, network) => {
+    for (const { decimals, iconUrl, name, nativeCurrency, symbol, contractAddress: address } of network.currencies) {
+      const currencyMetadataKey = `${address}-${toSlug(network.name)}`;
+      if (res.has(currencyMetadataKey)) continue;
+
+      res.set(currencyMetadataKey, {
+        decimals,
+        iconUrl,
+        name,
+        symbol,
+        address,
+        native: nativeCurrency,
+        networkSlug: toSlug(network.name),
+        environment: network.testnet ? "testnet" : "mainnet",
+      });
+    }
+    return res;
+  }, new Map<string, CurrencyMetadata>());
+};
+
+export { networksToPriceData, networksToCurrencyMetadata };

@@ -17,5 +17,15 @@ const isStarkentSignature = (value: unknown): value is StarknetSignature => {
   return isStringArray(value);
 };
 
-export type { ExtractKeys, ExtractValues, HexString, Prettify };
+type StringifyBigInts<T> = Prettify<
+  T extends bigint
+    ? string
+    : T extends (infer U)[]
+      ? StringifyBigInts<U>[]
+      : T extends object
+        ? { [K in keyof T]: StringifyBigInts<T[K]> }
+        : T
+>;
+
+export type { ExtractKeys, ExtractValues, HexString, Prettify, StringifyBigInts };
 export { isHexString, isStringArray, isStarkentSignature };

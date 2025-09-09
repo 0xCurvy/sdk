@@ -1,15 +1,17 @@
+import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
+import type { SubmitNoteOwnershipProofReturnType } from "@/types";
+import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  AggregationRequest,
   CreateActionRequest,
   CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetAggregatorRequestStatusReturnType,
+  GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsResponse,
   GetCSAInfoRequest,
@@ -28,9 +30,9 @@ import type {
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
-  WithdrawPayload,
 } from "@/types/api";
 import type { CurvyHandle } from "@/types/curvy";
+import type { CsucActionStatus } from "@/types/csuc";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
@@ -158,7 +160,14 @@ class ApiClient extends HttpClient implements IApiClient {
   };
 
   aggregator = {
-    SubmitDeposit: async (data: DepositPayload) => {
+    GetAllNotes: async () => {
+      return await this.request<GetAllNotesReturnType>({
+        method: "GET",
+        path: "/aggregator/get-all-notes",
+      });
+    },
+
+    SubmitDeposit: async (data: DepositRequest) => {
       return await this.request<SubmitDepositReturnType>({
         method: "POST",
         path: "/aggregator/deposit",
@@ -166,7 +175,7 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    SubmitWithdraw: async (data: WithdrawPayload) => {
+    SubmitWithdraw: async (data: WithdrawRequest) => {
       return await this.request<SubmitWithdrawReturnType>({
         method: "POST",
         path: "/aggregator/withdraw",
@@ -174,10 +183,18 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    SubmitAggregation: async (data: { aggregations: AggregationRequest[] }) => {
+    SubmitAggregation: async (data: AggregationRequest) => {
       return await this.request<SubmitAggregationReturnType>({
         method: "POST",
         path: "/aggregator/aggregation",
+        body: data,
+      });
+    },
+
+    SubmitNotesOwnerhipProof: async (data: { proof: Groth16Proof; ownerHashes: string[] }) => {
+      return await this.request<SubmitNoteOwnershipProofReturnType>({
+        method: "POST",
+        path: "/aggregator/verify-note-ownership-proof",
         body: data,
       });
     },
@@ -215,6 +232,13 @@ class ApiClient extends HttpClient implements IApiClient {
         body: {
           ...req,
         },
+      });
+    },
+    GetActionStatus: async (body: { actionIds: string[] }) => {
+      return await this.request<{ data: CsucActionStatus[]; error: null }>({
+        method: "POST",
+        path: "/csuc/action-status",
+        body,
       });
     },
   };

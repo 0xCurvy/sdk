@@ -28,21 +28,18 @@ export * from "../constants/networks";
 export * from "../contracts/evm/curvy-artifacts/ethereum-sepolia/CSUC";
 export * from "../errors";
 export * from "../interfaces";
+export * from "../rpc";
 export { CurvySDK } from "../sdk";
-export * from "../types/address";
-export * from "../types/aggregator";
-export * from "../types/api";
-export * from "../types/core";
-export * from "../types/csuc";
-export * from "../types/curvy";
-export * from "../types/events";
-export * from "../types/gas-sponsorship";
-export * from "../types/rpc";
-export * from "../types/signature";
-export * from "../types/wallet";
-export * from "../utils/common";
-export * from "../utils/csuc";
-export * from "../utils/currency";
-export * from "../utils/encryption";
+export * from "../types";
+export {
+  BalanceEntry,
+  CurrencyMetadata,
+  isCsucBalanceEntry,
+  isNoteBalanceEntry,
+  isSaBalanceEntry,
+  TotalBalance,
+} from "../types/storage";
+export * from "../utils";
 export { filterNetworks, type NetworkFilter } from "../utils/network";
+export * from "../utils/poseidon-hash";
 export type { CurvyWallet } from "../wallet";

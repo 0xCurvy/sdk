@@ -1,59 +1,266 @@
+import dayjs from "dayjs";
+import { ec, validateAndParseAddress } from "starknet";
+import { parseSignature, verifyTypedData } from "viem";
 import { AddressScanner } from "@/address-scanner";
+import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
+import { CURVY_HANDLE_REGEX } from "@/constants/regex";
 import type { CurvyEventEmitter } from "@/events";
 import type { IAddressScanner } from "@/interfaces/address-scanner";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
+import type { StarknetRpc } from "@/rpc";
+import type { MultiRpc } from "@/rpc/multi";
+import {
+  assertCurvyHandle,
+  assertIsStarkentSignatureData,
+  type CurvyAddress,
+  type CurvyHandle,
+  type EvmSignatureData,
+  type EvmSignTypedDataParameters,
+  isHexString,
+  isStarkentSignature,
+  type StarknetSignatureData,
+} from "@/types";
+import { computePrivateKeys } from "@/utils/address";
 import { signMessage } from "@/utils/encryption";
-import type { CurvyWallet } from "@/wallet";
+import { generateWalletId } from "@/utils/helpers";
+import { CurvyWallet } from "@/wallet";
 
 const JWT_REFRESH_INTERVAL = 14 * (60 * 10 ** 3);
 const SCAN_REFRESH_INTERVAL = 60 * 10 ** 3;
 
 class WalletManager implements IWalletManager {
-  readonly #wallets: Map<string, CurvyWallet>;
   readonly #apiClient: IApiClient;
-  readonly #addressScanner: IAddressScanner;
+  readonly #rpcClient: MultiRpc;
   readonly #storage: StorageInterface;
+  readonly #core: ICore;
+  readonly #wallets: Map<string, CurvyWallet>;
+  readonly #addressScanner: IAddressScanner;
 
   #scanInterval: NodeJS.Timeout | null;
-  #activeWallet: CurvyWallet | null;
+  #activeWallet: Readonly<CurvyWallet> | null;
 
-  constructor(client: IApiClient, emitter: CurvyEventEmitter, storage: StorageInterface, core: ICore) {
+  constructor(
+    client: IApiClient,
+    rpcClient: MultiRpc,
+    emitter: CurvyEventEmitter,
+    storage: StorageInterface,
+    core: ICore,
+  ) {
     this.#apiClient = client;
+    this.#rpcClient = rpcClient;
     this.#wallets = new Map<string, CurvyWallet>();
     this.#storage = storage;
+    this.#core = core;
     this.#addressScanner = new AddressScanner(storage, core, client, emitter);
 
     this.#scanInterval = null;
     this.#activeWallet = null;
   }
 
-  get wallets() {
-    return Array.from(this.#wallets.values());
-  }
-
   get activeWallet() {
     if (!this.#activeWallet) {
       throw new Error("No active wallet set.");
     }
-    return this.#activeWallet;
+    return Object.freeze(this.#activeWallet);
+  }
+
+  get wallets() {
+    return Array.from(this.#wallets.values());
+  }
+
+  async #verifySignature(
+    flavour: NETWORK_FLAVOUR_VALUES,
+    signature: EvmSignatureData | StarknetSignatureData,
+  ): Promise<[r: string, s: string]> {
+    const { signatureParams, signingAddress, signatureResult } = signature;
+
+    switch (true) {
+      case NETWORK_FLAVOUR.EVM && isHexString(signatureResult): {
+        const signature = parseSignature(signatureResult);
+
+        const isValidSignature = verifyTypedData({
+          signature,
+          address: signingAddress,
+          ...(signatureParams as EvmSignTypedDataParameters),
+        });
+
+        if (!isValidSignature) {
+          throw new Error("Signature verification failed. Invalid signature.");
+        }
+
+        return [signature.r, signature.s];
+      }
+      case NETWORK_FLAVOUR.STARKNET && isStarkentSignature(signatureResult): {
+        assertIsStarkentSignatureData(signature);
+
+        const { signingWalletId, msgHash } = signature;
+
+        if (!signatureResult[0] || !signatureResult[1]) throw new Error("Signature failed - too few values.");
+
+        let r = "-1";
+        let s = "-1";
+        switch (signingWalletId) {
+          case "argentX": {
+            if (signatureResult.length === 2) {
+              [r, s] = signatureResult as [string, string];
+            }
+
+            if (signatureResult.length === 5) {
+              [r, s] = signatureResult.slice(3) as [string, string];
+            }
+            break;
+          }
+          case "braavos": {
+            if (signatureResult.length !== 3) {
+              throw new Error("Only braavos single signer account is supported.");
+            }
+
+            [r, s] = signatureResult.slice(1) as [string, string];
+            break;
+          }
+          default: {
+            throw new Error(`Unrecognized wallet type: ${signingWalletId}. Only argentX and braavos are supported.`);
+          }
+        }
+
+        if (r === "-1" || s === "-1") {
+          throw new Error("Signature verification failed - r or s is not defined.");
+        }
+
+        const signingPublicKey = await (
+          this.#rpcClient?.Network("Starknet") as StarknetRpc
+        ).getAccountPubKeyForSignatureVerification(signingWalletId, signingAddress);
+
+        const _msgHash = msgHash.replace("0x", "");
+        const paddedMsgHash = _msgHash.length % 2 === 0 ? _msgHash : `0${_msgHash}`;
+
+        let signatureIsValid = false;
+        for (let recoverBit = 0; recoverBit < 4; recoverBit++) {
+          try {
+            const signature = new ec.starkCurve.Signature(BigInt(r), BigInt(s)).addRecoveryBit(recoverBit);
+            const publicKeyCompressed = signature.recoverPublicKey(paddedMsgHash).toHex(true);
+            signatureIsValid = publicKeyCompressed.indexOf(signingPublicKey) !== -1;
+
+            if (signatureIsValid) {
+              break;
+            }
+          } catch (e) {
+            console.log("Error recovering public key", e, "recoverBit", recoverBit);
+          }
+        }
+
+        if (!signatureIsValid) {
+          throw new Error("Signature verification failed.");
+        }
+
+        return [r, s];
+      }
+      default: {
+        throw new Error(`Unrecognized network flavour: ${flavour}`);
+      }
+    }
+  }
+
+  async addWalletWithSignature(flavour: NETWORK_FLAVOUR_VALUES, signature: EvmSignatureData | StarknetSignatureData) {
+    const [r_string, s_string] = await this.#verifySignature(flavour, signature);
+    const { s, v } = computePrivateKeys(r_string, s_string);
+
+    const keyPairs = this.#core.getCurvyKeys(s, v);
+
+    const ownerAddress =
+      flavour === NETWORK_FLAVOUR.STARKNET
+        ? validateAndParseAddress(signature.signingAddress)
+        : signature.signingAddress;
+
+    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(ownerAddress);
+    if (!curvyHandle) {
+      throw new Error(`No Curvy handle found for owner address: ${ownerAddress}`);
+    }
+
+    assertCurvyHandle(curvyHandle);
+
+    const { data: ownerDetails } = await this.#apiClient.user.ResolveCurvyHandle(curvyHandle);
+    if (!ownerDetails) throw new Error(`Handle ${curvyHandle} does not exist.`);
+
+    const { createdAt, publicKeys } = ownerDetails;
+
+    if (!publicKeys.some(({ viewingKey: V, spendingKey: S }) => V === keyPairs.V && S === keyPairs.S))
+      throw new Error(`Wrong password for handle ${curvyHandle}.`);
+
+    const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
+    const wallet = new CurvyWallet(walletId, +dayjs(createdAt), curvyHandle, signature.signingAddress, keyPairs);
+    await this.addWallet(wallet);
+
+    return wallet;
+  }
+
+  async registerWalletWithSignature(
+    handle: CurvyHandle,
+    flavour: NETWORK_FLAVOUR_VALUES,
+    signature: EvmSignatureData | StarknetSignatureData,
+  ) {
+    const ownerAddress =
+      flavour === NETWORK_FLAVOUR.STARKNET
+        ? validateAndParseAddress(signature.signingAddress)
+        : signature.signingAddress;
+
+    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(ownerAddress);
+    if (curvyHandle) {
+      throw new Error(`Handle ${curvyHandle} already registered, for owner address: ${ownerAddress}`);
+    }
+
+    if (!CURVY_HANDLE_REGEX.test(handle))
+      throw new Error(
+        `Invalid handle format: ${handle}. Curvy handles can only include letters, numbers, and dashes, with a minimum of 3 and maximum length of 20 characters.`,
+      );
+
+    const { data: ownerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
+    if (ownerDetails) throw new Error(`Handle ${handle} already registered.`);
+
+    const [r_string, s_string] = await this.#verifySignature(flavour, signature);
+    const { s, v } = computePrivateKeys(r_string, s_string);
+
+    const keyPairs = this.#core.getCurvyKeys(s, v);
+
+    await this.#apiClient.user.RegisterCurvyHandle({
+      handle,
+      ownerAddress,
+      publicKeys: [{ viewingKey: keyPairs.V, spendingKey: keyPairs.S }],
+    });
+
+    const { data: registerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
+    if (!registerDetails)
+      throw new Error(`Registration validation failed for handle ${handle}. Please try adding the wallet manually.`);
+
+    const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
+    const wallet = new CurvyWallet(
+      walletId,
+      +dayjs(registerDetails.createdAt),
+      handle,
+      signature.signingAddress,
+      keyPairs,
+    );
+    await this.addWallet(wallet);
+
+    return wallet;
   }
 
   hasActiveWallet(): boolean {
     return this.#activeWallet !== null;
   }
 
-  getWalletById(id: string): CurvyWallet | undefined {
-    return this.#wallets.get(id);
+  getWalletById(id: string) {
+    return Object.freeze(this.#wallets.get(id));
   }
 
   hasWallet(id: string): boolean {
     return this.#wallets.has(id);
   }
 
-  async setActiveWallet(wallet: CurvyWallet) {
+  async setActiveWallet(wallet: Readonly<CurvyWallet>) {
     if (!this.#wallets.has(wallet.id)) {
       throw new Error(`Wallet with id ${wallet.id} does not exist.`);
     }
@@ -83,7 +290,7 @@ class WalletManager implements IWalletManager {
     await this.#storage.storeCurvyWallet(wallet);
 
     if (!this.#scanInterval) {
-      this.startIntervalScan();
+      this.#startIntervalScan();
       return;
     }
 
@@ -105,23 +312,12 @@ class WalletManager implements IWalletManager {
     }
 
     this.#activeWallet = null;
-    this.stopIntervalScan();
+    this.#stopIntervalScan();
     return;
   }
 
   async scanWallet(wallet: CurvyWallet) {
     await this.#addressScanner.scan([wallet]);
-  }
-
-  async rescanWallets(walletIds?: Array<string>) {
-    if (this.#scanInterval) {
-      this.stopIntervalScan();
-    }
-
-    const wallets = walletIds ? this.wallets.filter((wallet) => walletIds.includes(wallet.id)) : this.wallets;
-
-    await this.#addressScanner.scan(wallets);
-    this.startIntervalScan();
   }
 
   /*
@@ -130,24 +326,48 @@ class WalletManager implements IWalletManager {
         If we allow scanning of all wallets, we should consider how we approach request auth verification,
         as currently the bearer token is set to the active wallet's token.
   */
+  async rescanWallets(walletIds?: Array<string>) {
+    if (this.#scanInterval) {
+      this.#stopIntervalScan();
+    }
+
+    const wallets = walletIds ? this.wallets.filter((wallet) => walletIds.includes(wallet.id)) : this.wallets;
+
+    await this.#addressScanner.scan(wallets);
+    this.#startIntervalScan();
+  }
 
   /*
    * Starts an interval scan for all wallets.
    * @param interval - The interval in milliseconds to scan wallets. Default is 60 seconds.
    */
-  startIntervalScan(interval = SCAN_REFRESH_INTERVAL): void {
+  #startIntervalScan(interval = SCAN_REFRESH_INTERVAL): void {
     this.#addressScanner.scan(this.wallets).then(() => {
       this.#scanInterval = setInterval(() => this.#addressScanner.scan(this.wallets), interval);
     });
   }
 
-  stopIntervalScan(): void {
+  #stopIntervalScan(): void {
     if (!this.#scanInterval) {
       return;
     }
 
     clearInterval(this.#scanInterval);
     this.#scanInterval = null;
+  }
+
+  getAddressPrivateKey(address: CurvyAddress) {
+    const wallet = this.getWalletById(address.walletId);
+    if (!wallet) {
+      throw new Error(`Cannot send from address ${address.address} because it's wallet is not found!`);
+    }
+    const { s, v } = wallet.keyPairs;
+
+    const {
+      spendingPrivKeys: [privateKey],
+    } = this.#core.scan(s, v, [address]);
+
+    return privateKey;
   }
 }
 

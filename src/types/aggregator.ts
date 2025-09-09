@@ -1,32 +1,41 @@
-type OutputNoteData = {
-  ownerHash: bigint;
-  amount: bigint;
-  token: bigint;
-};
+import { Signature } from "./core";
+import { Note } from "./note";
 
-type InputNoteData = {
-  owner: {
-    ownerBabyJub: bigint[];
-    sharedSecret: bigint;
+type DepositRequestParams = {
+  recipient: {
+    S: string;
+    V: string;
   };
-  token: bigint;
-  amount: bigint;
-};
+  notes: Note[];
+  csucTransferAllowanceSignature: string;
+}
 
-type Signature = {
-  S: bigint;
-  R8: bigint[];
-};
+type DepositRequest = {
+  outputNotes: Note[];
+  csucAddress: string;
+  csucTransferAllowanceSignature: string;
+}
 
-type Aggregation = {
-  inputNotes: InputNoteData[];
-  outputNotes: OutputNoteData[];
+type AggregationRequestParams = {
+  inputNotes: Note[];
+  outputNotes: Note[];
+}
+
+type AggregationRequest = {
+  inputNotes: Note[];
+  outputNotes: Note[];
   signatures: Signature[];
-  ephemeralKeys: bigint[];
 };
 
-type AggregationPayload = {
-  aggregations: Aggregation[];
-};
+type WithdrawRequestParams = {
+  inputNotes: Note[];
+  destinationAddress: string;
+}
 
-export type { OutputNoteData, InputNoteData, Signature, Aggregation, AggregationPayload };
+type WithdrawRequest = {
+  inputNotes: Note[];
+  signatures: Signature[];
+  destinationAddress: string;
+}
+
+export type { DepositRequestParams, DepositRequest, AggregationRequestParams, AggregationRequest, WithdrawRequestParams, WithdrawRequest };

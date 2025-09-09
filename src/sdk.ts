@@ -1,8 +1,7 @@
 import { Buffer as BufferPolyfill } from "buffer";
-import dayjs from "dayjs";
 import { mul, toNumber } from "dnum";
-import { ec, validateAndParseAddress } from "starknet";
-import { getAddress, parseSignature, verifyTypedData } from "viem";
+import { getAddress } from "viem";
+import { BalanceScanner } from "@/balance-scanner";
 import {
   BALANCE_REFRESH_COMPLETE_EVENT,
   BALANCE_REFRESH_PROGRESS_EVENT,
@@ -16,8 +15,12 @@ import {
   SYNC_PROGRESS_EVENT,
   SYNC_STARTED_EVENT,
 } from "@/constants/events";
-import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES, type NETWORKS } from "@/constants/networks";
-import { CURVY_HANDLE_REGEX } from "@/constants/regex";
+import {
+  NETWORK_ENVIRONMENT,
+  type NETWORK_ENVIRONMENT_VALUES,
+  type NETWORK_FLAVOUR_VALUES,
+  type NETWORKS,
+} from "@/constants/networks";
 import { prepareCsucActionEstimationRequest, prepareCuscActionRequest } from "@/csuc";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
@@ -30,12 +33,21 @@ import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
-import type { StarknetRpc } from "@/rpc/starknet";
-import { TemporaryStorage } from "@/storage/temporary-storage";
-import type { CurvyAddress, CurvyAddressBalances, CurvyAddressCsucNonces } from "@/types/address";
-import type { AggregationRequest, Currency, DepositPayload, Network, WithdrawPayload } from "@/types/api";
-import type { CsucActionPayload, CsucActionSet, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
-import { assertCurvyHandle, type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
+import { MapStorage } from "@/storage/map-storage";
+import {
+  type AggregationRequest,
+  type AggregationRequestParams,
+  BALANCE_TYPE,
+  type DepositRequest,
+  type DepositRequestParams,
+  isCsucBalanceEntry,
+  type Network,
+  type WithdrawRequest,
+  type WithdrawRequestParams,
+} from "@/types";
+import type { CurvyAddress } from "@/types/address";
+import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
+import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type {
   BalanceRefreshCompleteEvent,
   BalanceRefreshProgressEvent,
@@ -48,23 +60,18 @@ import type {
   SyncProgressEvent,
   SyncStartedEvent,
 } from "@/types/events";
-import { type HexString, isHexString, isStarkentSignature } from "@/types/helper";
+import type { HexString } from "@/types/helper";
+import { Note } from "@/types/note";
 import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
-import {
-  assertIsStarkentSignatureData,
-  type EvmSignatureData,
-  type EvmSignTypedDataParameters,
-  type StarknetSignatureData,
-} from "@/types/signature";
-import { parseDecimal } from "@/utils/currency";
-import { encryptCurvyMessage } from "@/utils/encryption";
-import { arrayBufferToHex, generateWalletId, toSlug } from "@/utils/helpers";
+import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
+import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
-import { computePrivateKeys, deriveAddress } from "./utils/address";
-import { filterNetworks, type NetworkFilter, networksToPriceData } from "./utils/network";
-import { CurvyWallet } from "./wallet";
+import { deriveAddress } from "./utils/address";
+import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
+import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
+import { poseidonHash } from "./utils/poseidon-hash";
 import { WalletManager } from "./wallet-manager";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
@@ -72,33 +79,43 @@ import { WalletManager } from "./wallet-manager";
 
 const PRICE_UPDATE_INTERVAL = 5 * 60 * 10 ** 3;
 
+type SdkState = {
+  environment: NETWORK_ENVIRONMENT_VALUES;
+  activeNetworks: Network[];
+};
+
 class CurvySDK implements ICurvySDK {
   readonly #emitter: ICurvyEventEmitter;
   readonly #core: ICore;
-  readonly #walletManager: IWalletManager;
+  #walletManager: IWalletManager | undefined;
+  #balanceScanner: BalanceScanner | undefined;
   #priceRefreshInterval: NodeJS.Timeout | undefined;
 
   #networks: Network[];
   #rpcClient: MultiRpc | undefined;
+  #state: SdkState;
 
   readonly apiClient: IApiClient;
   readonly storage: StorageInterface;
 
-  readonly #semaphore: Partial<Record<string, boolean>>;
-
-  private constructor(
-    apiKey: string,
-    core: Core,
-    apiBaseUrl?: string,
-    storage: StorageInterface = new TemporaryStorage(),
-  ) {
+  private constructor(apiKey: string, core: Core, apiBaseUrl?: string, storage: StorageInterface = new MapStorage()) {
     this.#core = core;
     this.apiClient = new ApiClient(apiKey, apiBaseUrl);
     this.#emitter = new CurvyEventEmitter();
     this.#networks = [];
     this.storage = storage;
-    this.#walletManager = new WalletManager(this.apiClient, this.#emitter, this.storage, this.#core);
-    this.#semaphore = Object.create(null);
+    this.#state = {
+      environment: "mainnet",
+      activeNetworks: [],
+    };
+  }
+
+  get walletManager(): IWalletManager {
+    if (!this.#walletManager) {
+      throw new Error("Wallet manager is not initialized!");
+    }
+
+    return this.#walletManager;
   }
 
   static async init(
@@ -112,6 +129,7 @@ class CurvySDK implements ICurvySDK {
 
     const sdk = new CurvySDK(apiKey, core, apiBaseUrl, storage);
     sdk.#networks = await sdk.apiClient.network.GetNetworks();
+    await sdk.storage.upsertCurrencyMetadata(networksToCurrencyMetadata(sdk.#networks));
 
     await sdk.#priceUpdate(sdk.#networks);
     sdk.startPriceIntervalUpdate();
@@ -122,13 +140,27 @@ class CurvySDK implements ICurvySDK {
       sdk.setActiveNetworks(networkFilter);
     }
 
+    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
+    sdk.#balanceScanner = new BalanceScanner(
+      sdk.rpcClient,
+      sdk.apiClient,
+      sdk.storage,
+      sdk.#emitter,
+      sdk.#core,
+      sdk.#walletManager,
+    );
+
     return sdk;
   }
 
   async #priceUpdate(_networks?: Array<Network>) {
     const networks = _networks ?? (await this.apiClient.network.GetNetworks());
     const priceMap = networksToPriceData(networks);
-    await this.storage.updatePriceData(priceMap);
+    if (priceMap.size === 0) {
+      console.warn("Could not fetch any price data, skipping price update.");
+      return;
+    }
+    await this.storage.upsertPriceData(priceMap);
   }
 
   startPriceIntervalUpdate({ runImmediately }: { runImmediately?: boolean } = { runImmediately: false }) {
@@ -158,16 +190,12 @@ class CurvySDK implements ICurvySDK {
     return this.#rpcClient;
   }
 
-  get wallets() {
-    return this.#walletManager.wallets;
+  get activeNetworks() {
+    return this.#state.activeNetworks;
   }
 
-  get activeWallet() {
-    return this.#walletManager.activeWallet;
-  }
-
-  hasActiveWallet() {
-    return this.#walletManager.hasActiveWallet();
+  get activeEnvironment() {
+    return this.#state.environment;
   }
 
   getStealthAddressById(id: string) {
@@ -237,6 +265,31 @@ class CurvySDK implements ICurvySDK {
     return { address, id: response.data.id, pubKey: recipientStealthPublicKey };
   }
 
+  async getAddressEncryptedMessage(address: CurvyAddress) {
+    const { data } = await this.apiClient.announcement.GetAnnouncementEncryptedMessage(address.id);
+
+    if (!data || !data.encryptedMessage || !data.encryptedMessageSenderPublicKey) {
+      throw new Error(`No encrypted message found for address ${address.address}`);
+    }
+
+    const { encryptedMessage, encryptedMessageSenderPublicKey } = data;
+
+    const wallet = this.walletManager.getWalletById(address.walletId);
+    if (!wallet) {
+      throw new Error(`Cannot get message for address ${address.id} because it's wallet is not found!`);
+    }
+    const { s, v } = wallet.keyPairs;
+
+    const {
+      spendingPrivKeys: [privateKey],
+    } = this.#core.scan(s, v, [address]);
+
+    return decryptCurvyMessage(
+      { data: encryptedMessage, senderSAPublicKey: encryptedMessageSenderPublicKey },
+      privateKey,
+    );
+  }
+
   getNativeCurrencyForNetwork(network: Network) {
     const nativeCurrency = network.currencies.find((c) => c.nativeCurrency);
 
@@ -275,10 +328,29 @@ class CurvySDK implements ICurvySDK {
 
   setActiveNetworks(networkFilter: NetworkFilter) {
     const networks = this.getNetworks(networkFilter);
+
+    const uniqueEnvironmentSet = new Set(networks.map((n) => n.testnet));
+    if (uniqueEnvironmentSet.size > 1) {
+      throw new Error("Cannot mix mainnet and testnet networks!");
+    }
+
     if (!networks.length) {
       throw new Error(`Network array is empty after filtering with ${networkFilter}`);
     }
-    this.#rpcClient = newMultiRpc(networks);
+
+    const newRpc = newMultiRpc(networks);
+    this.#rpcClient = newRpc;
+
+    const environment = uniqueEnvSet.values().next().value;
+
+    if (environment === undefined) throw new Error("No environment set.");
+
+    this.#state = {
+      environment: environment ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
+      activeNetworks: networks,
+    };
+
+    if (this.#balanceScanner) this.#balanceScanner.rpcClient = newRpc;
   }
 
   /* TODO: Think about how to handle networks better
@@ -291,352 +363,42 @@ class CurvySDK implements ICurvySDK {
     return this.setActiveNetworks(environment === "testnet");
   }
 
-  async #verifySignature(
-    flavour: NETWORK_FLAVOUR_VALUES,
-    signature: EvmSignatureData | StarknetSignatureData,
-  ): Promise<[r: string, s: string]> {
-    const { signatureParams, signingAddress, signatureResult } = signature;
-
-    switch (true) {
-      case NETWORK_FLAVOUR.EVM && isHexString(signatureResult): {
-        const signature = parseSignature(signatureResult);
-
-        const isValidSignature = verifyTypedData({
-          signature,
-          address: signingAddress,
-          ...(signatureParams as EvmSignTypedDataParameters),
-        });
-
-        if (!isValidSignature) {
-          throw new Error("Signature verification failed. Invalid signature.");
-        }
-
-        return [signature.r, signature.s];
-      }
-      case NETWORK_FLAVOUR.STARKNET && isStarkentSignature(signatureResult): {
-        assertIsStarkentSignatureData(signature);
-
-        const { signingWalletId, msgHash } = signature;
-
-        if (!signatureResult[0] || !signatureResult[1]) throw new Error("Signature failed - too few values.");
-
-        let r = "-1";
-        let s = "-1";
-        switch (signingWalletId) {
-          case "argentX": {
-            if (signatureResult.length === 2) {
-              [r, s] = signatureResult as [string, string];
-            }
-
-            if (signatureResult.length === 5) {
-              [r, s] = signatureResult.slice(3) as [string, string];
-            }
-            break;
-          }
-          case "braavos": {
-            if (signatureResult.length !== 3) {
-              throw new Error("Only braavos single signer account is supported.");
-            }
-
-            [r, s] = signatureResult.slice(1) as [string, string];
-            break;
-          }
-          default: {
-            throw new Error(`Unrecognized wallet type: ${signingWalletId}. Only argentX and braavos are supported.`);
-          }
-        }
-
-        if (r === "-1" || s === "-1") {
-          throw new Error("Signature verification failed - r or s is not defined.");
-        }
-
-        const signingPublicKey = await (
-          this.#rpcClient?.Network("Starknet") as StarknetRpc
-        ).getAccountPubKeyForSignatureVerification(signingWalletId, signingAddress);
-
-        const _msgHash = msgHash.replace("0x", "");
-        const paddedMsgHash = _msgHash.length % 2 === 0 ? _msgHash : `0${_msgHash}`;
-
-        let signatureIsValid = false;
-        for (let recoverBit = 0; recoverBit < 4; recoverBit++) {
-          try {
-            const signature = new ec.starkCurve.Signature(BigInt(r), BigInt(s)).addRecoveryBit(recoverBit);
-            const publicKeyCompressed = signature.recoverPublicKey(paddedMsgHash).toHex(true);
-            signatureIsValid = publicKeyCompressed.indexOf(signingPublicKey) !== -1;
-
-            if (signatureIsValid) {
-              break;
-            }
-          } catch (e) {
-            console.log("Error recovering public key", e, "recoverBit", recoverBit);
-          }
-        }
-
-        if (!signatureIsValid) {
-          throw new Error("Signature verification failed.");
-        }
-
-        return [r, s];
-      }
-      default: {
-        throw new Error(`Unrecognized network flavour: ${flavour}`);
-      }
-    }
-  }
-
-  async addWalletWithSignature(flavour: NETWORK_FLAVOUR["EVM"], signature: EvmSignatureData): Promise<CurvyWallet>;
-  async addWalletWithSignature(
-    flavour: NETWORK_FLAVOUR["STARKNET"],
-    signature: StarknetSignatureData,
-  ): Promise<CurvyWallet>;
-  async addWalletWithSignature(flavour: NETWORK_FLAVOUR_VALUES, signature: EvmSignatureData | StarknetSignatureData) {
-    const [r_string, s_string] = await this.#verifySignature(flavour, signature);
-    const { s, v } = computePrivateKeys(r_string, s_string);
-
-    const keyPairs = this.#core.getCurvyKeys(s, v);
-
-    const ownerAddress =
-      flavour === NETWORK_FLAVOUR.STARKNET
-        ? validateAndParseAddress(signature.signingAddress)
-        : signature.signingAddress;
-
-    const curvyHandle = await this.apiClient.user.GetCurvyHandleByOwnerAddress(ownerAddress);
-    if (!curvyHandle) {
-      throw new Error(`No Curvy handle found for owner address: ${ownerAddress}`);
-    }
-
-    assertCurvyHandle(curvyHandle);
-
-    const { data: ownerDetails } = await this.apiClient.user.ResolveCurvyHandle(curvyHandle);
-    if (!ownerDetails) throw new Error(`Handle ${curvyHandle} does not exist.`);
-
-    const { createdAt, publicKeys } = ownerDetails;
-
-    if (!publicKeys.babyJubJubKey) {
-      const result = await this.apiClient.user.SetBabyJubJubKey(curvyHandle, {
-        babyJubJubKey: keyPairs.babyJubJubPublicKey,
-      });
-      if (!("data" in result) || result.data.message !== "Saved")
-        throw new Error(`Failed to set BabyJubJub key for handle ${curvyHandle}.`);
-    }
-
-    if (
-      !(
-        publicKeys.viewingKey === keyPairs.V &&
-        publicKeys.spendingKey === keyPairs.S &&
-        publicKeys.babyJubJubKey === keyPairs.babyJubJubPublicKey
-      )
-    ) {
-      throw new Error(`Wrong password for handle ${curvyHandle}.`);
-    }
-
-    const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
-    const wallet = new CurvyWallet(walletId, +dayjs(createdAt), curvyHandle, signature.signingAddress, keyPairs);
-    await this.#walletManager.addWallet(wallet);
-
-    return wallet;
-  }
-
-  async registerWalletWithSignature(
-    handle: CurvyHandle,
-    flavour: NETWORK_FLAVOUR["EVM"],
-    signature: EvmSignatureData,
-  ): Promise<CurvyWallet>;
-  async registerWalletWithSignature(
-    handle: CurvyHandle,
-    flavour: NETWORK_FLAVOUR["STARKNET"],
-    signature: StarknetSignatureData,
-  ): Promise<CurvyWallet>;
-  async registerWalletWithSignature(
-    handle: CurvyHandle,
-    flavour: NETWORK_FLAVOUR_VALUES,
-    signature: EvmSignatureData | StarknetSignatureData,
-  ) {
-    const ownerAddress =
-      flavour === NETWORK_FLAVOUR.STARKNET
-        ? validateAndParseAddress(signature.signingAddress)
-        : signature.signingAddress;
-
-    const curvyHandle = await this.apiClient.user.GetCurvyHandleByOwnerAddress(ownerAddress);
-    if (curvyHandle) {
-      throw new Error(`Handle ${curvyHandle} already registered, for owner address: ${ownerAddress}`);
-    }
-
-    if (!CURVY_HANDLE_REGEX.test(handle))
-      throw new Error(
-        `Invalid handle format: ${handle}. Curvy handles can only include letters, numbers, and dashes, with a minimum of 3 and maximum length of 20 characters.`,
-      );
-
-    const { data: ownerDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
-    if (ownerDetails) throw new Error(`Handle ${handle} already registered.`);
-
-    const [r_string, s_string] = await this.#verifySignature(flavour, signature);
-    const { s, v } = computePrivateKeys(r_string, s_string);
-
-    const keyPairs = this.#core.getCurvyKeys(s, v);
-
-    await this.apiClient.user.RegisterCurvyHandle({
-      handle,
-      ownerAddress,
-      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, babyJubJubKey: keyPairs.babyJubJubPublicKey },
-    });
-
-    const { data: registerDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
-    if (!registerDetails)
-      throw new Error(`Registration validation failed for handle ${handle}. Please try adding the wallet manually.`);
-
-    const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
-    const wallet = new CurvyWallet(
-      walletId,
-      +dayjs(registerDetails.createdAt),
-      handle,
-      signature.signingAddress,
-      keyPairs,
-    );
-    await this.#walletManager.addWallet(wallet);
-
-    return wallet;
-  }
-
-  async removeWallet(walletId: string) {
-    return this.#walletManager.removeWallet(walletId);
-  }
-
-  async refreshWalletBalances(walletId: string) {
-    if (this.#semaphore[`refresh-balances-${walletId}`]) {
-      return;
-    }
-
-    this.#semaphore[`refresh-balances-${walletId}`] = true;
-
-    if (!this.rpcClient) {
-      throw new Error("RpcClient not initialized!");
-    }
-
-    if (!this.#walletManager.hasWallet(walletId)) {
+  async refreshNoteBalances(walletId: string) {
+    if (!this.walletManager.hasWallet(walletId)) {
       throw new Error(`Wallet with ID ${walletId} not found!`);
     }
 
-    const addresses = await this.storage.getCurvyAddressesByWalletId(walletId);
-    let processed = 0;
-
-    this.#emitter.emitBalanceRefreshStarted({
-      walletId,
-    });
-
-    for (const address of addresses) {
-      await this.refreshAddressBalances(address);
-      processed++;
-      this.#emitter.emitBalanceRefreshProgress({
-        walletId,
-        progress: Math.round((processed / addresses.length) * 100),
-      });
+    if (!this.#balanceScanner) {
+      throw new Error("Balance scanner not initialized!");
     }
 
-    this.#emitter.emitBalanceRefreshComplete({
-      walletId,
-    });
-    this.#semaphore[`refresh-balances-${walletId}`] = undefined;
-  }
-
-  // refreshBalances refreshes balances for all wallets
-  async refreshBalances() {
-    if (this.#semaphore["refresh-balances"]) {
-      return;
-    }
-
-    this.#semaphore["refresh-balances"] = true;
-
-    if (!this.rpcClient) {
-      throw new Error("rpcClient not initialized");
-    }
-
-    for (const wallet of this.wallets) {
-      await this.refreshWalletBalances(wallet.id);
-    }
-
-    this.#semaphore["refresh-balances"] = undefined;
+    return await this.#balanceScanner.scanNoteBalances(walletId, this.#state.environment);
   }
 
   async refreshAddressBalances(address: CurvyAddress) {
-    if (this.#semaphore[`refresh-balance-${address.id}`]) {
-      return;
+    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
+
+    return this.#balanceScanner.scanAddressBalances(address);
+  }
+
+  async refreshWalletBalances(walletId: string, scanAll = false) {
+    if (!this.walletManager.hasWallet(walletId)) {
+      throw new Error(`Wallet with ID ${walletId} not found!`);
     }
 
-    this.#semaphore[`refresh-balance-${address.id}`] = true;
-
-    if (!this.rpcClient) {
-      throw new Error("rpcClient not initialized");
+    if (!this.#balanceScanner) {
+      throw new Error("Balance scanner not initialized!");
     }
 
-    await this.storage.updateCurvyAddress(address.id, { balances: await this.rpcClient.getBalances(address) });
+    return await this.#balanceScanner.scanWalletBalances(walletId, this.#state.environment, { scanAll });
+  }
 
-    // TODO: Move to RPC
-    // TODO: Move to artifact
-    if (address.networkFlavour === NETWORK_FLAVOUR.EVM) {
-      const {
-        data: { csaInfo },
-      } = await this.apiClient.csuc.GetCSAInfo({
-        network: "ethereum-sepolia",
-        csas: [address.address],
-      });
+  async refreshBalances(scanAll = false) {
+    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
-      const csaData = csaInfo[0];
-      const network = this.getNetwork(csaData.network);
-      const networkSlug = toSlug(network.name);
-
-      // TODO: We don't  use token but currency in this context. Remove all mentions of token.
-      const { balances, nonces } = csaData.balances
-        .map(({ token, amount }, idx) => {
-          const currency = network.currencies.find((currency) => currency.contractAddress === token);
-          if (!currency) return null;
-
-          const { contractAddress, symbol, decimals, name, iconUrl } = currency;
-
-          const balance = BigInt(amount);
-
-          return balance
-            ? {
-                balance,
-                tokenMeta: {
-                  decimals,
-                  iconUrl,
-                  name,
-                  symbol,
-                },
-                networkMeta: {
-                  testnet: network.testnet,
-                  flavour: network.flavour,
-                  group: network.group,
-                  slug: networkSlug,
-                },
-                tokenAddress: contractAddress as HexString,
-                nonce: BigInt(csaData.nonce[idx].value),
-              }
-            : null;
-        })
-        .filter(Boolean)
-        .reduce<{ balances: CurvyAddressBalances; nonces: CurvyAddressCsucNonces }>(
-          (res, { nonce, ...rest }) => {
-            if (!res.balances[networkSlug]) res.balances[networkSlug] = Object.create(null);
-            res.balances[networkSlug]![rest.tokenMeta.symbol] = rest;
-
-            if (!res.nonces[networkSlug]) res.nonces[networkSlug] = Object.create(null);
-            res.nonces[networkSlug]![rest.tokenMeta.symbol] = nonce;
-
-            return res;
-          },
-          { balances: Object.create(null), nonces: Object.create(null) },
-        );
-      await this.storage.updateCurvyAddress(address.id, {
-        csuc: {
-          balances,
-          nonces,
-        },
-      });
+    for (const wallet of this.walletManager.wallets) {
+      await this.#balanceScanner.scanWalletBalances(wallet.id, this.#state.environment, { scanAll });
     }
-
-    this.#semaphore[`refresh-balance-${address.id}`] = undefined;
   }
 
   async resetStorage() {
@@ -644,11 +406,11 @@ class CurvySDK implements ICurvySDK {
     await this.storage.clearStorage();
     this.startPriceIntervalUpdate({ runImmediately: true });
 
-    for (const wallet of this.wallets) {
+    for (const wallet of this.walletManager.wallets) {
       await this.storage.storeCurvyWallet(wallet);
     }
 
-    await this.#walletManager.rescanWallets();
+    await this.walletManager.rescanWallets();
     await this.refreshBalances();
   }
 
@@ -659,15 +421,7 @@ class CurvySDK implements ICurvySDK {
     amount: string,
     currency: string,
   ) {
-    const wallet = this.#walletManager.getWalletById(from.walletId);
-    if (!wallet) {
-      throw new Error(`Cannot send from address ${from.id} because it's wallet is not found!`);
-    }
-    const { s, v } = wallet.keyPairs;
-
-    const {
-      spendingPrivKeys: [privateKey],
-    } = this.#core.scan(s, v, [from]);
+    const privateKey = this.walletManager.getAddressPrivateKey(from);
 
     let recipientData: RecipientData;
 
@@ -678,7 +432,9 @@ class CurvySDK implements ICurvySDK {
     const nativeToken = this.getNetwork(networkIdentifier).currencies.find((c) => c.nativeCurrency)!;
     const fee = await rpc.estimateFee(from, privateKey, recipientData.address, amount, currency);
     const raw = rpc.feeToAmount(fee);
-    const fiat = toNumber(mul([raw, nativeToken.decimals], await this.storage.getTokenPrice(nativeToken.symbol)));
+    const fiat = toNumber(
+      mul([raw, nativeToken.decimals], (await this.storage.getCurrencyPrice(nativeToken.symbol)).price),
+    );
 
     const tokenMeta = {
       decimals: nativeToken.decimals,
@@ -697,26 +453,19 @@ class CurvySDK implements ICurvySDK {
     fee: StarknetFeeEstimate | bigint,
     message?: string,
   ) {
-    const wallet = this.#walletManager.getWalletById(from.walletId);
-    if (!wallet) {
-      throw new Error(`Cannot send from address ${from.id} because it's wallet is not found!`);
-    }
-    const { s, v } = wallet.keyPairs;
-
-    const {
-      spendingPrivKeys: [privateKey],
-    } = this.#core.scan(s, v, [from]);
+    const privateKey = this.walletManager.getAddressPrivateKey(from);
 
     let recipientData: RecipientData;
 
     if (isValidCurvyHandle(to)) {
       recipientData = await this.getNewStealthAddressForUser(networkIdentifier, to);
 
-      if (message && recipientData.addressId && recipientData.pubKey)
+      if (message && recipientData.addressId && recipientData.pubKey) {
         await this.apiClient.announcement.UpdateAnnouncementEncryptedMessage(recipientData.addressId, {
           encryptedMessage: JSON.stringify(await encryptCurvyMessage(message, privateKey, recipientData.pubKey)),
           encryptedMessageSenderPublicKey: from.publicKey,
         });
+      }
     } else recipientData = { address: to };
 
     return this.rpcClient
@@ -724,15 +473,15 @@ class CurvySDK implements ICurvySDK {
       .sendToAddress(from, privateKey, recipientData.address, amount, currency, fee);
   }
 
-  async createDeposit(payload: DepositPayload) {
+  async createDeposit(payload: DepositRequest) {
     return this.apiClient.aggregator.SubmitDeposit(payload);
   }
 
-  async createWithdraw(payload: WithdrawPayload) {
+  async createWithdraw(payload: WithdrawRequest) {
     return this.apiClient.aggregator.SubmitWithdraw(payload);
   }
 
-  async createAggregation(payload: { aggregations: AggregationRequest[] }) {
+  async createAggregation(payload: AggregationRequest) {
     return this.apiClient.aggregator.SubmitAggregation(payload);
   }
 
@@ -741,18 +490,19 @@ class CurvySDK implements ICurvySDK {
   }
 
   async onboardToCSUC(
+    networkIdentifier: NetworkFilter,
     from: CurvyAddress,
     toAddress: HexString | string,
     currencySymbol: string,
-    amount: bigint | string,
+    amount: string,
   ) {
-    const currency = this.getNetwork("ethereum-sepolia").currencies.find((c) => c.symbol === currencySymbol);
+    const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
 
     if (!currency) {
-      throw new Error(`Currency with symbol ${currencySymbol} not found on network ethereum-sepolia!`);
+      throw new Error(`Currency with symbol ${currencySymbol} not found on network ${networkIdentifier}!`);
     }
 
-    const wallet = this.#walletManager.getWalletById(from.walletId);
+    const wallet = this.walletManager.getWalletById(from.walletId);
     if (!wallet) {
       throw new Error(`Cannot send from address ${from.id} because it's wallet is not found!`);
     }
@@ -763,17 +513,17 @@ class CurvySDK implements ICurvySDK {
     } = this.#core.scan(s, v, [from]);
 
     if (currency.nativeCurrency) {
-      const rpc = this.rpcClient.Network("ethereum-sepolia");
+      const rpc = this.rpcClient.Network(networkIdentifier);
 
       // TODO For now we only support EVM RPCs for CSUC
       if (rpc instanceof EvmRpc) {
-        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount.toString());
+        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount);
       }
     }
 
     const request = await this.rpcClient
-      .Network("ethereum-sepolia")
-      .prepareCSUCOnboardTransactions(privateKey, toAddress, currency.symbol, amount);
+      .Network(networkIdentifier)
+      .prepareCSUCOnboardTransactions(networkIdentifier as string, privateKey, toAddress, currency.symbol, amount);
 
     return await this.apiClient.gasSponsorship.SubmitRequest(request);
   }
@@ -784,7 +534,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     to: HexString,
     token: HexString,
-    _amount: bigint | string,
+    _amount: bigint, // Doesn't accept decimal numbers i.e. `0.001`
   ): Promise<CsucEstimatedActionCost> {
     const network = this.getNetwork(networkFilter);
 
@@ -793,8 +543,7 @@ class CurvySDK implements ICurvySDK {
     }
 
     // User creates an action payload, and determines the wanted cost/speed
-    // TODO: Get eth properly
-    const amount = parseDecimal("0.001", { decimals: 18 } as Currency).toString();
+    const amount = _amount.toString();
 
     const payload = await prepareCsucActionEstimationRequest(network, actionId, from, to, token, amount);
 
@@ -802,9 +551,7 @@ class CurvySDK implements ICurvySDK {
       payloads: [payload],
     });
 
-    // @ts-ignore
-    // TODO remove when we remove strinigify on BE.
-    return JSON.parse(response.data.estimatedCosts)[0];
+    return response.data[0];
   }
 
   async requestActionInsideCSUC(
@@ -812,14 +559,14 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     payload: CsucActionPayload,
     totalFee: string,
-  ): Promise<CsucActionStatus> {
+  ) {
     const network = this.getNetwork(networkFilter);
 
     if (!network.csucContractAddress) {
       throw new Error(`CSUC contract address not found for network ${network.name}`);
     }
 
-    const wallet = this.#walletManager.getWalletById(from.walletId);
+    const wallet = this.walletManager.getWalletById(from.walletId);
     if (!wallet) {
       throw new Error(`Cannot send from address ${from.id} because it's wallet is not found!`);
     }
@@ -829,13 +576,125 @@ class CurvySDK implements ICurvySDK {
       spendingPrivKeys: [privateKey],
     } = this.#core.scan(s, v, [from]);
 
-    const action = await prepareCuscActionRequest(network, from, privateKey, payload, totalFee);
+    const { token: currencyAddress } = JSON.parse(payload.encodedData) as any;
+    const networkSlug = toSlug(network.name);
+
+    const balanceEntry = await this.storage.getBalanceEntry(
+      from.address,
+      currencyAddress,
+      networkSlug,
+      BALANCE_TYPE.CSUC,
+    );
+
+    if (!isCsucBalanceEntry(balanceEntry)) {
+      throw new Error(`Got an incompatible balance entry`);
+    }
+
+    const action = await prepareCuscActionRequest(network, balanceEntry.nonce, privateKey, payload, totalFee);
 
     const response = await this.apiClient.csuc.SubmitActionRequest({
       action: action,
     });
 
-    return response.data.actionStatus;
+    return { action, response: response.data };
+  }
+
+  createDepositPayload(params: DepositRequestParams): DepositRequest {
+    const { recipient, notes, csucTransferAllowanceSignature } = params;
+    if (!recipient || !notes || !csucTransferAllowanceSignature) {
+      throw new Error("Invalid deposit payload parameters");
+    }
+    const outputNotes = notes.map((note) =>
+      this.#core.sendNote(recipient.S, recipient.V, {
+        ownerBabyJubjubPublicKey: note.owner!.babyJubjubPubKey.toString(),
+        amount: note.balance!.amount,
+        token: note.balance!.token,
+      }),
+    );
+
+    const { csucContractAddress } = this.getNetwork("localnet");
+
+    return {
+      outputNotes,
+      csucAddress: csucContractAddress!,
+      csucTransferAllowanceSignature,
+    };
+  }
+
+  createAggregationPayload(params: AggregationRequestParams): AggregationRequest {
+    const { inputNotes, outputNotes } = params;
+
+    const { s } = this.walletManager.activeWallet.keyPairs;
+
+    if (outputNotes.length < 2) {
+      outputNotes.push(
+        new Note({
+          ownerHash: 0n,
+          balance: {
+            amount: 0n,
+            token: 0n,
+          },
+          deliveryTag: {
+            ephemeralKey: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+            viewTag: 0n,
+          },
+        }),
+      );
+    }
+
+    const msgHash = generateAggregationHash(outputNotes);
+    const signature = this.#core.signWithBabyJubjubPrivateKey(msgHash, s);
+    const signatures = Array.from({ length: 10 }).map(() => ({
+      S: BigInt(signature.S),
+      R8: signature.R8.map((r) => BigInt(r)),
+    }));
+
+    return {
+      inputNotes,
+      outputNotes,
+      signatures,
+    };
+  }
+
+  createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest {
+    const { inputNotes, destinationAddress } = params;
+
+    if (!inputNotes || !destinationAddress) {
+      throw new Error("Invalid withdraw payload parameters");
+    }
+
+    const { s } = this.walletManager.activeWallet.keyPairs;
+
+    for (let i = inputNotes.length; i < 15; i++) {
+      inputNotes.push(
+        new Note({
+          owner: {
+            babyJubjubPubKey: {
+              x: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+              y: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+            },
+            sharedSecret: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+          },
+          balance: {
+            amount: 0n,
+            token: 0n,
+          },
+          deliveryTag: {
+            ephemeralKey: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+            viewTag: 0n,
+          },
+        }),
+      );
+    }
+
+    const msgHash = generateOutputsHash(inputNotes);
+    const signature = this.#core.signWithBabyJubjubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
+    const signatures = Array.from({ length: 10 }).map(() => ({
+      S: BigInt(signature.S),
+      R8: signature.R8.map((r) => BigInt(r)),
+    }));
+
+    return { inputNotes, signatures, destinationAddress };
   }
 
   onSyncStarted(listener: (event: SyncStartedEvent) => void) {
@@ -887,6 +746,25 @@ class CurvySDK implements ICurvySDK {
   }
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void) {
     this.#emitter.off(BALANCE_REFRESH_COMPLETE_EVENT, listener);
+  }
+
+  async pollForCriteria<T>(
+    pollFunction: () => Promise<T>,
+    pollCriteria: (res: T) => boolean,
+    maxRetries = 120,
+    delayMs = 10000,
+  ): Promise<T> {
+    for (let i = 0; i < maxRetries; i++) {
+      const res = await pollFunction();
+
+      if (pollCriteria(res)) {
+        return res;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    throw new Error(`Polling failed!`);
   }
 }
 

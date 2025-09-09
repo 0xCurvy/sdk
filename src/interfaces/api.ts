@@ -1,12 +1,13 @@
+import type { Groth16Proof } from "snarkjs";
 import type {
-  AggregationRequest,
   CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
+  GetActionStatusResponse,
   GetAggregatorRequestStatusReturnType,
+  GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsReturnType,
   GetCSAInfoRequest,
@@ -22,12 +23,13 @@ import type {
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
   SubmitGasSponsorshipRequestReturnType,
+  SubmitNoteOwnershipProofReturnType,
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
-  WithdrawPayload,
 } from "@/types/api";
 import type { CsucAction } from "@/types/csuc";
+import { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type { CurvyHandle } from "@/types/curvy";
 
 interface IApiClient {
@@ -66,9 +68,14 @@ interface IApiClient {
   };
 
   aggregator: {
-    SubmitDeposit(data: DepositPayload): Promise<SubmitDepositReturnType>;
-    SubmitWithdraw(data: WithdrawPayload): Promise<SubmitWithdrawReturnType>;
-    SubmitAggregation(data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType>;
+    GetAllNotes(): Promise<GetAllNotesReturnType>;
+    SubmitDeposit(data: DepositRequest): Promise<SubmitDepositReturnType>;
+    SubmitWithdraw(data: WithdrawRequest): Promise<SubmitWithdrawReturnType>;
+    SubmitAggregation(data: AggregationRequest): Promise<SubmitAggregationReturnType>;
+    SubmitNotesOwnerhipProof(data: {
+      proof: Groth16Proof;
+      ownerHashes: string[];
+    }): Promise<SubmitNoteOwnershipProofReturnType>;
     GetAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
   };
 
@@ -76,6 +83,7 @@ interface IApiClient {
     GetCSAInfo(req: GetCSAInfoRequest): Promise<GetCSAInfoResponse>;
     EstimateAction(req: GetActionEstimatedCostRequest): Promise<GetActionEstimatedCostResponse>;
     SubmitActionRequest(req: { action: CsucAction }): Promise<CreateActionResponse>;
+    GetActionStatus(req: { actionIds: string[] }): Promise<GetActionStatusResponse>;
   };
 
   gasSponsorship: {

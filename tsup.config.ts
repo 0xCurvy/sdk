@@ -11,9 +11,6 @@ export default defineConfig((_) => {
     minify: true,
     bundle: true,
     splitting: false,
-    loader: {
-      ".wasm": "file",
-    },
     esbuildOptions: (options) => {
       options.assetNames = "[name]";
       options.loader = {

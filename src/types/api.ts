@@ -6,11 +6,19 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
-import type { InputNoteData, OutputNoteData, Signature } from "@/types/aggregator";
-import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
+import type {
+    NETWORK_FLAVOUR_VALUES,
+    NETWORK_GROUP_VALUES, NETWORKS,
+} from "@/constants/networks";
+import type {
+  CSAInfo,
+  CsucAction,
+  CsucActionPayload,
+  CsucActionStatus,
+  CsucEstimatedActionCost,
+} from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
-import type { NetworkFilter } from "@/utils/network";
+import type { HexString } from "@/types/helper";
 
 type _Announcement = {
   createdAt: string;
@@ -29,7 +37,7 @@ type Currency = {
   symbol: string;
   coinmarketcapId: string;
   iconUrl: string;
-  price: string;
+  price: string | null;
   updatedAt: string;
   decimals: number;
   contractAddress: string;
@@ -46,6 +54,8 @@ type Network = {
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
   csucContractAddress?: string;
+  minWrappingAmountInNative?: string;
+  aggregatorContractAddress?: string;
   nativeCurrency: string | null;
   chainId: string;
   blockExplorerUrl: string;
@@ -112,7 +122,10 @@ type GetAnnouncementEncryptedMessageReturnType = {
 
 //#region Network
 
-type NetworksWithCurrenciesResponse = { data: Array<Network>; error: string | null };
+type NetworksWithCurrenciesResponse = {
+  data: Array<Network>;
+  error: string | null;
+};
 type GetNetworksReturnType = Array<Network>;
 
 //#endregion
@@ -173,41 +186,29 @@ type SetBabyJubJubKeyReturnType =
 
 //#region Aggregator
 
-type DepositPayload = {
-  outputNotes: OutputNoteData[];
-  csucAddress: string;
-  csucTransferAllowanceSignature: string;
+type GetAllNotesReturnType = {
+  notes: { ownerHash: string; viewTag: string; ephemeralKey: string }[];
 };
-
-type WithdrawPayload = {
-  inputNotes: InputNoteData[];
-  signatures: Signature[];
-  destinationAddress: string;
-};
-
-type AggregationRequest = {
-  id?: string;
-  isDummy: boolean;
-  userId: string;
-  ephemeralKeys: bigint[];
-  inputNotesData: InputNoteData[];
-  outputNotesData: OutputNoteData[];
-  outputSignatures: Signature[];
-  aggregationGroupId: string;
-};
-
-type AggregatorRequestStatus = "pending" | "submitting" | "success" | "failed" | "cancelled";
-
 type SubmitDepositReturnType = { requestId: string };
 type SubmitWithdrawReturnType = { requestId: string };
 type SubmitAggregationReturnType = { requestId: string };
-type GetAggregatorRequestStatusReturnType = { requestId: string; status: AggregatorRequestStatus };
+type SubmitNoteOwnershipProofReturnType = {
+  notes: {
+    ownerHash: string;
+    viewTag: string;
+    ephemeralKey: string;
+    token: HexString;
+    amount: string;
+  }[];
+};
+type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed";
+type GetAggregatorRequestStatusReturnType = {
+  requestId: string;
+  status: AggregatorRequestStatusValuesType;
+};
 
 export type {
-  DepositPayload,
-  WithdrawPayload,
-  AggregationRequest,
-  AggregatorRequestStatus,
+  GetAllNotesReturnType,
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,
   SubmitAggregationReturnType,
@@ -219,7 +220,7 @@ export type {
 //#region CSUC
 
 type GetCSAInfoRequest = {
-  network: NetworkFilter;
+  network: NETWORKS;
   csas: string[];
 };
 
@@ -234,7 +235,7 @@ type GetActionEstimatedCostRequest = {
 };
 
 type GetActionEstimatedCostResponse = {
-  data: { estimatedCosts: CsucEstimatedActionCost[] };
+  data: CsucEstimatedActionCost[];
 };
 
 type CreateActionRequest = {
@@ -242,7 +243,11 @@ type CreateActionRequest = {
 };
 
 type CreateActionResponse = {
-  data: { actionStatus: CsucActionStatus };
+  data: CsucActionStatus;
+};
+
+type GetActionStatusResponse = {
+  data: CsucActionStatus[];
 };
 
 export type {
@@ -252,6 +257,7 @@ export type {
   GetActionEstimatedCostResponse,
   CreateActionRequest,
   CreateActionResponse,
+  GetActionStatusResponse,
 };
 
 //#endregion
@@ -288,6 +294,7 @@ export type {
   GetCurvyHandleByOwnerAddressReturnType,
   SetBabyJubJubKeyRequestBody,
   SetBabyJubJubKeyReturnType,
+  SubmitNoteOwnershipProofReturnType,
 };
 
 //#endregion
