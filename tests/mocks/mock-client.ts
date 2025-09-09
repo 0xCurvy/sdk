@@ -1,5 +1,6 @@
 import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
+import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
   CreateActionRequest,
   CreateActionResponse,
@@ -20,6 +21,8 @@ import type {
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
+  SetBabyJubjubPublicKeyRequestBody,
+  SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
@@ -29,7 +32,6 @@ import type {
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
-import { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 
 export class MockAPIClient implements IApiClient {
   private announcementLimit = -1; // -1 will indicate there's no limit
@@ -178,6 +180,12 @@ export class MockAPIClient implements IApiClient {
     },
 
     RegisterCurvyHandle: async (_body: RegisterCurvyHandleRequestBody): Promise<RegisterCurvyHandleReturnType> => {
+      throw new Error("Not needed for announcement syncing tests");
+    },
+    SetBabyJubjubKey: async (
+      _handle: string,
+      _body: SetBabyJubjubPublicKeyRequestBody,
+    ): Promise<SetBabyJubjubPublicKeyReturnType> => {
       throw new Error("Not needed for announcement syncing tests");
     },
   };

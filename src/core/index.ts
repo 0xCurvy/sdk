@@ -149,7 +149,7 @@ class Core implements ICore {
       S: keyPairs.K,
       v: keyPairs.v,
       V: keyPairs.V,
-      babyJubjubPubKey: babyJubjubPublicKeyStringified,
+      babyJubjubPublicKey: babyJubjubPublicKeyStringified,
     };
   }
 
@@ -157,14 +157,14 @@ class Core implements ICore {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const babyJubjubPublicKeyStringified = this.#getBabyJubjubPublicKey(result);
+    const babyJubjubPublicKey = this.#getBabyJubjubPublicKey(result);
 
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
-      babyJubjubPubKey: babyJubjubPublicKeyStringified,
+      babyJubjubPublicKey,
     } satisfies CurvyKeyPairs;
   }
 
@@ -179,7 +179,7 @@ class Core implements ICore {
 
     return new Note({
       owner: {
-        babyJubjubPubKey: {
+        babyJubjubPublicKey: {
           x: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[0],
           y: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[1],
         },
@@ -210,7 +210,7 @@ class Core implements ICore {
       pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null,
     );
 
-    const { babyJubjubPubKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
+    const { babyJubjubPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
     const bjjKeyBigint = ownerBabyJubjubPublicKey.split(".").map(BigInt);
 
     const ownershipData: NoteOwnershipData[] = [];
@@ -306,7 +306,12 @@ class Core implements ICore {
     };
   }
 
-  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubjubPublicKey: [string, string]): Note[] {
+  unpackAuthenticatedNotes(
+    s: string,
+    v: string,
+    notes: Note[],
+    babyJubjubPublicKey: [string, string],
+  ): Note[] {
     const scanResult = this.scanNotes(
       s,
       v,
@@ -319,7 +324,7 @@ class Core implements ICore {
     const unpackedNotes = scanResult.spendingPubKeys.map((pubKey: string, index: number) => {
       return new Note({
         owner: {
-          babyJubjubPubKey: {
+          babyJubjubPublicKey: {
             x: BigInt(babyJubjubPublicKey[0]),
             y: BigInt(babyJubjubPublicKey[1]),
           },

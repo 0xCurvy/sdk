@@ -1,4 +1,5 @@
 import type { Groth16Proof } from "snarkjs";
+import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
   CreateActionResponse,
   CreateAnnouncementRequestBody,
@@ -17,6 +18,8 @@ import type {
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
+  SetBabyJubjubPublicKeyRequestBody,
+  SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
@@ -27,7 +30,7 @@ import type {
   UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
 import type { CsucAction } from "@/types/csuc";
-import { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
+import type { CurvyHandle } from "@/types/curvy";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
@@ -55,6 +58,10 @@ interface IApiClient {
     RegisterCurvyHandle(body: RegisterCurvyHandleRequestBody): Promise<RegisterCurvyHandleReturnType>;
     ResolveCurvyHandle(username: string): Promise<ResolveCurvyHandleReturnType>;
     GetCurvyHandleByOwnerAddress(ownerAddress: string): Promise<GetCurvyHandleByOwnerAddressReturnType>;
+    SetBabyJubjubKey(
+      handle: CurvyHandle,
+      body: SetBabyJubjubPublicKeyRequestBody,
+    ): Promise<SetBabyJubjubPublicKeyReturnType>;
   };
 
   auth: {

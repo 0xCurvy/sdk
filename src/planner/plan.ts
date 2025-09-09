@@ -47,7 +47,9 @@ export type CurvyPlanUnsuccessfulEstimation = {
   error: any;
 };
 
-export type CurvyPlanEstimation = CurvyPlanSuccessfulEstimation | CurvyPlanUnsuccessfulEstimation;
+export type CurvyPlanEstimation =
+  | CurvyPlanSuccessfulEstimation
+  | CurvyPlanUnsuccessfulEstimation;
 
 export type CurvyPlanSuccessfulExecution = {
   success: true;
@@ -61,4 +63,6 @@ export type CurvyPlanUnsuccessfulExecution = {
   items?: CurvyPlanExecution[];
 };
 
-export type CurvyPlanExecution = CurvyPlanSuccessfulExecution | CurvyPlanUnsuccessfulExecution;
+export type CurvyPlanExecution =
+  | CurvyPlanSuccessfulExecution
+  | CurvyPlanUnsuccessfulExecution;
