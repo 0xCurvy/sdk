@@ -1,22 +1,22 @@
-import { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { CurvyCommandData, CurvyCommandAddress } from "@/planner/addresses/abstract";
+import type { ICurvySDK } from "@/interfaces/sdk";
+import type { CurvyIntent } from "@/planner/plan";
 
-import {
-  createActionExecutionRequest,
-  createActionFeeComputationRequest,
-  fetchActionExecutionFee,
-} from "@/planner/commands/csuc/internal-utils";
+import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
+import type { CurvyCommandData } from "@/planner/plan";
+import type { CsucBalanceEntry } from "@/types";
 
 import { CSUCAbstractCommand } from "@/planner/commands/csuc/abstract";
 
 // This command automatically sends all available balance from CSUC to external address
 export class CSUCWithdrawFromCommand extends CSUCAbstractCommand {
+  protected intent!: CurvyIntent;
   constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {
-    // Destination is always Aggregator
-    super(sdk, input, intent);
-    this.action = CsucActionSet.WITHDRAW;
+    super(sdk, input);
+
+    this.intent = intent;
   }
 
+  // @ts-ignore
   async execute(): Promise<CurvyCommandData> {
     // console.log("Executing: CSUC withdraw from command!");
     // // Total balance available on the address inside CSUC
@@ -49,8 +49,6 @@ export class CSUCWithdrawFromCommand extends CSUCAbstractCommand {
     //   },
     // };
     // return artifact;
-
-    return this.from;
   }
 
   async estimate(): Promise<CurvyCommandEstimate> {
