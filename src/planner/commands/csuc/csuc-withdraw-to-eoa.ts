@@ -41,7 +41,8 @@ export class CSUCWithdrawToEOACommand extends CSUCAbstractCommand {
     );
 
     // Submit the action request to be later executed on-chain
-    const result = await this.sdk.apiClient.csuc.SubmitActionRequest({
+    // TODO: Validate
+    await this.sdk.apiClient.csuc.SubmitActionRequest({
       action: actionRequest,
     });
 

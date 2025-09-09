@@ -1,15 +1,12 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import type { CurvyCommandData } from "@/planner/plan";
+import { CSUCAbstractCommand } from "@/planner/commands/csuc/abstract";
 
 import { createActionExecutionRequest } from "@/planner/commands/csuc/internal-utils";
-
-import { CSUCAbstractCommand } from "@/planner/commands/csuc/abstract";
+import type { CurvyCommandData } from "@/planner/plan";
 
 // This command automatically sends all available balance from CSUC to Aggregator
 export class CSUCDepositToAggregatorCommand extends CSUCAbstractCommand {
   async execute(): Promise<CurvyCommandData> {
-    console.log("Executing: CSUC deposit to aggregator!");
-
     // Total balance available on the address inside CSUC
     const availableBalance: bigint = this.input.balance;
     // Amount that can be moved from CSUC to Aggregator
@@ -27,14 +24,14 @@ export class CSUCDepositToAggregatorCommand extends CSUCAbstractCommand {
     if (!network) {
       throw new Error(`Network with slug ${this.input.networkSlug} not found!`);
     }
-    const actionRequest = await createActionExecutionRequest(network, this.input, this.actionPayload, this.totalFee);
+    // TODO: Don't tie in estimation to execution
+    const actionRequest = await createActionExecutionRequest(network, this.input, this.actionPayload!, this.totalFee);
 
     // Submit the action request to be later executed on-chain
-    const result = await this.sdk.apiClient.csuc.SubmitActionRequest({
+    await this.sdk.apiClient.csuc.SubmitActionRequest({
+      // TODO: Validate
       action: actionRequest,
     });
-
-    // TODO: result check...
 
     return note.serializeNoteToBalanceEntry(
       this.input.symbol,
