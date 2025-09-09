@@ -41,7 +41,7 @@ interface ICurvySDK {
   getNewStealthAddressForUser(
     networkIdentifier: NetworkFilter,
     handle: string,
-  ): Promise<{ address: HexString; addressId: string; pubKey: string }>;
+  ): Promise<{ address: HexString; id: string; pubKey: string }>;
 
   getAddressEncryptedMessage(address: CurvyAddress): Promise<string>;
 

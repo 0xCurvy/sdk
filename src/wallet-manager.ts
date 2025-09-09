@@ -187,8 +187,23 @@ class WalletManager implements IWalletManager {
 
     const { createdAt, publicKeys } = ownerDetails;
 
-    if (!publicKeys.some(({ viewingKey: V, spendingKey: S }) => V === keyPairs.V && S === keyPairs.S))
+    if (!publicKeys.babyJubjubPublicKey) {
+      const result = await this.#apiClient.user.SetBabyJubjubKey(curvyHandle, {
+        BabyJubjubKey: keyPairs.babyJubjubPublicKey,
+      });
+      if (!("data" in result) || result.data.message !== "Saved")
+        throw new Error(`Failed to set BabyJubjub key for handle ${curvyHandle}.`);
+    }
+
+    if (
+      !(
+        publicKeys.viewingKey === keyPairs.V &&
+        publicKeys.spendingKey === keyPairs.S &&
+        publicKeys.babyJubjubPublicKey === keyPairs.babyJubjubPublicKey
+      )
+    ) {
       throw new Error(`Wrong password for handle ${curvyHandle}.`);
+    }
 
     const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
     const wallet = new CurvyWallet(walletId, +dayjs(createdAt), curvyHandle, signature.signingAddress, keyPairs);
@@ -228,7 +243,7 @@ class WalletManager implements IWalletManager {
     await this.#apiClient.user.RegisterCurvyHandle({
       handle,
       ownerAddress,
-      publicKeys: [{ viewingKey: keyPairs.V, spendingKey: keyPairs.S }],
+      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, BabyJubjubKey: keyPairs.babyJubjubPublicKey },
     });
 
     const { data: registerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);

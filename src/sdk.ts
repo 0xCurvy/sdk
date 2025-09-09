@@ -238,7 +238,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error(`Handle ${handle} not found`);
     }
 
-    const { spendingKey, viewingKey } = recipientDetails.publicKeys[0];
+    const { spendingKey, viewingKey } = recipientDetails.publicKeys;
 
     const {
       spendingPubKey: recipientStealthPublicKey,
@@ -262,7 +262,7 @@ class CurvySDK implements ICurvySDK {
 
     if (response.data?.message !== "Saved") throw new Error("Failed to register announcement");
 
-    return { address, addressId: response.data.id, pubKey: recipientStealthPublicKey };
+    return { address, id: response.data.id, pubKey: recipientStealthPublicKey };
   }
 
   async getAddressEncryptedMessage(address: CurvyAddress) {
@@ -326,14 +326,11 @@ class CurvySDK implements ICurvySDK {
     }
   }
 
-  //TODO Mainnet and testnet should not be active at the same time
-  // Add validation to network filter to prevent this
-
   setActiveNetworks(networkFilter: NetworkFilter) {
     const networks = this.getNetworks(networkFilter);
 
-    const uniqueEnvSet = new Set(networks.map((n) => n.testnet));
-    if (uniqueEnvSet.size > 1) {
+    const uniqueEnvironmentSet = new Set(networks.map((n) => n.testnet));
+    if (uniqueEnvironmentSet.size > 1) {
       throw new Error("Cannot mix mainnet and testnet networks!");
     }
 
@@ -344,7 +341,7 @@ class CurvySDK implements ICurvySDK {
     const newRpc = newMultiRpc(networks);
     this.#rpcClient = newRpc;
 
-    const environment = uniqueEnvSet.values().next().value;
+    const environment = uniqueEnvironmentSet.values().next().value;
 
     if (environment === undefined) throw new Error("No environment set.");
 
@@ -609,7 +606,7 @@ class CurvySDK implements ICurvySDK {
     }
     const outputNotes = notes.map((note) =>
       this.#core.sendNote(recipient.S, recipient.V, {
-        ownerBabyJubjubPublicKey: note.owner!.babyJubjubPubKey.toString(),
+        ownerBabyJubjubPublicKey: note.owner!.babyJubjubPublicKey.toString(),
         amount: note.balance!.amount,
         token: note.balance!.token,
       }),
@@ -672,7 +669,7 @@ class CurvySDK implements ICurvySDK {
       inputNotes.push(
         new Note({
           owner: {
-            babyJubjubPubKey: {
+            babyJubjubPublicKey: {
               x: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
               y: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
             },
@@ -691,12 +688,15 @@ class CurvySDK implements ICurvySDK {
     }
 
     const msgHash = generateOutputsHash(inputNotes);
-    const signature = this.#core.signWithBabyJubjubPrivateKey(poseidonHash([msgHash, BigInt(destinationAddress), 0n]), s);
+    const signature = this.#core.signWithBabyJubjubPrivateKey(
+      poseidonHash([msgHash, BigInt(destinationAddress), 0n]),
+      s,
+    );
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
-    
+
     return { inputNotes, signatures, destinationAddress };
   }
 

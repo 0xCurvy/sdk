@@ -2,6 +2,12 @@ import type { Groth16Proof } from "snarkjs";
 import type { PublicSignals } from "snarkjs/index";
 import type { HexString } from "@/types/helper";
 
+type PublicKey = {
+  spendingKey: string;
+  viewingKey: string;
+  babyJubjubPublicKey: string;
+};
+
 type Signature = {
   S: bigint;
   R8: bigint[];
@@ -12,7 +18,7 @@ type CoreLegacyKeyPairs = {
   v: string;
   K: string;
   V: string;
-  bJJPublicKey: string;
+  babyJubjubPublicKey: string;
 };
 
 type CurvyPrivateKeys = {
@@ -23,7 +29,7 @@ type CurvyPrivateKeys = {
 type CurvyPublicKeys = {
   S: string;
   V: string;
-  bJPublicKey: string;
+  babyJubjubPublicKey: string;
 };
 
 type CurvyKeyPairs = CurvyPrivateKeys & CurvyPublicKeys;
@@ -75,6 +81,7 @@ type NoteOwnershipProof = {
 };
 
 export type {
+  PublicKey,
   Signature,
   CurvyKeyPairs,
   CurvyPublicKeys,

@@ -64,8 +64,8 @@ test("simplest possible test", async () => {
 
   const keyPairs = core.generateKeyPairs();
 
-  const { bJPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
-  expect(bJPublicKey).not.toBeNull();
+  const { babyJubjubPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
+  expect(babyJubjubPublicKey).not.toBeNull();
 
   const validV = core.isValidBN254Point(keyPairs.V);
   const validS = core.isValidSECP256k1Point(keyPairs.S);
