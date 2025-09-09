@@ -5,20 +5,13 @@ import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abst
 import type { CurvyCommandData } from "@/planner/plan";
 import type { CsucBalanceEntry } from "@/types";
 
-// import type { CurvyCommandData } from "@/planner/addresses/abstract";
-// import type { CurvyCommandCSUCAddress } from "@/planner/addresses/csuc";
 import type { CsucActionPayload } from "@/types";
 
 // This command automatically sends all available balance from CSUC to Aggregator
 export abstract class CSUCAbstractCommand extends CurvyCommand {
   protected sdk!: ICurvySDK;
 
-  // Action to be estimated / executed
-  // protected action!: CsucActionSet;
-
   // CSUC address that will sign / auth. the action to be executed
-  // protected from!: CurvyCommandCSUCAddress;
-  // protected input!: CsucBalanceEntry;
   protected declare input: CsucBalanceEntry;
 
   // Destination to which funds will be sent
@@ -32,7 +25,6 @@ export abstract class CSUCAbstractCommand extends CurvyCommand {
 
   constructor(sdk: ICurvySDK, input: CurvyCommandData, intent?: CurvyIntent) {
     super(input);
-    this.from = input as CurvyCommandCSUCAddress;
     this.sdk = sdk;
     this.totalFee = 0n;
   }

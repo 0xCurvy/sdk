@@ -1,8 +1,5 @@
-import type { ICurvySDK } from "@/interfaces/sdk";
-
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { Note, type CsucBalanceEntry } from "@/types";
 
 import { createActionExecutionRequest } from "@/planner/commands/csuc/internal-utils";
 
@@ -10,11 +7,6 @@ import { CSUCAbstractCommand } from "@/planner/commands/csuc/abstract";
 
 // This command automatically sends all available balance from CSUC to Aggregator
 export class CSUCDepositToAggregatorCommand extends CSUCAbstractCommand {
-  // constructor(sdk: ICurvySDK, input: CurvyCommandData) {
-  //   super(sdk, input);
-  //   // this.action = CsucActionSet.DEPOSIT_TO_AGGREGATOR;
-  // }
-
   async execute(): Promise<CurvyCommandData> {
     console.log("Executing: CSUC deposit to aggregator!");
 
@@ -29,7 +21,6 @@ export class CSUCDepositToAggregatorCommand extends CSUCAbstractCommand {
       BigInt(this.input.currencyAddress),
       amount,
     );
-    // const { ownerHash } = note;
 
     // Create the action request ...
     const network = this.sdk.getNetworkBySlug(this.input.networkSlug);

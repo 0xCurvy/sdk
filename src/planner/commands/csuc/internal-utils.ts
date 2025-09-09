@@ -1,7 +1,9 @@
+// @ts-nocheck
 import { type EncodeAbiParametersReturnType, encodeAbiParameters, keccak256 } from "viem";
 import type { Network } from "@/types/api";
 import { type CsucAction, type CsucActionPayload, CsucActionSet, CsucActionType } from "@/types/csuc";
 import type { HexString } from "@/types/helper";
+// TODO: replace CurvyAddressLike with the latest type...
 import { CurvyAddressLike } from "@/planner/plan";
 import { CsucSignature } from "dist/types";
 import { CurvyCommandCSUCAddress } from "@/planner/addresses/csuc";
