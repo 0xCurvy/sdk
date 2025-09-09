@@ -306,7 +306,12 @@ class Core implements ICore {
     };
   }
 
-  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubjubPublicKey: [string, string]): Note[] {
+  unpackAuthenticatedNotes(
+    s: string,
+    v: string,
+    notes: Note[],
+    babyJubjubPublicKey: [string, string],
+  ): Note[] {
     const scanResult = this.scanNotes(
       s,
       v,

@@ -124,13 +124,13 @@ test("Generate note ownership proof", async () => {
   const {
     S: ownerS,
     V: ownerV,
-    babyJubjubPublicKey: ownerBabyjubjubPublicKey,
+    babyJubjubPublicKey: ownerBabyJubjubPublicKey,
   } = core.getCurvyKeys(keyPair.s, keyPair.v);
 
   const notes: any = [];
   for (let i = 0; i < NUM_NOTES; i++) {
     const recipientNoteData = core.sendNote(ownerS, ownerV, {
-      ownerBabyJubjubPublicKey: ownerBabyjubjubPublicKey,
+      ownerBabyJubjubPublicKey: ownerBabyJubjubPublicKey,
       amount: 1000000000000000000n,
       token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
     });
@@ -147,7 +147,7 @@ test("Generate note ownership proof", async () => {
 
   const ownedNotes = core.getNoteOwnershipData(publicNotes, keyPair.s, keyPair.v);
 
-  const { proof, publicSignals } = await core.generateNoteOwnershipProof(ownedNotes, ownerBabyjubjubPublicKey);
+  const { proof, publicSignals } = await core.generateNoteOwnershipProof(ownedNotes, ownerBabyJubjubPublicKey);
 
   expect(proof).toBeDefined();
   expect(publicSignals).toBeDefined();
