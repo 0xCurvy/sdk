@@ -1,30 +1,23 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
-import type { CurvyIntent } from "@/planner/plan";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
-
-import type { CurvyCommandData } from "@/planner/plan";
-import type { CsucBalanceEntry } from "@/types";
-
-import type { CsucActionPayload } from "@/types";
+import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
+import type { CsucActionPayload, CsucBalanceEntry } from "@/types";
 
 // This command automatically sends all available balance from CSUC to Aggregator
 export abstract class CSUCAbstractCommand extends CurvyCommand {
-  protected sdk!: ICurvySDK;
+  protected sdk: ICurvySDK;
 
   // CSUC address that will sign / auth. the action to be executed
   protected declare input: CsucBalanceEntry;
 
-  // Destination to which funds will be sent
-  protected to!: CsucBalanceEntry;
-
   // Payload that will be used for estimation / execution of the action
-  protected actionPayload!: CsucActionPayload;
+  protected actionPayload?: CsucActionPayload;
 
   // The inside CSUC total fee (in the currency being moved) that will be taken by Curvy
-  protected totalFee!: bigint;
+  protected totalFee: bigint;
 
   constructor(sdk: ICurvySDK, input: CurvyCommandData, intent?: CurvyIntent) {
-    super(input);
+    super(sdk, input);
     this.sdk = sdk;
     this.totalFee = 0n;
   }

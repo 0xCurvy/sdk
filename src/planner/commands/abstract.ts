@@ -1,3 +1,4 @@
+import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandData } from "../plan";
 
 export interface CurvyCommandEstimate {
@@ -6,9 +7,11 @@ export interface CurvyCommandEstimate {
 }
 
 export abstract class CurvyCommand {
+  protected sdk: ICurvySDK;
   protected input: CurvyCommandData;
 
-  constructor(input: CurvyCommandData) {
+  constructor(sdk: ICurvySDK, input: CurvyCommandData) {
+    this.sdk = sdk;
     this.input = input;
   }
 
