@@ -785,6 +785,24 @@ class CurvySDK implements ICurvySDK {
 
     throw new Error(`Polling failed!`);
   }
+
+  async getNewNoteForUser(handle: string, token: bigint, amount: bigint) {
+    const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
+
+    if (!recipientDetails) {
+      throw new Error(`Handle ${handle} not found`);
+    }
+
+    const { spendingKey, viewingKey, babyJubjubPublicKey } = recipientDetails.publicKeys;
+    if (!babyJubjubPublicKey) {
+      throw new Error(`BabyJubjub public key not found for handle ${handle}`);
+    }
+    return this.#core.sendNote(spendingKey, viewingKey, {
+      ownerBabyJubjubPublicKey: babyJubjubPublicKey,
+      amount,
+      token,
+    });
+  }
 }
 
 export { CurvySDK };
