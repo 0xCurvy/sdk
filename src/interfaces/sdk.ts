@@ -3,7 +3,13 @@ import type { IApiClient } from "@/interfaces/api";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
 import type { CurvyAddress } from "@/types/address";
-import type { AggregationRequest, AggregationRequestParams, DepositRequest, WithdrawRequest } from "@/types/aggregator";
+import type {
+  AggregationRequest,
+  AggregationRequestParams,
+  DepositRequest,
+  WithdrawRequest,
+  WithdrawRequestParams,
+} from "@/types/aggregator";
 import type {
   Currency,
   GetAggregatorRequestStatusReturnType,
@@ -34,7 +40,7 @@ interface ICurvySDK {
   get rpcClient(): MultiRpc;
   get activeNetworks(): Network[];
   get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
-  get getApiClient(): IApiClient;
+  get apiClient(): IApiClient;
   get walletManager(): IWalletManager;
 
   createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest;

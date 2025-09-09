@@ -1,8 +1,8 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandData } from "@/planner/addresses/abstract";
-import type { CurvyCommandNoteAddress } from "@/planner/addresses/note";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
-import type { AggregatorRequestStatusValuesType, Note } from "@/types";
+import { type AggregatorRequestStatusValuesType, BALANCE_TYPE, type CsucBalanceEntry } from "@/types";
+import { Note } from "@/types/note";
 
 export class AggregatorWithdrawToCsucCommand extends CurvyCommand {
   sdk: ICurvySDK;
@@ -13,25 +13,31 @@ export class AggregatorWithdrawToCsucCommand extends CurvyCommand {
 
   async execute(): Promise<CurvyCommandData> {
     const vanjin_network = "sepolia";
-    const curveHandle = this.sdk.walletManager.activeWallet.curvyHandle;
-    const { address } = await this.sdk.getNewStealthAddressForUser(vanjin_network, curveHandle);
-    const inputNote = Array.isArray(this.input) ? this.input : [this.input];
-    const noteAddresses = inputNote.filter((addr) => addr.type === "note") as CurvyCommandNoteAddress[];
+    const curvyHandle = this.sdk.walletManager.activeWallet.curvyHandle;
+    const { address } = await this.sdk.getNewStealthAddressForUser(vanjin_network, curvyHandle);
+    const balanceEntries = Array.isArray(this.input) ? this.input : [this.input];
 
-    const inputNotesFromCommand: Note[] = noteAddresses.map((addr) => addr.note);
+    const allAreNotes = balanceEntries.every((addr) => addr.type === "note");
+    if (!allAreNotes) {
+      throw new Error("Invalid input for command, aggregator-aggregate command only accepts notes as input.");
+    }
+
+    const inputNotesFromCommand: Note[] = balanceEntries.map((noteBalanceEntry) =>
+      Note.fromNoteBalanceEntry(noteBalanceEntry),
+    );
 
     const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload({
       inputNotes: inputNotesFromCommand,
       destinationAddress: address,
     });
-    const { requestId } = await this.sdk.getApiClient.aggregator.SubmitWithdraw({
+    const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw({
       inputNotes,
       signatures,
       destinationAddress,
     });
 
     await this.sdk.pollForCriteria(
-      () => this.sdk.getApiClient.aggregator.GetAggregatorRequestStatus(requestId),
+      () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res: { status: AggregatorRequestStatusValuesType }) => {
         if (res.status === "failed") {
           throw new Error(`Aggregator withdraw ${res.status}`);
@@ -41,7 +47,13 @@ export class AggregatorWithdrawToCsucCommand extends CurvyCommand {
       120,
       10_000,
     );
-    //@ts-expect-error
+
+    // TODO: Create utility methods for creating balance entries in commands
+    const destinationCSUCBalanceEntry: CsucBalanceEntry = {
+      type: BALANCE_TYPE["CSUC"],
+      nonce:
+    };
+
     return Promise.resolve(destinationAddress);
   }
 

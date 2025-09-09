@@ -121,10 +121,6 @@ class CurvySDK implements ICurvySDK {
     this.#commandExecutor = new CommandExecutor(commandFactory);
   }
 
-  get getApiClient(): IApiClient {
-    return this.apiClient;
-  }
-
   get walletManager(): IWalletManager {
     if (!this.#walletManager) {
       throw new Error("Wallet manager is not initialized!");
@@ -214,12 +210,8 @@ class CurvySDK implements ICurvySDK {
     return this.#state.activeNetworks;
   }
 
-  get getApiClient() {
-    return this.apiClient;
-  }
-
   get activeEnvironment() {
-        return this.#state.environment;
+    return this.#state.environment;
   }
 
   getStealthAddressById(id: string) {

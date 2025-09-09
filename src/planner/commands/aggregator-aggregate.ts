@@ -83,10 +83,10 @@ export class AgregatorAgregateCommand extends CurvyCommand {
 
     const payload = this.sdk.createAggregationPayload(prepareInputs);
 
-    const requestId = await this.sdk.getApiClient.aggregator.SubmitAggregation(payload);
+    const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(payload);
 
     await this.sdk.pollForCriteria(
-      () => this.sdk.getApiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
+      () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
       (res: { status: AggregatorRequestStatusValuesType }) => {
         if (res.status === "failed") {
           throw new Error(`Aggregator withdraw ${res.status}`);
