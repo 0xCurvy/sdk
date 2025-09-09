@@ -1,6 +1,6 @@
 import type { CurvyCommandData } from "@/planner/addresses/abstract";
 import type { CurvyCommand } from "@/planner/commands/abstract";
-import { AgregatorAgregateCommand } from "@/planner/commands/aggregator-agregate";
+import { AgregatorAgregateCommand } from "@/planner/commands/aggregator-aggregate";
 import { MockFailCommand, MockSuccessCommand } from "@/planner/commands/mock-commands";
 import type { CurvyIntent } from "@/planner/plan";
 
