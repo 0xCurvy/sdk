@@ -6,17 +6,8 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type {
-    NETWORK_FLAVOUR_VALUES,
-    NETWORK_GROUP_VALUES, NETWORKS,
-} from "@/constants/networks";
-import type {
-  CSAInfo,
-  CsucAction,
-  CsucActionPayload,
-  CsucActionStatus,
-  CsucEstimatedActionCost,
-} from "@/types/csuc";
+import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES, NETWORKS } from "@/constants/networks";
+import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 
@@ -138,7 +129,7 @@ type RegisterCurvyHandleRequestBody = {
   publicKeys: {
     spendingKey: string;
     viewingKey: string;
-    babyJubJubKey: string;
+    BabyJubjubKey: string;
   };
 };
 type RegisterCurvyHandleReturnType =
@@ -154,7 +145,7 @@ type ResolveCurvyHandleReturnType = {
     publicKeys: {
       spendingKey: string;
       viewingKey: string;
-      babyJubJubKey: string | null;
+      babyJubjubPublicKey: string | null;
     };
   } | null;
   error?: string | null;
@@ -167,11 +158,11 @@ type GetCurvyHandleByOwnerAddressResponse = {
 };
 type GetCurvyHandleByOwnerAddressReturnType = string | null;
 
-type SetBabyJubJubKeyRequestBody = {
-  babyJubJubKey: string;
+type SetBabyJubjubPublicKeyRequestBody = {
+  BabyJubjubKey: string;
 };
 
-type SetBabyJubJubKeyReturnType =
+type SetBabyJubjubPublicKeyReturnType =
   | {
       data: {
         message: string;
@@ -292,8 +283,8 @@ export type {
   ResolveCurvyHandleReturnType,
   GetCurvyHandleByOwnerAddressResponse,
   GetCurvyHandleByOwnerAddressReturnType,
-  SetBabyJubJubKeyRequestBody,
-  SetBabyJubJubKeyReturnType,
+  SetBabyJubjubPublicKeyRequestBody,
+  SetBabyJubjubPublicKeyReturnType,
   SubmitNoteOwnershipProofReturnType,
 };
 

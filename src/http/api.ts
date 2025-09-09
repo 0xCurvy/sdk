@@ -21,8 +21,8 @@ import type {
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
-  SetBabyJubJubKeyRequestBody,
-  SetBabyJubJubKeyReturnType,
+  SetBabyJubjubPublicKeyRequestBody,
+  SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
@@ -31,8 +31,8 @@ import type {
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
-import type { CurvyHandle } from "@/types/curvy";
 import type { CsucActionStatus } from "@/types/csuc";
+import type { CurvyHandle } from "@/types/curvy";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
@@ -114,8 +114,8 @@ class ApiClient extends HttpClient implements IApiClient {
       return response.data?.handle || null;
     },
 
-    SetBabyJubJubKey: async (handle: CurvyHandle, body: SetBabyJubJubKeyRequestBody) => {
-      return await this.request<SetBabyJubJubKeyReturnType>({
+    SetBabyJubjubKey: async (handle: CurvyHandle, body: SetBabyJubjubPublicKeyRequestBody) => {
+      return await this.request<SetBabyJubjubPublicKeyReturnType>({
         method: "PATCH",
         path: `/user/${handle}/bjj`,
         body,

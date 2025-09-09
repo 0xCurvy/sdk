@@ -139,15 +139,6 @@ class Core implements ICore {
     } satisfies CoreViewerScanArgs;
   }
 
-  #getbabyJubJubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
-    if (!this.#babyJubEddsa)
-      throw new Error("BabyJubEddsa not initialized. Please call Core.init() before using this method.");
-
-    const babyJubJubPublicKey = this.#babyJubEddsa.prv2pub(this.#babyJubEddsa.F.e("0x" + keyPairs.k));
-
-    return babyJubJubPublicKey.map((p) => this.#babyJubEddsa?.F.toObject(p).toString()).join(".");
-  }
-
   generateKeyPairs(): CurvyKeyPairs {
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
@@ -188,8 +179,7 @@ class Core implements ICore {
 
     return new Note({
       owner: {
-        babyJubjubPubKey:
-        {
+        babyJubjubPublicKey: {
           x: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[0],
           y: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[1],
         },
@@ -220,7 +210,7 @@ class Core implements ICore {
       pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null,
     );
 
-    const { bJPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
+    const { babyJubjubPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
     const bjjKeyBigint = ownerBabyJubjubPublicKey.split(".").map(BigInt);
 
     const ownershipData: NoteOwnershipData[] = [];
@@ -316,12 +306,7 @@ class Core implements ICore {
     };
   }
 
-  unpackAuthenticatedNotes(
-    s: string,
-    v: string,
-    notes: Note[],
-    babyJubjubPublicKey: [string, string],
-  ): Note[] {
+  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubjubPublicKey: [string, string]): Note[] {
     const scanResult = this.scanNotes(
       s,
       v,
@@ -334,7 +319,7 @@ class Core implements ICore {
     const unpackedNotes = scanResult.spendingPubKeys.map((pubKey: string, index: number) => {
       return new Note({
         owner: {
-          babyJubjubPubKey: {
+          babyJubjubPublicKey: {
             x: BigInt(babyJubjubPublicKey[0]),
             y: BigInt(babyJubjubPublicKey[1]),
           },

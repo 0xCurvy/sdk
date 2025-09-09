@@ -5,7 +5,7 @@ import type { HexString } from "@/types/helper";
 type PublicKey = {
   spendingKey: string;
   viewingKey: string;
-  babyJubJubPublicKey: string;
+  babyJubjubPublicKey: string;
 };
 
 type Signature = {
@@ -18,7 +18,7 @@ type CoreLegacyKeyPairs = {
   v: string;
   K: string;
   V: string;
-  bJJPublicKey: string;
+  babyJubjubPublicKey: string;
 };
 
 type CurvyPrivateKeys = {
@@ -29,7 +29,7 @@ type CurvyPrivateKeys = {
 type CurvyPublicKeys = {
   S: string;
   V: string;
-  babyJubJubPublicKey: string;
+  babyJubjubPublicKey: string;
 };
 
 type CurvyKeyPairs = CurvyPrivateKeys & CurvyPublicKeys;
