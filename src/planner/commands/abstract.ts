@@ -1,4 +1,4 @@
-import { CurvyCommandData } from "../addresses/abstract";
+import type { CurvyCommandData } from "../plan";
 
 export interface CurvyCommandEstimate {
   curvyFee: bigint;

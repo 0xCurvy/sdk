@@ -1,4 +1,4 @@
-import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
 import type { MultiRpc } from "@/rpc/multi";
 import type { CurvyAddress } from "@/types/address";
@@ -11,7 +11,6 @@ import type {
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,
 } from "@/types/api";
-import type { CurvyHandle } from "@/types/curvy";
 import type {
   BalanceRefreshCompleteEvent,
   BalanceRefreshProgressEvent,
@@ -26,17 +25,15 @@ import type {
 } from "@/types/events";
 import type { HexString } from "@/types/helper";
 import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
-import type { CurvySignatureParameters, EvmSignatureData, StarknetSignatureData } from "@/types/signature";
+import type { CurvySignatureParameters } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
-import type { CurvyWallet } from "@/wallet";
 
 interface ICurvySDK {
   // Getters
   get getApiClient(): IApiClient;
   get rpcClient(): MultiRpc;
-  get wallets(): CurvyWallet[];
-  get activeWallet(): CurvyWallet;
-  hasActiveWallet(): boolean;
+  get activeNetworks(): Network[];
+  get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
 
   getStealthAddressById(id: string): Promise<CurvyAddress>;
   getNetwork(networkFilter?: NetworkFilter): Network;
@@ -46,7 +43,9 @@ interface ICurvySDK {
   getNewStealthAddressForUser(
     networkIdentifier: NetworkFilter,
     handle: string,
-  ): Promise<{ address: HexString; id: string; pubKey: string }>;
+  ): Promise<{ address: HexString; addressId: string; pubKey: string }>;
+
+  getAddressEncryptedMessage(address: CurvyAddress): Promise<string>;
 
   getNativeCurrencyForNetwork(network: Network): Currency;
   getSignatureParamsForNetworkFlavour(
@@ -59,34 +58,12 @@ interface ICurvySDK {
   switchNetworkEnvironment(environment: "mainnet" | "testnet"): void;
 
   // Actions
-  addWalletWithSignature(flavour: NETWORK_FLAVOUR["EVM"], signature: EvmSignatureData): Promise<CurvyWallet>;
-  addWalletWithSignature(flavour: NETWORK_FLAVOUR["STARKNET"], signature: StarknetSignatureData): Promise<CurvyWallet>;
-  addWalletWithSignature(
-    flavour: NETWORK_FLAVOUR_VALUES,
-    signature: EvmSignatureData | StarknetSignatureData,
-  ): Promise<CurvyWallet>;
 
-  registerWalletWithSignature(
-    handle: CurvyHandle,
-    flavour: NETWORK_FLAVOUR["EVM"],
-    signature: EvmSignatureData,
-  ): Promise<CurvyWallet>;
-  registerWalletWithSignature(
-    handle: CurvyHandle,
-    flavour: NETWORK_FLAVOUR["STARKNET"],
-    signature: StarknetSignatureData,
-  ): Promise<CurvyWallet>;
-  registerWalletWithSignature(
-    handle: CurvyHandle,
-    flavour: NETWORK_FLAVOUR_VALUES,
-    signature: EvmSignatureData | StarknetSignatureData,
-  ): Promise<CurvyWallet>;
-
-  removeWallet(walletId: string): Promise<void>;
-
+  refreshNoteBalances(walletId: string): Promise<void>;
+  refreshAddressBalances(address: CurvyAddress): Promise<void>;
   refreshWalletBalances(walletId: string): Promise<void>;
   refreshBalances(): Promise<void>;
-  refreshAddressBalances(address: CurvyAddress): Promise<void>;
+
   resetStorage(): Promise<void>;
 
   estimateFee(

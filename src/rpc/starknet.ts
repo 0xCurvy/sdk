@@ -16,15 +16,16 @@ import {
   validateAndParseAddress,
 } from "starknet";
 import type { Address } from "viem";
+import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { CURVY_ACCOUNT_CLASS_HASHES, CURVY_DUMMY_STARKNET_ACCOUNT } from "@/constants/starknet";
 import { starknetAccountAbi } from "@/contracts/starknet/abi/account";
 import { starknetErc20Abi } from "@/contracts/starknet/abi/erc20";
 import { starknetMulticallAbi } from "@/contracts/starknet/abi/multicall";
-import type { CurvyAddress, CurvyAddressBalances } from "@/types/address";
+import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
-import type { StarknetFeeEstimate } from "@/types/rpc";
+import type { RpcBalance, RpcBalances, StarknetFeeEstimate } from "@/types/rpc";
 import { parseDecimal } from "@/utils/currency";
 import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { toSlug } from "@/utils/helpers";
@@ -68,34 +69,19 @@ class StarknetRpc extends Rpc {
 
     return tokenBalances
       .map(([low, high], idx) => {
-        const { contractAddress: tokenAddress, ...token } = this.network.currencies[idx];
-
-        const tokenMeta = {
-          decimals: token.decimals,
-          iconUrl: token.iconUrl,
-          name: token.name,
-          symbol: token.symbol,
-          native: token.nativeCurrency,
-        };
-
-        const networkMeta = {
-          testnet: this.network.testnet,
-          flavour: this.network.flavour,
-          group: this.network.group,
-          slug: networkSlug,
-        };
+        const { contractAddress: currencyAddress, symbol } = this.network.currencies[idx];
 
         return {
           balance: fromUint256(low, high),
-          tokenAddress: tokenAddress as HexString | undefined,
-          tokenMeta,
-          networkMeta,
+          currencyAddress: currencyAddress as HexString,
+          symbol,
+          environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
         };
       })
       .filter((token) => Boolean(token.balance))
-      .reduce<CurvyAddressBalances>((res, data) => {
+      .reduce<RpcBalances>((res, { balance, currencyAddress, symbol, environment }) => {
         if (!res[networkSlug]) res[networkSlug] = Object.create(null);
-        res[networkSlug]![data.tokenMeta.symbol] = data;
+        res[networkSlug]![currencyAddress] = { balance, currencyAddress, symbol, environment };
         return res;
       }, Object.create(null));
   }
@@ -104,24 +90,9 @@ class StarknetRpc extends Rpc {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contractAddress: tokenAddress } = token;
+    const { contractAddress: currencyAddress } = token;
 
-    const tokenMeta = {
-      decimals: token.decimals,
-      iconUrl: token.iconUrl,
-      name: token.name,
-      symbol: token.symbol,
-      native: token.nativeCurrency,
-    };
-
-    const networkMeta = {
-      testnet: this.network.testnet,
-      flavour: this.network.flavour,
-      group: this.network.group,
-      slug: toSlug(this.network.name),
-    };
-
-    const starkErc20 = new Contract(starknetErc20Abi, token.contractAddress as Address, this.#provider).typedv2(
+    const starkErc20 = new Contract(starknetErc20Abi, currencyAddress as Address, this.#provider).typedv2(
       starknetErc20Abi,
     );
 
@@ -131,7 +102,12 @@ class StarknetRpc extends Rpc {
     if (typeof balance !== "bigint" && "low" in balance && "high" in balance)
       balance = fromUint256(balance.low, balance.high);
 
-    return { balance, tokenAddress: tokenAddress as HexString | undefined, tokenMeta, networkMeta };
+    return {
+      balance,
+      currencyAddress: currencyAddress as HexString,
+      symbol,
+      environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
+    } satisfies RpcBalance;
   }
 
   #prepareTx(curvyAddress: CurvyAddress, privateKey: HexString, address: Address, amount: string, currency: string) {
@@ -173,9 +149,9 @@ class StarknetRpc extends Rpc {
     });
   }
 
-  async #checkIsStarknetAccountDeployed(stealthAddress: CurvyAddress): Promise<boolean> {
+  async checkIsStarknetAccountDeployed(accountAddress: string): Promise<boolean> {
     return this.#provider
-      .getClassHashAt(stealthAddress.address)
+      .getClassHashAt(accountAddress)
       .then(() => true)
       .catch(() => false);
   }
@@ -183,9 +159,7 @@ class StarknetRpc extends Rpc {
   #getStarknetAccountClassHash(address: Address, constructorCalldata: RawArgs, salt = "0x3327") {
     return CURVY_ACCOUNT_CLASS_HASHES.find((classHash) => {
       const computedAddress = hash.calculateContractAddressFromHash(salt, classHash, constructorCalldata, 0);
-      if (validateAndParseAddress(computedAddress) === validateAndParseAddress(address)) {
-        return classHash;
-      }
+      return validateAndParseAddress(computedAddress) === validateAndParseAddress(address);
     });
   }
 
@@ -236,7 +210,7 @@ class StarknetRpc extends Rpc {
   }
 
   async estimateDeployFee(curvyAddress: CurvyAddress, privateKey: HexString, skipCheck = false): Promise<bigint> {
-    if (!skipCheck && (await this.#checkIsStarknetAccountDeployed(curvyAddress)))
+    if (!skipCheck && (await this.checkIsStarknetAccountDeployed(curvyAddress.address)))
       throw new Error(`Starknet account with address: ${curvyAddress.address} already deployed.`);
 
     const deployFeeEstimate = await this.#estimateDeployFee(curvyAddress, privateKey);
@@ -249,7 +223,7 @@ class StarknetRpc extends Rpc {
     skipCheck = false,
     fee?: EstimateFee,
   ): Promise<DeployContractResponse> {
-    if (!skipCheck && (await this.#checkIsStarknetAccountDeployed(curvyAddress)))
+    if (!skipCheck && (await this.checkIsStarknetAccountDeployed(curvyAddress.address)))
       throw new Error(`Starknet account with address: ${curvyAddress.address} already deployed.`);
 
     const { starknetAccount, deployPayload } = await this.#prepareDeploy(curvyAddress, privateKey);
@@ -276,7 +250,7 @@ class StarknetRpc extends Rpc {
     currency: string,
     fee?: StarknetFeeEstimate,
   ) {
-    if (!(await this.#checkIsStarknetAccountDeployed(curvyAddress))) {
+    if (!(await this.checkIsStarknetAccountDeployed(curvyAddress.address))) {
       await this.deployStarknetAccount(curvyAddress, privateKey, true, fee?.deployFee);
     }
 
@@ -322,7 +296,7 @@ class StarknetRpc extends Rpc {
     currency: string,
   ): Promise<StarknetFeeEstimate> {
     let deployFee: EstimateFee | undefined;
-    const isDeployed = await this.#checkIsStarknetAccountDeployed(curvyAddress);
+    const isDeployed = await this.checkIsStarknetAccountDeployed(curvyAddress.address);
     if (!isDeployed) {
       deployFee = await this.#estimateDeployFee(curvyAddress, privateKey);
     }

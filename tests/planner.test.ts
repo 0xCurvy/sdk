@@ -1,267 +1,348 @@
-/*
- * TODO: Add tests:
- * * Parallel to command that requires [] input (add MockSuccessArrayDataCommand)
- * * Parallel to command that doesn't accept [] input => fail
- * * Serial to command that accepts [] input => fail
- * * Filtering by amount with MockSuccess command (like AggregatorAggreggate)
- *
- * TODO: Fix tests (and add data checks):
- * * simple parallel fail
- * * simple parallel success
- * * complex fail from serial
- * * complex fail from parallel
- * * complex fail from both serial and parallel
- */
+import { NETWORK_FLAVOUR, NETWORK_GROUP } from "@/constants/networks";
+import type { CurvyIntent } from "@/planner/plan";
+import { generatePlan, type PlannerBalances } from "@/planner/planner";
+import type { CsucBalanceEntry, Currency, Network, NoteBalanceEntry, SaBalanceEntry } from "@/types";
 
-import { expect, test } from "vitest";
-import { CurvyPlan, CurvyPlanSuccessfulExecution } from "@/planner/plan";
-import { executePlan } from "@/planner/planner";
-import { mockAddress } from "@/planner/commands/mock-commands";
-
-const simpleSerialFail: CurvyPlan = {
-  type: "serial",
-  items: [
-    {
-      type: "data",
-      data: mockAddress
-    },
-    {
-      type: "command",
-      name: "mock-success",
-    },
-    {
-      type: "command",
-      name: "mock-fail",
-    },
-    {
-      type: "command",
-      name: "mock-success",
-    }
-  ]
+const mockCurrency: Currency = {
+  id: 0,
+  name: "mock",
+  symbol: "",
+  coinmarketcapId: "",
+  iconUrl: "",
+  price: "",
+  updatedAt: "",
+  decimals: 0,
+  contractAddress: "",
+  nativeCurrency: false,
+  csucEnabled: false,
 };
-const simpleSerialSuccess: CurvyPlan = {
-  type: "serial",
-  items: [
-    {
-      type: "data",
-      data: mockAddress
-    },
-    {
-      type: "command",
-      name: "mock-success",
-    },
-    {
-      type: "command",
-      name: "mock-success",
-    },
-    {
-      type: "command",
-      name: "mock-success",
-    }
-  ]
+const mockNetwork: Network = {
+  id: 1,
+  name: "Mock Network",
+  group: NETWORK_GROUP.ETHEREUM,
+  testnet: true,
+  slip0044: 1,
+  flavour: NETWORK_FLAVOUR.EVM,
+  multiCallContractAddress: "0x0000000000000000000000000000000000000000",
+  csucContractAddress: "0x0000000000000000000000000000000000000001",
+  aggregatorContractAddress: "0x0000000000000000000000000000000000000002",
+  nativeCurrency: "MockToken",
+  chainId: "0x1",
+  blockExplorerUrl: "https://mockexplorer.com",
+  rpcUrl: "https://mock-rpc-url.com",
+  currencies: [mockCurrency],
 };
-// const simpleParallelFail: CurvyPlan = {
-//   type: "parallel",
-//   items: [
-//     {
-//       type: "command",
-//       name: "mock-success",
-//     },
-//     {
-//       type: "command",
-//       name: "mock-fail",
-//     },
-//     {
-//       type: "command",
-//       name: "mock-success",
-//     }
-//   ]
-// };
-// const simpleParallelSuccess: CurvyPlan = {
-//   type: "parallel",
-//   items: [
-//     {
-//       type: "command",
-//       name: "mock-success",
-//     },
-//     {
-//       type: "command",
-//       name: "mock-success",
-//     },
-//     {
-//       type: "command",
-//       name: "mock-success",
-//     }
-//   ]
-// };
 
-test("simple serial fail", async () => {
-  const result = await executePlan(simpleSerialFail);
+const generateMockSABalances = (...balances: bigint[]): SaBalanceEntry[] => {
+  return balances.map((balance) => {
+    return {
+      source: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      currencyAddress: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      networkSlug: "ethereum-sepolia",
+      type: "sa",
+      symbol: "ETH",
+      balance,
+      environment: "testnet",
+      createdAt: Date.now().toString(),
+      walletId: "mock-wallet-id",
+      lastUpdated: Date.now(),
+    };
+  });
+};
 
-  expect(result.success, "plan should fail").toBe(false);
-  expect(result.items, "plan should have exactly 3 items").toHaveLength(3);
+const generateMockCSUCBalances = (...balances: bigint[]): CsucBalanceEntry[] => {
+  return balances.map((balance) => {
+    return {
+      source: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      currencyAddress: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      networkSlug: "ethereum-sepolia",
+      type: "csuc",
+      symbol: "ETH",
+      balance,
+      nonce: 0n,
+      environment: "testnet",
+      createdAt: Date.now().toString(),
+      walletId: "mock-wallet-id",
+      lastUpdated: Date.now(),
+    };
+  });
+};
 
-  const expectedSuccessState = [true, true, false];
-  const actualSuccessState = result.items!.map(item => item.success);
-  expect(actualSuccessState).toBe(expectedSuccessState);
+const generateMockNoteBalances = (...balances: bigint[]): NoteBalanceEntry[] => {
+  return balances.map((balance) => {
+    return {
+      source: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      currencyAddress: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      networkSlug: "ethereum-sepolia",
+      type: "note",
+      symbol: "ETH",
+      balance,
+      environment: "testnet",
+      createdAt: Date.now().toString(),
+      walletId: "mock-wallet-id",
+      lastUpdated: Date.now(),
+      deliveryTag: {
+        viewTag: 0n,
+        ephemeralKey: 0n,
+      },
+      owner: {
+        babyJubjubPubKey: {
+          x: 0n,
+          y: 0n,
+        },
+        sharedSecret: 0n,
+      },
+    };
+  });
+};
+
+// TODO: Intents where I want to send to curvy handle vs EOA
+const generateMockIntent = (amount: bigint): CurvyIntent => {
+  return {
+    amount,
+    toAddress: "0xwhat",
+    currency: mockCurrency,
+    network: mockNetwork,
+  };
+};
+
+const exampleBalances: PlannerBalances = {
+  sa: generateMockSABalances(1n, 2n),
+  csuc: generateMockCSUCBalances(1n, 2n),
+  note: generateMockNoteBalances(1n, 2n),
+};
+
+const exampleBalancesAggregatorHeavy: PlannerBalances = {
+  sa: [],
+  csuc: [],
+  note: generateMockNoteBalances(1n, 1n, 1n, 1n, 1n, 1n, 1n, 1n, 1n, 1n, 1n),
+};
+
+const exampleBalancesAggregatorHeavy2: PlannerBalances = {
+  sa: [],
+  csuc: [],
+  note: generateMockNoteBalances(6n, 6n),
+};
+
+const exampleBalancesSAHeavy2: PlannerBalances = {
+  sa: generateMockSABalances(5n, 5n),
+  csuc: [],
+  note: [],
+};
+
+const exampleEmptySAHeavy2: PlannerBalances = {
+  sa: [],
+  csuc: [],
+  note: [],
+};
+
+test("should generate something", () => {
+  const intent: CurvyIntent = generateMockIntent(1n);
+
+  const topLevelAggregation = generatePlan(exampleBalances, intent) as any;
+  expect(topLevelAggregation).toBeDefined();
+
+  expect(topLevelAggregation.type).toBe("serial");
+  expect(topLevelAggregation.items.length).toBe(2);
+
+  const topLevelAggregationInputs = topLevelAggregation.items[0];
+  const topLevelAggregationCommand = topLevelAggregation.items[1];
+
+  expect(topLevelAggregationInputs.type).toBe("parallel");
+  expect(topLevelAggregationInputs.items.length).toBe(1);
+
+  expect(topLevelAggregationCommand.type).toBe("command");
+  expect(topLevelAggregationCommand.amount).toBe(1n);
+
+  console.dir(topLevelAggregation, { depth: null });
 });
 
-test("simple serial success", async () => {
-  const result = await executePlan(simpleSerialSuccess);
+test("simple, but go through all three levels", () => {
+  const intent: CurvyIntent = generateMockIntent(8n);
 
-  expect(result.items, "plan should have exactly three items").toHaveLength(4);
+  const topLevelAggregation = generatePlan(exampleBalances, intent) as any;
+  expect(topLevelAggregation).toBeDefined();
 
-  for (let item of result.items!) {
-    item = item as CurvyPlanSuccessfulExecution;
-    expect(item.success, "plan should completely succeed").toBe(true);
-    expect(item.data).toBe(mockAddress);
+  expect(topLevelAggregation.items.length).toBe(2);
+
+  const topLevelAggregationInputs = topLevelAggregation.items[0];
+  const topLevelAggregationCommand = topLevelAggregation.items[1];
+
+  expect(topLevelAggregationInputs.type).toBe("parallel");
+
+  // Use 2 existing notes, deposit 4 more from SA to SCUC to Aggregator
+  expect(topLevelAggregationInputs.items.length).toBe(6);
+
+  expect(topLevelAggregationCommand.type).toBe("command");
+  expect(topLevelAggregationCommand.amount).toBe(8n);
+
+  for (const item of topLevelAggregationInputs.items) {
+    expect(item.type).toBe("serial");
+    expect(item.items.length).toBeGreaterThanOrEqual(0);
   }
+
+  const [existingNote1, existingNote2, newNote3, newNote4, newNote5, newNote6] = topLevelAggregationInputs.items;
+
+  expect(existingNote1.type).toBe("serial");
+  expect(existingNote1.items.length).toBe(1);
+  expect(existingNote1.items[0].type).toBe("data");
+
+  expect(existingNote2.type).toBe("serial");
+  expect(existingNote2.items.length).toBe(1);
+  expect(existingNote2.items[0].type).toBe("data");
+
+  expect(newNote3.type).toBe("serial");
+  expect(newNote3.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
+  expect(newNote3.items[0].type).toBe("data");
+  expect(newNote3.items[1].type).toBe("command");
+  expect(newNote3.items[1].name).toBe("sa-deposit-to-csuc");
+  expect(newNote3.items[2].type).toBe("command");
+  expect(newNote3.items[2].name).toBe("csuc-deposit-to-aggregator");
+
+  expect(newNote4.type).toBe("serial");
+  expect(newNote4.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
+  expect(newNote4.items[0].type).toBe("data");
+  expect(newNote4.items[1].type).toBe("command");
+  expect(newNote4.items[1].name).toBe("sa-deposit-to-csuc");
+  expect(newNote4.items[2].type).toBe("command");
+  expect(newNote4.items[2].name).toBe("csuc-deposit-to-aggregator");
+
+  expect(newNote5.type).toBe("serial");
+  expect(newNote5.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
+  expect(newNote5.items[0].type).toBe("data");
+  expect(newNote5.items[1].type).toBe("command");
+  expect(newNote5.items[1].name).toBe("sa-deposit-to-csuc");
+  expect(newNote5.items[2].type).toBe("command");
+  expect(newNote5.items[2].name).toBe("csuc-deposit-to-aggregator");
+
+  expect(newNote6.type).toBe("serial");
+  expect(newNote6.items.length).toBe(3); // data, deposit to CSUC, deposit to Aggregator
+  expect(newNote6.items[0].type).toBe("data");
+  expect(newNote6.items[1].type).toBe("command");
+  expect(newNote6.items[1].name).toBe("sa-deposit-to-csuc");
+  expect(newNote6.items[2].type).toBe("command");
+  expect(newNote6.items[2].name).toBe("csuc-deposit-to-aggregator");
+
+  expect(topLevelAggregation).toBeDefined();
+
+  console.dir(topLevelAggregation, { depth: null });
 });
 
-// test("simple parallel fail", async () => {
-//   const result = await executePlan(simpleParallelFail);
-//
-//   expect(result.success, "plan should fail if one command failed").toBe(false);
-//   expect(result.items, "plan should have exactly three items").toHaveLength(3);
-//
-//   const expectedSuccessState = [true, false, true];
-//   const actualSuccessState = result.items!.map(item => item.success);
-//
-//   expect(actualSuccessState, "expected just the middle parallel item to fail").toEqual(expectedSuccessState);
-// });
-//
-// test("simple parallel success", async () => {
-//   const result = await executePlan(simpleParallelSuccess);
-//
-//   expect(result.success, "plan should succeed if all commands succeeded").toBe(true);
-//   expect(result.items, "plan should have exactly three items").toHaveLength(3);
-//
-//   const expectedSuccessState = [true, true, true];
-//   const actualSuccessState = result.items!.map(item => item.success);
-//
-//   expect(actualSuccessState, "expected all items to succeed").toEqual(expectedSuccessState);
-// });
-//
-// test("complex fail from serial", async () => {
-//   const plan: CurvyPlan = {
-//     type: "serial",
-//     items: [
-//       {
-//         type: "parallel",
-//         items: [
-//           simpleSerialSuccess,
-//           simpleSerialSuccess,
-//           simpleSerialSuccess,
-//         ]
-//       },
-//       {
-//         type: "command",
-//         name: "mock-fail",
-//       }
-//     ]
-//   }
-//
-//   const result = await executePlan(plan);
-//
-//   expect(result.items![0].success, "first item in serial should succeed").toBe(true);
-//   expect(result.items![0].items, "first item in serial should have three children").toHaveLength(3);
-//
-//   expect(result.items![1].success, "second item in serial should fail").toBe(false);
-//   expect(result.success, "plan should fail because serial after parallel failed").toBe(false);
-// });
-//
-// test("complex fail from parallel", async () => {
-//   const plan: CurvyPlan = {
-//     type: "serial",
-//     items: [
-//       {
-//         type: "parallel",
-//         items: [
-//           simpleSerialFail,
-//           simpleSerialSuccess,
-//           simpleSerialSuccess,
-//         ]
-//       },
-//       {
-//         type: "command",
-//         name: "mock-success",
-//       }
-//     ]
-//   }
-//
-//   const result = await executePlan(plan);
-//
-//   expect(result.items, "should have length of just parallel that failed").toHaveLength(1);
-//   expect(result.items![0].success, "first item in serial should fail").toBe(false);
-//   expect(result.items![0].items, "first item in serial should have three children").toHaveLength(3);
-//
-//   expect(result.items![0].items![0].success, "first item in parallel should be fail").toBe(false);
-//   expect(result.items![0].items![1].success, "second item in parallel should be success").toBe(true);
-//   expect(result.items![0].items![2].success, "second item in parallel should be success").toBe(true);
-//
-//   expect(result.success, "plan should fail because parallel failed").toBe(false);
-// });
-//
-// test("complex fail from both serial and parallel", async () => {
-//   const plan: CurvyPlan = {
-//     type: "serial",
-//     items: [
-//       {
-//         type: "parallel",
-//         items: [
-//           simpleSerialFail,
-//           simpleSerialSuccess,
-//           simpleSerialSuccess,
-//         ]
-//       },
-//       {
-//         type: "command",
-//         name: "mock-fail",
-//       }
-//     ]
-//   }
-//
-//   const result = await executePlan(plan);
-//
-//   expect(result.items![0].success, "parallel should fail").toBe(false);
-//   expect(result.items![0].items, "first item in serial should have three children").toHaveLength(3);
-//   const expectedSuccessState = [false, true, true];
-//   const actualSuccessState = result.items![0].items!.map(item => item.success);
-//   expect(actualSuccessState, "expected just first parallel item to fail").toEqual(expectedSuccessState);
-//
-//   expect(result.items, "we should only have one item in result because first one failed").toHaveLength(1);
-//   expect(result.success, "plan should fail because serial after parallel failed").toBe(false);
-// });
-//
-// test("complex success", async () => {
-//   const plan: CurvyPlan = {
-//     type: "serial",
-//     items: [
-//       {
-//         type: "parallel",
-//         items: [
-//           simpleSerialSuccess,
-//           simpleSerialSuccess,
-//           simpleSerialSuccess,
-//         ]
-//       },
-//       {
-//         type: "command",
-//         name: "mock-success",
-//       }
-//     ]
-//   }
-//
-//   const result = await executePlan(plan);
-//
-//   expect(result.items, "we should have two items in top most plan").toHaveLength(2);
-//   expect(result.items![0].items, "we should have three items in parallel step").toHaveLength(3);
-//
-//   expect(result.success, "the entire plan should be successful").toBe(true);
-//   expect(result.items![0].success, "the parallel step should be successful").toBe(true);
-//   expect(result.items![1].success, "the command step should be successful").toBe(true);
-//
-//   const expectedSuccessState = [true, true, true];
-//   const actualSuccessState = result.items![0].items!.map(item => item.success);
-//   expect(actualSuccessState, "expected all parallel items to succeed").toEqual(expectedSuccessState);
-// });
+test("should create multiple aggregations", () => {
+  const intent: CurvyIntent = generateMockIntent(11n);
+
+  const topLevelAggregation = generatePlan(exampleBalancesAggregatorHeavy, intent) as any;
+  expect(topLevelAggregation).toBeDefined();
+
+  expect(topLevelAggregation.items.length).toBe(2); // Parallel inputs (11n as two notes (10 + 1)), command
+
+  // Top level ---------------
+  expect(topLevelAggregation.type).toBe("serial");
+  expect(topLevelAggregation.items.length).toBe(2);
+
+  const topLevelAggregationInputs = topLevelAggregation.items[0];
+  const topLevelAggregationCommand = topLevelAggregation.items[1];
+
+  expect(topLevelAggregationInputs.type).toBe("parallel");
+  expect(topLevelAggregationInputs.items.length).toBe(2);
+
+  expect(topLevelAggregationCommand.type).toBe("command");
+  expect(topLevelAggregationCommand.amount).toBe(11n);
+
+  // Aggregations 1 and 2  -----------------
+  // Aggregating 10 * 1n -> 10n and 10n + 1n -> 11n (two output notes)
+
+  expect(topLevelAggregationInputs.items.length).toBe(2);
+
+  const aggregation1 = topLevelAggregationInputs.items[0];
+  const aggregation2 = topLevelAggregationInputs.items[1];
+
+  expect(aggregation1.type).toBe("serial"); // (10 * 1n -> 10n)
+  expect(aggregation2.type).toBe("serial"); // (1n -> 1n), TODO: Optimize the algorithm to exclude this step (should use existing note)
+
+  expect(aggregation1.items.length).toBe(2);
+  expect(aggregation2.items.length).toBe(2);
+
+  const aggregation1Inputs = aggregation1.items[0];
+  const aggregation1Command = aggregation1.items[1];
+
+  const aggregation2Inputs = aggregation2.items[0];
+  const aggregation2Command = aggregation2.items[1];
+
+  expect(aggregation1Inputs.type).toBe("parallel");
+  expect(aggregation2Inputs.type).toBe("parallel");
+
+  expect(aggregation1Inputs.items.length).toBe(10); // 10 input notes
+  expect(aggregation2Inputs.items.length).toBe(1); // 1 input note
+
+  expect(aggregation1Command.type).toBe("command");
+  expect(aggregation2Command.type).toBe("command");
+
+  console.dir(topLevelAggregation, { depth: null });
+});
+
+test("should create single aggregations with change", () => {
+  const intent: CurvyIntent = generateMockIntent(11n);
+
+  const topLevelAggregation = generatePlan(exampleBalancesAggregatorHeavy2, intent) as any;
+
+  expect(topLevelAggregation).toBeDefined();
+
+  expect(topLevelAggregation.items.length).toBe(2); // One parallel inputs, one aggregation
+
+  const parallelInputs = topLevelAggregation.items[0];
+  expect(parallelInputs.type).toBe("parallel");
+  expect(parallelInputs.items.length).toBe(2);
+
+  // Input note 1
+  expect(parallelInputs.items[0].type).toBe("serial");
+  expect(parallelInputs.items[0].items[0].data.balance).toBe(6n);
+
+  // Input note 2
+  expect(parallelInputs.items[1].type).toBe("serial");
+  expect(parallelInputs.items[1].items[0].data.balance).toBe(6n);
+
+  // Final aggregation
+  const aggregation = topLevelAggregation.items[1];
+  expect(aggregation.type).toBe("command");
+  expect(aggregation.amount).toBe(11n);
+
+  console.dir(topLevelAggregation, { depth: null });
+});
+
+test("should deposit all funds from SA to aggregator and create single aggregations with change", () => {
+  const intent: CurvyIntent = generateMockIntent(9n);
+
+  const topLevelAggregation = generatePlan(exampleBalancesSAHeavy2, intent) as any;
+  expect(topLevelAggregation).toBeDefined();
+
+  expect(topLevelAggregation.type).toBe("serial");
+  expect(topLevelAggregation.items.length).toBe(2);
+
+  const topLevelAggregationInputs = topLevelAggregation.items[0];
+  const topLevelAggregationCommand = topLevelAggregation.items[1];
+
+  expect(topLevelAggregationInputs.type).toBe("parallel");
+  expect(topLevelAggregationInputs.items.length).toBe(2);
+
+  expect(topLevelAggregationCommand.type).toBe("command");
+  expect(topLevelAggregationCommand.amount).toBe(9n);
+
+  topLevelAggregationInputs.items.forEach((item: any) => {
+    expect(item.type).toBe("serial");
+    expect(item.items.length).toBe(3);
+    expect(item.items[0].type).toBe("data");
+    expect(item.items[1].name).toBe("sa-deposit-to-csuc");
+    expect(item.items[1].type).toBe("command");
+    expect(item.items[2].name).toBe("csuc-deposit-to-aggregator");
+    expect(item.items[2].type).toBe("command");
+  });
+
+  console.dir(topLevelAggregation, { depth: null });
+});
+
+test("should fail to create plan with insufficient funds", () => {
+  const intent: CurvyIntent = generateMockIntent(10n);
+  const plan = generatePlan(exampleEmptySAHeavy2, intent);
+  expect(plan).toBeUndefined();
+});

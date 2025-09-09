@@ -1,65 +1,66 @@
 import { expect, test } from "vitest";
+import { AggregatorRequestStatus } from "@/constants/aggregator";
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api.js";
-import { AggregatorRequestStatus } from "@/constants/aggregator";
 import { Note } from "@/types/note";
 
-const BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzZGt0ZXN0LnN0YWdpbmctY3VydnkubmFtZSIsImlhdCI6MTc1NTg2Nzk5NiwiZXhwIjoyMTE1ODY3OTk2fQ.jl6KWZHGPVwIozMsgkSYNlxNUur0G4VtoP7WU-XoWUk";
+const BEARER_TOKEN =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzZGt0ZXN0LnN0YWdpbmctY3VydnkubmFtZSIsImlhdCI6MTc1NTg2Nzk5NiwiZXhwIjoyMTE1ODY3OTk2fQ.jl6KWZHGPVwIozMsgkSYNlxNUur0G4VtoP7WU-XoWUk";
 
-// @ts-ignore
+// @ts-expect-error
 const waitForRequest = async (requestId: string, api: ApiClient) => {
-    return new Promise((resolve, reject) => {
-        const interval = setInterval(async () => {
-            const { status } = await api.aggregator.GetAggregatorRequestStatus(requestId);
-            if (status === AggregatorRequestStatus.SUCCESS) {
-                clearInterval(interval);
-                resolve(status);
-            }
-            if (status === AggregatorRequestStatus.FAILED) {
-                clearInterval(interval);
-                reject("Request failed");
-            }
-        }, 1000);
-  })
-}
+  return new Promise((resolve, reject) => {
+    const interval = setInterval(async () => {
+      const { status } = await api.aggregator.GetAggregatorRequestStatus(requestId);
+      if (status === AggregatorRequestStatus.SUCCESS) {
+        clearInterval(interval);
+        resolve(status);
+      }
+      if (status === AggregatorRequestStatus.FAILED) {
+        clearInterval(interval);
+        reject("Request failed");
+      }
+    }, 1000);
+  });
+};
 
 const serializeAsJSObject = (obj: any) => {
-    function preprocess(value: any): any {
-      if (typeof value === "bigint") {
-        if (value === BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"))
-          return "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
-        return value.toString();
-      } else if (Array.isArray(value)) {
-        return value.map(preprocess);
-      } else if (value && typeof value === "object") {
-        const newObj: any = {};
-        for (const key in value) {
-          newObj[key] = preprocess(value[key]);
-        }
-        return newObj;
-      } else {
-        return value;
+  function preprocess(value: any): any {
+    if (typeof value === "bigint") {
+      if (value === BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"))
+        return "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+      return value.toString();
+    } else if (Array.isArray(value)) {
+      return value.map(preprocess);
+    } else if (value && typeof value === "object") {
+      const newObj: any = {};
+      for (const key in value) {
+        newObj[key] = preprocess(value[key]);
       }
+      return newObj;
+    } else {
+      return value;
     }
-  
-    const processed = preprocess(obj);
-  
-    return processed;
-  };
+  }
+
+  const processed = preprocess(obj);
+
+  return processed;
+};
 
 test("should generate note, deposit and scan", async () => {
   const NUM_NOTES = 2;
   const core = await Core.init();
 
   const keyPairs = core.generateKeyPairs();
-  const { bJJPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
+  const { babyJubjubPubKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
 
   const rawNotes: any[] = [];
   const outputNotes: any[] = [];
 
   for (let i = 0; i < NUM_NOTES; i++) {
     const note = core.sendNote(keyPairs.S, keyPairs.V, {
-      ownerBabyJubPublicKey: bJJPublicKey,
+      ownerBabyJubjubPublicKey: babyJubjubPubKey,
       amount: 1000000000000000000n,
       token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
     });
@@ -69,10 +70,7 @@ test("should generate note, deposit and scan", async () => {
     outputNotes.push(note.serializeDepositNote());
   }
 
-  const api = new ApiClient(
-    "local",
-    "http://localhost:4000",
-  );
+  const api = new ApiClient("local", "http://localhost:4000");
 
   const depositPayload = serializeAsJSObject({
     outputNotes,
@@ -88,11 +86,15 @@ test("should generate note, deposit and scan", async () => {
 
   const allNotes = await api.aggregator.GetAllNotes();
 
-  const ownedNotes = core.filterOwnedNotes(allNotes.notes.map((note) => ({
-    ownerHash: note.ownerHash,
-    ephemeralKey: note.ephemeralKey,
-    viewTag: note.viewTag.slice(2),
-  })), keyPairs.s, keyPairs.v);
+  const ownedNotes = core.getNoteOwnershipData(
+    allNotes.notes.map((note) => ({
+      ownerHash: note.ownerHash,
+      ephemeralKey: note.ephemeralKey,
+      viewTag: note.viewTag.slice(2),
+    })),
+    keyPairs.s,
+    keyPairs.v,
+  );
 
   expect(ownedNotes.length).toBe(NUM_NOTES);
 
@@ -102,29 +104,32 @@ test("should generate note, deposit and scan", async () => {
     expect(sharedSecret.toString()).toBe(noteSharedSecret.toString());
   }
 
-  const { proof, publicSignals: ownerHashes } = await core.generateNoteOwnershipProof(ownedNotes, bJJPublicKey);
+  const { proof, publicSignals: ownerHashes } = await core.generateNoteOwnershipProof(ownedNotes, babyJubjubPubKey);
 
   const authenticatedNotes = await api.aggregator.SubmitNotesOwnerhipProof({ proof, ownerHashes });
 
   expect(authenticatedNotes.notes.length).toBe(NUM_NOTES);
 
-  const notes = authenticatedNotes.notes.map((note) => new Note({
-    ownerHash: BigInt(note.ownerHash),
-    balance: {
-      amount: BigInt(note.amount),
-      token: BigInt(note.token),
-    },
-    deliveryTag: {
-      ephemeralKey: BigInt(note.ephemeralKey),
-      viewTag: BigInt(note.viewTag),
-    },
-  }));
+  const notes = authenticatedNotes.notes.map(
+    (note) =>
+      new Note({
+        ownerHash: BigInt(note.ownerHash),
+        balance: {
+          amount: BigInt(note.amount),
+          token: BigInt(note.token),
+        },
+        deliveryTag: {
+          ephemeralKey: BigInt(note.ephemeralKey),
+          viewTag: BigInt(note.viewTag),
+        },
+      }),
+  );
 
   const unpackedNotes = core.unpackAuthenticatedNotes(
-    keyPairs.s, 
-    keyPairs.v, 
+    keyPairs.s,
+    keyPairs.v,
     notes,
-    bJJPublicKey.split(".") as [string, string]
+    babyJubjubPubKey.split(".") as [string, string],
   );
 
   expect(unpackedNotes.length).toBe(NUM_NOTES);
@@ -133,7 +138,7 @@ test("should generate note, deposit and scan", async () => {
     const note = unpackedNotes[i];
     const rawNote = rawNotes[i];
 
-    expect(note.owner!.babyJubPubKey).toEqual(rawNote.owner.babyJubPubKey);
+    expect(note.owner!.babyJubjubPubKey).toEqual(rawNote.owner.babyJubjubPubKey);
     expect(note.owner!.sharedSecret).toEqual(rawNote.owner.sharedSecret);
     expect(note.balance!.amount).toBe(rawNote.amount);
     expect(note.balance!.token).toBe(rawNote.token);

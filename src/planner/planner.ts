@@ -1,97 +1,151 @@
-import type {
-  CurvyPlan,
-  CurvyPlanEstimation,
-  CurvyPlanExecution,
-  CurvyPlanSuccessfulExecution,
-  CurvyPlanUnsuccessfulExecution
-} from "@/planner/plan";
+import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
+import {
+  BALANCE_TYPE,
+  type BalanceEntry,
+  type CsucBalanceEntry,
+  type NoteBalanceEntry,
+  type SaBalanceEntry,
+} from "@/types";
+import { isValidCurvyHandle } from "@/types/curvy";
+import { isHexString } from "@/types/helper";
 
-import { commandFactory } from "@/planner/commands/factory";
-import { CurvyCommandData } from "@/planner/addresses/abstract";
+// Planner balances are already sorted and filtered for Network and Currency
+export type PlannerBalances = {
+  sa: SaBalanceEntry[];
+  csuc: CsucBalanceEntry[];
+  note: NoteBalanceEntry[];
+};
 
-export async function executePlan(plan: CurvyPlan, input?: CurvyCommandData): Promise<CurvyPlanExecution> {
-  // CurvyPlanFlowControl, parallel
-  if (plan.type === "parallel") {
-    // Parallel plans don't take any input,
-    // because that would mean that each of its children is getting the same Address as input
-    const result = await Promise.all(plan.items.map((item) => executePlan(item)));
-    const success = result.every((r) => r.success);
+const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
+  const plan: CurvyPlan = {
+    type: "serial",
+    items: [
+      {
+        type: "data",
+        data: balanceEntry,
+      },
+    ],
+  };
 
-    return <CurvyPlanExecution> {
-      success,
-      items: result,
-    }
+  // Stealth addresses need to be first deposited to CSUC
+  if (balanceEntry.type === BALANCE_TYPE.SA) {
+    plan.items.push({
+      type: "command",
+      name: "sa-deposit-to-csuc", // This includes gas sponsorship as well.
+    });
   }
 
-  // CurvyPlanFlowControl, serial
-  if (plan.type === "serial") {
-    const results: CurvyPlanExecution[] = [];
+  // Then addresses can be deposited from CSUC to Aggregator
+  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.CSUC) {
+    plan.items.push({
+      type: "command",
+      name: "csuc-deposit-to-aggregator",
+    });
+  }
 
-    if (plan.items.length === 0) {
-      throw new Error("No items in serial node!");
-    }
+  // ...and if the address is already a note on the aggregator
+  // then it's already taken care of by including it in the plan variable
+  // at the top of this function.
+  return plan;
+};
 
-    let data = input;
-    for (const item of plan.items) {
-        const result = await executePlan(item, data);
+const MAX_INPUT_NOTES_PER_AGGREGATION = 10;
 
-        results.push(result);
+const chunk = (array: Array<any>, chunkSize: number) => {
+  const chunks: Array<Array<any>> = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
 
-        // If latest item is unsuccessful, fail entire serial flow node with that error.
-        if (!result.success) {
-          return <CurvyPlanUnsuccessfulExecution>{
-            success: false,
-            error: result.error,
-            items: results
-          };
-        }
+  return chunks;
+};
 
-        // Set the output of current as data of next step
-        data = result.data;
-    }
-
-    // The output address of the successful serial flow is the last members address.
-    return <CurvyPlanSuccessfulExecution>{
-      success: true,
-      data: (results[results.length - 1] as CurvyPlanSuccessfulExecution).data,
-      items: results // TODO: I don't think this is needed
+const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): CurvyPlanFlowControl => {
+  if (items.length <= MAX_INPUT_NOTES_PER_AGGREGATION) {
+    return {
+      type: "serial",
+      items: [
+        {
+          type: "parallel",
+          items,
+        },
+        {
+          type: "command",
+          name: "aggregator-aggregate",
+        },
+      ],
     };
   }
 
-  // CurvyPlanCommand
-  if (plan.type === "command") {
-    if (!input) {
-      throw new Error("Input is required for command node!");
+  const chunks = chunk(items, MAX_INPUT_NOTES_PER_AGGREGATION);
+  return {
+    type: "serial",
+    items: [
+      {
+        type: "parallel",
+        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item)),
+      },
+      {
+        type: "command",
+        name: "aggregator-aggregate",
+      },
+    ],
+  };
+};
+
+export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): CurvyPlanFlowControl | undefined => {
+  const plansToUpgradeNecessaryAddressesToNotes: CurvyPlan[] = [];
+
+  let remainingAmount = intent.amount;
+
+  for (const balanceEntry of [...balances.note, ...balances.csuc, ...balances.sa]) {
+    if (remainingAmount <= 0n) {
+      // Success! We are done with the plan
+      break;
     }
 
-    try {
-      const command = commandFactory(plan.name, input, plan.intent);
-      const data = await command.execute();
+    // Deduct the current address balance from the remaining amount
+    remainingAmount -= balanceEntry.balance;
 
-      return <CurvyPlanSuccessfulExecution> {
-        success: true,
-        data
-      }
-    } catch (error) {
-      return <CurvyPlanUnsuccessfulExecution> {
-        success: false,
-        error
-      };
-    }
+    plansToUpgradeNecessaryAddressesToNotes.push(generatePlanToUpgradeAddressToNote(balanceEntry));
   }
 
-  // CurvyPlanData
-  if (plan.type === "data") {
-    return <CurvyPlanSuccessfulExecution> {
-      success: true,
-      data: plan.data
-    };
+  if (remainingAmount > 0n) {
+    // We weren't successful, there's still some amount remaining.
+    return;
   }
 
-  throw new Error(`Unrecognized type for plan node: ${plan.type}`);
-}
+  // FUTURE TODO: Skip unnecessary aggregation (if exact amount)
+  // FUTURE TODO: Check if we have exact amount on CSUC/SA, and  skip the aggregator altogether
 
-// @ts-ignore
-export function estimatePlan(_plan: CurvyPlan): Promise<CurvyPlanEstimation> {
-  // TODO: Implement
-}
+  // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
+  // into aggregator supported batch sizes
+  const aggregationPlan = generateAggregationPlan(intent.amount, plansToUpgradeNecessaryAddressesToNotes);
+
+  // The last aggregation needs to be exact as intended
+  (aggregationPlan.items![1] as CurvyPlanCommand).amount = intent.amount;
+
+  if (isValidCurvyHandle(intent.toAddress)) {
+    // If the intent is to send to the CurvyHandle, then we want to pass the intent to the aggregator-aggregate command as well
+    // because the intent will tell that command not to resolve my own CurvyHandle as the recipient,
+    // but to send to the end recipient on the aggregator level.
+    (aggregationPlan.items![1] as CurvyPlanCommand).intent = intent;
+  } else if (isHexString(intent.toAddress)) {
+    // If we are sending to EOA, push two more commands
+    // to move from Aggregator => CSUC => EOA
+    aggregationPlan.items.push(
+      {
+        type: "command",
+        name: "aggregator-withdraw-to-csuc",
+      },
+      {
+        type: "command",
+        name: "csuc-withdraw-to-eoa",
+      },
+    );
+  } else {
+    throw new Error("Intent toAddress must be a CurvyHandle or a HexString");
+  }
+
+  return aggregationPlan;
+};

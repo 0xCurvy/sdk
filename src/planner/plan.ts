@@ -1,8 +1,8 @@
+import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
+import type { BalanceEntry } from "@/types";
 import type { Currency, Network } from "@/types/api";
 import type { CurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
-import { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { CurvyCommandData } from "@/planner/addresses/abstract";
 
 export interface CurvyIntent {
   amount: bigint;
@@ -19,8 +19,10 @@ export type CurvyPlanCommand = {
   // Intent is not passed in commands where the `to` address is a new CSUC/Note/SA of the current user, e.g. the OnboardToCSUCCommand.
   intent?: CurvyIntent;
   // Some commands (such as aggregate) can spend less than they have available. That's what we use this amount for.
-  amount?: bigint
+  amount?: bigint;
 };
+
+export type CurvyCommandData = BalanceEntry | BalanceEntry[];
 
 export type CurvyPlanData = {
   type: "data";
