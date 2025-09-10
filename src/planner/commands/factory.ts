@@ -1,11 +1,11 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand } from "@/planner/commands/abstract";
 import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
-import { AggregatorWithdrawToCsucCommand } from "@/planner/commands/aggregator/aggregator-withdraw-to-csuc-command";
+import { AggregatorWithdrawToCSUCCommand } from "@/planner/commands/aggregator/aggregator-withdraw-to-csuc";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 
 export interface ICommandFactory {
-  createCommand(name: string, input: CurvyCommandData, amount?: bigint, intent?: CurvyIntent): CurvyCommand;
+  createCommand(name: string, input: CurvyCommandData, intent?: CurvyIntent): CurvyCommand;
 }
 
 export class CurvyCommandFactory implements ICommandFactory {
@@ -16,7 +16,7 @@ export class CurvyCommandFactory implements ICommandFactory {
     this.#sdk = sdk;
   }
 
-  createCommand(name: string, input: CurvyCommandData, amount?: bigint, intent?: CurvyIntent): CurvyCommand {
+  createCommand(name: string, input: CurvyCommandData, intent?: CurvyIntent): CurvyCommand {
     switch (name) {
       case "sa-deposit-to-csuc": // This is with gas sponsorship as well
         throw new Error("Command not implemented.");
@@ -29,12 +29,12 @@ export class CurvyCommandFactory implements ICommandFactory {
 
         throw new Error("Command not implemented.");
       case "aggregator-aggregate":
-        if (amount === undefined || intent === undefined) {
+        if (intent === undefined) {
           throw new Error("Amount is required for aggregator-aggregate command.");
         }
-        return new AggregatorAggregateCommand(this.#sdk, input, amount, intent);
+        return new AggregatorAggregateCommand(this.#sdk, input, intent);
       case "aggregator-withdraw-to-csuc":
-        return new AggregatorWithdrawToCsucCommand(input, this.#sdk);
+        return new AggregatorWithdrawToCSUCCommand(this.#sdk, input);
     }
 
     throw new Error(`Unknown command name: ${name}`);

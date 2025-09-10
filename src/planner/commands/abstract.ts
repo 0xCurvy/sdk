@@ -15,6 +15,6 @@ export abstract class CurvyCommand {
     this.input = input;
   }
 
-  abstract execute(): Promise<CurvyCommandData>;
+  abstract execute(): Promise<CurvyCommandData | undefined>;
   abstract estimate(): Promise<CurvyCommandEstimate>;
 }

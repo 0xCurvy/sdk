@@ -18,8 +18,6 @@ export type CurvyPlanCommand = {
   // Some commands such as WithdrawFromCSUC and SendToEOA require an intent.
   // Intent is not passed in commands where the `to` address is a new CSUC/Note/SA of the current user, e.g. the OnboardToCSUCCommand.
   intent?: CurvyIntent;
-  // Some commands (such as aggregate) can spend less than they have available. That's what we use this amount for.
-  amount?: bigint;
 };
 
 export type CurvyCommandData = BalanceEntry | BalanceEntry[];
@@ -47,9 +45,7 @@ export type CurvyPlanUnsuccessfulEstimation = {
   error: any;
 };
 
-export type CurvyPlanEstimation =
-  | CurvyPlanSuccessfulEstimation
-  | CurvyPlanUnsuccessfulEstimation;
+export type CurvyPlanEstimation = CurvyPlanSuccessfulEstimation | CurvyPlanUnsuccessfulEstimation;
 
 export type CurvyPlanSuccessfulExecution = {
   success: true;
@@ -63,6 +59,4 @@ export type CurvyPlanUnsuccessfulExecution = {
   items?: CurvyPlanExecution[];
 };
 
-export type CurvyPlanExecution =
-  | CurvyPlanSuccessfulExecution
-  | CurvyPlanUnsuccessfulExecution;
+export type CurvyPlanExecution = CurvyPlanSuccessfulExecution | CurvyPlanUnsuccessfulExecution;

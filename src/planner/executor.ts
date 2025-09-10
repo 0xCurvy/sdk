@@ -71,7 +71,7 @@ export class CommandExecutor {
       }
 
       try {
-        const command = this.commandFactory.createCommand(plan.name, input, plan.amount, plan.intent);
+        const command = this.commandFactory.createCommand(plan.name, input, plan.intent);
         const data = await command.execute();
 
         return <CurvyPlanSuccessfulExecution>{
