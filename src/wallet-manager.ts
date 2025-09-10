@@ -243,7 +243,11 @@ class WalletManager implements IWalletManager {
     await this.#apiClient.user.RegisterCurvyHandle({
       handle,
       ownerAddress,
-      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, BabyJubjubKey: keyPairs.babyJubjubPublicKey },
+      publicKeys: {
+        viewingKey: keyPairs.V,
+        spendingKey: keyPairs.S,
+        babyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+      },
     });
 
     const { data: registerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);

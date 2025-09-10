@@ -129,7 +129,7 @@ type RegisterCurvyHandleRequestBody = {
   publicKeys: {
     spendingKey: string;
     viewingKey: string;
-    BabyJubjubKey: string;
+    babyJubjubPublicKey: string;
   };
 };
 type RegisterCurvyHandleReturnType =
