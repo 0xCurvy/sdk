@@ -1,7 +1,7 @@
 import type { NETWORK_ENVIRONMENT_VALUES, TOKENS } from "@/constants/networks";
 import type {
   BALANCE_TYPE_VALUES,
-  CurrencyHoldersOptions,
+  BalanceSourcesOptions,
   CurvyAddress,
   CurvyWalletData,
   PriceData,
@@ -93,14 +93,14 @@ export interface StorageInterface {
    * @param currencyAddress
    * @param networkSlug
    * @param options - Optional parameters for sorting the results.
-   * @param {CurrencyHoldersOptions['sortByTypeRanking']} [options.sortTypeRanking] - A record defining the ranking of balance types for sorting purposes.
-   * @param {CurrencyHoldersOptions['sortByBalance']} [options.sortByBalance] - The order to sort by balance, either "asc" for ascending or "desc" for descending.
+   * @param {BalanceSourcesOptions['sortByTypeRanking']} [options.sortTypeRanking] - A record defining the ranking of balance types for sorting purposes.
+   * @param {BalanceSourcesOptions['sortByBalance']} [options.sortByBalance] - The order to sort by balance, either "asc" for ascending or "desc" for descending.
    */
   getBalanceSources(
     walletId: string,
     currencyAddress: string,
     networkSlug: string,
-    options?: CurrencyHoldersOptions,
+    options?: BalanceSourcesOptions,
   ): Promise<BalanceEntry[]>;
 
   /**
