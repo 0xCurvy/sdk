@@ -88,6 +88,13 @@ export interface StorageInterface {
   getTotalsByCurrencyAndNetwork(walletId: string): Promise<TotalBalance[]>;
 
   /**
+   * Gets the total balances for a specific network within a wallet.
+   * @param walletId The ID of the wallet to get total balances for.
+   * @param networkSlug The slug of the network to filter by.
+   */
+  getTotalsByNetwork(walletId: string, networkSlug: string): Promise<TotalBalance[]>;
+
+  /**
    * Gets all sources of a specific currency on a specific network within a wallet.
    * @param walletId
    * @param currencyAddress

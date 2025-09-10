@@ -170,6 +170,8 @@ class WalletManager implements IWalletManager {
 
     const keyPairs = this.#core.getCurvyKeys(s, v);
 
+    await this.#updateBearerToken(keyPairs.s);
+
     const ownerAddress =
       flavour === NETWORK_FLAVOUR.STARKNET
         ? validateAndParseAddress(signature.signingAddress)
@@ -196,18 +198,15 @@ class WalletManager implements IWalletManager {
     }
 
     if (
-      !(
-        publicKeys.viewingKey === keyPairs.V &&
-        publicKeys.spendingKey === keyPairs.S &&
-        publicKeys.babyJubjubPublicKey === keyPairs.babyJubjubPublicKey
-      )
+      !(publicKeys.viewingKey === keyPairs.V && publicKeys.spendingKey === keyPairs.S) ||
+      (publicKeys.babyJubjubPublicKey && publicKeys.babyJubjubPublicKey !== keyPairs.babyJubjubPublicKey)
     ) {
       throw new Error(`Wrong password for handle ${curvyHandle}.`);
     }
 
     const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
     const wallet = new CurvyWallet(walletId, +dayjs(createdAt), curvyHandle, signature.signingAddress, keyPairs);
-    await this.addWallet(wallet);
+    await this.addWallet(wallet, true);
 
     return wallet;
   }
@@ -240,6 +239,8 @@ class WalletManager implements IWalletManager {
 
     const keyPairs = this.#core.getCurvyKeys(s, v);
 
+    await this.#updateBearerToken(keyPairs.s);
+
     await this.#apiClient.user.RegisterCurvyHandle({
       handle,
       ownerAddress,
@@ -262,7 +263,7 @@ class WalletManager implements IWalletManager {
       signature.signingAddress,
       keyPairs,
     );
-    await this.addWallet(wallet);
+    await this.addWallet(wallet, true);
 
     return wallet;
   }
@@ -279,18 +280,24 @@ class WalletManager implements IWalletManager {
     return this.#wallets.has(id);
   }
 
-  async setActiveWallet(wallet: Readonly<CurvyWallet>) {
+  async #updateBearerToken(s: string) {
+    this.#apiClient.updateBearerToken(
+      await this.#apiClient.auth.GetBearerTotp().then((nonce) => {
+        return this.#apiClient.auth.CreateBearerToken({ nonce, signature: signMessage(nonce, s) });
+      }),
+    );
+  }
+
+  async setActiveWallet(wallet: Readonly<CurvyWallet>, skipBearerTokenUpdate = false) {
     if (!this.#wallets.has(wallet.id)) {
       throw new Error(`Wallet with id ${wallet.id} does not exist.`);
     }
 
     this.#activeWallet = wallet;
 
-    this.#apiClient.updateBearerToken(
-      await this.#apiClient.auth.GetBearerTotp().then((nonce) => {
-        return this.#apiClient.auth.CreateBearerToken({ nonce, signature: signMessage(nonce, wallet.keyPairs.s) });
-      }),
-    );
+    if (!skipBearerTokenUpdate) {
+      await this.#updateBearerToken(wallet.keyPairs.s);
+    }
 
     setInterval(
       () =>
@@ -301,10 +308,10 @@ class WalletManager implements IWalletManager {
     );
   }
 
-  async addWallet(wallet: CurvyWallet) {
+  async addWallet(wallet: CurvyWallet, skipBearerTokenUpdate = false) {
     this.#wallets.set(wallet.id, wallet);
 
-    await this.setActiveWallet(wallet);
+    await this.setActiveWallet(wallet, skipBearerTokenUpdate);
 
     await this.#storage.storeCurvyWallet(wallet);
 

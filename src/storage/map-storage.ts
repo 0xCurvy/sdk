@@ -304,6 +304,12 @@ export class MapStorage implements StorageInterface {
     return Array.from(this.#totalBalances.values()).filter((t) => t.walletId === walletId);
   }
 
+  async getTotalsByNetwork(walletId: string, networkSlug: string): Promise<TotalBalance[]> {
+    return Array.from(this.#totalBalances.values()).filter(
+      (t) => t.walletId === walletId && t.networkSlug === networkSlug,
+    );
+  }
+
   async getBalanceSources(
     walletId: string,
     currencyAddress: string,

@@ -64,6 +64,7 @@ import type {
 import type { HexString } from "@/types/helper";
 import { Note } from "@/types/note";
 import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
+import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
@@ -750,7 +751,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error(`BabyJubjub public key not found for handle ${handle}`);
     }
     return this.#core.sendNote(spendingKey, viewingKey, {
-      ownerBabyJubjubPublicKey: babyJubjubPublicKey,
+      ownerBabyJubjubPublicKey: decimalStringToHex(babyJubjubPublicKey, false),
       amount,
       token,
     });

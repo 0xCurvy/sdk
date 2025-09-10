@@ -1,5 +1,5 @@
 import type { Signature } from "./core";
-import type { DepositNote, Note } from "./note";
+import type { Note } from "./note";
 
 type DepositRequestParams = {
   recipient: {
@@ -11,7 +11,7 @@ type DepositRequestParams = {
 };
 
 type DepositRequest = {
-  outputNotes: DepositNote[];
+  outputNotes: Note[];
   csucAddress: string;
   csucTransferAllowanceSignature: string;
 };
