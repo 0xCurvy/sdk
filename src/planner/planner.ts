@@ -1,20 +1,7 @@
 import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
-import {
-  BALANCE_TYPE,
-  type BalanceEntry,
-  type CsucBalanceEntry,
-  type NoteBalanceEntry,
-  type SaBalanceEntry,
-} from "@/types";
+import { BALANCE_TYPE, type BalanceEntry } from "@/types";
 import { isValidCurvyHandle } from "@/types/curvy";
 import { isHexString } from "@/types/helper";
-
-// Planner balances are already sorted and filtered for Network and Currency
-export type PlannerBalances = {
-  sa: SaBalanceEntry[];
-  csuc: CsucBalanceEntry[];
-  note: NoteBalanceEntry[];
-};
 
 const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
   const plan: CurvyPlan = {
@@ -93,12 +80,12 @@ const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): Cu
   };
 };
 
-export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): CurvyPlanFlowControl | undefined => {
+export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): CurvyPlanFlowControl => {
   const plansToUpgradeNecessaryAddressesToNotes: CurvyPlan[] = [];
 
   let remainingAmount = intent.amount;
 
-  for (const balanceEntry of [...balances.note, ...balances.csuc, ...balances.sa]) {
+  for (const balanceEntry of balances) {
     if (remainingAmount <= 0n) {
       // Success! We are done with the plan
       break;
@@ -112,7 +99,7 @@ export const generatePlan = (balances: PlannerBalances, intent: CurvyIntent): Cu
 
   if (remainingAmount > 0n) {
     // We weren't successful, there's still some amount remaining.
-    return;
+    throw new Error("Insufficient balance to cover the intended amount");
   }
 
   // FUTURE TODO: Skip unnecessary aggregation (if exact amount)
