@@ -82,7 +82,7 @@ type TotalBalance = {
   lastUpdated: number;
 };
 
-type CurrencyHoldersOptions = {
+type BalanceSourcesOptions = {
   sortByTypeRanking: Record<BALANCE_TYPE_VALUES, number>;
   sortByBalance?: "asc" | "desc";
 };
@@ -96,6 +96,6 @@ export type {
   SaBalanceEntry,
   NoteBalanceEntry,
   BALANCE_TYPE_VALUES,
-  CurrencyHoldersOptions,
+  BalanceSourcesOptions,
 };
 export { isSaBalanceEntry, isCsucBalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };

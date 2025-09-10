@@ -189,7 +189,7 @@ class WalletManager implements IWalletManager {
 
     if (!publicKeys.babyJubjubPublicKey) {
       const result = await this.#apiClient.user.SetBabyJubjubKey(curvyHandle, {
-        BabyJubjubKey: keyPairs.babyJubjubPublicKey,
+        babyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
       });
       if (!("data" in result) || result.data.message !== "Saved")
         throw new Error(`Failed to set BabyJubjub key for handle ${curvyHandle}.`);
@@ -243,7 +243,11 @@ class WalletManager implements IWalletManager {
     await this.#apiClient.user.RegisterCurvyHandle({
       handle,
       ownerAddress,
-      publicKeys: { viewingKey: keyPairs.V, spendingKey: keyPairs.S, BabyJubjubKey: keyPairs.babyJubjubPublicKey },
+      publicKeys: {
+        viewingKey: keyPairs.V,
+        spendingKey: keyPairs.S,
+        babyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+      },
     });
 
     const { data: registerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);

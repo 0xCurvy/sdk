@@ -7,7 +7,7 @@ import type { StorageInterface } from "@/interfaces/storage";
 import {
   BALANCE_TYPE,
   type BALANCE_TYPE_VALUES,
-  type CurrencyHoldersOptions,
+  type BalanceSourcesOptions,
   type CurvyAddress,
   type CurvyWalletData,
   type MinifiedCurvyAddress,
@@ -308,7 +308,7 @@ export class MapStorage implements StorageInterface {
     walletId: string,
     currencyAddress: string,
     networkSlug: string,
-    options: CurrencyHoldersOptions = {
+    options: BalanceSourcesOptions = {
       sortByTypeRanking: {
         [BALANCE_TYPE.NOTE]: 1,
         [BALANCE_TYPE.CSUC]: 2,
