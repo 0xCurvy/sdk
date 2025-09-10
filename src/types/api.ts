@@ -159,7 +159,7 @@ type GetCurvyHandleByOwnerAddressResponse = {
 type GetCurvyHandleByOwnerAddressReturnType = string | null;
 
 type SetBabyJubjubPublicKeyRequestBody = {
-  BabyJubjubKey: string;
+  babyJubjubPublicKey: string;
 };
 
 type SetBabyJubjubPublicKeyReturnType =
