@@ -1,17 +1,18 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { CSUCAbstractCommand } from "@/planner/commands/csuc/abstract";
+import { CSUCCommand } from "@/planner/commands/csuc/abstract";
 import {
   createActionExecutionRequest,
   createActionFeeComputationRequest,
   fetchActionExecutionFee,
 } from "@/planner/commands/csuc/internal-utils";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
-import { CsucActionSet, isHexString } from "@/types";
+import { CsucActionSet, type HexString, isHexString } from "@/types";
 
 // This command automatically sends all available balance from CSUC to external address
-export class CSUCWithdrawToEOACommand extends CSUCAbstractCommand {
-  protected intent!: CurvyIntent;
+export class CSUCWithdrawToEOACommand extends CSUCCommand {
+  #intent: CurvyIntent;
+
   constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {
     super(sdk, input);
 
@@ -19,26 +20,14 @@ export class CSUCWithdrawToEOACommand extends CSUCAbstractCommand {
       throw new Error("CSUCWithdrawFromCommand: toAddress MUST be a hex string address");
     }
 
-    this.intent = intent;
+    this.#intent = intent;
   }
 
   async execute(): Promise<CurvyCommandData> {
-    // Total balance available on the address inside CSUC
-    const availableBalance: bigint = this.input.balance;
-
-    // Amount that can be moved from CSUC to external address
-    const amountMinusFee: bigint = availableBalance - this.totalFee;
-
-    // TODO: more meaningful handling
-    this.input.balance = amountMinusFee;
+    const { curvyFee } = await this.estimate();
 
     // Create the action request ...
-    const actionRequest = await createActionExecutionRequest(
-      this.intent.network,
-      this.input,
-      this.actionPayload!, // TODO: Make it not dependent on running estimate first
-      this.totalFee,
-    );
+    const actionRequest = await createActionExecutionRequest(this.network, this.input, this.actionPayload!, curvyFee);
 
     // Submit the action request to be later executed on-chain
     // TODO: Validate
@@ -54,21 +43,17 @@ export class CSUCWithdrawToEOACommand extends CSUCAbstractCommand {
 
   async estimate(): Promise<CurvyCommandEstimate> {
     this.actionPayload = createActionFeeComputationRequest(
-      this.intent.network,
+      this.network,
       CsucActionSet.WITHDRAW,
       this.input,
-      this.intent.toAddress,
-      this.intent.currency.contractAddress as `0x${string}`,
-      this.intent.amount,
+      this.#intent.toAddress,
+      this.#intent.currency.contractAddress as HexString,
+      this.#intent.amount,
     );
 
-    this.totalFee = await fetchActionExecutionFee(this.actionPayload);
-
-    const estimateResult: CurvyCommandEstimate = {
-      gas: 100n,
-      curvyFee: this.totalFee,
+    return {
+      gas: 0n,
+      curvyFee: await fetchActionExecutionFee(this.actionPayload),
     };
-
-    return Promise.resolve(estimateResult);
   }
 }

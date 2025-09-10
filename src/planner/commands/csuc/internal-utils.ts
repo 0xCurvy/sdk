@@ -1,18 +1,17 @@
+// TODO: Fix
 // @ts-nocheck
+import type { CsucSignature } from "dist/types";
 import { type EncodeAbiParametersReturnType, encodeAbiParameters, keccak256 } from "viem";
+import type { CsucBalanceEntry, CurvyHandle } from "@/types";
 import type { Network } from "@/types/api";
-import { type CsucAction, type CsucActionPayload, CsucActionSet, CsucActionType } from "@/types/csuc";
+import { type CsucAction, type CsucActionPayload, CsucActionSet, type CsucActionType } from "@/types/csuc";
 import type { HexString } from "@/types/helper";
-// TODO: replace CurvyAddressLike with the latest type...
-import { CurvyAddressLike } from "@/planner/plan";
-import { CsucSignature } from "dist/types";
-import { CurvyCommandCSUCAddress } from "@/planner/addresses/csuc";
 
 export const createActionFeeComputationRequest = (
   network: Network,
   action: CsucActionSet,
-  from: CurvyCommandCSUCAddress,
-  to: CurvyAddressLike,
+  from: CsucBalanceEntry,
+  to: HexString | CurvyHandle,
   token: HexString,
   amount: bigint,
 ): CsucActionPayload => {
@@ -92,9 +91,9 @@ export const fetchActionExecutionFee = async (payload: CsucActionPayload): Promi
 
 export const createActionExecutionRequest = async (
   network: Network,
-  from: CurvyCommandCSUCAddress,
+  input: CsucBalanceEntry,
   payload: CsucActionPayload,
-  totalFee: bigint,
+  curvyFee: bigint,
 ): Promise<CsucAction> => {
   // TODO: Think whether we need validation here at all because backend will fail.
 
@@ -108,12 +107,16 @@ export const createActionExecutionRequest = async (
     throw new Error(`Token ${currencyContractAddress} not found on network ${network}`);
   }
 
-  if (from.nonce === undefined) {
-    throw new Error(`Nonce for ${currency.symbol} not found on ${from.address}`);
+  if (input.nonce === undefined) {
+    throw new Error(`Nonce for ${currency.symbol} not found on ${input.source}`);
   }
 
-  const signature = await from.sign(
-    createActionSignatureRequest(chainId, payload, totalFee.toString(), from.nonce.toString()),
+  if (curvyFee >= input.balance) {
+    throw new Error(`Not enough balance to pay for the fee: ${curvyFee} > ${input.balance}`);
+  }
+
+  const signature = await input.sign(
+    createActionSignatureRequest(chainId, payload, totalFee.toString(), input.nonce.toString()),
   );
 
   return {
