@@ -1,7 +1,6 @@
-import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
-import { BALANCE_TYPE, type BalanceEntry } from "@/types";
-import { isValidCurvyHandle } from "@/types/curvy";
-import { isHexString } from "@/types/helper";
+import type {CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl} from "@/planner/plan";
+import {BALANCE_TYPE, type BalanceEntry} from "@/types";
+import {isHexString} from "@/types/helper";
 
 const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
   const plan: CurvyPlan = {
@@ -109,17 +108,14 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
   // into aggregator supported batch sizes
   const aggregationPlan = generateAggregationPlan(intent.amount, plansToUpgradeNecessaryAddressesToNotes);
 
-  // The last aggregation needs to be exact as intended
-  (aggregationPlan.items![1] as CurvyPlanCommand).amount = intent.amount;
+  // We pass the intent to the last aggregation.
+  // The aggregator-aggregate will use the intent's amount as a signal for how much to keep as change
+  // And if the `intent.toAddress` is a Curvy handle, it will use it to derive recipients new Note.
+  (aggregationPlan.items![1] as CurvyPlanCommand).intent = intent;
 
-  if (isValidCurvyHandle(intent.toAddress)) {
-    // If the intent is to send to the CurvyHandle, then we want to pass the intent to the aggregator-aggregate command as well
-    // because the intent will tell that command not to resolve my own CurvyHandle as the recipient,
-    // but to send to the end recipient on the aggregator level.
-    (aggregationPlan.items![1] as CurvyPlanCommand).intent = intent;
-  } else if (isHexString(intent.toAddress)) {
-    // If we are sending to EOA, push two more commands
-    // to move from Aggregator => CSUC => EOA
+  // If we are sending to EOA, push two more commands
+  // to move funds from Aggregator to CSUC to EOA
+  if (isHexString(intent.toAddress)) {
     aggregationPlan.items.push(
       {
         type: "command",
@@ -131,8 +127,6 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
         intent,
       },
     );
-  } else {
-    throw new Error("Intent toAddress must be a CurvyHandle or a HexString");
   }
 
   return aggregationPlan;

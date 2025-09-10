@@ -1,4 +1,5 @@
 import { APIError } from "@/errors";
+import { jsonStringify } from "@/utils";
 
 const DEFAULT_TIMEOUT = 5000;
 
@@ -63,7 +64,7 @@ class HttpClient {
       const response = await fetch(url.toString(), {
         method,
         headers: this.getHeaders(),
-        body: body ? JSON.stringify(body) : undefined,
+        body: body ? jsonStringify(body) : undefined,
         signal: abortController.signal,
       });
 

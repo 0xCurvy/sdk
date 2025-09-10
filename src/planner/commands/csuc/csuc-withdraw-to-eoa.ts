@@ -1,17 +1,21 @@
+import dayjs from "dayjs";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { CSUCAbstractCommand } from "@/planner/commands/csuc/abstract";
-import {
-  createActionExecutionRequest,
-  createActionFeeComputationRequest,
-  fetchActionExecutionFee,
-} from "@/planner/commands/csuc/internal-utils";
+import { CSUCCommand } from "@/planner/commands/csuc/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
-import { CsucActionSet, isHexString } from "@/types";
+import {
+  BALANCE_TYPE,
+  CsucActionSet,
+  CsucActionStage,
+  type HexString,
+  isHexString,
+  type SaBalanceEntry,
+} from "@/types";
 
 // This command automatically sends all available balance from CSUC to external address
-export class CSUCWithdrawToEOACommand extends CSUCAbstractCommand {
-  protected intent!: CurvyIntent;
+export class CSUCWithdrawToEOACommand extends CSUCCommand {
+  #intent: CurvyIntent;
+
   constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {
     super(sdk, input);
 
@@ -19,56 +23,63 @@ export class CSUCWithdrawToEOACommand extends CSUCAbstractCommand {
       throw new Error("CSUCWithdrawFromCommand: toAddress MUST be a hex string address");
     }
 
-    this.intent = intent;
+    this.#intent = intent;
   }
 
   async execute(): Promise<CurvyCommandData> {
-    // Total balance available on the address inside CSUC
-    const availableBalance: bigint = this.input.balance;
+    const currencyAddress = this.input.currencyAddress;
 
-    // Amount that can be moved from CSUC to external address
-    const amountMinusFee: bigint = availableBalance - this.totalFee;
-
-    // TODO: more meaningful handling
-    this.input.balance = amountMinusFee;
-
-    // Create the action request ...
-    const actionRequest = await createActionExecutionRequest(
-      this.intent.network,
-      this.input,
-      this.actionPayload!, // TODO: Make it not dependent on running estimate first
-      this.totalFee,
+    const { payload, offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
+      this.network.id,
+      CsucActionSet.WITHDRAW,
+      this.input.source as HexString,
+      this.#intent.toAddress as HexString,
+      currencyAddress as HexString,
+      this.input.balance,
     );
 
-    // Submit the action request to be later executed on-chain
-    // TODO: Validate
-    await this.sdk.apiClient.csuc.SubmitActionRequest({
-      action: actionRequest,
-    });
+    const {
+      response: { id },
+    } = await this.sdk.requestActionInsideCSUC(this.network.id, this.input, payload, offeredTotalFee);
 
-    // TODO: Check that the result was successful
+    await this.sdk.pollForCriteria(
+      () => this.sdk.apiClient.csuc.GetActionStatus({ actionIds: [id] }),
+      (res) => {
+        return res.data[0]?.stage === CsucActionStage.FINALIZED;
+      },
+      120,
+      10000,
+    );
 
-    // TODO: probably should not return the same input
-    return this.input;
+    return {
+      type: BALANCE_TYPE.SA,
+      walletId: "PLACEHOLDER", // TODO Remove
+      source: this.#intent.toAddress,
+      networkSlug: this.input.networkSlug,
+      environment: this.input.environment,
+      balance: this.#intent.amount - BigInt(offeredTotalFee),
+      symbol: this.input.symbol,
+      currencyAddress,
+      lastUpdated: +dayjs(), // TODO Remove
+      createdAt: "PLACEHOLDER", // TODO Remove
+    } satisfies SaBalanceEntry;
   }
 
   async estimate(): Promise<CurvyCommandEstimate> {
-    this.actionPayload = createActionFeeComputationRequest(
-      this.intent.network,
+    const currencyAddress = this.input.currencyAddress;
+
+    const { offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
+      this.network.id,
       CsucActionSet.WITHDRAW,
-      this.input,
-      this.intent.toAddress,
-      this.intent.currency.contractAddress as `0x${string}`,
-      this.intent.amount,
+      this.input.source as HexString,
+      this.#intent.toAddress as HexString,
+      currencyAddress as HexString,
+      this.input.balance,
     );
 
-    this.totalFee = await fetchActionExecutionFee(this.actionPayload);
-
-    const estimateResult: CurvyCommandEstimate = {
-      gas: 100n,
-      curvyFee: this.totalFee,
+    return {
+      curvyFee: BigInt(offeredTotalFee),
+      gas: 0n,
     };
-
-    return Promise.resolve(estimateResult);
   }
 }

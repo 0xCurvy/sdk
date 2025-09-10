@@ -1,26 +1,18 @@
 import { poseidon2, poseidon3 } from "poseidon-lite";
 
+// TODO: Check if any of these functions are needed
 const generateDummyOutputNote = (token?: string) => ({
-  ownerHash: BigInt(
-    `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString(
-      "hex"
-    )}`
-  ).toString(),
+  ownerHash: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`).toString(),
   token: token || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
   amount: "0",
   viewTag: Buffer.from(crypto.getRandomValues(new Uint8Array(1)))
     .toString("hex")
     .slice(0, 2)
     .padStart(2, "0"),
-  ephemeralKey: `0x${Buffer.from(
-    crypto.getRandomValues(new Uint8Array(31))
-  ).toString("hex")}`,
+  ephemeralKey: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
 });
 
-const padAggregationOutputNotes = (
-  outputNotes: any,
-  numberOfNotes: number = 2
-) => {
+const padAggregationOutputNotes = (outputNotes: any, numberOfNotes: number = 2) => {
   if (outputNotes.length === 0) {
     throw new Error("Missing primary output note");
   }
@@ -34,11 +26,7 @@ const padAggregationOutputNotes = (
 };
 
 const generateOutputNoteHash = (outputNote: any) => {
-  return poseidon3([
-    BigInt(outputNote.ownerHash),
-    BigInt(outputNote.amount),
-    BigInt(outputNote.token),
-  ]);
+  return poseidon3([BigInt(outputNote.ownerHash), BigInt(outputNote.amount), BigInt(outputNote.token)]);
 };
 
 const generateOutputsHash = (outputNotes: any) => {

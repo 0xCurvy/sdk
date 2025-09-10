@@ -1,64 +1,109 @@
+import { ethers } from "ethers";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { CSUCAbstractCommand } from "@/planner/commands/csuc/abstract";
-
-import { createActionExecutionRequest } from "@/planner/commands/csuc/internal-utils";
+import { CSUCCommand } from "@/planner/commands/csuc/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
+import { CsucActionSet, CsucActionStage, type HexString, type Note } from "@/types";
 
 // This command automatically sends all available balance from CSUC to Aggregator
-export class CSUCDepositToAggregatorCommand extends CSUCAbstractCommand {
+export class CSUCDepositToAggregatorCommand extends CSUCCommand {
   async execute(): Promise<CurvyCommandData> {
-    // Total balance available on the address inside CSUC
-    const availableBalance: bigint = this.input.balance;
-    // Amount that can be moved from CSUC to Aggregator
-    const amount: bigint = availableBalance - this.totalFee;
+    const currencyAddress = this.input.currencyAddress;
 
-    // Resolve owner hash based on .curvy.handle
-    const note = await this.sdk.getNewNoteForUser(
-      this.sdk.walletManager.activeWallet.curvyHandle,
-      BigInt(this.input.currencyAddress),
-      amount,
+    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, BigInt(currencyAddress), this.input.balance);
+
+    const { payload, offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
+      this.network.id,
+      CsucActionSet.DEPOSIT_TO_AGGREGATOR,
+      this.input.source as HexString,
+      note.ownerHash,
+      currencyAddress as HexString,
+      this.input.balance,
     );
 
-    // Create the action request ...
-    const network = this.sdk.getNetworkBySlug(this.input.networkSlug);
-    if (!network) {
-      throw new Error(`Network with slug ${this.input.networkSlug} not found!`);
-    }
-    // TODO: Don't tie in estimation to execution
-    const actionRequest = await createActionExecutionRequest(network, this.input, this.actionPayload!, this.totalFee);
+    const {
+      action: { signature },
+      response: { id },
+    } = await this.sdk.requestActionInsideCSUC(this.network.id, this.input, payload, offeredTotalFee);
 
-    // Submit the action request to be later executed on-chain
-    await this.sdk.apiClient.csuc.SubmitActionRequest({
-      // TODO: Validate
-      action: actionRequest,
+    // TODO: better configure max retries and timeout
+    await this.sdk.pollForCriteria(
+      () => this.sdk.apiClient.csuc.GetActionStatus({ actionIds: [id] }),
+      (res) => {
+        return res.data[0]?.stage === CsucActionStage.FINALIZED;
+      },
+      120,
+      10000,
+    );
+
+    // Decode the payload to extract the notes
+    const encodedData = JSON.parse(payload.encodedData) as any;
+    const decodedParams = new ethers.AbiCoder().decode(["tuple(uint256,uint256,uint256)[]"], encodedData.parameters);
+
+    const csucPayloadNotes = (decodedParams[0] as any[]).map((param) => {
+      const [ownerHash, token, amount] = param.values();
+
+      return {
+        ownerHash: BigInt(ownerHash),
+        amount: BigInt(amount),
+        token: BigInt(token),
+      };
     });
 
-    return note.serializeNoteToBalanceEntry(
-      this.input.symbol,
-      this.input.walletId,
-      this.input.environment,
-      this.input.networkSlug,
+    // Create deposit notes for each of the notes in the CSUC payload
+    const depositNotes: Note[] = [];
+
+    for (let i = 0; i < csucPayloadNotes.length; i++) {
+      depositNotes.push(
+        await this.sdk.getNewNoteForUser(this.senderCurvyHandle, csucPayloadNotes[i].token, csucPayloadNotes[i].amount),
+      );
+    }
+
+    const { csucContractAddress } = this.network;
+
+    if (!csucContractAddress) {
+      throw new Error(`CSUC contract address not found for ${this.network.name} network.`);
+    }
+
+    const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
+      outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
+      csucAddress: csucContractAddress,
+      csucTransferAllowanceSignature: signature.hash.toString(),
+    });
+
+    await this.sdk.pollForCriteria(
+      () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
+      (res) => {
+        return res.status === "completed";
+      },
+      120,
+      10000,
+    );
+
+    // Return the balance entries for each of the deposit notes
+    return depositNotes.map((note) =>
+      note.serializeNoteToBalanceEntry(
+        this.input.symbol,
+        this.input.walletId,
+        this.input.environment,
+        this.input.networkSlug,
+      ),
     );
   }
 
   async estimate(): Promise<CurvyCommandEstimate> {
-    // this.actionPayload = createActionFeeComputationRequest(
-    //   this.intent.network,
-    //   this.action,
-    //   this.from,
-    //   this.to,
-    //   this.intent.currency.contractAddress as `0x${string}`,
-    //   this.intent.amount,
-    // );
+    const currencyAddress = this.input.currencyAddress;
 
-    // this.totalFee = await fetchActionExecutionFee(this.actionPayload);
-    this.totalFee = 0n;
+    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, BigInt(currencyAddress), this.input.balance);
 
-    const estimateResult: CurvyCommandEstimate = {
-      gas: 100n,
-      curvyFee: this.totalFee,
-    };
+    const { offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
+      this.network.id,
+      CsucActionSet.DEPOSIT_TO_AGGREGATOR,
+      this.input.source as HexString,
+      note.ownerHash,
+      currencyAddress as HexString,
+      this.input.balance,
+    );
 
-    return Promise.resolve(estimateResult);
+    return { curvyFee: BigInt(offeredTotalFee), gas: 0n }; // TODO what is gas here?
   }
 }
