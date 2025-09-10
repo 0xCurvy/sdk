@@ -6,24 +6,10 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type {
-  NETWORK_FLAVOUR_VALUES,
-  NETWORK_GROUP_VALUES,
-} from "@/constants/networks";
-import type {
-  InputNoteData,
-  OutputNoteData,
-  Signature,
-} from "@/types/aggregator";
-import type {
-  CSAInfo,
-  CsucAction,
-  CsucActionPayload,
-  CsucActionStatus,
-  CsucEstimatedActionCost,
-} from "@/types/csuc";
+import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES, NETWORKS } from "@/constants/networks";
+import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
-import type { NetworkFilter } from "@/utils/network";
+import type { HexString } from "@/types/helper";
 
 type _Announcement = {
   createdAt: string;
@@ -42,7 +28,7 @@ type Currency = {
   symbol: string;
   coinmarketcapId: string;
   iconUrl: string;
-  price: string;
+  price: string | null;
   updatedAt: string;
   decimals: number;
   contractAddress: string;
@@ -59,6 +45,7 @@ type Network = {
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
   csucContractAddress?: string;
+  minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   nativeCurrency: string | null;
   chainId: string;
@@ -139,10 +126,11 @@ type GetNetworksReturnType = Array<Network>;
 type RegisterCurvyHandleRequestBody = {
   handle: string;
   ownerAddress: string;
-  publicKeys: Array<{
+  publicKeys: {
     spendingKey: string;
     viewingKey: string;
-  }>;
+    babyJubjubPublicKey: string;
+  };
 };
 type RegisterCurvyHandleReturnType =
   | {
@@ -154,10 +142,11 @@ type RegisterCurvyHandleReturnType =
 type ResolveCurvyHandleReturnType = {
   data: {
     createdAt: string;
-    publicKeys: Array<{
+    publicKeys: {
       spendingKey: string;
       viewingKey: string;
-    }>;
+      babyJubjubPublicKey: string | null;
+    };
   } | null;
   error?: string | null;
 };
@@ -169,34 +158,24 @@ type GetCurvyHandleByOwnerAddressResponse = {
 };
 type GetCurvyHandleByOwnerAddressReturnType = string | null;
 
+type SetBabyJubjubPublicKeyRequestBody = {
+  babyJubjubPublicKey: string;
+};
+
+type SetBabyJubjubPublicKeyReturnType =
+  | {
+      data: {
+        message: string;
+      };
+      error: null;
+    }
+  | {
+      error?: string;
+    };
+
 //#endregion
 
 //#region Aggregator
-
-type DepositPayload = {
-  outputNotes: OutputNoteData[];
-  csucAddress: string;
-  csucTransferAllowanceSignature: string;
-};
-
-type WithdrawPayload = {
-  inputNotes: InputNoteData[];
-  signatures: Signature[];
-  destinationAddress: string;
-};
-
-type AggregationRequest = {
-  id?: string;
-  isDummy: boolean;
-  userId: string;
-  ephemeralKeys: bigint[];
-  inputNotesData: InputNoteData[];
-  outputNotesData: OutputNoteData[];
-  outputSignatures: Signature[];
-  aggregationGroupId: string;
-};
-
-type AggregatorRequestStatusValuesType = "pending" | "submitting" | "success" | "failed" | "cancelled";
 
 type GetAllNotesReturnType = {
   notes: { ownerHash: string; viewTag: string; ephemeralKey: string }[];
@@ -209,20 +188,17 @@ type SubmitNoteOwnershipProofReturnType = {
     ownerHash: string;
     viewTag: string;
     ephemeralKey: string;
-    token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+    token: HexString;
     amount: string;
   }[];
 };
+type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed";
 type GetAggregatorRequestStatusReturnType = {
   requestId: string;
   status: AggregatorRequestStatusValuesType;
 };
 
 export type {
-  DepositPayload,
-  WithdrawPayload,
-  AggregationRequest,
-  AggregatorRequestStatusValuesType,
   GetAllNotesReturnType,
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,
@@ -235,7 +211,7 @@ export type {
 //#region CSUC
 
 type GetCSAInfoRequest = {
-  network: NetworkFilter;
+  network: NETWORKS;
   csas: string[];
 };
 
@@ -285,10 +261,7 @@ type SubmitGasSponsorshipRequestReturnType = {
   data: { actionIds: string[] };
 };
 
-export type {
-  SubmitGasSponsorshipRequest,
-  SubmitGasSponsorshipRequestReturnType,
-};
+export type { SubmitGasSponsorshipRequest, SubmitGasSponsorshipRequestReturnType };
 
 //#endregion
 
@@ -304,12 +277,15 @@ export type {
   Network,
   Currency,
   NetworksWithCurrenciesResponse,
+  AggregatorRequestStatusValuesType,
   GetNetworksReturnType,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
   GetCurvyHandleByOwnerAddressResponse,
   GetCurvyHandleByOwnerAddressReturnType,
+  SetBabyJubjubPublicKeyRequestBody,
+  SetBabyJubjubPublicKeyReturnType,
   SubmitNoteOwnershipProofReturnType,
 };
 

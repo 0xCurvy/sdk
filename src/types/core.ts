@@ -1,8 +1,16 @@
+import type { Groth16Proof } from "snarkjs";
+import type { PublicSignals } from "snarkjs/index";
 import type { HexString } from "@/types/helper";
 
 type PublicKey = {
   spendingKey: string;
   viewingKey: string;
+  babyJubjubPublicKey: string;
+};
+
+type Signature = {
+  S: bigint;
+  R8: bigint[];
 };
 
 type CoreLegacyKeyPairs = {
@@ -10,18 +18,20 @@ type CoreLegacyKeyPairs = {
   v: string;
   K: string;
   V: string;
-  bJJPublicKey: string;
+  babyJubjubPublicKey: string;
 };
 
 type CurvyPrivateKeys = {
   s: string;
   v: string;
 };
+
 type CurvyPublicKeys = {
   S: string;
   V: string;
-  bJJPublicKey: string;
+  babyJubjubPublicKey: string;
 };
+
 type CurvyKeyPairs = CurvyPrivateKeys & CurvyPublicKeys;
 
 type CoreSendReturnType = {
@@ -37,6 +47,7 @@ type CoreScanArgs = {
   Rs: Array<string>;
   viewTags: Array<string>;
 };
+
 type CoreScanReturnType = {
   spendingPubKeys: Array<string>;
   spendingPrivKeys: Array<HexString>;
@@ -48,39 +59,30 @@ type CoreViewerScanArgs = {
   Rs: Array<string>;
   viewTags: Array<string>;
 };
+
 type CoreViewerScanReturnType = {
   spendingPubKeys: Array<string>;
 };
 
-type AuthenticatedNote = {
+type PublicNote = {
   ownerHash: string;
-  viewTag: string;
-  ephemeralKey: string;
-  token: string;
-  amount: string;
-};
-
-type Note = {
-  owner: {
-    babyJubPublicKey: [string, string];
-    sharedSecret: string;
-  };
-  amount: string;
-  token: string;
   viewTag: string;
   ephemeralKey: string;
 };
 
-type OutputNote = {
+type NoteOwnershipData = {
   ownerHash: string;
-  amount: string;
-  token: string;
-  viewTag: string;
-  ephemeralKey: string;
+  sharedSecret: bigint;
+};
+
+type NoteOwnershipProof = {
+  proof: Groth16Proof;
+  publicSignals: PublicSignals;
 };
 
 export type {
   PublicKey,
+  Signature,
   CurvyKeyPairs,
   CurvyPublicKeys,
   CoreLegacyKeyPairs,
@@ -90,7 +92,7 @@ export type {
   CoreScanReturnType,
   CoreViewerScanArgs,
   CoreViewerScanReturnType,
-  AuthenticatedNote,
-  Note,
-  OutputNote,
+  PublicNote,
+  NoteOwnershipData,
+  NoteOwnershipProof,
 };

@@ -1,12 +1,11 @@
 import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
+import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  AggregationRequest,
   CreateActionRequest,
   CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetActionStatusResponse,
@@ -22,6 +21,8 @@ import type {
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
+  SetBabyJubjubPublicKeyRequestBody,
+  SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
@@ -30,7 +31,6 @@ import type {
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
-  WithdrawPayload,
 } from "@/types/api";
 
 export class MockAPIClient implements IApiClient {
@@ -182,19 +182,25 @@ export class MockAPIClient implements IApiClient {
     RegisterCurvyHandle: async (_body: RegisterCurvyHandleRequestBody): Promise<RegisterCurvyHandleReturnType> => {
       throw new Error("Not needed for announcement syncing tests");
     },
+    SetBabyJubjubKey: async (
+      _handle: string,
+      _body: SetBabyJubjubPublicKeyRequestBody,
+    ): Promise<SetBabyJubjubPublicKeyReturnType> => {
+      throw new Error("Not needed for announcement syncing tests");
+    },
   };
 
   aggregator = {
     GetAllNotes: async (): Promise<GetAllNotesReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitDeposit: async (_data: DepositPayload): Promise<SubmitDepositReturnType> => {
+    SubmitDeposit: async (_data: DepositRequest): Promise<SubmitDepositReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitWithdraw: async (_data: WithdrawPayload): Promise<SubmitWithdrawReturnType> => {
+    SubmitWithdraw: async (_data: WithdrawRequest): Promise<SubmitWithdrawReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitAggregation: async (_data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType> => {
+    SubmitAggregation: async (_data: AggregationRequest): Promise<SubmitAggregationReturnType> => {
       throw new Error("Method not implemented.");
     },
     SubmitNotesOwnerhipProof: async (_data: {

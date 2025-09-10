@@ -1,18 +1,32 @@
-import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
+import type { IApiClient } from "@/interfaces/api";
+import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
+import type {
+  CsucAction,
+  CsucActionPayload,
+  CsucActionSet,
+  CsucActionStatus,
+  CsucBalanceEntry,
+  CsucEstimatedActionCost,
+  Note,
+} from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type {
   AggregationRequest,
+  AggregationRequestParams,
+  DepositRequest,
+  WithdrawRequest,
+  WithdrawRequestParams,
+} from "@/types/aggregator";
+import type {
   Currency,
-  DepositPayload,
   GetAggregatorRequestStatusReturnType,
   Network,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,
-  WithdrawPayload,
 } from "@/types/api";
-import type { CurvyHandle } from "@/types/curvy";
 import type {
   BalanceRefreshCompleteEvent,
   BalanceRefreshProgressEvent,
@@ -27,17 +41,18 @@ import type {
 } from "@/types/events";
 import type { HexString } from "@/types/helper";
 import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
-import type { CurvySignatureParameters, EvmSignatureData, StarknetSignatureData } from "@/types/signature";
+import type { CurvySignatureParameters } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
-import type { CurvyWallet } from "@/wallet";
 
 interface ICurvySDK {
   // Getters
   get rpcClient(): MultiRpc;
-  get wallets(): CurvyWallet[];
-  get activeWallet(): CurvyWallet;
-  hasActiveWallet(): boolean;
+  get activeNetworks(): Network[];
+  get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
+  get apiClient(): IApiClient;
+  get walletManager(): IWalletManager;
 
+  createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest;
   getStealthAddressById(id: string): Promise<CurvyAddress>;
   getNetwork(networkFilter?: NetworkFilter): Network;
   getNetworks(networkFilter?: NetworkFilter): Network[];
@@ -47,6 +62,8 @@ interface ICurvySDK {
     networkIdentifier: NetworkFilter,
     handle: string,
   ): Promise<{ address: HexString; id: string; pubKey: string }>;
+
+  getAddressEncryptedMessage(address: CurvyAddress): Promise<string>;
 
   getNativeCurrencyForNetwork(network: Network): Currency;
   getSignatureParamsForNetworkFlavour(
@@ -59,34 +76,12 @@ interface ICurvySDK {
   switchNetworkEnvironment(environment: "mainnet" | "testnet"): void;
 
   // Actions
-  addWalletWithSignature(flavour: NETWORK_FLAVOUR["EVM"], signature: EvmSignatureData): Promise<CurvyWallet>;
-  addWalletWithSignature(flavour: NETWORK_FLAVOUR["STARKNET"], signature: StarknetSignatureData): Promise<CurvyWallet>;
-  addWalletWithSignature(
-    flavour: NETWORK_FLAVOUR_VALUES,
-    signature: EvmSignatureData | StarknetSignatureData,
-  ): Promise<CurvyWallet>;
 
-  registerWalletWithSignature(
-    handle: CurvyHandle,
-    flavour: NETWORK_FLAVOUR["EVM"],
-    signature: EvmSignatureData,
-  ): Promise<CurvyWallet>;
-  registerWalletWithSignature(
-    handle: CurvyHandle,
-    flavour: NETWORK_FLAVOUR["STARKNET"],
-    signature: StarknetSignatureData,
-  ): Promise<CurvyWallet>;
-  registerWalletWithSignature(
-    handle: CurvyHandle,
-    flavour: NETWORK_FLAVOUR_VALUES,
-    signature: EvmSignatureData | StarknetSignatureData,
-  ): Promise<CurvyWallet>;
-
-  removeWallet(walletId: string): Promise<void>;
-
+  refreshNoteBalances(walletId: string): Promise<void>;
+  refreshAddressBalances(address: CurvyAddress): Promise<void>;
   refreshWalletBalances(walletId: string): Promise<void>;
   refreshBalances(): Promise<void>;
-  refreshAddressBalances(address: CurvyAddress): Promise<void>;
+
   resetStorage(): Promise<void>;
 
   estimateFee(
@@ -106,9 +101,25 @@ interface ICurvySDK {
     message?: string,
   ): Promise<SendReturnType>;
 
-  createDeposit(payload: DepositPayload): Promise<SubmitDepositReturnType>;
-  createWithdraw(payload: WithdrawPayload): Promise<SubmitWithdrawReturnType>;
-  createAggregation(payload: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType>;
+  estimateActionInsideCSUC(
+    networkFilter: NetworkFilter,
+    actionId: CsucActionSet,
+    from: HexString,
+    to: HexString | bigint,
+    token: HexString,
+    _amount: bigint, // Doesn't accept decimal numbers i.e. `0.001`
+  ): Promise<CsucEstimatedActionCost>;
+
+  requestActionInsideCSUC(
+    networkFilter: NetworkFilter,
+    input: CsucBalanceEntry,
+    payload: CsucActionPayload,
+    totalFee: string,
+  ): Promise<{ action: CsucAction; response: CsucActionStatus }>;
+
+  createDeposit(payload: DepositRequest): Promise<SubmitDepositReturnType>;
+  createWithdraw(payload: WithdrawRequest): Promise<SubmitWithdrawReturnType>;
+  createAggregation(payload: AggregationRequest): Promise<SubmitAggregationReturnType>;
   getAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
 
   // Event subscriptions
@@ -128,6 +139,14 @@ interface ICurvySDK {
   offBalanceRefreshProgress(listener: (event: BalanceRefreshProgressEvent) => void): void;
   onBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void): void;
   offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void): void;
+  createAggregationPayload(params: AggregationRequestParams): AggregationRequest;
+  pollForCriteria<T>(
+    pollFunction: () => Promise<T>,
+    pollCriteria: (res: T) => boolean,
+    maxRetries: number,
+    delayMs: number,
+  ): Promise<T>;
+  getNewNoteForUser(handle: string, token: bigint, amount: bigint): Promise<Note>;
 }
 
 export type { ICurvySDK };

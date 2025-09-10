@@ -1,13 +1,13 @@
 import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
+import type { SubmitNoteOwnershipProofReturnType } from "@/types";
+import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  AggregationRequest,
   CreateActionRequest,
   CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetAggregatorRequestStatusReturnType,
@@ -21,6 +21,8 @@ import type {
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
+  SetBabyJubjubPublicKeyRequestBody,
+  SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
@@ -28,10 +30,9 @@ import type {
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
-  WithdrawPayload,
 } from "@/types/api";
 import type { CsucActionStatus } from "@/types/csuc";
-import type { SubmitNoteOwnershipProofReturnType } from "../types/api";
+import type { CurvyHandle } from "@/types/curvy";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
@@ -112,6 +113,14 @@ class ApiClient extends HttpClient implements IApiClient {
 
       return response.data?.handle || null;
     },
+
+    SetBabyJubjubKey: async (handle: CurvyHandle, body: SetBabyJubjubPublicKeyRequestBody) => {
+      return await this.request<SetBabyJubjubPublicKeyReturnType>({
+        method: "PATCH",
+        path: `/user/${handle}/bjj`,
+        body,
+      });
+    },
   };
 
   auth = {
@@ -158,7 +167,7 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    SubmitDeposit: async (data: DepositPayload) => {
+    SubmitDeposit: async (data: DepositRequest) => {
       return await this.request<SubmitDepositReturnType>({
         method: "POST",
         path: "/aggregator/deposit",
@@ -166,7 +175,7 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    SubmitWithdraw: async (data: WithdrawPayload) => {
+    SubmitWithdraw: async (data: WithdrawRequest) => {
       return await this.request<SubmitWithdrawReturnType>({
         method: "POST",
         path: "/aggregator/withdraw",
@@ -174,7 +183,7 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    SubmitAggregation: async (data: { aggregations: AggregationRequest[] }) => {
+    SubmitAggregation: async (data: AggregationRequest) => {
       return await this.request<SubmitAggregationReturnType>({
         method: "POST",
         path: "/aggregator/aggregation",

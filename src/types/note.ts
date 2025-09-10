@@ -1,19 +1,22 @@
-// TODO: remove this in the future
-//@ts-ignore
-import { poseidon3 } from "poseidon-lite";
+import dayjs from "dayjs";
+import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import type { StringifyBigInts } from "@/types/helper";
+import type { NoteBalanceEntry } from "@/types/storage";
+import { poseidonHash } from "@/utils/poseidon-hash";
+import { BALANCE_TYPE } from "./storage";
 
 type Balance = {
   amount: bigint;
   token: bigint;
 };
 
-type BabyJubPubKey = {
+type BabyJubjubPublicKey = {
   x: bigint;
   y: bigint;
 };
 
 type Owner = {
-  babyJubPubKey: BabyJubPubKey;
+  babyJubjubPublicKey: BabyJubjubPublicKey;
   sharedSecret: bigint;
 };
 
@@ -26,23 +29,15 @@ type PublicNote = {
   ownerHash: bigint;
 } & DeliveryTag;
 
-type DepositNote = {
-  ownerHash: bigint;
-} & Balance &
-  DeliveryTag;
-
 type AuthenticatedNote = {
   ownerHash: bigint;
 } & Balance &
   DeliveryTag;
 
-type CircuitInputNote = {
-  owner: Owner;
-} & Balance;
-
-type CircuitOutputNote = {
+type DepositNote = {
   ownerHash: bigint;
-} & Balance;
+} & Balance &
+  DeliveryTag;
 
 type AggregationInputNote = {
   owner: Owner;
@@ -55,6 +50,14 @@ type AggregationOutputNote = {
 
 type WithdrawalNote = {
   owner: Owner;
+} & Balance;
+
+type CircuitInputNote = {
+  owner: Owner;
+} & Balance;
+
+type CircuitOutputNote = {
+  ownerHash: bigint;
 } & Balance;
 
 type FullNoteData = {
@@ -92,11 +95,19 @@ class Note {
       throw new Error("Missing balance");
     }
 
-    return poseidon3([this.ownerHash, this.balance.amount, this.balance.token]);
+    return poseidonHash([this.ownerHash, this.balance.amount, this.balance.token]);
+  }
+
+  get nullifier(): bigint {
+    if (!this.owner) {
+      throw new Error("Missing owner");
+    }
+
+    return poseidonHash([this.owner.babyJubjubPublicKey.x, this.owner.babyJubjubPublicKey.y, this.owner.sharedSecret]);
   }
 
   static generateOwnerHash(owner: Owner): bigint {
-    return poseidon3([owner.babyJubPubKey.x, owner.babyJubPubKey.y, owner.sharedSecret]);
+    return poseidonHash([owner.babyJubjubPublicKey.x, owner.babyJubjubPublicKey.y, owner.sharedSecret]);
   }
 
   // Deposit note
@@ -107,8 +118,8 @@ class Note {
     return this.serializeAuthenticatedNote();
   }
 
-  // TODO: Write when it is used
-  static deserializeDepositNote(depositNote: DepositNote): Note {
+  // Used when receiving deposit note from aggregator backend
+  static deserializeDepositNote(depositNote: StringifyBigInts<DepositNote>): Note {
     return Note.deserializeAuthenticatedNote(depositNote);
   }
 
@@ -131,7 +142,7 @@ class Note {
     };
   }
 
-  // TODO: Write when it is used
+  // Used when receiving aggregation input note from aggregator backend
   static deserializeAggregationInputNote(aggregationInputNote: AggregationInputNote): Note {
     const note = new Note({
       ownerHash: Note.generateOwnerHash(aggregationInputNote.owner),
@@ -161,7 +172,7 @@ class Note {
     };
   }
 
-  // TODO: Write when it is used
+  // Used when receiving aggregation output note from aggregator backend
   static deserializeAggregationOutputNote(aggregationOutputNote: AggregationOutputNote): Note {
     const note = new Note({
       ownerHash: aggregationOutputNote.ownerHash,
@@ -185,6 +196,7 @@ class Note {
     return this.serializeAggregationInputNote();
   }
 
+  // Used when receiving withdrawal note from aggregator backend
   static deserializeWithdrawalNote(withdrawalNote: WithdrawalNote): Note {
     return Note.deserializeAggregationInputNote(withdrawalNote);
   }
@@ -204,7 +216,7 @@ class Note {
 
     return {
       owner: {
-        babyJubPubKey: this.owner.babyJubPubKey,
+        babyJubjubPublicKey: this.owner.babyJubjubPublicKey,
         sharedSecret: this.owner.sharedSecret,
       },
       ...this.balance,
@@ -252,16 +264,16 @@ class Note {
   }
 
   // Used when receiving note with balances after verification of clientside proof of ownership
-  static deserializeAuthenticatedNote(authenticatedNote: AuthenticatedNote): Note {
+  static deserializeAuthenticatedNote(authenticatedNote: StringifyBigInts<AuthenticatedNote>): Note {
     const note = new Note({
-      ownerHash: authenticatedNote.ownerHash,
+      ownerHash: BigInt(authenticatedNote.ownerHash),
       balance: {
-        token: authenticatedNote.token,
-        amount: authenticatedNote.amount,
+        token: BigInt(authenticatedNote.token),
+        amount: BigInt(authenticatedNote.amount),
       },
       deliveryTag: {
-        ephemeralKey: authenticatedNote.ephemeralKey,
-        viewTag: authenticatedNote.viewTag,
+        ephemeralKey: BigInt(authenticatedNote.ephemeralKey),
+        viewTag: BigInt(authenticatedNote.viewTag),
       },
     });
     return note;
@@ -270,7 +282,7 @@ class Note {
   // Public note
   // =========================================================
 
-  // Used when receiving notes from the note repository to scan notes for ownership
+  // Used when receiving notes from the trees repository to scan notes for ownership
   serializePublicNote(): PublicNote {
     if (!this.ownerHash) {
       throw new Error("Owner hash is not set");
@@ -286,7 +298,20 @@ class Note {
     };
   }
 
-  // Used when receiving notes from the note repository to scan notes for ownership
+  serializeFullNote(): FullNoteData {
+    if (!this.owner || !this.ownerHash || !this.balance || !this.deliveryTag) {
+      throw new Error("Note is not fully initialized");
+    }
+
+    return {
+      owner: this.owner,
+      ownerHash: this.ownerHash,
+      balance: this.balance,
+      deliveryTag: this.deliveryTag,
+    };
+  }
+
+  // Used when receiving notes from the trees repository to scan notes for ownership
   static deserializePublicNote(publicNote: PublicNote): Note {
     const note = new Note({
       ownerHash: publicNote.ownerHash,
@@ -296,6 +321,45 @@ class Note {
       },
     });
     return note;
+  }
+
+  static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress, source }: NoteBalanceEntry): Note {
+    return new Note({
+      balance: { amount: balance, token: BigInt(currencyAddress) },
+      owner,
+      deliveryTag,
+      ownerHash: BigInt(source),
+    });
+  }
+  serializeNoteToBalanceEntry(
+    symbol: string,
+    walletId: string,
+    environment: NETWORK_ENVIRONMENT_VALUES,
+    networkSlug: string,
+  ): NoteBalanceEntry {
+    if (!this.balance || !this.owner || !this.deliveryTag) {
+      throw new Error("Note is not fully initialized");
+    }
+    const {
+      balance: { token, amount },
+      ownerHash,
+      owner,
+      deliveryTag,
+    } = this;
+
+    return {
+      walletId,
+      source: ownerHash.toString(16),
+      type: BALANCE_TYPE.NOTE,
+      networkSlug,
+      environment,
+      currencyAddress: token.toString(16),
+      symbol,
+      balance: BigInt(amount),
+      owner,
+      deliveryTag,
+      lastUpdated: +dayjs(), // TODO: @vanja remove
+    };
   }
 }
 

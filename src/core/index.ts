@@ -1,22 +1,23 @@
 import "./wasm-exec.js";
 
-import { buildEddsa, buildPoseidon, type Eddsa, type Poseidon } from "circomlibjs";
+import { buildEddsa, type Eddsa } from "circomlibjs";
 import { groth16 } from "snarkjs";
 import type { ICore } from "@/interfaces/core";
 import type { RawAnnouncement } from "@/types/api";
 import type {
-  AuthenticatedNote,
   CoreLegacyKeyPairs,
   CoreScanArgs,
   CoreScanReturnType,
   CoreSendReturnType,
   CoreViewerScanArgs,
   CurvyKeyPairs,
-  Note,
-  OutputNote,
+  NoteOwnershipData,
+  Signature,
 } from "@/types/core";
-import type { HexString } from "@/types/helper";
+import type { HexString, StringifyBigInts } from "@/types/helper";
+import { Note } from "@/types/note";
 import { isNode } from "@/utils/helpers";
+import { poseidonHash } from "@/utils/poseidon-hash";
 
 declare const Go: {
   new (): {
@@ -40,17 +41,6 @@ declare const curvy: {
   dbg_isValidSECP256k1Point: (args: string) => boolean;
   version: () => string;
 };
-
-let babyJubEddsa: Eddsa;
-let poseidon: Poseidon;
-
-async function loadBabyJubJub() {
-  babyJubEddsa = await buildEddsa();
-}
-
-async function loadPoseidon() {
-  poseidon = await buildPoseidon();
-}
 
 async function loadWasm(wasmUrl?: string): Promise<void> {
   const go = new Go();
@@ -88,12 +78,22 @@ async function loadWasm(wasmUrl?: string): Promise<void> {
 }
 
 class Core implements ICore {
+  #eddsa: Eddsa | null = null;
+
   static async init(wasmUrl?: string): Promise<Core> {
     await loadWasm(wasmUrl);
-    await loadBabyJubJub();
-    await loadPoseidon();
 
-    return new Core();
+    const core = new Core();
+
+    core.#eddsa = await buildEddsa();
+    return core;
+  }
+
+  #getBabyJubjubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
+    // @ts-expect-error
+    const babyJubjubPublicKey = this.#eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
+
+    return babyJubjubPublicKey.map((p) => this.#eddsa?.F.toObject(p).toString()).join(".");
   }
 
   #extractScanArgsFromAnnouncements(announcements: RawAnnouncement[]) {
@@ -142,16 +142,14 @@ class Core implements ICore {
   generateKeyPairs(): CurvyKeyPairs {
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
-    const bJJPublicKey = babyJubEddsa.prv2pub(babyJubEddsa.F.e("0x" + keyPairs.k));
-
-    const bJJPublicKeyStringified = bJJPublicKey.map((p: any) => babyJubEddsa.F.toObject(p).toString()).join(".");
+    const babyJubjubPublicKeyStringified = this.#getBabyJubjubPublicKey(keyPairs);
 
     return {
       s: keyPairs.k,
       S: keyPairs.K,
       v: keyPairs.v,
       V: keyPairs.V,
-      bJJPublicKey: bJJPublicKeyStringified,
+      babyJubjubPublicKey: babyJubjubPublicKeyStringified,
     };
   }
 
@@ -159,16 +157,14 @@ class Core implements ICore {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const bJJPublicKey = babyJubEddsa.prv2pub(babyJubEddsa.F.e("0x" + result.k));
-
-    const bJJPublicKeyStringified = bJJPublicKey.map((p: any) => babyJubEddsa.F.toObject(p).toString()).join(".");
+    const babyJubjubPublicKey = this.#getBabyJubjubPublicKey(result);
 
     return {
       s: result.k,
       v: result.v,
       S: result.K,
       V: result.V,
-      bJJPublicKey: bJJPublicKeyStringified,
+      babyJubjubPublicKey,
     } satisfies CurvyKeyPairs;
   }
 
@@ -178,26 +174,29 @@ class Core implements ICore {
     return JSON.parse(curvy.send(input)) as CoreSendReturnType;
   }
 
-  sendNote(S: string, V: string, noteData: { ownerBabyJubPublicKey: string; amount: bigint; token: bigint }): Note {
+  sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
-    const note = {
+    return new Note({
       owner: {
-        babyJubPublicKey: noteData.ownerBabyJubPublicKey.split(".") as [string, string],
-        sharedSecret: spendingPubKey.split(".")[0],
+        babyJubjubPublicKey: {
+          x: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[0],
+          y: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[1],
+        },
+        sharedSecret: BigInt(spendingPubKey.split(".")[0]),
       },
-      amount: noteData.amount.toString(),
-      token: noteData.token.toString(),
-    };
-
-    return {
-      ...note,
-      ephemeralKey: R,
-      viewTag,
-    };
+      balance: {
+        amount: noteData.amount,
+        token: noteData.token,
+      },
+      deliveryTag: {
+        ephemeralKey: BigInt(R),
+        viewTag: BigInt(viewTag),
+      },
+    });
   }
 
-  filterOwnedNotes(
+  getNoteOwnershipData(
     publicNotes: {
       ownerHash: string;
       ephemeralKey: string;
@@ -211,25 +210,26 @@ class Core implements ICore {
       pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null,
     );
 
-    const { bJJPublicKey: ownerBabyJubPublicKey } = this.getCurvyKeys(s, v);
-    const bjjKeyBigint = ownerBabyJubPublicKey.split(".").map(BigInt);
+    const { babyJubjubPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
+    const bjjKeyBigint = ownerBabyJubjubPublicKey.split(".").map(BigInt);
 
-    const ownedNotes: any = [];
+    const ownershipData: NoteOwnershipData[] = [];
 
     for (let i = 0; i < publicNotes.length; i++) {
-      if (sharedSecrets[i] != null) {
-        const computedHash = poseidon.F.toObject(poseidon([...bjjKeyBigint, sharedSecrets[i]!])).toString();
+      const sharedSecret = sharedSecrets[i];
 
+      if (sharedSecret !== null) {
+        const computedHash = poseidonHash([...bjjKeyBigint, sharedSecrets[i]!]).toString();
         if (computedHash === publicNotes[i].ownerHash) {
-          ownedNotes.push({
+          ownershipData.push({
             ownerHash: publicNotes[i].ownerHash,
-            sharedSecret: sharedSecrets[i],
+            sharedSecret,
           });
         }
       }
     }
 
-    return ownedNotes;
+    return ownershipData;
   }
 
   async generateNoteOwnershipProof(
@@ -237,7 +237,7 @@ class Core implements ICore {
       ownerHash: string;
       sharedSecret: bigint;
     }[],
-    babyJubPublicKey: string,
+    babyJubjubPublicKey: string,
   ) {
     const NUM_NOTES = 10;
 
@@ -246,7 +246,7 @@ class Core implements ICore {
 
     const paddedOwnedNotes = ownedNotes.concat(
       ...Array(NUM_NOTES - ownedNotes.length).fill({
-        babyJubPublicKey: "0.0",
+        babyJubjubPublicKey: "0.0",
         sharedSecret: "0",
         ownerHash: "0",
       }),
@@ -255,7 +255,7 @@ class Core implements ICore {
     const { proof, publicSignals } = await groth16.fullProve(
       {
         inputNoteOwners: paddedOwnedNotes.map(({ sharedSecret }) => [
-          ...babyJubPublicKey.split("."),
+          ...babyJubjubPublicKey.split("."),
           sharedSecret.toString(),
         ]),
         ownerHashes: paddedOwnedNotes.map(({ ownerHash }) => ownerHash),
@@ -306,44 +306,60 @@ class Core implements ICore {
     };
   }
 
-  generateOutputNote(note: Note): OutputNote {
-    return {
-      ownerHash: poseidon.F.toObject(
-        poseidon([...note.owner.babyJubPublicKey.map(BigInt), BigInt(note.owner.sharedSecret)]),
-      ),
-      amount: note.amount,
-      token: note.token,
-      ephemeralKey: note.ephemeralKey,
-      viewTag: note.viewTag,
-    };
-  }
-
   unpackAuthenticatedNotes(
     s: string,
     v: string,
-    notes: AuthenticatedNote[],
-    babyJubPublicKey: [string, string],
+    notes: Note[],
+    babyJubjubPublicKey: [string, string],
   ): Note[] {
     const scanResult = this.scanNotes(
       s,
       v,
       notes.map((note) => ({
-        ownerHash: note.ownerHash,
-        ephemeralKey: note.ephemeralKey,
-        viewTag: note.viewTag.slice(2),
+        ephemeralKey: note.deliveryTag!.ephemeralKey.toString(),
+        viewTag: note.deliveryTag!.viewTag.toString(),
       })),
     );
 
-    return scanResult.spendingPubKeys.map((pubKey: string, index: number) => ({
-      owner: {
-        babyJubPublicKey,
-        sharedSecret: pubKey.split(".")[0],
-      },
-      amount: notes[index].amount,
-      token: notes[index].token,
-      viewTag: notes[index].viewTag,
-      ephemeralKey: notes[index].ephemeralKey,
-    }));
+    const unpackedNotes = scanResult.spendingPubKeys.map((pubKey: string, index: number) => {
+      return new Note({
+        owner: {
+          babyJubjubPublicKey: {
+            x: BigInt(babyJubjubPublicKey[0]),
+            y: BigInt(babyJubjubPublicKey[1]),
+          },
+          sharedSecret: BigInt(pubKey.split(".")[0]),
+        },
+        ownerHash: notes[index].ownerHash,
+        balance: {
+          amount: notes[index].balance!.amount,
+          token: notes[index].balance!.token,
+        },
+        deliveryTag: {
+          ephemeralKey: notes[index].deliveryTag!.ephemeralKey,
+          viewTag: notes[index].deliveryTag!.viewTag,
+        },
+      });
+    });
+
+    return unpackedNotes;
+  }
+
+  signWithBabyJubjubPrivateKey(message: bigint, babyJubjubPrivateKey: string): StringifyBigInts<Signature> {
+    const privateKey = `0x${Buffer.from(babyJubjubPrivateKey, "hex").toString("hex")}`;
+
+    const privateKeyBuffer = Buffer.from(privateKey.slice(2), "hex");
+    const messageBuffer = this.#eddsa!.babyJub.F.e(message);
+
+    const signature = this.#eddsa!.signPoseidon(privateKeyBuffer, messageBuffer);
+
+    return {
+      R8: [
+        this.#eddsa!.babyJub.F.toObject(signature.R8[0]).toString(),
+        this.#eddsa!.babyJub.F.toObject(signature.R8[1]).toString(),
+      ],
+      S: signature.S.toString(),
+    };
   }
 
   isValidBN254Point(point: string): boolean {

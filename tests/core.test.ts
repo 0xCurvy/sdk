@@ -1,3 +1,5 @@
+import { buildPoseidon } from "circomlibjs";
+import { poseidon1, poseidon2, poseidon3 } from "poseidon-lite";
 import { expect, test } from "vitest";
 import { Core } from "@/core";
 import { mockPopulateAnnouncement } from "./utils/announcement-filler";
@@ -62,8 +64,8 @@ test("simplest possible test", async () => {
 
   const keyPairs = core.generateKeyPairs();
 
-  const { bJJPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
-  expect(bJJPublicKey).not.toBeNull();
+  const { babyJubjubPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
+  expect(babyJubjubPublicKey).not.toBeNull();
 
   const validV = core.isValidBN254Point(keyPairs.V);
   const validS = core.isValidSECP256k1Point(keyPairs.S);
@@ -87,37 +89,25 @@ test("simplest possible test", async () => {
   console.log(scanResult);
 });
 
-test("Decode note shared secret", async () => {
-  // const core = await Core.init();
+test("Test poseidon libs", async () => {
+  const poseidon = await buildPoseidon();
+  const x = 123n;
+  const y = 456n;
+  const z = 789n;
 
-  // const keyPairs = {
-  //   s: "0x0000000000000000000000000000000000000000000000000000000000000000",
-  //   S: "0x0000000000000000000000000000000000000000000000000000000000000000",
-  //   v: "0x0000000000000000000000000000000000000000000000000000000000000000",
-  //   K: "0x0000000000000000000000000000000000000000000000000000000000000000",
-  // }
+  const h1_lite = poseidon1([x]);
+  const h1_clib = poseidon.F.toObject(poseidon([x]));
 
-  // const noteData: any[] = [{
-  //   ephemeralKey: "0x0000000000000000000000000000000000000000000000000000000000000000",
-  //   viewTag: "0x0000000000000000000000000000000000000000000000000000000000000000",
-  // },
-  // {
-  //   ephemeralKey: "0x0000000000000000000000000000000000000000000000000000000000000000",
-  //   viewTag: "0x0000000000000000000000000000000000000000000000000000000000000000",
-  // }];
+  const h2_lite = poseidon2([x, y]);
+  const h2_clib = poseidon.F.toObject(poseidon([x, y]));
 
-  // const sharedSecrets = [
-  //   "0x0000000000000000000000000000000000000000000000000000000000000001",
-  //   "0x0000000000000000000000000000000000000000000000000000000000000002",
-  // ];
+  const h3_lite = poseidon3([x, y, z]);
+  const h3_clib = poseidon.F.toObject(poseidon([x, y, z]));
 
-  // const scanResult = core.scanNotes(keyPairs.s, keyPairs.v, noteData);
-
-  // expect(scanResult.spendingPubKeys).lengthOf(2);
-  // expect(scanResult.spendingPrivKeys).lengthOf(2);
-  
-  // for (let i = 0; i < scanResult.spendingPrivKeys.length; i++) {
-  //   const sharedSecret = scanResult.spendingPrivKeys[i];
-  //   expect(sharedSecret).toBe(sharedSecrets[i]);
-  // }
+  console.log("1-arg equal:", h1_lite === h1_clib);
+  console.log("2-arg equal:", h2_lite === h2_clib);
+  console.log("3-arg equal:", h3_lite === h3_clib);
+  console.log("h1:", h1_lite.toString());
+  console.log("h2:", h2_lite.toString());
+  console.log("h3:", h3_lite.toString());
 });

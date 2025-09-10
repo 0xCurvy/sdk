@@ -1,10 +1,9 @@
 import type { Groth16Proof } from "snarkjs";
+import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  AggregationRequest,
   CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  DepositPayload,
   GetActionEstimatedCostRequest,
   GetActionEstimatedCostResponse,
   GetActionStatusResponse,
@@ -19,6 +18,8 @@ import type {
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
+  SetBabyJubjubPublicKeyRequestBody,
+  SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitGasSponsorshipRequest,
@@ -27,9 +28,9 @@ import type {
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
-  WithdrawPayload,
 } from "@/types/api";
 import type { CsucAction } from "@/types/csuc";
+import type { CurvyHandle } from "@/types/curvy";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
@@ -57,6 +58,10 @@ interface IApiClient {
     RegisterCurvyHandle(body: RegisterCurvyHandleRequestBody): Promise<RegisterCurvyHandleReturnType>;
     ResolveCurvyHandle(username: string): Promise<ResolveCurvyHandleReturnType>;
     GetCurvyHandleByOwnerAddress(ownerAddress: string): Promise<GetCurvyHandleByOwnerAddressReturnType>;
+    SetBabyJubjubKey(
+      handle: CurvyHandle,
+      body: SetBabyJubjubPublicKeyRequestBody,
+    ): Promise<SetBabyJubjubPublicKeyReturnType>;
   };
 
   auth: {
@@ -67,9 +72,9 @@ interface IApiClient {
 
   aggregator: {
     GetAllNotes(): Promise<GetAllNotesReturnType>;
-    SubmitDeposit(data: DepositPayload): Promise<SubmitDepositReturnType>;
-    SubmitWithdraw(data: WithdrawPayload): Promise<SubmitWithdrawReturnType>;
-    SubmitAggregation(data: { aggregations: AggregationRequest[] }): Promise<SubmitAggregationReturnType>;
+    SubmitDeposit(data: DepositRequest): Promise<SubmitDepositReturnType>;
+    SubmitWithdraw(data: WithdrawRequest): Promise<SubmitWithdrawReturnType>;
+    SubmitAggregation(data: AggregationRequest): Promise<SubmitAggregationReturnType>;
     SubmitNotesOwnerhipProof(data: {
       proof: Groth16Proof;
       ownerHashes: string[];
