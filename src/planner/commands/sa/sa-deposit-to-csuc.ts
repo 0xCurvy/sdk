@@ -45,6 +45,6 @@ export class SaDepositToCsuc extends SACommand {
   }
 
   async estimate(): Promise<CurvyCommandEstimate> {
-    return { curvyFee: 0n, gas: 0n };
+    return { curvyFee: this.input.balance / 1000n, gas: 0n };
   }
 }
