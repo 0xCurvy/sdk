@@ -17,7 +17,7 @@ import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { ARTIFACT as CSUC_ETH_SEPOLIA_ARTIFACT } from "@/contracts/evm/curvy-artifacts/ethereum-sepolia/CSUC";
 import { Rpc } from "@/rpc/abstract";
-import type { RpcBalance, RpcBalances } from "@/types";
+import { type BalanceEntry, isSaBalanceEntry, type RpcBalance, type RpcBalances } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
@@ -258,14 +258,22 @@ class EvmRpc extends Rpc {
     return feeEstimate;
   }
 
-  async onboardNativeToCSUC(from: CurvyAddress, privateKey: HexString, currency: Currency, amount: string) {
+  async onboardNativeToCSUC(input: BalanceEntry, privateKey: HexString, currency: Currency, amount: string) {
+    if (!this.network.csucContractAddress) {
+      throw new Error("[CSUCOnboard]: CSUC actions not supported on this network");
+    }
+
+    if (!isSaBalanceEntry(input)) {
+      throw new Error("Input balance entry must be of SA type");
+    }
+
     const hash = await this.walletClient.writeContract({
       abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
       functionName: "wrapNative",
       account: privateKeyToAccount(privateKey),
       chain: this.#walletClient.chain,
       address: this.network.csucContractAddress as HexString,
-      args: [from.address],
+      args: [input.source as HexString],
       value: parseDecimal(amount, currency),
     });
 
@@ -282,41 +290,19 @@ class EvmRpc extends Rpc {
     };
   }
 
-  // TODO: We should introduce commands first here as an example
-  // TODO: Allow onboarding native currency (ETH as well) within this method
   async prepareCSUCOnboardTransactions(
-    networkIdentifier: string,
     privateKey: HexString,
-    toAddress: `0x${string}`,
-    currencySymbol: string,
+    toAddress: HexString,
+    currency: Currency,
     amount: string,
   ): Promise<GasSponsorshipRequest> {
-    // TODO: SDK should not be hardcoded to be aware of this
-    if (!["localnet", "ethereum-sepolia"].includes(networkIdentifier)) {
-      throw new Error(`Network: ${networkIdentifier} is not supported! Only 'localnet' and 'ethereum-sepolia'`);
-    }
-
-    const networkId = {
-      localnet: 7,
-      "ethereum-sepolia": 1,
-    }[networkIdentifier] as number;
-
-    const token = this.network.currencies.find((c) => c.symbol === currencySymbol);
-
-    if (!token) throw new Error(`Token ${currencySymbol} not found.`);
-
-    if (token.nativeCurrency) {
-      throw new Error("This method does not support native currency onboards now");
+    if (!this.network.csucContractAddress) {
+      throw new Error("[CSUCOnboard]: CSUC actions not supported on this network");
     }
 
     // Legacy CSA
     const account = privateKeyToAccount(privateKey);
 
-    const csucContractAddress = this.network.csucContractAddress as `0x${string}`;
-
-    if (!csucContractAddress) {
-      throw new Error("CSUC contract address not found for the specified network.");
-    }
     let nonce = await this.publicClient.getTransactionCount({
       address: account.address,
     });
@@ -326,22 +312,22 @@ class EvmRpc extends Rpc {
     const txInfo = [
       // ERC20 approve transaction
       {
-        to: token.contractAddress as Address,
+        to: currency.contractAddress as HexString,
         data: encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
-          args: [csucContractAddress, parseDecimal(amount, token)],
+          args: [this.network.csucContractAddress as HexString, parseDecimal(amount, currency)],
         }),
         gas: 70_000n,
         nonce,
       },
       // CSUC wrap transaction
       {
-        to: csucContractAddress,
+        to: this.network.csucContractAddress as HexString,
         data: encodeFunctionData({
           abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
           functionName: "wrapERC20",
-          args: [toAddress, token.contractAddress as `0x${string}`, parseDecimal(amount, token)],
+          args: [toAddress, currency.contractAddress as `0x${string}`, parseDecimal(amount, currency)],
         }),
         gas: 120_000n,
         nonce: ++nonce,
@@ -350,7 +336,6 @@ class EvmRpc extends Rpc {
 
     const payloads: TransactionRequest[] = [];
     const signedPayloads: string[] = [];
-    // const decodedSignedPayloads: TransactionSerializable[] = [];
 
     for (const txI of txInfo) {
       const pTx = await accountClient.prepareTransactionRequest({
@@ -362,15 +347,13 @@ class EvmRpc extends Rpc {
       });
 
       const sTx = await accountClient.signTransaction(pTx);
-      // const dTx = parseTransaction(sTx);
 
       payloads.push(pTx);
       signedPayloads.push(sTx);
-      // decodedSignedPayloads.push(dTx);
     }
 
     return {
-      networkId,
+      networkId: this.network.id,
       payloads: payloads.map((p) => ({
         data: jsonStringify(p),
       })),

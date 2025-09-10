@@ -36,18 +36,15 @@ import { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import {
-  type AggregationRequest,
-  type AggregationRequestParams,
-  BALANCE_TYPE,
-  type BalanceEntry,
-  type CsucBalanceEntry,
-  type DepositRequest,
-  type DepositRequestParams,
-  isCsucBalanceEntry,
-  type Network,
-  type WithdrawRequest,
-  type WithdrawRequestParams,
+import type {
+  AggregationRequest,
+  AggregationRequestParams,
+  BalanceEntry,
+  CsucBalanceEntry,
+  DepositRequest,
+  Network,
+  WithdrawRequest,
+  WithdrawRequestParams,
 } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
@@ -67,6 +64,7 @@ import type {
 import type { HexString } from "@/types/helper";
 import { Note } from "@/types/note";
 import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
+import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
@@ -509,10 +507,10 @@ class CurvySDK implements ICurvySDK {
 
   async onboardToCSUC(
     networkIdentifier: NetworkFilter,
-    from: CurvyAddress,
-    toAddress: HexString | string,
+    input: BalanceEntry,
+    toAddress: HexString,
     currencySymbol: string,
-    amount: string,
+    amount: bigint,
   ) {
     const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
 
@@ -520,28 +518,23 @@ class CurvySDK implements ICurvySDK {
       throw new Error(`Currency with symbol ${currencySymbol} not found on network ${networkIdentifier}!`);
     }
 
-    const wallet = this.walletManager.getWalletById(from.walletId);
-    if (!wallet) {
-      throw new Error(`Cannot send from address ${from.id} because it's wallet is not found!`);
-    }
-    const { s, v } = wallet.keyPairs;
+    const curvyAddress = await this.storage.getCurvyAddress(input.source);
 
-    const {
-      spendingPrivKeys: [privateKey],
-    } = this.#core.scan(s, v, [from]);
+    const privateKey = this.walletManager.getAddressPrivateKey(curvyAddress);
 
     if (currency.nativeCurrency) {
       const rpc = this.rpcClient.Network(networkIdentifier);
 
-      // TODO For now we only support EVM RPCs for CSUC
+      // TODO For now we only support Ethereum Sepolia and Localnet for CSUC
       if (rpc instanceof EvmRpc) {
-        return rpc.onboardNativeToCSUC(from, privateKey, currency, amount);
+        await rpc.onboardNativeToCSUC(input, privateKey, currency, amount.toString());
+        return;
       }
     }
 
     const request = await this.rpcClient
       .Network(networkIdentifier)
-      .prepareCSUCOnboardTransactions(networkIdentifier as string, privateKey, toAddress, currency.symbol, amount);
+      .prepareCSUCOnboardTransactions(privateKey, toAddress, currency, amount.toString());
 
     return await this.apiClient.gasSponsorship.SubmitRequest(request);
   }
@@ -595,28 +588,6 @@ class CurvySDK implements ICurvySDK {
     });
 
     return { action, response: response.data };
-  }
-
-  createDepositPayload(params: DepositRequestParams): DepositRequest {
-    const { recipient, notes, csucTransferAllowanceSignature } = params;
-    if (!recipient || !notes || !csucTransferAllowanceSignature) {
-      throw new Error("Invalid deposit payload parameters");
-    }
-    const outputNotes = notes.map((note) =>
-      this.#core.sendNote(recipient.S, recipient.V, {
-        ownerBabyJubjubPublicKey: note.owner!.babyJubjubPublicKey.toString(),
-        amount: note.balance!.amount,
-        token: note.balance!.token,
-      }),
-    );
-
-    const { csucContractAddress } = this.getNetwork("localnet");
-
-    return {
-      outputNotes,
-      csucAddress: csucContractAddress!,
-      csucTransferAllowanceSignature,
-    };
   }
 
   createAggregationPayload(params: AggregationRequestParams): AggregationRequest {
@@ -780,7 +751,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error(`BabyJubjub public key not found for handle ${handle}`);
     }
     return this.#core.sendNote(spendingKey, viewingKey, {
-      ownerBabyJubjubPublicKey: babyJubjubPublicKey,
+      ownerBabyJubjubPublicKey: decimalStringToHex(babyJubjubPublicKey, false),
       amount,
       token,
     });

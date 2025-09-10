@@ -1,6 +1,5 @@
 import { ethers, keccak256 } from "ethers";
 import { type EncodeAbiParametersReturnType, encodeAbiParameters } from "viem";
-import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import {
   type CsucAction,
@@ -19,11 +18,13 @@ const prepareCsucActionEstimationRequest = async (
   token: HexString,
   amount: string | bigint,
 ) => {
-  let parameters: EncodeAbiParametersReturnType;
+  let parameters: EncodeAbiParametersReturnType = "0x";
 
   if ([CsucActionSet.TRANSFER, CsucActionSet.WITHDRAW].includes(action)) {
-    parameters = encodeAbiParameters([{ name: "recipient", type: "address" }], [to]);
-  } else if (action === CsucActionSet.DEPOSIT_TO_AGGREGATOR) {
+    if (typeof to !== "bigint") {
+      parameters = encodeAbiParameters([{ name: "recipient", type: "address" }], [to]);
+    }
+  } else if (action === CsucActionSet.DEPOSIT_TO_AGGREGATOR && typeof to === "bigint") {
     parameters = encodeAbiParameters(
       [
         {
@@ -242,4 +243,4 @@ const signActionPayload = async (
   } as CsucSignature;
 };
 
-export { prepareCsucActionEstimationRequest, prepareCuscActionRequest };
+export { prepareCsucActionEstimationRequest, prepareCuscActionRequest, getOnchainActionId, hashActionPayload };
