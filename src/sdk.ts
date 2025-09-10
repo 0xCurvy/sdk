@@ -40,6 +40,8 @@ import {
   type AggregationRequest,
   type AggregationRequestParams,
   BALANCE_TYPE,
+  type BalanceEntry,
+  type CsucBalanceEntry,
   type DepositRequest,
   type DepositRequestParams,
   isCsucBalanceEntry,
@@ -547,8 +549,8 @@ class CurvySDK implements ICurvySDK {
   async estimateActionInsideCSUC(
     networkFilter: NetworkFilter,
     actionId: CsucActionSet,
-    from: CurvyAddress,
-    to: HexString,
+    from: HexString,
+    to: HexString | bigint,
     token: HexString,
     _amount: bigint, // Doesn't accept decimal numbers i.e. `0.001`
   ): Promise<CsucEstimatedActionCost> {
@@ -572,41 +574,21 @@ class CurvySDK implements ICurvySDK {
 
   async requestActionInsideCSUC(
     networkFilter: NetworkFilter,
-    from: CurvyAddress,
+    input: CsucBalanceEntry,
     payload: CsucActionPayload,
     totalFee: string,
   ) {
+    const curvyAddress = await this.storage.getCurvyAddress(input.source);
+
     const network = this.getNetwork(networkFilter);
 
     if (!network.csucContractAddress) {
       throw new Error(`CSUC contract address not found for network ${network.name}`);
     }
 
-    const wallet = this.walletManager.getWalletById(from.walletId);
-    if (!wallet) {
-      throw new Error(`Cannot send from address ${from.id} because it's wallet is not found!`);
-    }
-    const { s, v } = wallet.keyPairs;
+    const privateKey = this.walletManager.getAddressPrivateKey(curvyAddress);
 
-    const {
-      spendingPrivKeys: [privateKey],
-    } = this.#core.scan(s, v, [from]);
-
-    const { token: currencyAddress } = JSON.parse(payload.encodedData) as any;
-    const networkSlug = toSlug(network.name);
-
-    const balanceEntry = await this.storage.getBalanceEntry(
-      from.address,
-      currencyAddress,
-      networkSlug,
-      BALANCE_TYPE.CSUC,
-    );
-
-    if (!isCsucBalanceEntry(balanceEntry)) {
-      throw new Error(`Got an incompatible balance entry`);
-    }
-
-    const action = await prepareCuscActionRequest(network, balanceEntry.nonce, privateKey, payload, totalFee);
+    const action = await prepareCuscActionRequest(network, input.nonce, privateKey, payload, totalFee);
 
     const response = await this.apiClient.csuc.SubmitActionRequest({
       action: action,

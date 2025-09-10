@@ -1,18 +1,15 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { type CurvyHandle, Note, type NoteBalanceEntry } from "@/types";
+import { Note, type NoteBalanceEntry } from "@/types";
 
 export abstract class AggregatorCommand extends CurvyCommand {
   protected declare input: NoteBalanceEntry[];
-  protected readonly senderCurvyHandle: CurvyHandle;
   protected readonly inputNotes: Note[];
   protected readonly inputNotesSum: bigint;
 
   constructor(sdk: ICurvySDK, input: CurvyCommandData) {
     super(sdk, input);
-
-    this.senderCurvyHandle = sdk.walletManager.activeWallet.curvyHandle;
 
     // Because all aggregator commands take array of notes as input,
     // make sure we have an array and that it is completely comprised of notes
