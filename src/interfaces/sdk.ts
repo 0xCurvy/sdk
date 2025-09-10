@@ -3,6 +3,7 @@ import type { IApiClient } from "@/interfaces/api";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
 import type {
+  BalanceEntry,
   CsucAction,
   CsucActionPayload,
   CsucActionSet,
@@ -10,6 +11,7 @@ import type {
   CsucBalanceEntry,
   CsucEstimatedActionCost,
   Note,
+  SubmitGasSponsorshipRequestReturnType,
 } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type {
@@ -100,6 +102,14 @@ interface ICurvySDK {
     fee: StarknetFeeEstimate | bigint,
     message?: string,
   ): Promise<SendReturnType>;
+
+  onboardToCSUC(
+    networkIdentifier: NetworkFilter,
+    input: BalanceEntry,
+    toAddress: HexString,
+    currencySymbol: string,
+    amount: bigint,
+  ): Promise<SubmitGasSponsorshipRequestReturnType | undefined>;
 
   estimateActionInsideCSUC(
     networkFilter: NetworkFilter,

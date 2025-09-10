@@ -27,7 +27,6 @@ export abstract class CSUCCommand extends CurvyCommand {
     this.network = sdk.getNetwork(input.networkSlug);
   }
 
-  // Assumes .estimate() has been called before it
   abstract execute(): Promise<CurvyCommandData | undefined>;
 
   abstract estimate(): Promise<CurvyCommandEstimate>;

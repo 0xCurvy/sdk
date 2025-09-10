@@ -363,4 +363,4 @@ class Note {
   }
 }
 
-export { Note, FullNoteData };
+export { Note, FullNoteData, DepositNote };
