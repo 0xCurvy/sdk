@@ -20,7 +20,7 @@ export abstract class CSUCCommand extends CurvyCommand {
       throw new Error("Invalid input for command, CSUC commands only accept one data as input.");
     }
 
-    if (input.source !== BALANCE_TYPE.CSUC) {
+    if (input.type !== BALANCE_TYPE.CSUC) {
       throw new Error("Invalid input for command, CSUC commands only accept CSUC balance type as input.");
     }
 

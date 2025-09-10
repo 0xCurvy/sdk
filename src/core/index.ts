@@ -16,6 +16,7 @@ import type {
 } from "@/types/core";
 import type { HexString, StringifyBigInts } from "@/types/helper";
 import { Note } from "@/types/note";
+import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { isNode } from "@/utils/helpers";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
@@ -177,21 +178,23 @@ class Core implements ICore {
   sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
+    console.log(R, viewTag, spendingPubKey);
+
     return new Note({
       owner: {
         babyJubjubPublicKey: {
           x: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[0],
           y: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[1],
         },
-        sharedSecret: BigInt(spendingPubKey.split(".")[0]),
+        sharedSecret: BigInt(`0x${Buffer.from(spendingPubKey.split(".")[0], "hex").toString("hex")}`),
       },
       balance: {
         amount: noteData.amount,
         token: noteData.token,
       },
       deliveryTag: {
-        ephemeralKey: BigInt(R),
-        viewTag: BigInt(viewTag),
+        ephemeralKey: BigInt(decimalStringToHex(R, false)),
+        viewTag: BigInt(`0x${viewTag}`),
       },
     });
   }
@@ -306,12 +309,7 @@ class Core implements ICore {
     };
   }
 
-  unpackAuthenticatedNotes(
-    s: string,
-    v: string,
-    notes: Note[],
-    babyJubjubPublicKey: [string, string],
-  ): Note[] {
+  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubjubPublicKey: [string, string]): Note[] {
     const scanResult = this.scanNotes(
       s,
       v,

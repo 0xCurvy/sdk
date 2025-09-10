@@ -22,7 +22,7 @@ import { starknetAccountAbi } from "@/contracts/starknet/abi/account";
 import { starknetErc20Abi } from "@/contracts/starknet/abi/erc20";
 import { starknetMulticallAbi } from "@/contracts/starknet/abi/multicall";
 import type { CurvyAddress } from "@/types/address";
-import type { Network } from "@/types/api";
+import type { Currency, Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import type { RpcBalance, RpcBalances, StarknetFeeEstimate } from "@/types/rpc";
@@ -352,8 +352,8 @@ class StarknetRpc extends Rpc {
 
   prepareCSUCOnboardTransactions(
     _privateKey: HexString,
-    _toAddress: string,
-    _currency: string,
+    _toAddress: HexString,
+    _currency: Currency,
     _amount: string,
   ): Promise<GasSponsorshipRequest> {
     throw new Error("CSUC is not supported on Starknet");

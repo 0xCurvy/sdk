@@ -107,6 +107,7 @@ class Note {
   }
 
   static generateOwnerHash(owner: Owner): bigint {
+    console.log(owner); //TODO: next problem is here
     return poseidonHash([owner.babyJubjubPublicKey.x, owner.babyJubjubPublicKey.y, owner.sharedSecret]);
   }
 

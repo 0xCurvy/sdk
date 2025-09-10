@@ -64,8 +64,9 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
       throw new Error(`CSUC contract address not found for ${this.network.name} network.`);
     }
 
+    //TODO: SERIALIZE NOTE TO DEPOSITE NOTE, INTRODUCES BE ERRORS
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
-      outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
+      outputNotes: depositNotes,
       csucAddress: csucContractAddress,
       csucTransferAllowanceSignature: signature.hash.toString(),
     });
