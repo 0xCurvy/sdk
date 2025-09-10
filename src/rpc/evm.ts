@@ -290,8 +290,6 @@ class EvmRpc extends Rpc {
     };
   }
 
-  // TODO: We should introduce commands first here as an example
-  // TODO: Allow onboarding native currency (ETH as well) within this method
   async prepareCSUCOnboardTransactions(
     privateKey: HexString,
     toAddress: HexString,

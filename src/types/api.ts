@@ -192,7 +192,7 @@ type SubmitNoteOwnershipProofReturnType = {
     amount: string;
   }[];
 };
-type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed";
+type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed" | "success";
 type GetAggregatorRequestStatusReturnType = {
   requestId: string;
   status: AggregatorRequestStatusValuesType;

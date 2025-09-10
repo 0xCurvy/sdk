@@ -1,7 +1,6 @@
 import { expect, test } from "vitest";
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api.js";
-import { AggregatorRequestStatus } from "@/constants/aggregator";
 import { Note } from "@/types/note";
 
 const BEARER_TOKEN =
@@ -12,11 +11,11 @@ const waitForRequest = async (requestId: string, api: ApiClient) => {
   return new Promise((resolve, reject) => {
     const interval = setInterval(async () => {
       const { status } = await api.aggregator.GetAggregatorRequestStatus(requestId);
-      if (status === AggregatorRequestStatus.SUCCESS) {
+      if (status === "completed") {
         clearInterval(interval);
         resolve(status);
       }
-      if (status === AggregatorRequestStatus.FAILED) {
+      if (status === "failed") {
         clearInterval(interval);
         reject("Request failed");
       }
@@ -110,17 +109,20 @@ test("should generate note, deposit and scan", async () => {
 
   expect(authenticatedNotes.notes.length).toBe(NUM_NOTES);
 
-  const notes = authenticatedNotes.notes.map((note) => new Note({
-    ownerHash: BigInt(note.ownerHash),
-    balance: {
-      amount: BigInt(note.amount),
-      token: BigInt(note.token),
-    },
-    deliveryTag: {
-      ephemeralKey: BigInt(note.ephemeralKey),
-      viewTag: BigInt(note.viewTag),
-    },
-  }));
+  const notes = authenticatedNotes.notes.map(
+    (note) =>
+      new Note({
+        ownerHash: BigInt(note.ownerHash),
+        balance: {
+          amount: BigInt(note.amount),
+          token: BigInt(note.token),
+        },
+        deliveryTag: {
+          ephemeralKey: BigInt(note.ephemeralKey),
+          viewTag: BigInt(note.viewTag),
+        },
+      }),
+  );
 
   const unpackedNotes = core.unpackAuthenticatedNotes(
     keyPairs.s,
