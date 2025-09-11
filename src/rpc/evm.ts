@@ -96,7 +96,7 @@ class EvmRpc extends Rpc {
 
     return tokenBalances
       .map((encodedTokenBalance, idx) => {
-        const { contractAddress: currencyAddress, nativeCurrency, symbol } = this.network.currencies[idx];
+        const { contractAddress: currencyAddress, nativeCurrency, symbol, decimals } = this.network.currencies[idx];
 
         let balance: bigint;
 
@@ -118,14 +118,15 @@ class EvmRpc extends Rpc {
               balance,
               currencyAddress: currencyAddress as HexString,
               symbol,
+              decimals,
               environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
             }
           : null;
       })
       .filter(Boolean)
-      .reduce<RpcBalances>((res, { balance, currencyAddress, symbol, environment }) => {
+      .reduce<RpcBalances>((res, { balance, currencyAddress, symbol, environment, decimals }) => {
         if (!res[networkSlug]) res[networkSlug] = Object.create(null);
-        res[networkSlug]![currencyAddress] = { balance, currencyAddress, symbol, environment };
+        res[networkSlug]![currencyAddress] = { balance, currencyAddress, symbol, environment, decimals };
         return res;
       }, Object.create(null));
   }
@@ -134,7 +135,7 @@ class EvmRpc extends Rpc {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contractAddress: currencyAddress, nativeCurrency } = token;
+    const { contractAddress: currencyAddress, nativeCurrency, decimals } = token;
 
     let balance: bigint;
 
@@ -155,6 +156,7 @@ class EvmRpc extends Rpc {
       balance,
       currencyAddress: currencyAddress as HexString,
       symbol,
+      decimals,
       environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
     } satisfies RpcBalance;
   }
@@ -267,6 +269,21 @@ class EvmRpc extends Rpc {
       throw new Error("Input balance entry must be of SA type");
     }
 
+    const { maxFeePerGas } = await this.publicClient.estimateFeesPerGas();
+
+    const gasLimit = await this.#publicClient
+      .estimateContractGas({
+        account: privateKeyToAccount(privateKey),
+        address: this.network.csucContractAddress as HexString,
+        abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
+        functionName: "wrapNative",
+        args: [input.source as HexString],
+      })
+      .then((res) => res)
+      .catch(() => 42_000n);
+
+    const fee = gasLimit * ((maxFeePerGas * 120n) / 100n); // add 20% buffer
+
     const hash = await this.walletClient.writeContract({
       abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
       functionName: "wrapNative",
@@ -274,7 +291,7 @@ class EvmRpc extends Rpc {
       chain: this.#walletClient.chain,
       address: this.network.csucContractAddress as HexString,
       args: [input.source as HexString],
-      value: parseDecimal(amount, currency),
+      value: parseDecimal(amount, currency) - fee,
     });
 
     const receipt = await this.publicClient.waitForTransactionReceipt({

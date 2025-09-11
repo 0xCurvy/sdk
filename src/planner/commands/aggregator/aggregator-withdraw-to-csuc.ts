@@ -11,7 +11,7 @@ export class AggregatorWithdrawToCSUCCommand extends AggregatorCommand {
 
     // TODO: Fix this so that we dont have same return values as args
     const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload({
-      inputNotes: this.inputNotes,
+      inputNotes: this.inputNotes.map((note) => note.serializeWithdrawalNote()),
       destinationAddress: csucAddress,
     });
 
@@ -52,6 +52,7 @@ export class AggregatorWithdrawToCSUCCommand extends AggregatorCommand {
       environment,
       balance: this.inputNotesSum,
       symbol,
+      decimals: this.input[0].decimals,
       currencyAddress,
       lastUpdated,
     } satisfies CsucBalanceEntry;

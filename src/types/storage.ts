@@ -34,6 +34,7 @@ type BalanceEntryBase = {
 
   currencyAddress: string;
   symbol: string;
+  decimals: number;
   balance: bigint;
 
   lastUpdated: number;

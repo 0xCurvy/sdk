@@ -26,74 +26,164 @@ type DeliveryTag = {
 };
 
 type PublicNote = {
-  ownerHash: bigint;
-} & DeliveryTag;
+  ownerHash: string;
+  deliveryTag: {
+    ephemeralKey: string;
+    viewTag: string;
+  }
+};
 
 type AuthenticatedNote = {
-  ownerHash: bigint;
-} & Balance &
-  DeliveryTag;
+  ownerHash: string;
+  balance: {
+    amount: string;
+    token: string;
+  }
+  deliveryTag: {
+    ephemeralKey: string;
+    viewTag: string;
+  }
+};
 
 type DepositNote = {
-  ownerHash: bigint;
-} & Balance &
-  DeliveryTag;
+  ownerHash: string;
+  balance: {
+    amount: string;
+    token: string;
+  }
+  deliveryTag: {
+    ephemeralKey: string;
+    viewTag: string;
+  }
+};
 
 type AggregationInputNote = {
-  owner: Owner;
-} & Balance;
+  owner: {
+    babyJubjubPublicKey: {
+      x: string;
+      y: string;
+    }
+    sharedSecret: string;
+  }
+  balance: {
+    amount: string;
+    token: string;
+  }
+};
 
 type AggregationOutputNote = {
-  ownerHash: bigint;
-} & Balance &
-  DeliveryTag;
+  ownerHash: string;
+  balance: {
+    amount: string;
+    token: string;
+  }
+  deliveryTag: {
+    ephemeralKey: string;
+    viewTag: string;
+  }
+};
 
 type WithdrawalNote = {
-  owner: Owner;
-} & Balance;
+  owner: {
+    babyJubjubPublicKey: {
+      x: string;
+      y: string;
+    }
+    sharedSecret: string;
+  }
+  balance: {
+    amount: string;
+    token: string;
+  }
+};
 
 type CircuitInputNote = {
-  owner: Owner;
-} & Balance;
+  owner: {
+    babyJubjubPublicKey: {
+      x: string;
+      y: string;
+    }
+    sharedSecret: string;
+  }
+  balance: {
+    amount: string;
+    token: string;
+  }
+};
 
 type CircuitOutputNote = {
-  ownerHash: bigint;
-} & Balance;
+  ownerHash: string;
+  balance: {
+    amount: string;
+    token: string;
+  }
+};
 
 type FullNoteData = {
-  owner: Owner;
-  ownerHash: bigint;
-  balance: Balance;
-  deliveryTag: DeliveryTag;
+  owner: {
+    babyJubjubPublicKey: {
+      x: string;
+      y: string;
+    }
+    sharedSecret: string;
+  }
+  ownerHash: string;
+  balance: {
+    amount: string;
+    token: string;
+  }
+  deliveryTag: {
+    ephemeralKey: string;
+    viewTag: string;
+  }
 };
 
 class Note {
   ownerHash: bigint;
-  sharedSecret?: bigint;
   balance?: Balance;
   owner?: Owner;
   deliveryTag?: DeliveryTag;
 
   constructor(data: Partial<FullNoteData>) {
     if (data.ownerHash) {
-      this.ownerHash = data.ownerHash;
+      this.ownerHash = BigInt(data.ownerHash);
     } else {
       if (data.owner) {
-        this.ownerHash = Note.generateOwnerHash(data.owner);
+        this.ownerHash = Note.generateOwnerHash({
+          babyJubjubPublicKey: {
+            x: BigInt(data.owner.babyJubjubPublicKey.x),
+            y: BigInt(data.owner.babyJubjubPublicKey.y),
+          },
+          sharedSecret: BigInt(data.owner.sharedSecret),
+        });
       } else {
         throw new Error("Owner is not set");
       }
     }
 
-    this.balance = data.balance;
-    this.owner = data.owner;
-    this.deliveryTag = data.deliveryTag;
+    this.balance = {
+      amount: BigInt(data.balance!.amount),
+      token: BigInt(data.balance!.token),
+    };
+    this.owner = {
+      babyJubjubPublicKey: {
+        x: BigInt(data.owner!.babyJubjubPublicKey.x),
+        y: BigInt(data.owner!.babyJubjubPublicKey.y),
+      },
+      sharedSecret: BigInt(data.owner!.sharedSecret),
+    };
+    this.deliveryTag = {
+      ephemeralKey: BigInt(data.deliveryTag!.ephemeralKey),
+      viewTag: BigInt(data.deliveryTag!.viewTag),
+    };
   }
 
   get id(): bigint {
     if (!this.balance) {
       throw new Error("Missing balance");
     }
+
+    console.log(this);
 
     return poseidonHash([this.ownerHash, this.balance.amount, this.balance.token]);
   }
@@ -107,7 +197,6 @@ class Note {
   }
 
   static generateOwnerHash(owner: Owner): bigint {
-    console.log(owner); //TODO: next problem is here
     return poseidonHash([owner.babyJubjubPublicKey.x, owner.babyJubjubPublicKey.y, owner.sharedSecret]);
   }
 
@@ -138,16 +227,34 @@ class Note {
     }
 
     return {
-      owner: this.owner,
-      ...this.balance,
+      owner: {
+        babyJubjubPublicKey: {
+          x: this.owner.babyJubjubPublicKey.x.toString(),
+          y: this.owner.babyJubjubPublicKey.y.toString(),
+        },
+        sharedSecret: this.owner.sharedSecret.toString(),
+      },
+      balance: {
+        amount: this.balance.amount.toString(),
+        token: this.balance.token.toString(),
+      },
     };
   }
 
   // Used when receiving aggregation input note from aggregator backend
   static deserializeAggregationInputNote(aggregationInputNote: AggregationInputNote): Note {
     const note = new Note({
-      ownerHash: Note.generateOwnerHash(aggregationInputNote.owner),
-      balance: aggregationInputNote,
+      ownerHash: Note.generateOwnerHash({
+        babyJubjubPublicKey: {
+          x: BigInt(aggregationInputNote.owner.babyJubjubPublicKey.x),
+          y: BigInt(aggregationInputNote.owner.babyJubjubPublicKey.y),
+        },
+        sharedSecret: BigInt(aggregationInputNote.owner.sharedSecret),
+      }).toString(),
+      balance: {
+        amount: aggregationInputNote.balance.amount,
+        token: aggregationInputNote.balance.token,
+      },
     });
     return note;
   }
@@ -167,9 +274,15 @@ class Note {
     }
 
     return {
-      ownerHash: this.ownerHash,
-      ...this.balance,
-      ...this.deliveryTag,
+      ownerHash: this.ownerHash.toString(),
+      balance: {
+        amount: this.balance.amount.toString(),
+        token: this.balance.token.toString(),
+      },
+      deliveryTag: {
+        ephemeralKey: this.deliveryTag.ephemeralKey.toString(),
+        viewTag: this.deliveryTag.viewTag.toString(),
+      },
     };
   }
 
@@ -178,12 +291,12 @@ class Note {
     const note = new Note({
       ownerHash: aggregationOutputNote.ownerHash,
       balance: {
-        token: aggregationOutputNote.token,
-        amount: aggregationOutputNote.amount,
+        token: aggregationOutputNote.balance.token,
+        amount: aggregationOutputNote.balance.amount,
       },
       deliveryTag: {
-        ephemeralKey: aggregationOutputNote.ephemeralKey,
-        viewTag: aggregationOutputNote.viewTag,
+        ephemeralKey: aggregationOutputNote.deliveryTag.ephemeralKey,
+        viewTag: aggregationOutputNote.deliveryTag.viewTag,
       },
     });
     return note;
@@ -217,10 +330,16 @@ class Note {
 
     return {
       owner: {
-        babyJubjubPublicKey: this.owner.babyJubjubPublicKey,
-        sharedSecret: this.owner.sharedSecret,
+        babyJubjubPublicKey: {
+          x: this.owner.babyJubjubPublicKey.x.toString(),
+          y: this.owner.babyJubjubPublicKey.y.toString(),
+        },
+        sharedSecret: this.owner.sharedSecret.toString(),
       },
-      ...this.balance,
+      balance: {
+        amount: this.balance.amount.toString(),
+        token: this.balance.token.toString(),
+      },
     };
   }
 
@@ -235,8 +354,11 @@ class Note {
     }
 
     return {
-      ownerHash: this.ownerHash,
-      ...this.balance,
+      ownerHash: this.ownerHash.toString(),
+      balance: {
+        amount: this.balance.amount.toString(),
+        token: this.balance.token.toString(),
+      },
     };
   }
 
@@ -258,23 +380,29 @@ class Note {
     }
 
     return {
-      ownerHash: this.ownerHash,
-      ...this.balance,
-      ...this.deliveryTag,
+      ownerHash: this.ownerHash.toString(),
+      balance: {
+        amount: this.balance.amount.toString(),
+        token: this.balance.token.toString(),
+      },
+      deliveryTag: {
+        ephemeralKey: this.deliveryTag.ephemeralKey.toString(),
+        viewTag: this.deliveryTag.viewTag.toString(),
+      },
     };
   }
 
   // Used when receiving note with balances after verification of clientside proof of ownership
   static deserializeAuthenticatedNote(authenticatedNote: StringifyBigInts<AuthenticatedNote>): Note {
     const note = new Note({
-      ownerHash: BigInt(authenticatedNote.ownerHash),
+      ownerHash: authenticatedNote.ownerHash,
       balance: {
-        token: BigInt(authenticatedNote.token),
-        amount: BigInt(authenticatedNote.amount),
+        token: authenticatedNote.balance.token,
+        amount: authenticatedNote.balance.amount,
       },
       deliveryTag: {
-        ephemeralKey: BigInt(authenticatedNote.ephemeralKey),
-        viewTag: BigInt(authenticatedNote.viewTag),
+        ephemeralKey: authenticatedNote.deliveryTag.ephemeralKey,
+        viewTag: authenticatedNote.deliveryTag.viewTag,
       },
     });
     return note;
@@ -294,8 +422,11 @@ class Note {
     }
 
     return {
-      ownerHash: this.ownerHash,
-      ...this.deliveryTag,
+      ownerHash: this.ownerHash.toString(),
+      deliveryTag: {
+        ephemeralKey: this.deliveryTag.ephemeralKey.toString(),
+        viewTag: this.deliveryTag.viewTag.toString(),
+      },
     };
   }
 
@@ -305,10 +436,22 @@ class Note {
     }
 
     return {
-      owner: this.owner,
-      ownerHash: this.ownerHash,
-      balance: this.balance,
-      deliveryTag: this.deliveryTag,
+      owner: {
+        babyJubjubPublicKey: {
+          x: this.owner.babyJubjubPublicKey.x.toString(),
+          y: this.owner.babyJubjubPublicKey.y.toString(),
+        },
+        sharedSecret: this.owner.sharedSecret.toString(),
+      },
+      ownerHash: this.ownerHash.toString(),
+      balance: {
+        amount: this.balance.amount.toString(),
+        token: this.balance.token.toString(),
+      },
+      deliveryTag: {
+        ephemeralKey: this.deliveryTag.ephemeralKey.toString(),
+        viewTag: this.deliveryTag.viewTag.toString(),
+      },
     };
   }
 
@@ -317,8 +460,8 @@ class Note {
     const note = new Note({
       ownerHash: publicNote.ownerHash,
       deliveryTag: {
-        ephemeralKey: publicNote.ephemeralKey,
-        viewTag: publicNote.viewTag,
+        ephemeralKey: publicNote.deliveryTag.ephemeralKey,
+        viewTag: publicNote.deliveryTag.viewTag,
       },
     });
     return note;
@@ -326,14 +469,25 @@ class Note {
 
   static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress, source }: NoteBalanceEntry): Note {
     return new Note({
-      balance: { amount: balance, token: BigInt(currencyAddress) },
-      owner,
-      deliveryTag,
-      ownerHash: BigInt(source),
+      balance: { amount: balance.toString(), token: currencyAddress.toString() },
+      owner: {
+        babyJubjubPublicKey: {
+          x: owner.babyJubjubPublicKey.x.toString(),
+          y: owner.babyJubjubPublicKey.y.toString(),
+        },
+        sharedSecret: owner.sharedSecret.toString(),
+      },
+      deliveryTag: {
+        ephemeralKey: deliveryTag.ephemeralKey.toString(),
+        viewTag: deliveryTag.viewTag.toString(),
+      },
+      ownerHash: source,
     });
   }
+
   serializeNoteToBalanceEntry(
     symbol: string,
+    decimals: number,
     walletId: string,
     environment: NETWORK_ENVIRONMENT_VALUES,
     networkSlug: string,
@@ -357,6 +511,7 @@ class Note {
       currencyAddress: token.toString(16),
       symbol,
       balance: BigInt(amount),
+      decimals,
       owner,
       deliveryTag,
       lastUpdated: +dayjs(), // TODO: @vanja remove
@@ -364,4 +519,4 @@ class Note {
   }
 }
 
-export { Note, FullNoteData, DepositNote };
+export { Note, FullNoteData, DepositNote, AggregationInputNote, AggregationOutputNote, WithdrawalNote, CircuitInputNote, CircuitOutputNote };

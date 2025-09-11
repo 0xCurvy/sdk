@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test } from "vitest";
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api.js";

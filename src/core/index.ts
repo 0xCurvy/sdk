@@ -178,23 +178,21 @@ class Core implements ICore {
   sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
-    console.log(R, viewTag, spendingPubKey);
-
     return new Note({
       owner: {
         babyJubjubPublicKey: {
-          x: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[0],
-          y: noteData.ownerBabyJubjubPublicKey.split(".").map(BigInt)[1],
+          x: noteData.ownerBabyJubjubPublicKey.split(".")[0],
+          y: noteData.ownerBabyJubjubPublicKey.split(".")[1],
         },
-        sharedSecret: BigInt(`0x${Buffer.from(spendingPubKey.split(".")[0], "hex").toString("hex")}`),
+        sharedSecret: `0x${Buffer.from(spendingPubKey.split(".")[0], "hex").toString("hex")}`,
       },
       balance: {
-        amount: noteData.amount,
-        token: noteData.token,
+        amount: noteData.amount.toString(),
+        token: noteData.token.toString(),
       },
       deliveryTag: {
-        ephemeralKey: BigInt(decimalStringToHex(R, false)),
-        viewTag: BigInt(`0x${viewTag}`),
+        ephemeralKey: decimalStringToHex(R, false),
+        viewTag: `0x${viewTag}`,
       },
     });
   }
@@ -323,19 +321,19 @@ class Core implements ICore {
       return new Note({
         owner: {
           babyJubjubPublicKey: {
-            x: BigInt(babyJubjubPublicKey[0]),
-            y: BigInt(babyJubjubPublicKey[1]),
+            x: babyJubjubPublicKey[0],
+            y: babyJubjubPublicKey[1],
           },
-          sharedSecret: BigInt(pubKey.split(".")[0]),
+          sharedSecret: pubKey.split(".")[0],
         },
-        ownerHash: notes[index].ownerHash,
+        ownerHash: notes[index].ownerHash.toString(),
         balance: {
-          amount: notes[index].balance!.amount,
-          token: notes[index].balance!.token,
+          amount: notes[index].balance!.amount.toString(),
+          token: notes[index].balance!.token.toString(),
         },
         deliveryTag: {
-          ephemeralKey: notes[index].deliveryTag!.ephemeralKey,
-          viewTag: notes[index].deliveryTag!.viewTag,
+          ephemeralKey: notes[index].deliveryTag!.ephemeralKey.toString(),
+          viewTag: notes[index].deliveryTag!.viewTag.toString(),
         },
       });
     });

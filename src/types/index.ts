@@ -16,6 +16,7 @@ export {
   isStarkentSignature,
   isStringArray,
   type Prettify,
+  type StringifyBigInts,
 } from "./helper";
 export * from "./note";
 export * from "./rpc";

@@ -30,7 +30,13 @@ type SendReturnType = {
   receipt: EvmTransactionReceipt | StarknetTransactionReceipt;
 };
 
-type RpcBalance = { balance: bigint; currencyAddress: string; symbol: string; environment: NETWORK_ENVIRONMENT_VALUES };
+type RpcBalance = {
+  balance: bigint;
+  currencyAddress: string;
+  symbol: string;
+  decimals: number;
+  environment: NETWORK_ENVIRONMENT_VALUES;
+};
 
 type RpcBalances = Partial<
   Record<
@@ -38,7 +44,13 @@ type RpcBalances = Partial<
     Partial<
       Record<
         TOKENS,
-        { balance: bigint; currencyAddress: string; symbol: string; environment: NETWORK_ENVIRONMENT_VALUES }
+        {
+          balance: bigint;
+          currencyAddress: string;
+          symbol: string;
+          decimals: number;
+          environment: NETWORK_ENVIRONMENT_VALUES;
+        }
       >
     >
   >

@@ -27,9 +27,11 @@ const toBigInt = (v: In): bigint => {
     return BigInt(v);
   }
 
-  if (typeof v === "string") {
-    const s = v.trim();
-    return s.startsWith("0x") || s.startsWith("0X") ? BigInt(s) : BigInt(s);
+  console.log(v);
+
+  const s = v.trim();
+  if (s.startsWith("0x") || s.startsWith("0X")) {
+    return BigInt(s);
   }
 
   throw new Error(`poseidonHash: unsupported input type ${typeof v}`);

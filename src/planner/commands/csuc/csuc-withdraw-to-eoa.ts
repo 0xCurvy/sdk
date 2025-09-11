@@ -59,6 +59,7 @@ export class CSUCWithdrawToEOACommand extends CSUCCommand {
       environment: this.input.environment,
       balance: this.#intent.amount - BigInt(offeredTotalFee),
       symbol: this.input.symbol,
+      decimals: this.input.decimals,
       currencyAddress,
       lastUpdated: +dayjs(), // TODO Remove
       createdAt: "PLACEHOLDER", // TODO Remove
