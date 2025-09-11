@@ -167,21 +167,22 @@ export class BalanceScanner implements IBalanceScanner {
       const {
         balance: { token, amount },
         ownerHash,
-        ...noteData
+        owner,
+        deliveryTag,
       } = notes[i];
 
-      if (amount === 0n) continue; // Skip zero balance notes
+      if (amount === "0") continue; // Skip zero balance notes
 
       const networkSlug = "localnet"; // TODO Support multiple networks
 
       const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(
-        token.toString(16),
+        token,
         networkSlug,
       );
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
-        source: ownerHash.toString(16),
+        source: ownerHash,
         type: BALANCE_TYPE.NOTE,
 
         networkSlug,
@@ -192,7 +193,17 @@ export class BalanceScanner implements IBalanceScanner {
         balance: BigInt(amount),
         decimals,
 
-        ...noteData,
+        owner: {
+          babyJubjubPublicKey: {
+            x: BigInt(owner.babyJubjubPublicKey.x),
+            y: BigInt(owner.babyJubjubPublicKey.y),
+          },
+          sharedSecret: BigInt(owner.sharedSecret),
+        },
+        deliveryTag: {
+          ephemeralKey: BigInt(deliveryTag.ephemeralKey),
+          viewTag: BigInt(deliveryTag.viewTag),
+        },
 
         lastUpdated: +dayjs(),
       });
@@ -256,7 +267,11 @@ export class BalanceScanner implements IBalanceScanner {
         const unpackedNotes = this.#core.unpackAuthenticatedNotes(
           s,
           v,
-          authenticatedNotes.map((an) => Note.deserializeAuthenticatedNote(an)),
+          authenticatedNotes.map((an) => Note.deserializeAuthenticatedNote({
+            ownerHash: an.ownerHash,
+            balance: { amount: an.amount, token: an.token },
+            deliveryTag: { ephemeralKey: an.ephemeralKey, viewTag: an.viewTag },
+          })),
           babyJubPublicKey,
         );
 

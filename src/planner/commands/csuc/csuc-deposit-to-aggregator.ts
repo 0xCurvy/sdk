@@ -66,7 +66,7 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
 
     //TODO: SERIALIZE NOTE TO DEPOSITE NOTE, INTRODUCES BE ERRORS
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
-      outputNotes: depositNotes,
+      outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
       csucAddress: csucContractAddress,
       csucTransferAllowanceSignature: signature.hash.toString(),
     });

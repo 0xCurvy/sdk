@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test } from "vitest";
 import { type FullNoteData, Note } from "@/types/note";
 

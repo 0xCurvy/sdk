@@ -36,19 +36,19 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
       changeOrDummyOutputNote = new Note({
         owner: {
           babyJubjubPublicKey: {
-            x: 0n,
-            y: 0n,
+            x: "0",
+            y: "0",
           },
-          sharedSecret: 0n,
+          sharedSecret: "0",
         },
-        ownerHash: 0n,
+        ownerHash: "0",
         balance: {
-          amount: 0n,
-          token: 0n,
+          amount: "0",
+          token: "0",
         },
         deliveryTag: {
-          ephemeralKey: 0n,
-          viewTag: 0n,
+          ephemeralKey: "0",
+          viewTag: "0",
         },
       });
     }
@@ -60,8 +60,8 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.inputNotesSum - curvyFee);
 
     const prepareInputs: AggregationRequestParams = {
-      inputNotes: this.inputNotes,
-      outputNotes: [mainOutputNote, changeOrDummyOutputNote],
+      inputNotes: this.inputNotes.map((note) => note.serializeAggregationInputNote()),
+      outputNotes: [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeAggregationOutputNote()),
     };
 
     const payload = this.sdk.createAggregationPayload(prepareInputs);

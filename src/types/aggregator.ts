@@ -1,39 +1,39 @@
 import type { Signature } from "./core";
-import type { Note } from "./note";
+import type { AggregationInputNote, AggregationOutputNote, DepositNote, WithdrawalNote } from "./note";
 
 type DepositRequestParams = {
   recipient: {
     S: string;
     V: string;
   };
-  notes: Note[];
+  notes: DepositNote[];
   csucTransferAllowanceSignature: string;
 };
 
 type DepositRequest = {
-  outputNotes: Note[];
+  outputNotes: DepositNote[];
   csucAddress: string;
   csucTransferAllowanceSignature: string;
 };
 
 type AggregationRequestParams = {
-  inputNotes: Note[];
-  outputNotes: Note[];
+  inputNotes: AggregationInputNote[];
+  outputNotes: AggregationOutputNote[];
 };
 
 type AggregationRequest = {
-  inputNotes: Note[];
-  outputNotes: Note[];
+  inputNotes: AggregationInputNote[];
+  outputNotes: AggregationOutputNote[];
   signatures: Signature[];
 };
 
 type WithdrawRequestParams = {
-  inputNotes: Note[];
+  inputNotes: WithdrawalNote[];
   destinationAddress: string;
 };
 
 type WithdrawRequest = {
-  inputNotes: Note[];
+  inputNotes: WithdrawalNote[];
   signatures: Signature[];
   destinationAddress: string;
 };

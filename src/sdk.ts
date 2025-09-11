@@ -595,22 +595,21 @@ class CurvySDK implements ICurvySDK {
     const { s } = this.walletManager.activeWallet.keyPairs;
 
     if (outputNotes.length < 2) {
-      outputNotes.push(
-        new Note({
-          ownerHash: 0n,
+      outputNotes.push({
+          ownerHash: "0",
           balance: {
-            amount: 0n,
-            token: 0n,
+            amount: "0",
+            token: "0",
           },
           deliveryTag: {
-            ephemeralKey: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
-            viewTag: 0n,
+            ephemeralKey: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+            viewTag: "0",
           },
-        }),
+        },
       );
     }
 
-    const msgHash = generateAggregationHash(outputNotes);
+    const msgHash = generateAggregationHash(outputNotes.map((note) => Note.deserializeAggregationOutputNote(note)));
     const signature = this.#core.signWithBabyJubjubPrivateKey(msgHash, s);
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
@@ -634,28 +633,23 @@ class CurvySDK implements ICurvySDK {
     const { s } = this.walletManager.activeWallet.keyPairs;
 
     for (let i = inputNotes.length; i < 15; i++) {
-      inputNotes.push(
-        new Note({
+      inputNotes.push({
           owner: {
             babyJubjubPublicKey: {
-              x: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
-              y: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+              x: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+              y: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
             },
-            sharedSecret: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+            sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
           },
           balance: {
-            amount: 0n,
-            token: 0n,
+            amount: "0",
+            token: "0",
           },
-          deliveryTag: {
-            ephemeralKey: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
-            viewTag: 0n,
-          },
-        }),
+        },
       );
     }
 
-    const msgHash = generateOutputsHash(inputNotes);
+    const msgHash = generateOutputsHash(inputNotes.map((note) => Note.deserializeWithdrawalNote(note)));
     const signature = this.#core.signWithBabyJubjubPrivateKey(
       poseidonHash([msgHash, BigInt(destinationAddress), 0n]),
       s,
