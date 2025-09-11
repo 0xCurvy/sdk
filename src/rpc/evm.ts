@@ -270,6 +270,7 @@ class EvmRpc extends Rpc {
     }
 
     const { maxFeePerGas } = await this.publicClient.estimateFeesPerGas();
+    console.log(maxFeePerGas);
 
     const gasLimit = await this.#publicClient
       .estimateContractGas({
@@ -282,7 +283,8 @@ class EvmRpc extends Rpc {
       .then((res) => res)
       .catch(() => 42_000n);
 
-    const fee = gasLimit * ((maxFeePerGas * 120n) / 100n); // add 20% buffer
+    //TODO CHECK WHY THIS NEED 200% TO WORK
+    const fee = gasLimit * ((maxFeePerGas * 200n) / 100n); // add 20% buffer
 
     const hash = await this.walletClient.writeContract({
       abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,

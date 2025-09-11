@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { StringifyBigInts } from "@/types/helper";
 import type { NoteBalanceEntry } from "@/types/storage";
+import { decimalStringToBigInt } from "@/utils/decimal-conversions";
 import { poseidonHash } from "@/utils/poseidon-hash";
 import { BALANCE_TYPE } from "./storage";
 
@@ -30,7 +31,7 @@ type PublicNote = {
   deliveryTag: {
     ephemeralKey: string;
     viewTag: string;
-  }
+  };
 };
 
 type AuthenticatedNote = {
@@ -38,11 +39,11 @@ type AuthenticatedNote = {
   balance: {
     amount: string;
     token: string;
-  }
+  };
   deliveryTag: {
     ephemeralKey: string;
     viewTag: string;
-  }
+  };
 };
 
 type DepositNote = {
@@ -50,11 +51,11 @@ type DepositNote = {
   balance: {
     amount: string;
     token: string;
-  }
+  };
   deliveryTag: {
     ephemeralKey: string;
     viewTag: string;
-  }
+  };
 };
 
 type AggregationInputNote = {
@@ -62,13 +63,13 @@ type AggregationInputNote = {
     babyJubjubPublicKey: {
       x: string;
       y: string;
-    }
+    };
     sharedSecret: string;
-  }
+  };
   balance: {
     amount: string;
     token: string;
-  }
+  };
 };
 
 type AggregationOutputNote = {
@@ -76,11 +77,11 @@ type AggregationOutputNote = {
   balance: {
     amount: string;
     token: string;
-  }
+  };
   deliveryTag: {
     ephemeralKey: string;
     viewTag: string;
-  }
+  };
 };
 
 type WithdrawalNote = {
@@ -88,13 +89,13 @@ type WithdrawalNote = {
     babyJubjubPublicKey: {
       x: string;
       y: string;
-    }
+    };
     sharedSecret: string;
-  }
+  };
   balance: {
     amount: string;
     token: string;
-  }
+  };
 };
 
 type CircuitInputNote = {
@@ -102,13 +103,13 @@ type CircuitInputNote = {
     babyJubjubPublicKey: {
       x: string;
       y: string;
-    }
+    };
     sharedSecret: string;
-  }
+  };
   balance: {
     amount: string;
     token: string;
-  }
+  };
 };
 
 type CircuitOutputNote = {
@@ -116,7 +117,7 @@ type CircuitOutputNote = {
   balance: {
     amount: string;
     token: string;
-  }
+  };
 };
 
 type FullNoteData = {
@@ -124,18 +125,18 @@ type FullNoteData = {
     babyJubjubPublicKey: {
       x: string;
       y: string;
-    }
+    };
     sharedSecret: string;
-  }
+  };
   ownerHash: string;
   balance: {
     amount: string;
     token: string;
-  }
+  };
   deliveryTag: {
     ephemeralKey: string;
     viewTag: string;
-  }
+  };
 };
 
 class Note {
@@ -156,34 +157,35 @@ class Note {
           },
           sharedSecret: BigInt(data.owner.sharedSecret),
         });
+        this.owner = {
+          babyJubjubPublicKey: {
+            x: BigInt(data.owner.babyJubjubPublicKey.x),
+            y: BigInt(data.owner.babyJubjubPublicKey.y),
+          },
+          sharedSecret: BigInt(data.owner.sharedSecret),
+        };
       } else {
         throw new Error("Owner is not set");
       }
     }
 
-    this.balance = {
-      amount: BigInt(data.balance!.amount),
-      token: BigInt(data.balance!.token),
-    };
-    this.owner = {
-      babyJubjubPublicKey: {
-        x: BigInt(data.owner!.babyJubjubPublicKey.x),
-        y: BigInt(data.owner!.babyJubjubPublicKey.y),
-      },
-      sharedSecret: BigInt(data.owner!.sharedSecret),
-    };
-    this.deliveryTag = {
-      ephemeralKey: BigInt(data.deliveryTag!.ephemeralKey),
-      viewTag: BigInt(data.deliveryTag!.viewTag),
-    };
+    if (data.balance)
+      this.balance = {
+        amount: BigInt(data.balance.amount),
+        token: BigInt(data.balance.token),
+      };
+
+    if (data.deliveryTag)
+      this.deliveryTag = {
+        ephemeralKey: decimalStringToBigInt(data.deliveryTag.ephemeralKey),
+        viewTag: BigInt(data.deliveryTag.viewTag),
+      };
   }
 
   get id(): bigint {
     if (!this.balance) {
       throw new Error("Missing balance");
     }
-
-    console.log(this);
 
     return poseidonHash([this.ownerHash, this.balance.amount, this.balance.token]);
   }
@@ -519,4 +521,14 @@ class Note {
   }
 }
 
-export { Note, FullNoteData, DepositNote, AggregationInputNote, AggregationOutputNote, WithdrawalNote, CircuitInputNote, CircuitOutputNote };
+export {
+  Note,
+  FullNoteData,
+  DepositNote,
+  PublicNote,
+  AggregationInputNote,
+  AggregationOutputNote,
+  WithdrawalNote,
+  CircuitInputNote,
+  CircuitOutputNote,
+};

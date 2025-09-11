@@ -64,12 +64,6 @@ type CoreViewerScanReturnType = {
   spendingPubKeys: Array<string>;
 };
 
-type PublicNote = {
-  ownerHash: string;
-  viewTag: string;
-  ephemeralKey: string;
-};
-
 type NoteOwnershipData = {
   ownerHash: string;
   sharedSecret: bigint;
@@ -92,7 +86,6 @@ export type {
   CoreScanReturnType,
   CoreViewerScanArgs,
   CoreViewerScanReturnType,
-  PublicNote,
   NoteOwnershipData,
   NoteOwnershipProof,
 };

@@ -15,8 +15,8 @@ import type {
   Signature,
 } from "@/types/core";
 import type { HexString, StringifyBigInts } from "@/types/helper";
-import { Note } from "@/types/note";
-import { decimalStringToHex } from "@/utils/decimal-conversions";
+import { Note, type PublicNote } from "@/types/note";
+import { hexToDecimalString } from "@/utils/decimal-conversions";
 import { isNode } from "@/utils/helpers";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
@@ -121,10 +121,18 @@ class Core implements ICore {
   }
 
   #prepareScanNotesArgs(s: string, v: string, noteData: { ephemeralKey: string; viewTag: string }[]): CoreScanArgs {
+    console.log(
+      "NOTE DATA",
+      noteData,
+      s,
+      v,
+      noteData.map((note) => hexToDecimalString(BigInt(note.ephemeralKey))),
+    );
+
     return {
       k: s,
       v,
-      Rs: noteData.map((note) => note.ephemeralKey),
+      Rs: noteData.map((note) => hexToDecimalString(BigInt(note.ephemeralKey))),
       viewTags: noteData.map((note) => note.viewTag),
     } satisfies CoreScanArgs;
   }
@@ -178,6 +186,8 @@ class Core implements ICore {
   sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
+    console.log("NEW NOTE R", R);
+
     return new Note({
       owner: {
         babyJubjubPublicKey: {
@@ -191,25 +201,26 @@ class Core implements ICore {
         token: noteData.token.toString(),
       },
       deliveryTag: {
-        ephemeralKey: decimalStringToHex(R, false),
+        ephemeralKey: R,
         viewTag: `0x${viewTag}`,
       },
     });
   }
 
-  getNoteOwnershipData(
-    publicNotes: {
-      ownerHash: string;
-      ephemeralKey: string;
-      viewTag: string;
-    }[],
-    s: string,
-    v: string,
-  ) {
-    const scanResult = this.scanNotes(s, v, publicNotes);
+  getNoteOwnershipData(publicNotes: PublicNote[], s: string, v: string) {
+    const scanResult = this.scanNotes(
+      s,
+      v,
+      publicNotes.map(({ deliveryTag }) => ({ ...deliveryTag })),
+    );
+
+    console.log("SCAN RESULT", scanResult);
+
     const sharedSecrets = scanResult.spendingPubKeys.map((pubKey: string) =>
       pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null,
     );
+
+    console.log("SS", sharedSecrets);
 
     const { babyJubjubPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
     const bjjKeyBigint = ownerBabyJubjubPublicKey.split(".").map(BigInt);

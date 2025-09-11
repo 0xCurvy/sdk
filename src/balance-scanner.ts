@@ -175,10 +175,7 @@ export class BalanceScanner implements IBalanceScanner {
 
       const networkSlug = "localnet"; // TODO Support multiple networks
 
-      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(
-        token,
-        networkSlug,
-      );
+      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(token, networkSlug);
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
@@ -243,6 +240,9 @@ export class BalanceScanner implements IBalanceScanner {
     try {
       const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes();
 
+      console.log(`[BalanceScanner] Fetched public notes from aggregator.`);
+      console.dir(publicNotes, { depth: null });
+
       const { s, v, babyJubjubPublicKey } = this.#walletManager.activeWallet.keyPairs;
       const bjjParts = babyJubjubPublicKey.split(".");
       if (bjjParts.length !== 2) {
@@ -251,6 +251,9 @@ export class BalanceScanner implements IBalanceScanner {
       const babyJubPublicKey = [bjjParts[0], bjjParts[1]] as [string, string];
 
       const noteOwnershipData = this.#core.getNoteOwnershipData(publicNotes, s, v);
+
+      console.log(`[BalanceScanner] Note ownership data prepared`);
+      console.dir(noteOwnershipData, { depth: null });
 
       const noteBatchCount = Math.ceil(noteOwnershipData.length / this.#NOTE_BATCH_SIZE);
       for (let batchNumber = 0; batchNumber < noteBatchCount; batchNumber += 1) {
@@ -267,11 +270,13 @@ export class BalanceScanner implements IBalanceScanner {
         const unpackedNotes = this.#core.unpackAuthenticatedNotes(
           s,
           v,
-          authenticatedNotes.map((an) => Note.deserializeAuthenticatedNote({
-            ownerHash: an.ownerHash,
-            balance: { amount: an.amount, token: an.token },
-            deliveryTag: { ephemeralKey: an.ephemeralKey, viewTag: an.viewTag },
-          })),
+          authenticatedNotes.map((an) =>
+            Note.deserializeAuthenticatedNote({
+              ownerHash: an.ownerHash,
+              balance: { amount: an.amount, token: an.token },
+              deliveryTag: { ephemeralKey: an.ephemeralKey, viewTag: an.viewTag },
+            }),
+          ),
           babyJubPublicKey,
         );
 

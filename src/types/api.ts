@@ -10,6 +10,7 @@ import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES, NETWORKS } from "@/c
 import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
+import type { PublicNote } from "@/types/note";
 
 type _Announcement = {
   createdAt: string;
@@ -178,7 +179,7 @@ type SetBabyJubjubPublicKeyReturnType =
 //#region Aggregator
 
 type GetAllNotesReturnType = {
-  notes: { ownerHash: string; viewTag: string; ephemeralKey: string }[];
+  notes: PublicNote[];
 };
 type SubmitDepositReturnType = { requestId: string };
 type SubmitWithdrawReturnType = { requestId: string };

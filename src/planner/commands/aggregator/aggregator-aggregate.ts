@@ -47,7 +47,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
           token: "0",
         },
         deliveryTag: {
-          ephemeralKey: "0",
+          ephemeralKey: "0.0",
           viewTag: "0",
         },
       });

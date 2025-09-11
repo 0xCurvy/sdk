@@ -1,3 +1,5 @@
+import type { HexString } from "@/types";
+
 export function decimalStringToBytes(decimal: string | Uint8Array): Uint8Array {
   // Already converted.
   if (typeof decimal !== "string") {
@@ -39,6 +41,32 @@ export function decimalStringToHex(publicKey: string, uncompressed = true): stri
   };
 
   return `${uncompressed ? "04" : "0x"}${formatHex(X)}${formatHex(Y)}`;
+}
+
+export function decimalStringToBigInt(decimal: string): bigint {
+  return BigInt(decimalStringToHex(decimal, false));
+}
+
+export function hexToDecimalString(hex: HexString | bigint): string {
+  let hexStr: string = "";
+
+  if (typeof hex === "bigint") {
+    hexStr = hex.toString(16);
+  } else if (hex.startsWith("0x")) {
+    hexStr = hex.slice(2);
+  }
+
+  if (hexStr.length !== 128) {
+    throw new Error("Invalid hex string length. Expected 128  characters.");
+  }
+
+  const xHex = hexStr.slice(0, 64);
+  const yHex = hexStr.slice(64);
+
+  const x = BigInt(`0x${xHex}`);
+  const y = BigInt(`0x${yHex}`);
+
+  return `${x}.${y}`;
 }
 
 export function bytesToDecimalString(bytes: Uint8Array | string): string {
