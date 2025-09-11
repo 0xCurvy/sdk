@@ -163,6 +163,12 @@ class CurvySDK implements ICurvySDK {
     return sdk;
   }
 
+  static async DANGER_DO_NOT_USE_init(): Promise<CurvySDK> {
+    const core = await Core.init();
+    // @ts-expect-error
+    return new CurvySDK(null, core, null, null);
+  }
+
   // TODO: Think about calling it just executor
   get commandExecutor() {
     return this.#commandExecutor;
