@@ -101,6 +101,7 @@ export class BalanceScanner implements IBalanceScanner {
             currencyAddress,
             balance: balanceData.balance,
             symbol: balanceData.symbol,
+            decimals: balanceData.decimals,
 
             createdAt: address.createdAt,
 
@@ -117,7 +118,7 @@ export class BalanceScanner implements IBalanceScanner {
     //TODO Support multiple networks
     const {
       data: { csaInfo },
-    } = await this.apiClient.csuc.GetCSAInfo({ network: "ethereum-sepolia", csas: addresses.map((a) => a.address) });
+    } = await this.apiClient.csuc.GetCSAInfo({ network: "localnet", csas: addresses.map((a) => a.address) });
 
     const entries: CsucBalanceEntry[] = [];
 
@@ -128,7 +129,10 @@ export class BalanceScanner implements IBalanceScanner {
       for (let j = 0; j < balancesLength; j++) {
         const { token: currencyAddress, amount } = balances[j];
 
-        const { symbol, environment } = await this.#storage.getCurrencyMetadata(currencyAddress, toSlug(network));
+        const { symbol, environment, decimals } = await this.#storage.getCurrencyMetadata(
+          currencyAddress,
+          toSlug(network),
+        );
 
         const balance = BigInt(amount);
         if (balance === 0n) continue; // Skip zero balances
@@ -142,6 +146,7 @@ export class BalanceScanner implements IBalanceScanner {
 
           networkSlug: toSlug(network),
           environment,
+          decimals,
 
           currencyAddress,
           balance,
@@ -167,9 +172,12 @@ export class BalanceScanner implements IBalanceScanner {
 
       if (amount === 0n) continue; // Skip zero balance notes
 
-      const networkSlug = "ethereum-sepolia"; // TODO Support multiple networks
+      const networkSlug = "localnet"; // TODO Support multiple networks
 
-      const { symbol, environment, address } = await this.#storage.getCurrencyMetadata(token.toString(16), networkSlug);
+      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(
+        token.toString(16),
+        networkSlug,
+      );
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
@@ -182,6 +190,7 @@ export class BalanceScanner implements IBalanceScanner {
         currencyAddress: address,
         symbol,
         balance: BigInt(amount),
+        decimals,
 
         ...noteData,
 

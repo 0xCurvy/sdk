@@ -69,7 +69,6 @@ type FullNoteData = {
 
 class Note {
   ownerHash: bigint;
-  sharedSecret?: bigint;
   balance?: Balance;
   owner?: Owner;
   deliveryTag?: DeliveryTag;
@@ -95,6 +94,8 @@ class Note {
       throw new Error("Missing balance");
     }
 
+    console.log(this);
+
     return poseidonHash([this.ownerHash, this.balance.amount, this.balance.token]);
   }
 
@@ -107,7 +108,6 @@ class Note {
   }
 
   static generateOwnerHash(owner: Owner): bigint {
-    console.log(owner); //TODO: next problem is here
     return poseidonHash([owner.babyJubjubPublicKey.x, owner.babyJubjubPublicKey.y, owner.sharedSecret]);
   }
 
@@ -334,6 +334,7 @@ class Note {
   }
   serializeNoteToBalanceEntry(
     symbol: string,
+    decimals: number,
     walletId: string,
     environment: NETWORK_ENVIRONMENT_VALUES,
     networkSlug: string,
@@ -357,6 +358,7 @@ class Note {
       currencyAddress: token.toString(16),
       symbol,
       balance: BigInt(amount),
+      decimals,
       owner,
       deliveryTag,
       lastUpdated: +dayjs(), // TODO: @vanja remove

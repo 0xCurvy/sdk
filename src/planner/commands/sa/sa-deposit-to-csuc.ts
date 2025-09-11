@@ -1,3 +1,4 @@
+import { formatUnits } from "viem";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { SACommand } from "@/planner/commands/sa/abstract";
@@ -17,7 +18,7 @@ export class SaDepositToCsuc extends SACommand {
       this.input,
       this.input.source as HexString,
       this.input.symbol,
-      this.input.balance,
+      formatUnits(this.input.balance, this.input.decimals),
     );
 
     const { createdAt: _, ...inputData } = this.input;

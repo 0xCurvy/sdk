@@ -83,9 +83,9 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     // If we are aggregating the funds to our own address, that's the only case
     // when we want to return the output note to the rest of the plan
     if (toAddress === this.senderCurvyHandle) {
-      const { symbol, walletId, environment, networkSlug } = this.input[0];
+      const { symbol, walletId, environment, networkSlug, decimals } = this.input[0];
 
-      return mainOutputNote.serializeNoteToBalanceEntry(symbol, walletId, environment, networkSlug);
+      return mainOutputNote.serializeNoteToBalanceEntry(symbol, decimals, walletId, environment, networkSlug);
     }
   }
 

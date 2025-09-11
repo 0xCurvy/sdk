@@ -64,7 +64,6 @@ import type {
 import type { HexString } from "@/types/helper";
 import { Note } from "@/types/note";
 import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
-import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
@@ -510,7 +509,7 @@ class CurvySDK implements ICurvySDK {
     input: BalanceEntry,
     toAddress: HexString,
     currencySymbol: string,
-    amount: bigint,
+    amount: string,
   ) {
     const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
 
@@ -527,14 +526,14 @@ class CurvySDK implements ICurvySDK {
 
       // TODO For now we only support Ethereum Sepolia and Localnet for CSUC
       if (rpc instanceof EvmRpc) {
-        await rpc.onboardNativeToCSUC(input, privateKey, currency, amount.toString());
+        await rpc.onboardNativeToCSUC(input, privateKey, currency, amount);
         return;
       }
     }
 
     const request = await this.rpcClient
       .Network(networkIdentifier)
-      .prepareCSUCOnboardTransactions(privateKey, toAddress, currency, amount.toString());
+      .prepareCSUCOnboardTransactions(privateKey, toAddress, currency, amount);
 
     return await this.apiClient.gasSponsorship.SubmitRequest(request);
   }
@@ -751,7 +750,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error(`BabyJubjub public key not found for handle ${handle}`);
     }
     return this.#core.sendNote(spendingKey, viewingKey, {
-      ownerBabyJubjubPublicKey: decimalStringToHex(babyJubjubPublicKey, false),
+      ownerBabyJubjubPublicKey: babyJubjubPublicKey,
       amount,
       token,
     });

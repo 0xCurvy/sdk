@@ -178,8 +178,6 @@ class Core implements ICore {
   sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
-    console.log(R, viewTag, spendingPubKey);
-
     return new Note({
       owner: {
         babyJubjubPublicKey: {

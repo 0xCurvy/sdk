@@ -19,7 +19,7 @@ export abstract class SACommand extends CurvyCommand {
       throw new Error("Invalid input for command, SA commands only accept one data as input.");
     }
 
-    if (input.source !== BALANCE_TYPE.SA) {
+    if (input.type !== BALANCE_TYPE.SA) {
       throw new Error("Invalid input for command, SA commands only accept SA balance type as input.");
     }
 

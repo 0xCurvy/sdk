@@ -52,6 +52,7 @@ export class AggregatorWithdrawToCSUCCommand extends AggregatorCommand {
       environment,
       balance: this.inputNotesSum,
       symbol,
+      decimals: this.input[0].decimals,
       currencyAddress,
       lastUpdated,
     } satisfies CsucBalanceEntry;

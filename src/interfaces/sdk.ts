@@ -108,7 +108,7 @@ interface ICurvySDK {
     input: BalanceEntry,
     toAddress: HexString,
     currencySymbol: string,
-    amount: bigint,
+    amount: string,
   ): Promise<SubmitGasSponsorshipRequestReturnType | undefined>;
 
   estimateActionInsideCSUC(

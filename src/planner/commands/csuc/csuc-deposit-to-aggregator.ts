@@ -84,6 +84,7 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
     return depositNotes.map((note) =>
       note.serializeNoteToBalanceEntry(
         this.input.symbol,
+        this.input.decimals,
         this.input.walletId,
         this.input.environment,
         this.input.networkSlug,
