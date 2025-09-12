@@ -1,3 +1,4 @@
+import type { CurvyPlanExecution } from "@/planner/plan";
 import type { CurvyAddress } from "@/types/address";
 import type { RawAnnouncement } from "@/types/api";
 import type { CurvyWallet } from "@/wallet";
@@ -72,4 +73,27 @@ type BalanceRefreshCompleteEvent = {
 
 export type { BalanceRefreshStartedEvent, BalanceRefreshProgressEvent, BalanceRefreshCompleteEvent };
 
+//#endregion
+
+//#region Plan Execution events
+
+type PlanExecutionStartedEvent = {
+  walletId: string;
+};
+
+type PlanExecutionProgressEvent = {
+  walletId: string;
+  result: CurvyPlanExecution;
+};
+
+type PlanExecutionCompleteEvent = PlanExecutionProgressEvent;
+
+type PlanExecutionErrorEvent = PlanExecutionProgressEvent;
+
+export type {
+  PlanExecutionStartedEvent,
+  PlanExecutionProgressEvent,
+  PlanExecutionCompleteEvent,
+  PlanExecutionErrorEvent,
+};
 //#endregion

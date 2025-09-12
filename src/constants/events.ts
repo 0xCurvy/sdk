@@ -29,3 +29,19 @@ const BALANCE_REFRESH_COMPLETE_EVENT = "balance-refresh-complete";
 export { BALANCE_REFRESH_STARTED_EVENT, BALANCE_REFRESH_PROGRESS_EVENT, BALANCE_REFRESH_COMPLETE_EVENT };
 
 //#endregion
+
+//#region Planner Executor events
+
+const PLAN_EXECUTION_STARTED_EVENT = "plan-execution-started";
+const PLAN_EXECUTION_PROGRESS_EVENT = "plan-execution-progress";
+const PLAN_EXECUTION_COMPLETE_EVENT = "plan-execution-complete";
+const PLAN_EXECUTION_ERROR_EVENT = "plan-execution-error";
+
+export {
+  PLAN_EXECUTION_STARTED_EVENT,
+  PLAN_EXECUTION_PROGRESS_EVENT,
+  PLAN_EXECUTION_COMPLETE_EVENT,
+  PLAN_EXECUTION_ERROR_EVENT,
+};
+
+//#endregion
