@@ -1,5 +1,3 @@
-import type { HexString } from "@/types";
-
 export function decimalStringToBytes(decimal: string | Uint8Array): Uint8Array {
   // Already converted.
   if (typeof decimal !== "string") {
@@ -47,21 +45,19 @@ export function decimalStringToBigInt(decimal: string): bigint {
   return BigInt(decimalStringToHex(decimal, false));
 }
 
-export function hexToDecimalString(hex: HexString | bigint): string {
-  let hexStr: string = "";
+export function bigIntToDecimalString(bigInt: bigint): string {
+  const hex = bigInt.toString(16).padStart(128, "0");
 
-  if (typeof hex === "bigint") {
-    hexStr = hex.toString(16);
-  } else if (hex.startsWith("0x")) {
-    hexStr = hex.slice(2);
+  return hexToDecimalString(hex);
+}
+
+export function hexToDecimalString(hex: string): string {
+  if (hex.length !== 128) {
+    throw new Error("Invalid hex string length. Expected 128 characters.");
   }
 
-  if (hexStr.length !== 128) {
-    throw new Error("Invalid hex string length. Expected 128  characters.");
-  }
-
-  const xHex = hexStr.slice(0, 64);
-  const yHex = hexStr.slice(64);
+  const xHex = hex.slice(0, 64);
+  const yHex = hex.slice(64);
 
   const x = BigInt(`0x${xHex}`);
   const y = BigInt(`0x${yHex}`);

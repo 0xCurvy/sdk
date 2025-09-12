@@ -352,7 +352,7 @@ class StarknetRpc extends Rpc {
     }
   }
 
-  prepareCSUCOnboardTransactions(
+  prepareCSUCOnboardTransaction(
     _privateKey: HexString,
     _toAddress: HexString,
     _currency: Currency,

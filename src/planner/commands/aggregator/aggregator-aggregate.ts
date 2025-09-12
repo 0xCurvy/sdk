@@ -85,7 +85,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     if (toAddress === this.senderCurvyHandle) {
       const { symbol, walletId, environment, networkSlug, decimals } = this.input[0];
 
-      return mainOutputNote.serializeNoteToBalanceEntry(symbol, decimals, walletId, environment, networkSlug);
+      return mainOutputNote.toBalanceEntry(symbol, decimals, walletId, environment, networkSlug);
     }
   }
 

@@ -2,7 +2,6 @@ import { buildPoseidon } from "circomlibjs";
 import { poseidon1, poseidon2, poseidon3 } from "poseidon-lite";
 import { expect, test } from "vitest";
 import { Core } from "@/core";
-import { hexToDecimalString } from "@/utils/decimal-conversions";
 import { mockPopulateAnnouncement } from "./utils/announcement-filler";
 
 test("should generate new Curvy keypairs", async () => {
@@ -111,12 +110,4 @@ test("Test poseidon libs", async () => {
   console.log("h1:", h1_lite.toString());
   console.log("h2:", h2_lite.toString());
   console.log("h3:", h3_lite.toString());
-});
-
-test("Test try", async () => {
-  console.log(
-    hexToDecimalString(
-      1703863678835171630440844990648518751087622462506979323386783713844235239487201982372813755919138511850016015959832056649606122460002827263680395237467598n,
-    ),
-  );
 });

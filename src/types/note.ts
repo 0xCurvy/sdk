@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { StringifyBigInts } from "@/types/helper";
 import type { NoteBalanceEntry } from "@/types/storage";
-import { decimalStringToBigInt } from "@/utils/decimal-conversions";
+import { bigIntToDecimalString, decimalStringToBigInt } from "@/utils/decimal-conversions";
 import { poseidonHash } from "@/utils/poseidon-hash";
 import { BALANCE_TYPE } from "./storage";
 
@@ -178,7 +178,9 @@ class Note {
     if (data.deliveryTag)
       this.deliveryTag = {
         ephemeralKey: decimalStringToBigInt(data.deliveryTag.ephemeralKey),
-        viewTag: BigInt(data.deliveryTag.viewTag),
+        viewTag: BigInt(
+          !data.deliveryTag.viewTag.startsWith("0x") ? `0x${data.deliveryTag.viewTag}` : data.deliveryTag.viewTag,
+        ),
       };
   }
 
@@ -282,8 +284,8 @@ class Note {
         token: this.balance.token.toString(),
       },
       deliveryTag: {
-        ephemeralKey: this.deliveryTag.ephemeralKey.toString(),
-        viewTag: this.deliveryTag.viewTag.toString(),
+        ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
+        viewTag: this.deliveryTag.viewTag.toString(16).replace("0x", ""),
       },
     };
   }
@@ -388,8 +390,8 @@ class Note {
         token: this.balance.token.toString(),
       },
       deliveryTag: {
-        ephemeralKey: this.deliveryTag.ephemeralKey.toString(),
-        viewTag: this.deliveryTag.viewTag.toString(),
+        ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
+        viewTag: this.deliveryTag.viewTag.toString(16).replace("0x", ""),
       },
     };
   }
@@ -426,8 +428,8 @@ class Note {
     return {
       ownerHash: this.ownerHash.toString(),
       deliveryTag: {
-        ephemeralKey: this.deliveryTag.ephemeralKey.toString(),
-        viewTag: this.deliveryTag.viewTag.toString(),
+        ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
+        viewTag: this.deliveryTag.viewTag.toString(16).replace("0x", ""),
       },
     };
   }
@@ -451,22 +453,21 @@ class Note {
         token: this.balance.token.toString(),
       },
       deliveryTag: {
-        ephemeralKey: this.deliveryTag.ephemeralKey.toString(),
-        viewTag: this.deliveryTag.viewTag.toString(),
+        ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
+        viewTag: this.deliveryTag.viewTag.toString(16).replace("0x", ""),
       },
     };
   }
 
   // Used when receiving notes from the trees repository to scan notes for ownership
   static deserializePublicNote(publicNote: PublicNote): Note {
-    const note = new Note({
+    return new Note({
       ownerHash: publicNote.ownerHash,
       deliveryTag: {
         ephemeralKey: publicNote.deliveryTag.ephemeralKey,
         viewTag: publicNote.deliveryTag.viewTag,
       },
     });
-    return note;
   }
 
   static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress, source }: NoteBalanceEntry): Note {
@@ -480,14 +481,14 @@ class Note {
         sharedSecret: owner.sharedSecret.toString(),
       },
       deliveryTag: {
-        ephemeralKey: deliveryTag.ephemeralKey.toString(),
-        viewTag: deliveryTag.viewTag.toString(),
+        ephemeralKey: bigIntToDecimalString(deliveryTag.ephemeralKey),
+        viewTag: deliveryTag.viewTag.toString(16).replace("0x", ""),
       },
       ownerHash: source,
     });
   }
 
-  serializeNoteToBalanceEntry(
+  toBalanceEntry(
     symbol: string,
     decimals: number,
     walletId: string,

@@ -6,11 +6,10 @@ import type {
   CurvyKeyPairs,
   NoteOwnershipData,
   NoteOwnershipProof,
-  PublicNote,
   Signature,
 } from "@/types/core";
 import type { StringifyBigInts } from "@/types/helper";
-import type { Note } from "@/types/note";
+import type { Note, PublicNote } from "@/types/note";
 
 interface ICore {
   generateKeyPairs(): CurvyKeyPairs;

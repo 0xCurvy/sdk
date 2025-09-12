@@ -53,9 +53,7 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
     const depositNotes: Note[] = [];
 
     for (let i = 0; i < csucPayloadNotes.length; i++) {
-      depositNotes.push(
-        await this.sdk.getNewNoteForUser(this.senderCurvyHandle, csucPayloadNotes[i].token, csucPayloadNotes[i].amount),
-      );
+      depositNotes.push(note);
     }
 
     const { csucContractAddress } = this.network;
@@ -64,7 +62,6 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
       throw new Error(`CSUC contract address not found for ${this.network.name} network.`);
     }
 
-    //TODO: SERIALIZE NOTE TO DEPOSITE NOTE, INTRODUCES BE ERRORS
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
       outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
       csucAddress: csucContractAddress,
@@ -82,7 +79,7 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
 
     // Return the balance entries for each of the deposit notes
     return depositNotes.map((note) =>
-      note.serializeNoteToBalanceEntry(
+      note.toBalanceEntry(
         this.input.symbol,
         this.input.decimals,
         this.input.walletId,

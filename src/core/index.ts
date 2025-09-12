@@ -16,7 +16,6 @@ import type {
 } from "@/types/core";
 import type { HexString, StringifyBigInts } from "@/types/helper";
 import { Note, type PublicNote } from "@/types/note";
-import { hexToDecimalString } from "@/utils/decimal-conversions";
 import { isNode } from "@/utils/helpers";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
@@ -121,18 +120,10 @@ class Core implements ICore {
   }
 
   #prepareScanNotesArgs(s: string, v: string, noteData: { ephemeralKey: string; viewTag: string }[]): CoreScanArgs {
-    console.log(
-      "NOTE DATA",
-      noteData,
-      s,
-      v,
-      noteData.map((note) => hexToDecimalString(BigInt(note.ephemeralKey))),
-    );
-
     return {
       k: s,
       v,
-      Rs: noteData.map((note) => hexToDecimalString(BigInt(note.ephemeralKey))),
+      Rs: noteData.map((note) => note.ephemeralKey),
       viewTags: noteData.map((note) => note.viewTag),
     } satisfies CoreScanArgs;
   }
@@ -202,7 +193,7 @@ class Core implements ICore {
       },
       deliveryTag: {
         ephemeralKey: R,
-        viewTag: `0x${viewTag}`,
+        viewTag: viewTag,
       },
     });
   }
@@ -211,7 +202,7 @@ class Core implements ICore {
     const scanResult = this.scanNotes(
       s,
       v,
-      publicNotes.map(({ deliveryTag }) => ({ ...deliveryTag })),
+      publicNotes.map(({ deliveryTag }) => deliveryTag),
     );
 
     console.log("SCAN RESULT", scanResult);

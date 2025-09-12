@@ -1,6 +1,7 @@
 import { buildPoseidon } from "circomlibjs";
 import { expect, test } from "vitest";
 import { Core } from "@/core";
+import type { Note } from "@/types";
 
 test("Decode note shared secret", async () => {
   const core = await Core.init();
@@ -18,7 +19,7 @@ test("Decode note shared secret", async () => {
   expect(recipientNoteData!.owner!.babyJubjubPublicKey.y).toBe(BigInt(babyJubjubPublicKey.split(".")[1]));
 });
 
-test.skip("Scan notes", async () => {
+test("Scan notes", async () => {
   const NUM_NOTES = 10;
   const NUM_VALID_NOTES = 5;
 
@@ -38,7 +39,7 @@ test.skip("Scan notes", async () => {
     babyJubjubPublicKey: otherBabyJubjubPublicKey,
   } = core.getCurvyKeys(keyPair2.s, keyPair2.v);
 
-  const notes: any = [];
+  const notes: Note[] = [];
   for (let i = 0; i < NUM_NOTES; i++) {
     const isOwnedNote = i < NUM_VALID_NOTES;
     const recipientNoteData = core.sendNote(isOwnedNote ? ownerS : otherS, isOwnedNote ? ownerV : otherV, {
@@ -50,7 +51,14 @@ test.skip("Scan notes", async () => {
     notes.push(recipientNoteData);
   }
 
-  const scanResult = core.scanNotes(keyPair1.s, keyPair1.v, notes);
+  const scanResult = core.scanNotes(
+    keyPair1.s,
+    keyPair1.v,
+    notes.map((note) => note.serializePublicNote().deliveryTag),
+  );
+
+  console.log(scanResult);
+
   const ownersNotes = scanResult.spendingPubKeys
     .filter((pubKey: any) => pubKey.length > 0)
     .map((pubKey: string) => BigInt(pubKey.split(".")[0]));
@@ -59,8 +67,8 @@ test.skip("Scan notes", async () => {
 
   for (let i = 0; i < ownersNotes.length; i++) {
     const sharedSecret = ownersNotes[i];
-    const noteSharedSecret = notes[i].owner.sharedSecret;
-    expect(sharedSecret.toString()).toBe(noteSharedSecret.toString());
+    const noteSharedSecret = notes[i].owner?.sharedSecret;
+    expect(sharedSecret.toString()).toBe(noteSharedSecret?.toString());
   }
 });
 

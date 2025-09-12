@@ -24,23 +24,28 @@ export class SaDepositToCsuc extends SACommand {
 
     const { createdAt: _, ...inputData } = this.input;
 
-    if (result === undefined) {
-      return {
-        ...inputData,
-        type: BALANCE_TYPE.CSUC,
-        nonce: 0n,
-      } satisfies CsucBalanceEntry;
-    }
+    if (result)
+      await this.sdk.pollForCriteria(
+        () => this.sdk.apiClient.csuc.GetActionStatus({ actionIds: result.data.actionIds }),
+        (res) => res.data[0].stage === "FINALIZED",
+        120,
+        10_000,
+      );
 
-    await this.sdk.pollForCriteria(
-      () => this.sdk.apiClient.csuc.GetActionStatus({ actionIds: result.data.actionIds }),
-      (res) => res.data[0].stage === "FINALIZED",
-      120,
-      10_000,
-    );
+    const {
+      data: {
+        csaInfo: [{ balances }],
+      },
+    } = await this.sdk.apiClient.csuc.GetCSAInfo({ network: this.input.networkSlug, csas: [this.input.source] });
+    const csucBalance = balances.find((b) => b.token === this.input.currencyAddress);
+
+    if (!csucBalance) {
+      throw new Error("Failed to retrieve CSUC balance after deposit");
+    }
 
     return {
       ...inputData,
+      balance: BigInt(csucBalance.amount),
       type: BALANCE_TYPE.CSUC,
       nonce: 0n,
     } satisfies CsucBalanceEntry;

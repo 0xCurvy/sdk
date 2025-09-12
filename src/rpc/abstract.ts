@@ -38,7 +38,7 @@ abstract class Rpc {
 
   abstract feeToAmount(feeEstimate: StarknetFeeEstimate | bigint): bigint;
 
-  abstract prepareCSUCOnboardTransactions(
+  abstract prepareCSUCOnboardTransaction(
     privateKey: HexString,
     toAddress: HexString,
     currency: Currency,
