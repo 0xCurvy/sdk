@@ -60,12 +60,12 @@ type NoteBalanceEntry = BalanceEntryBase & {
   type: BALANCE_TYPE["NOTE"];
   owner: {
     babyJubjubPublicKey: {
-      x: bigint;
-      y: bigint;
+      x: string;
+      y: string;
     };
-    sharedSecret: bigint;
+    sharedSecret: string;
   };
-  deliveryTag: { ephemeralKey: bigint; viewTag: bigint };
+  deliveryTag: { ephemeralKey: string; viewTag: string };
 };
 const isNoteBalanceEntry = (entry: BalanceEntry): entry is NoteBalanceEntry => {
   return entry.type === BALANCE_TYPE.NOTE;

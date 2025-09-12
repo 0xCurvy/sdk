@@ -10,7 +10,6 @@ import {
   BALANCE_TYPE,
   type CsucBalanceEntry,
   type CurvyAddress,
-  Note,
   type NoteBalanceEntry,
   type SaBalanceEntry,
 } from "@/types";
@@ -192,14 +191,14 @@ export class BalanceScanner implements IBalanceScanner {
 
         owner: {
           babyJubjubPublicKey: {
-            x: BigInt(owner.babyJubjubPublicKey.x),
-            y: BigInt(owner.babyJubjubPublicKey.y),
+            x: owner.babyJubjubPublicKey.x,
+            y: owner.babyJubjubPublicKey.y,
           },
-          sharedSecret: BigInt(owner.sharedSecret),
+          sharedSecret: owner.sharedSecret,
         },
         deliveryTag: {
-          ephemeralKey: BigInt(deliveryTag.ephemeralKey),
-          viewTag: BigInt(deliveryTag.viewTag),
+          ephemeralKey: deliveryTag.ephemeralKey,
+          viewTag: deliveryTag.viewTag,
         },
 
         lastUpdated: +dayjs(),
@@ -267,21 +266,15 @@ export class BalanceScanner implements IBalanceScanner {
           ownerHashes,
         });
 
-        const unpackedNotes = this.#core.unpackAuthenticatedNotes(
-          s,
-          v,
-          authenticatedNotes.map((an) =>
-            Note.deserializeAuthenticatedNote({
-              ownerHash: an.ownerHash,
-              balance: { amount: an.amount, token: an.token },
-              deliveryTag: { ephemeralKey: an.ephemeralKey, viewTag: an.viewTag },
-            }),
-          ),
-          babyJubPublicKey,
-        );
+        const unpackedNotes = this.#core.unpackAuthenticatedNotes(s, v, authenticatedNotes, babyJubPublicKey);
 
         try {
-          const noteEntries = await this.#processNotes(unpackedNotes.map((n) => n.serializeFullNote()));
+          const noteEntries = await this.#processNotes(
+            unpackedNotes.map((n) => {
+              console.log(n);
+              return n.serializeFullNote();
+            }),
+          );
           if (noteEntries.length > 0) {
             if (onProgress) onProgress(noteEntries);
             await this.#storage.updateBalancesAndTotals(walletId, noteEntries);

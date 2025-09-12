@@ -146,10 +146,10 @@ class Note {
   deliveryTag?: DeliveryTag;
 
   constructor(data: Partial<FullNoteData>) {
-    if (data.ownerHash) {
-      this.ownerHash = BigInt(data.ownerHash);
-    } else {
-      if (data.owner) {
+    if (data.owner) {
+      if (data.ownerHash) {
+        this.ownerHash = BigInt(data.ownerHash);
+      } else
         this.ownerHash = Note.generateOwnerHash({
           babyJubjubPublicKey: {
             x: BigInt(data.owner.babyJubjubPublicKey.x),
@@ -157,16 +157,17 @@ class Note {
           },
           sharedSecret: BigInt(data.owner.sharedSecret),
         });
-        this.owner = {
-          babyJubjubPublicKey: {
-            x: BigInt(data.owner.babyJubjubPublicKey.x),
-            y: BigInt(data.owner.babyJubjubPublicKey.y),
-          },
-          sharedSecret: BigInt(data.owner.sharedSecret),
-        };
-      } else {
-        throw new Error("Owner is not set");
-      }
+      this.owner = {
+        babyJubjubPublicKey: {
+          x: BigInt(data.owner.babyJubjubPublicKey.x),
+          y: BigInt(data.owner.babyJubjubPublicKey.y),
+        },
+        sharedSecret: BigInt(data.owner.sharedSecret),
+      };
+    } else if (data.ownerHash) {
+      this.ownerHash = BigInt(data.ownerHash);
+    } else {
+      throw new Error("Owner is not set");
     }
 
     if (data.balance)
@@ -285,7 +286,7 @@ class Note {
       },
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
-        viewTag: this.deliveryTag.viewTag.toString(16).replace("0x", ""),
+        viewTag: this.deliveryTag.viewTag.toString(16),
       },
     };
   }
@@ -391,7 +392,7 @@ class Note {
       },
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
-        viewTag: this.deliveryTag.viewTag.toString(16).replace("0x", ""),
+        viewTag: this.deliveryTag.viewTag.toString(16),
       },
     };
   }
@@ -429,7 +430,7 @@ class Note {
       ownerHash: this.ownerHash.toString(),
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
-        viewTag: this.deliveryTag.viewTag.toString(16).replace("0x", ""),
+        viewTag: this.deliveryTag.viewTag.toString(16),
       },
     };
   }
@@ -450,11 +451,11 @@ class Note {
       ownerHash: this.ownerHash.toString(),
       balance: {
         amount: this.balance.amount.toString(),
-        token: this.balance.token.toString(),
+        token: `0x${this.balance.token.toString(16)}`,
       },
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
-        viewTag: this.deliveryTag.viewTag.toString(16).replace("0x", ""),
+        viewTag: this.deliveryTag.viewTag.toString(16),
       },
     };
   }
@@ -472,17 +473,17 @@ class Note {
 
   static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress, source }: NoteBalanceEntry): Note {
     return new Note({
-      balance: { amount: balance.toString(), token: currencyAddress.toString() },
+      balance: { amount: balance.toString(), token: currencyAddress },
       owner: {
         babyJubjubPublicKey: {
-          x: owner.babyJubjubPublicKey.x.toString(),
-          y: owner.babyJubjubPublicKey.y.toString(),
+          x: owner.babyJubjubPublicKey.x,
+          y: owner.babyJubjubPublicKey.y,
         },
-        sharedSecret: owner.sharedSecret.toString(),
+        sharedSecret: owner.sharedSecret,
       },
       deliveryTag: {
-        ephemeralKey: bigIntToDecimalString(deliveryTag.ephemeralKey),
-        viewTag: deliveryTag.viewTag.toString(16).replace("0x", ""),
+        ephemeralKey: deliveryTag.ephemeralKey,
+        viewTag: deliveryTag.viewTag,
       },
       ownerHash: source,
     });
@@ -501,9 +502,9 @@ class Note {
     const {
       balance: { token, amount },
       ownerHash,
-      owner,
-      deliveryTag,
     } = this;
+
+    const { owner, deliveryTag } = this.serializeFullNote();
 
     return {
       walletId,
@@ -528,6 +529,7 @@ export {
   DepositNote,
   PublicNote,
   AggregationInputNote,
+  AuthenticatedNote,
   AggregationOutputNote,
   WithdrawalNote,
   CircuitInputNote,

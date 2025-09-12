@@ -9,7 +9,7 @@ import type {
   Signature,
 } from "@/types/core";
 import type { StringifyBigInts } from "@/types/helper";
-import type { Note, PublicNote } from "@/types/note";
+import type { AuthenticatedNote, Note, PublicNote } from "@/types/note";
 
 interface ICore {
   generateKeyPairs(): CurvyKeyPairs;
@@ -24,7 +24,12 @@ interface ICore {
 
   getNoteOwnershipData(publicNotes: PublicNote[], s: string, v: string): NoteOwnershipData[];
   generateNoteOwnershipProof(ownershipData: NoteOwnershipData[], babyJubPublicKey: string): Promise<NoteOwnershipProof>;
-  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubPublicKey: [string, string]): Note[];
+  unpackAuthenticatedNotes(
+    s: string,
+    v: string,
+    notes: AuthenticatedNote[],
+    babyJubPublicKey: [string, string],
+  ): Note[];
   version(): string;
 }
 

@@ -15,6 +15,7 @@ import type {
   Signature,
 } from "@/types/core";
 import type { HexString, StringifyBigInts } from "@/types/helper";
+import type { AuthenticatedNote } from "@/types/note";
 import { Note, type PublicNote } from "@/types/note";
 import { isNode } from "@/utils/helpers";
 import { poseidonHash } from "@/utils/poseidon-hash";
@@ -177,7 +178,7 @@ class Core implements ICore {
   sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
-    console.log("NEW NOTE R", R);
+    console.log("NEW NOTE", R, S, V, viewTag);
 
     return new Note({
       owner: {
@@ -205,13 +206,9 @@ class Core implements ICore {
       publicNotes.map(({ deliveryTag }) => deliveryTag),
     );
 
-    console.log("SCAN RESULT", scanResult);
-
     const sharedSecrets = scanResult.spendingPubKeys.map((pubKey: string) =>
-      pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null,
+      pubKey.length > 0 ? BigInt(`0x${Buffer.from(pubKey.split(".")[0], "hex").toString("hex")}`) : null,
     );
-
-    console.log("SS", sharedSecrets);
 
     const { babyJubjubPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
     const bjjKeyBigint = ownerBabyJubjubPublicKey.split(".").map(BigInt);
@@ -244,8 +241,42 @@ class Core implements ICore {
   ) {
     const NUM_NOTES = 10;
 
-    const wasmFile = `../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm`;
-    const zkeyFile = `../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey`;
+    let wasm: any;
+    let zkey: any;
+
+    if (isNode) {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const { fileURLToPath } = await import("node:url");
+
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      const wasmPath = path.resolve(
+        __dirname,
+        "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm",
+      );
+      const zkeyPath = path.resolve(
+        __dirname,
+        "../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey",
+      );
+
+      wasm = await fs.readFile(wasmPath);
+      zkey = await fs.readFile(zkeyPath);
+    }
+
+    wasm = (
+      await import(
+        // @ts-expect-error
+        "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm?url"
+      )
+    ).default;
+
+    zkey = (
+      await import(
+        // @ts-expect-error
+        "../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey?url"
+      )
+    ).default;
 
     const paddedOwnedNotes = ownedNotes.concat(
       ...Array(NUM_NOTES - ownedNotes.length).fill({
@@ -263,8 +294,8 @@ class Core implements ICore {
         ]),
         ownerHashes: paddedOwnedNotes.map(({ ownerHash }) => ownerHash),
       },
-      wasmFile,
-      zkeyFile,
+      wasm,
+      zkey,
     );
 
     return {
@@ -287,6 +318,8 @@ class Core implements ICore {
   }
 
   scanNotes(s: string, v: string, noteData: { ephemeralKey: string; viewTag: string }[]) {
+    console.log("SCAN NOTES", s, v, noteData);
+
     const input = JSON.stringify(this.#prepareScanNotesArgs(s, v, noteData));
 
     const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
@@ -309,38 +342,30 @@ class Core implements ICore {
     };
   }
 
-  unpackAuthenticatedNotes(s: string, v: string, notes: Note[], babyJubjubPublicKey: [string, string]): Note[] {
+  unpackAuthenticatedNotes(
+    s: string,
+    v: string,
+    notes: AuthenticatedNote[],
+    babyJubjubPublicKey: [string, string],
+  ): Note[] {
     const scanResult = this.scanNotes(
       s,
       v,
-      notes.map((note) => ({
-        ephemeralKey: note.deliveryTag!.ephemeralKey.toString(),
-        viewTag: note.deliveryTag!.viewTag.toString(),
-      })),
+      notes.map(({ deliveryTag }) => deliveryTag),
     );
 
-    const unpackedNotes = scanResult.spendingPubKeys.map((pubKey: string, index: number) => {
+    return scanResult.spendingPubKeys.map((pubKey: string, index: number) => {
       return new Note({
         owner: {
           babyJubjubPublicKey: {
             x: babyJubjubPublicKey[0],
             y: babyJubjubPublicKey[1],
           },
-          sharedSecret: pubKey.split(".")[0],
+          sharedSecret: `0x${Buffer.from(pubKey.split(".")[0], "hex").toString("hex")}`,
         },
-        ownerHash: notes[index].ownerHash.toString(),
-        balance: {
-          amount: notes[index].balance!.amount.toString(),
-          token: notes[index].balance!.token.toString(),
-        },
-        deliveryTag: {
-          ephemeralKey: notes[index].deliveryTag!.ephemeralKey.toString(),
-          viewTag: notes[index].deliveryTag!.viewTag.toString(),
-        },
+        ...notes[index],
       });
     });
-
-    return unpackedNotes;
   }
 
   signWithBabyJubjubPrivateKey(message: bigint, babyJubjubPrivateKey: string): StringifyBigInts<Signature> {

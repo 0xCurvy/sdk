@@ -15,6 +15,7 @@ export default defineConfig((_) => {
       options.assetNames = "[name]";
       options.loader = {
         ".wasm": "copy",
+        ".zkey": "copy",
       };
     },
   };
