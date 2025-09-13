@@ -1,3 +1,4 @@
+import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { ICommandFactory } from "@/planner/commands/factory";
 import type {
   CurvyCommandData,
@@ -10,19 +11,35 @@ import type {
 
 export class CommandExecutor {
   private commandFactory: ICommandFactory;
+  private eventEmitter: ICurvyEventEmitter;
 
-  constructor(commandFactory: ICommandFactory) {
+  constructor(commandFactory: ICommandFactory, eventEmitter: ICurvyEventEmitter) {
     this.commandFactory = commandFactory;
+    this.eventEmitter = eventEmitter;
   }
 
-  async executePlan(plan: CurvyPlan, input?: CurvyCommandData): Promise<CurvyPlanExecution> {
+  async executePlan(plan: CurvyPlan): Promise<CurvyPlanExecution> {
+    this.eventEmitter.emitPlanExecutionStarted({ plan });
+    const result = await this.executeRecursively(plan);
+
+    if (result.success) {
+      this.eventEmitter.emitPlanExecutionComplete({ plan, result });
+    } else {
+      this.eventEmitter.emitPlanExecutionError({ plan, result });
+    }
+
+    return result;
+  }
+
+  private async executeRecursively(plan: CurvyPlan, input?: CurvyCommandData): Promise<CurvyPlanExecution> {
     // CurvyPlanFlowControl, parallel
     if (plan.type === "parallel") {
       // Parallel plans don't take any input,
       // because that would mean that each of its children is getting the same Address as input
-      const result = await Promise.all(plan.items.map((item) => this.executePlan(item)));
+      const result = await Promise.all(plan.items.map((item) => this.executeRecursively(item)));
       const success = result.every((r) => r.success);
 
+      this.eventEmitter.emitPlanExecutionProgress({}); // TODO: HOW TO DO THIS?
       return <CurvyPlanExecution>{
         success,
         items: result,
@@ -39,7 +56,7 @@ export class CommandExecutor {
 
       let data = input;
       for (const item of plan.items) {
-        const result = await this.executePlan(item, data);
+        const result = await this.executeRecursively(item, data);
 
         results.push(result);
 
