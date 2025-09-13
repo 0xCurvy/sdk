@@ -57,11 +57,9 @@ test("Scan notes", async () => {
     notes.map((note) => note.serializePublicNote().deliveryTag),
   );
 
-  console.log(scanResult);
-
   const ownersNotes = scanResult.spendingPubKeys
     .filter((pubKey: any) => pubKey.length > 0)
-    .map((pubKey: string) => BigInt(pubKey.split(".")[0]));
+    .map((pubKey: string) => BigInt(`0x${Buffer.from(pubKey.split(".")[0], "hex").toString("hex")}`));
 
   expect(ownersNotes.length).toBe(NUM_VALID_NOTES);
 
