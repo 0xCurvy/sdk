@@ -3,19 +3,6 @@ import { mul, toNumber } from "dnum";
 import { getAddress } from "viem";
 import { BalanceScanner } from "@/balance-scanner";
 import {
-  BALANCE_REFRESH_COMPLETE_EVENT,
-  BALANCE_REFRESH_PROGRESS_EVENT,
-  BALANCE_REFRESH_STARTED_EVENT,
-  SCAN_COMPLETE_EVENT,
-  SCAN_ERROR_EVENT,
-  SCAN_MATCH_EVENT,
-  SCAN_PROGRESS_EVENT,
-  SYNC_COMPLETE_EVENT,
-  SYNC_ERROR_EVENT,
-  SYNC_PROGRESS_EVENT,
-  SYNC_STARTED_EVENT,
-} from "@/constants/events";
-import {
   NETWORK_ENVIRONMENT,
   type NETWORK_ENVIRONMENT_VALUES,
   type NETWORK_FLAVOUR_VALUES,
@@ -41,6 +28,7 @@ import type {
   AggregationRequestParams,
   BalanceEntry,
   CsucBalanceEntry,
+  CurvyEventType,
   DepositRequest,
   Network,
   WithdrawRequest,
@@ -49,18 +37,6 @@ import type {
 import type { CurvyAddress } from "@/types/address";
 import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
-import type {
-  BalanceRefreshCompleteEvent,
-  BalanceRefreshProgressEvent,
-  BalanceRefreshStartedEvent,
-  ScanCompleteEvent,
-  ScanErrorEvent,
-  ScanMatchEvent,
-  SyncCompleteEvent,
-  SyncErrorEvent,
-  SyncProgressEvent,
-  SyncStartedEvent,
-} from "@/types/events";
 import type { HexString } from "@/types/helper";
 import { Note } from "@/types/note";
 import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
@@ -666,55 +642,12 @@ class CurvySDK implements ICurvySDK {
     return { inputNotes, signatures, destinationAddress };
   }
 
-  onSyncStarted(listener: (event: SyncStartedEvent) => void) {
-    this.#emitter.on(SYNC_STARTED_EVENT, listener);
+  subscribeToEventType(eventType: CurvyEventType, listener: (event: any) => void) {
+    this.#emitter.on(eventType, listener);
   }
 
-  onSyncProgress(listener: (event: SyncProgressEvent) => void) {
-    this.#emitter.on(SYNC_PROGRESS_EVENT, listener);
-  }
-
-  onSyncComplete(listener: (event: SyncCompleteEvent) => void) {
-    this.#emitter.on(SYNC_COMPLETE_EVENT, listener);
-  }
-
-  onSyncError(listener: (event: SyncErrorEvent) => void) {
-    this.#emitter.on(SYNC_ERROR_EVENT, listener);
-  }
-
-  onScanProgress(listener: (event: ScanErrorEvent) => void) {
-    this.#emitter.on(SCAN_PROGRESS_EVENT, listener);
-  }
-
-  onScanComplete(listener: (event: ScanCompleteEvent) => void) {
-    this.#emitter.on(SCAN_COMPLETE_EVENT, listener);
-  }
-
-  onScanMatch(listener: (event: ScanMatchEvent) => void) {
-    this.#emitter.on(SCAN_MATCH_EVENT, listener);
-  }
-
-  onScanError(listener: (event: ScanErrorEvent) => void) {
-    this.#emitter.on(SCAN_ERROR_EVENT, listener);
-  }
-
-  onBalanceRefreshStarted(listener: (event: BalanceRefreshStartedEvent) => void) {
-    this.#emitter.on(BALANCE_REFRESH_STARTED_EVENT, listener);
-  }
-  offBalanceRefreshStarted(listener: (event: BalanceRefreshStartedEvent) => void) {
-    this.#emitter.off(BALANCE_REFRESH_STARTED_EVENT, listener);
-  }
-  onBalanceRefreshProgress(listener: (event: BalanceRefreshProgressEvent) => void) {
-    this.#emitter.on(BALANCE_REFRESH_PROGRESS_EVENT, listener);
-  }
-  offBalanceRefreshProgress(listener: (event: BalanceRefreshProgressEvent) => void) {
-    this.#emitter.off(BALANCE_REFRESH_PROGRESS_EVENT, listener);
-  }
-  onBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void) {
-    this.#emitter.on(BALANCE_REFRESH_COMPLETE_EVENT, listener);
-  }
-  offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void) {
-    this.#emitter.off(BALANCE_REFRESH_COMPLETE_EVENT, listener);
+  unsubscribeFromEventType(eventType: CurvyEventType, listener: (event: any) => void) {
+    this.#emitter.off(eventType, listener);
   }
 
   async pollForCriteria<T>(

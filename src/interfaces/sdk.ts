@@ -29,18 +29,6 @@ import type {
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,
 } from "@/types/api";
-import type {
-  BalanceRefreshCompleteEvent,
-  BalanceRefreshProgressEvent,
-  BalanceRefreshStartedEvent,
-  ScanCompleteEvent,
-  ScanErrorEvent,
-  ScanMatchEvent,
-  SyncCompleteEvent,
-  SyncErrorEvent,
-  SyncProgressEvent,
-  SyncStartedEvent,
-} from "@/types/events";
 import type { HexString } from "@/types/helper";
 import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
 import type { CurvySignatureParameters } from "@/types/signature";
@@ -132,23 +120,6 @@ interface ICurvySDK {
   createAggregation(payload: AggregationRequest): Promise<SubmitAggregationReturnType>;
   getAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
 
-  // Event subscriptions
-  onSyncStarted(listener: (event: SyncStartedEvent) => void): void;
-  onSyncProgress(listener: (event: SyncProgressEvent) => void): void;
-  onSyncComplete(listener: (event: SyncCompleteEvent) => void): void;
-  onSyncError(listener: (event: SyncErrorEvent) => void): void;
-
-  onScanMatch(listener: (event: ScanMatchEvent) => void): void;
-  onScanProgress(listener: (event: ScanErrorEvent) => void): void;
-  onScanComplete(listener: (event: ScanCompleteEvent) => void): void;
-  onScanError(listener: (event: ScanErrorEvent) => void): void;
-
-  onBalanceRefreshStarted(listener: (event: BalanceRefreshStartedEvent) => void): void;
-  offBalanceRefreshStarted(listener: (event: BalanceRefreshStartedEvent) => void): void;
-  onBalanceRefreshProgress(listener: (event: BalanceRefreshProgressEvent) => void): void;
-  offBalanceRefreshProgress(listener: (event: BalanceRefreshProgressEvent) => void): void;
-  onBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void): void;
-  offBalanceRefreshComplete(listener: (event: BalanceRefreshCompleteEvent) => void): void;
   createAggregationPayload(params: AggregationRequestParams): AggregationRequest;
   pollForCriteria<T>(
     pollFunction: () => Promise<T>,

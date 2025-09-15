@@ -1,7 +1,31 @@
 import type { CurvyPlan, CurvyPlanExecution } from "@/planner/plan";
 import type { CurvyAddress } from "@/types/address";
 import type { RawAnnouncement } from "@/types/api";
+import type { ExtractValues } from "@/types/helper";
 import type { CurvyWallet } from "@/wallet";
+
+export const CURVY_EVENT_TYPES = {
+  SYNC_STARTED: "sync-started",
+  SYNC_PROGRESS: "sync-progress",
+  SYNC_COMPLETE: "sync-complete",
+  SYNC_ERROR: "sync-error",
+
+  SCAN_PROGRESS: "scan-progress",
+  SCAN_COMPLETE: "scan-complete",
+  SCAN_MATCH: "scan-match",
+  SCAN_ERROR: "scan-error",
+
+  BALANCE_REFRESH_STARTED: "balance-refresh-started",
+  BALANCE_REFRESH_PROGRESS: "balance-refresh-progress",
+  BALANCE_REFRESH_COMPLETE: "balance-refresh-complete",
+
+  PLAN_EXECUTION_STARTED: "plan-execution-started",
+  PLAN_EXECUTION_PROGRESS: "plan-execution-progress",
+  PLAN_EXECUTION_COMPLETE: "plan-execution-complete",
+  PLAN_EXECUTION_ERROR: "plan-execution-error",
+} as const;
+
+export type CurvyEventType = ExtractValues<typeof CURVY_EVENT_TYPES>;
 
 //#region Sync events
 
