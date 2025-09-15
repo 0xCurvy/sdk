@@ -117,7 +117,7 @@ class CurvySDK implements ICurvySDK {
       environment: "mainnet",
       activeNetworks: [],
     };
-    this.#commandExecutor = new CommandExecutor(commandFactory);
+    this.#commandExecutor = new CommandExecutor(commandFactory, this.#emitter);
   }
 
   get walletManager(): IWalletManager {

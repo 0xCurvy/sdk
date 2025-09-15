@@ -8,6 +8,7 @@ import type {
   CurvyPlanSuccessfulExecution,
   CurvyPlanUnsuccessfulExecution,
 } from "@/planner/plan";
+import type { BalanceEntry } from "@/types";
 
 export class CommandExecutor {
   private commandFactory: ICommandFactory;
@@ -39,10 +40,20 @@ export class CommandExecutor {
       const result = await Promise.all(plan.items.map((item) => this.executeRecursively(item)));
       const success = result.every((r) => r.success);
 
-      this.eventEmitter.emitPlanExecutionProgress({}); // TODO: HOW TO DO THIS?
-      return <CurvyPlanExecution>{
-        success,
+      this.eventEmitter.emitPlanExecutionProgress({ plan, result: { success, items: result } as CurvyPlanExecution });
+
+      if (success) {
+        return {
+          success: true,
+          items: result,
+          data: result.filter((r) => r.success && r.data !== undefined).map((r) => r.data) as BalanceEntry[],
+        };
+      }
+
+      return {
+        success: false,
         items: result,
+        error: result.filter((r) => !r.success).map((r) => r.error),
       };
     }
 
@@ -76,7 +87,7 @@ export class CommandExecutor {
       // The output address of the successful serial flow is the last members address.
       return <CurvyPlanSuccessfulExecution>{
         success: true,
-        data: (results[results.length - 1] as CurvyPlanSuccessfulExecution).data,
+        data,
         items: results, // TODO: I don't think this is needed
       };
     }
