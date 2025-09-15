@@ -7,8 +7,8 @@ import { poseidonHash } from "@/utils/poseidon-hash";
 import { BALANCE_TYPE } from "./storage";
 
 type Balance = {
-  amount: bigint;
-  token: bigint;
+  amounts: bigint[];
+  tokenGroupId: bigint;
 };
 
 type BabyJubjubPublicKey = {
@@ -37,8 +37,8 @@ type PublicNote = {
 type AuthenticatedNote = {
   ownerHash: string;
   balance: {
-    amount: string;
-    token: string;
+    amounts: string[];
+    tokenGroupId: string;
   };
   deliveryTag: {
     ephemeralKey: string;
@@ -49,8 +49,8 @@ type AuthenticatedNote = {
 type DepositNote = {
   ownerHash: string;
   balance: {
-    amount: string;
-    token: string;
+    amounts: string[];
+    tokenGroupId: string;
   };
   deliveryTag: {
     ephemeralKey: string;
@@ -67,16 +67,16 @@ type AggregationInputNote = {
     sharedSecret: string;
   };
   balance: {
-    amount: string;
-    token: string;
+    amounts: string[];
+    tokenGroupId: string;
   };
 };
 
 type AggregationOutputNote = {
   ownerHash: string;
   balance: {
-    amount: string;
-    token: string;
+    amounts: string[];
+    tokenGroupId: string;
   };
   deliveryTag: {
     ephemeralKey: string;
@@ -93,8 +93,8 @@ type WithdrawalNote = {
     sharedSecret: string;
   };
   balance: {
-    amount: string;
-    token: string;
+    amounts: string[];
+    tokenGroupId: string;
   };
 };
 
@@ -107,16 +107,16 @@ type CircuitInputNote = {
     sharedSecret: string;
   };
   balance: {
-    amount: string;
-    token: string;
+    amounts: string[];
+    tokenGroupId: string;
   };
 };
 
 type CircuitOutputNote = {
   ownerHash: string;
   balance: {
-    amount: string;
-    token: string;
+    amounts: string[];
+    tokenGroupId: string;
   };
 };
 
@@ -130,8 +130,8 @@ type FullNoteData = {
   };
   ownerHash: string;
   balance: {
-    amount: string;
-    token: string;
+    amounts: string[];
+    tokenGroupId: string;
   };
   deliveryTag: {
     ephemeralKey: string;
@@ -172,8 +172,8 @@ class Note {
 
     if (data.balance)
       this.balance = {
-        amount: BigInt(data.balance.amount),
-        token: BigInt(data.balance.token),
+        amounts: data.balance.amounts.map(BigInt),
+        tokenGroupId: BigInt(data.balance.tokenGroupId),
       };
 
     if (data.deliveryTag)
@@ -190,7 +190,7 @@ class Note {
       throw new Error("Missing balance");
     }
 
-    return poseidonHash([this.ownerHash, this.balance.amount, this.balance.token]);
+    return poseidonHash([this.ownerHash, ...this.balance.amounts, this.balance.tokenGroupId]);
   }
 
   get nullifier(): bigint {
@@ -240,8 +240,8 @@ class Note {
         sharedSecret: this.owner.sharedSecret.toString(),
       },
       balance: {
-        amount: this.balance.amount.toString(),
-        token: this.balance.token.toString(),
+        amounts: this.balance.amounts.map(num => num.toString()),
+        tokenGroupId: this.balance.tokenGroupId.toString(),
       },
     };
   }
@@ -257,8 +257,8 @@ class Note {
         sharedSecret: BigInt(aggregationInputNote.owner.sharedSecret),
       }).toString(),
       balance: {
-        amount: aggregationInputNote.balance.amount,
-        token: aggregationInputNote.balance.token,
+        amounts: aggregationInputNote.balance.amounts,
+        tokenGroupId: aggregationInputNote.balance.tokenGroupId,
       },
     });
     return note;
@@ -281,8 +281,8 @@ class Note {
     return {
       ownerHash: this.ownerHash.toString(),
       balance: {
-        amount: this.balance.amount.toString(),
-        token: this.balance.token.toString(),
+        amounts: this.balance.amounts.map(num => num.toString()),
+        tokenGroupId: this.balance.tokenGroupId.toString(),
       },
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
@@ -296,8 +296,8 @@ class Note {
     const note = new Note({
       ownerHash: aggregationOutputNote.ownerHash,
       balance: {
-        token: aggregationOutputNote.balance.token,
-        amount: aggregationOutputNote.balance.amount,
+        amounts: aggregationOutputNote.balance.amounts,
+        tokenGroupId: aggregationOutputNote.balance.tokenGroupId,
       },
       deliveryTag: {
         ephemeralKey: aggregationOutputNote.deliveryTag.ephemeralKey,
@@ -342,8 +342,8 @@ class Note {
         sharedSecret: this.owner.sharedSecret.toString(),
       },
       balance: {
-        amount: this.balance.amount.toString(),
-        token: this.balance.token.toString(),
+        amounts: this.balance.amounts.map(num => num.toString()),
+        tokenGroupId: this.balance.tokenGroupId.toString(),
       },
     };
   }
@@ -361,8 +361,8 @@ class Note {
     return {
       ownerHash: this.ownerHash.toString(),
       balance: {
-        amount: this.balance.amount.toString(),
-        token: this.balance.token.toString(),
+        amounts: this.balance.amounts.map(num => num.toString()),
+        tokenGroupId: this.balance.tokenGroupId.toString(),
       },
     };
   }
@@ -387,8 +387,8 @@ class Note {
     return {
       ownerHash: this.ownerHash.toString(),
       balance: {
-        amount: this.balance.amount.toString(),
-        token: this.balance.token.toString(),
+        amounts: this.balance.amounts.map(num => num.toString()),
+        tokenGroupId: this.balance.tokenGroupId.toString(),
       },
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
@@ -402,8 +402,8 @@ class Note {
     const note = new Note({
       ownerHash: authenticatedNote.ownerHash,
       balance: {
-        token: authenticatedNote.balance.token,
-        amount: authenticatedNote.balance.amount,
+        amounts: authenticatedNote.balance.amounts,
+        tokenGroupId: authenticatedNote.balance.tokenGroupId,
       },
       deliveryTag: {
         ephemeralKey: authenticatedNote.deliveryTag.ephemeralKey,
@@ -450,8 +450,8 @@ class Note {
       },
       ownerHash: this.ownerHash.toString(),
       balance: {
-        amount: this.balance.amount.toString(),
-        token: `0x${this.balance.token.toString(16)}`,
+        amounts: this.balance.amounts.map(num => num.toString()),
+        tokenGroupId: `0x${this.balance.tokenGroupId.toString(16)}`,
       },
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
@@ -473,7 +473,7 @@ class Note {
 
   static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress, source }: NoteBalanceEntry): Note {
     return new Note({
-      balance: { amount: balance.toString(), token: currencyAddress },
+      balance: { amounts: [balance.toString()], tokenGroupId: currencyAddress },
       owner: {
         babyJubjubPublicKey: {
           x: owner.babyJubjubPublicKey.x,
@@ -489,38 +489,40 @@ class Note {
     });
   }
 
-  toBalanceEntry(
-    symbol: string,
-    decimals: number,
-    walletId: string,
-    environment: NETWORK_ENVIRONMENT_VALUES,
-    networkSlug: string,
-  ): NoteBalanceEntry {
-    if (!this.balance || !this.owner || !this.deliveryTag) {
-      throw new Error("Note is not fully initialized");
-    }
-    const {
-      balance: { token, amount },
-      ownerHash,
-    } = this;
+  // TODO: Modify this!
+  
+  // toBalanceEntry(
+  //   symbol: string,
+  //   decimals: number,
+  //   walletId: string,
+  //   environment: NETWORK_ENVIRONMENT_VALUES,
+  //   networkSlug: string,
+  // ): NoteBalanceEntry {
+  //   if (!this.balance || !this.owner || !this.deliveryTag) {
+  //     throw new Error("Note is not fully initialized");
+  //   }
+  //   const {
+  //     balance: { tokenGroupId, amounts },
+  //     ownerHash,
+  //   } = this;
 
-    const { owner, deliveryTag } = this.serializeFullNote();
+  //   const { owner, deliveryTag } = this.serializeFullNote();
 
-    return {
-      walletId,
-      source: ownerHash.toString(16),
-      type: BALANCE_TYPE.NOTE,
-      networkSlug,
-      environment,
-      currencyAddress: token.toString(16),
-      symbol,
-      balance: BigInt(amount),
-      decimals,
-      owner,
-      deliveryTag,
-      lastUpdated: +dayjs(), // TODO: @vanja remove
-    };
-  }
+  //   return {
+  //     walletId,
+  //     source: ownerHash.toString(16),
+  //     type: BALANCE_TYPE.NOTE,
+  //     networkSlug,
+  //     environment,
+  //     currencyAddress: token.toString(16),
+  //     symbol,
+  //     balance: BigInt(amount),
+  //     decimals,
+  //     owner,
+  //     deliveryTag,
+  //     lastUpdated: +dayjs(), // TODO: @vanja remove
+  //   };
+  // }
 }
 
 export {

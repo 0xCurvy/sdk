@@ -27,8 +27,6 @@ const waitForRequest = async (requestId: string, api: ApiClient) => {
 const serializeAsJSObject = (obj: any) => {
   function preprocess(value: any): any {
     if (typeof value === "bigint") {
-      if (value === BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"))
-        return "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
       return value.toString();
     } else if (Array.isArray(value)) {
       return value.map(preprocess);
@@ -58,11 +56,14 @@ test("should generate note, deposit and scan", async () => {
   const rawNotes: any[] = [];
   const outputNotes: any[] = [];
 
+  const amounts: bigint[] = new Array(NUM_NOTES).fill(0n);
+  amounts[0] = 1000000000000000000n;
+
   for (let i = 0; i < NUM_NOTES; i++) {
     const note = core.sendNote(keyPairs.S, keyPairs.V, {
       ownerBabyJubjubPublicKey: babyJubjubPublicKey,
-      amount: 1000000000000000000n,
-      token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
+      amounts,
+      tokenGroupId: 1n,
     });
 
     rawNotes.push(note);
@@ -115,8 +116,8 @@ test("should generate note, deposit and scan", async () => {
       new Note({
         ownerHash: BigInt(note.ownerHash),
         balance: {
-          amount: BigInt(note.amount),
-          token: BigInt(note.token),
+          amounts: note.amounts.map(BigInt),
+          tokenGroupId: BigInt(note.tokenGroupId),
         },
         deliveryTag: {
           ephemeralKey: BigInt(note.ephemeralKey),
@@ -140,8 +141,8 @@ test("should generate note, deposit and scan", async () => {
 
     expect(note.owner!.babyJubjubPublicKey).toEqual(rawNote.owner.babyJubjubPublicKey);
     expect(note.owner!.sharedSecret).toEqual(rawNote.owner.sharedSecret);
-    expect(note.balance!.amount).toBe(rawNote.amount);
-    expect(note.balance!.token).toBe(rawNote.token);
+    expect(note.balance!.amounts).toBe(rawNote.amount);
+    expect(note.balance!.tokenGroupId).toBe(rawNote.tokenGroupId);
     expect(note.deliveryTag!.viewTag).toBe(rawNote.viewTag);
     expect(note.deliveryTag!.ephemeralKey).toBe(rawNote.ephemeralKey);
   }
