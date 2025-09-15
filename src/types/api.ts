@@ -48,7 +48,7 @@ type Network = {
   csucContractAddress?: string;
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
-  nativeCurrency: string | null;
+  nativeCurrency: string | null; // TODO: Why is this string?
   chainId: string;
   blockExplorerUrl: string;
   rpcUrl: string;

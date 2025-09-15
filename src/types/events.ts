@@ -1,4 +1,4 @@
-import type { CurvyPlan, CurvyPlan, CurvyPlanExecution } from "@/planner/plan";
+import type { CurvyPlan, CurvyPlanExecution } from "@/planner/plan";
 import type { CurvyAddress } from "@/types/address";
 import type { RawAnnouncement } from "@/types/api";
 import type { CurvyWallet } from "@/wallet";

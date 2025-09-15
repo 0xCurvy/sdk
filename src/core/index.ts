@@ -318,8 +318,6 @@ class Core implements ICore {
   }
 
   scanNotes(s: string, v: string, noteData: { ephemeralKey: string; viewTag: string }[]) {
-    console.log("SCAN NOTES", s, v, noteData);
-
     const input = JSON.stringify(this.#prepareScanNotesArgs(s, v, noteData));
 
     const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
