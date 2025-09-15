@@ -3,6 +3,10 @@ import {
   BALANCE_REFRESH_COMPLETE_EVENT,
   BALANCE_REFRESH_PROGRESS_EVENT,
   BALANCE_REFRESH_STARTED_EVENT,
+  PLAN_EXECUTION_COMPLETE_EVENT,
+  PLAN_EXECUTION_ERROR_EVENT,
+  PLAN_EXECUTION_PROGRESS_EVENT,
+  PLAN_EXECUTION_STARTED_EVENT,
   SCAN_COMPLETE_EVENT,
   SCAN_ERROR_EVENT,
   SCAN_MATCH_EVENT,
@@ -17,6 +21,10 @@ import type {
   BalanceRefreshCompleteEvent,
   BalanceRefreshProgressEvent,
   BalanceRefreshStartedEvent,
+  PlanExecutionCompleteEvent,
+  PlanExecutionErrorEvent,
+  PlanExecutionProgressEvent,
+  PlanExecutionStartedEvent,
   ScanCompleteEvent,
   ScanErrorEvent,
   ScanMatchEvent,
@@ -63,10 +71,28 @@ export class CurvyEventEmitter extends EventEmitter implements ICurvyEventEmitte
   emitBalanceRefreshStarted(event: BalanceRefreshStartedEvent) {
     this.emit(BALANCE_REFRESH_STARTED_EVENT, event);
   }
+
   emitBalanceRefreshProgress(event: BalanceRefreshProgressEvent) {
     this.emit(BALANCE_REFRESH_PROGRESS_EVENT, event);
   }
+
   emitBalanceRefreshComplete(event: BalanceRefreshCompleteEvent) {
     this.emit(BALANCE_REFRESH_COMPLETE_EVENT, event);
+  }
+
+  emitPlanExecutionStarted(event: PlanExecutionStartedEvent) {
+    this.emit(PLAN_EXECUTION_STARTED_EVENT, event);
+  }
+
+  emitPlanExecutionProgress(event: PlanExecutionProgressEvent) {
+    this.emit(PLAN_EXECUTION_PROGRESS_EVENT, event);
+  }
+
+  emitPlanExecutionComplete(event: PlanExecutionCompleteEvent) {
+    this.emit(PLAN_EXECUTION_COMPLETE_EVENT, event);
+  }
+
+  emitPlanExecutionError(event: PlanExecutionErrorEvent) {
+    this.emit(PLAN_EXECUTION_ERROR_EVENT, event);
   }
 }
