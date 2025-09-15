@@ -15,7 +15,7 @@ interface ICore {
   generateKeyPairs(): CurvyKeyPairs;
   getCurvyKeys(s: string, v: string): CurvyKeyPairs;
   send(S: string, V: string): CoreSendReturnType;
-  sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note;
+  sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amounts: bigint[]; tokenGroupId: bigint }): Note;
   signWithBabyJubjubPrivateKey(message: bigint, babyJubjubPrivateKey: string): StringifyBigInts<Signature>;
   scan(s: string, v: string, announcements: RawAnnouncement[]): CoreScanReturnType;
   viewerScan(v: string, S: string, announcements: RawAnnouncement[]): CoreViewerScanReturnType;

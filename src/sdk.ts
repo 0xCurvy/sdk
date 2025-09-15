@@ -736,7 +736,7 @@ class CurvySDK implements ICurvySDK {
     throw new Error(`Polling failed!`);
   }
 
-  async getNewNoteForUser(handle: string, token: bigint, amount: bigint) {
+  async getNewNoteForUser(handle: string, tokenGroupId: bigint, amounts: bigint[]) {
     const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
 
     if (!recipientDetails) {
@@ -749,8 +749,8 @@ class CurvySDK implements ICurvySDK {
     }
     return this.#core.sendNote(spendingKey, viewingKey, {
       ownerBabyJubjubPublicKey: babyJubjubPublicKey,
-      amount,
-      token,
+      // amounts,
+      tokenGroupId,
     });
   }
 }

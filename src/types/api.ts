@@ -188,7 +188,7 @@ type SubmitNoteOwnershipProofReturnType = {
   notes: {
     ownerHash: string;
     deliveryTag: { viewTag: string; ephemeralKey: string };
-    balance: { token: HexString; amount: string };
+    balance: { tokenGroupId: HexString; amounts: string[] };
   }[];
 };
 type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed" | "success";

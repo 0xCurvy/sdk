@@ -175,7 +175,7 @@ class Core implements ICore {
     return JSON.parse(curvy.send(input)) as CoreSendReturnType;
   }
 
-  sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
+  sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amounts: bigint[]; tokenGroupId: bigint }): Note {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
     console.log("NEW NOTE", R, S, V, viewTag);
@@ -189,8 +189,8 @@ class Core implements ICore {
         sharedSecret: `0x${Buffer.from(spendingPubKey.split(".")[0], "hex").toString("hex")}`,
       },
       balance: {
-        amount: noteData.amount.toString(),
-        token: noteData.token.toString(),
+        amounts: noteData.amounts.map(amount => amount.toString()),
+        tokenGroupId: noteData.tokenGroupId.toString(),
       },
       deliveryTag: {
         ephemeralKey: R,

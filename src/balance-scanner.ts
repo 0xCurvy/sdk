@@ -164,17 +164,18 @@ export class BalanceScanner implements IBalanceScanner {
 
     for (let i = 0; i < notes.length; i++) {
       const {
-        balance: { token, amount },
+        balance: { tokenGroupId, amounts },
         ownerHash,
         owner,
         deliveryTag,
       } = notes[i];
 
-      if (amount === "0") continue; // Skip zero balance notes
+      if (amounts.every((amount) => amount === "0")) continue; // Skip zero balance notes
 
       const networkSlug = "localnet"; // TODO Support multiple networks
 
-      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(token, networkSlug);
+      // TODO: WARNING This is a hack, token group ID DOES NOT MATCH currency id
+      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(tokenGroupId, networkSlug);
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
@@ -186,7 +187,7 @@ export class BalanceScanner implements IBalanceScanner {
 
         currencyAddress: address,
         symbol,
-        balance: BigInt(amount),
+        balance: 0n, // TODO: HARDCODED FOR NOW
         decimals,
 
         owner: {
