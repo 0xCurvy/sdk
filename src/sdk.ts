@@ -639,7 +639,7 @@ class CurvySDK implements ICurvySDK {
 
     const { s } = this.walletManager.activeWallet.keyPairs;
 
-    for (let i = inputNotes.length; i < 15; i++) {
+    for (let i = inputNotes.length; i < 10; i++) {
       inputNotes.push({
         owner: {
           babyJubjubPublicKey: {
@@ -660,7 +660,7 @@ class CurvySDK implements ICurvySDK {
       poseidonHash([msgHash, BigInt(destinationAddress), 0n]),
       s,
     );
-    const signatures = Array.from({ length: 15 }).map(() => ({
+    const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
