@@ -26,6 +26,7 @@ export type {
 } from "@/types/events";
 export * from "../constants/networks";
 export * from "../contracts/evm/curvy-artifacts/ethereum-sepolia/CSUC";
+export { Core } from "../core";
 export * from "../csuc";
 export * from "../errors";
 export * from "../interfaces";

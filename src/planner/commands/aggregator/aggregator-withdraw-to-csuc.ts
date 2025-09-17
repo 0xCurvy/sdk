@@ -27,7 +27,7 @@ export class AggregatorWithdrawToCSUCCommand extends AggregatorCommand {
         if (res.status === "failed") {
           throw new Error(`Aggregator withdraw ${res.status}`);
         }
-        return res.status === "completed";
+        return res.status === "success";
       },
       120,
       10_000,

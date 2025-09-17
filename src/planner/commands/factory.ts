@@ -32,6 +32,9 @@ export class CurvyCommandFactory implements ICommandFactory {
         }
         return new CSUCWithdrawToEOACommand(this.#sdk, input, intent);
       case "aggregator-aggregate":
+        if (!intent) {
+          throw new Error("CSUCWithdrawToEOACommand requires an intent");
+        }
         return new AggregatorAggregateCommand(this.#sdk, input, intent);
       case "aggregator-withdraw-to-csuc":
         return new AggregatorWithdrawToCSUCCommand(this.#sdk, input);

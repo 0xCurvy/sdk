@@ -13,7 +13,9 @@ export abstract class AggregatorCommand extends CurvyCommand {
 
     // Because all aggregator commands take array of notes as input,
     // make sure we have an array and that it is completely comprised of notes
-    const balanceEntries = Array.isArray(this.input) ? this.input : [this.input];
+    const balanceEntries = Array.isArray(this.input) ? this.input.flat() : [this.input];
+
+    console.dir(this, { depth: null });
 
     const allAreNotes = balanceEntries.every((addr) => addr.type === "note");
     if (!allAreNotes) {
@@ -23,6 +25,6 @@ export abstract class AggregatorCommand extends CurvyCommand {
     this.input = balanceEntries;
 
     this.inputNotes = this.input.map((note) => Note.fromNoteBalanceEntry(note));
-    this.inputNotesSum = this.inputNotes.reduce((acc, note) => acc + BigInt(note.balance!.amount), 0n);
+    this.inputNotesSum = this.inputNotes.reduce((acc, note) => acc + note.balance!.amount, 0n);
   }
 }

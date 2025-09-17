@@ -1,5 +1,6 @@
 import { Buffer as BufferPolyfill } from "buffer";
 import { mul, toNumber } from "dnum";
+import { ethers } from "ethers";
 import { getAddress } from "viem";
 import { BalanceScanner } from "@/balance-scanner";
 import {
@@ -21,6 +22,7 @@ import {
   type NETWORK_FLAVOUR_VALUES,
   type NETWORKS,
 } from "@/constants/networks";
+import { aggregatorABI } from "@/contracts/evm/abi/aggregator";
 import { prepareCsucActionEstimationRequest, prepareCuscActionRequest } from "@/csuc";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
@@ -658,7 +660,7 @@ class CurvySDK implements ICurvySDK {
       poseidonHash([msgHash, BigInt(destinationAddress), 0n]),
       s,
     );
-    const signatures = Array.from({ length: 10 }).map(() => ({
+    const signatures = Array.from({ length: 15 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
@@ -752,6 +754,16 @@ class CurvySDK implements ICurvySDK {
       amount,
       token,
     });
+  }
+
+  async resetAggregator() {
+    const provider = new ethers.JsonRpcProvider("http://localhost:8545");
+    const signer = new ethers.Wallet("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", provider);
+    const tx = await new ethers.Contract("0xa513E6E4b8f2a923D98304ec87F64353C4D5C853", aggregatorABI, signer).reset();
+
+    const receipt = await tx.wait();
+
+    if (receipt.status !== 1) throw new Error("Aggregator reset failed");
   }
 }
 

@@ -71,7 +71,7 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res) => {
-        return res.status === "completed";
+        return res.status === "success";
       },
       120,
       10000,

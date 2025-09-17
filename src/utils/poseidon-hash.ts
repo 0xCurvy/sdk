@@ -27,8 +27,6 @@ const toBigInt = (v: In): bigint => {
     return BigInt(v);
   }
 
-  console.log(v);
-
   const s = v.trim();
   if (s.startsWith("0x") || s.startsWith("0X")) {
     return BigInt(s);

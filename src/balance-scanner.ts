@@ -263,12 +263,7 @@ export class BalanceScanner implements IBalanceScanner {
         const unpackedNotes = this.#core.unpackAuthenticatedNotes(s, v, authenticatedNotes, babyJubPublicKey);
 
         try {
-          const noteEntries = await this.#processNotes(
-            unpackedNotes.map((n) => {
-              console.log(n);
-              return n.serializeFullNote();
-            }),
-          );
+          const noteEntries = await this.#processNotes(unpackedNotes.map((n) => n.serializeFullNote()));
           if (noteEntries.length > 0) {
             if (onProgress) onProgress(noteEntries);
             await this.#storage.updateBalancesAndTotals(walletId, noteEntries);

@@ -157,6 +157,8 @@ interface ICurvySDK {
     delayMs: number,
   ): Promise<T>;
   getNewNoteForUser(handle: string, token: bigint, amount: bigint): Promise<Note>;
+
+  resetAggregator(): Promise<void>;
 }
 
 export type { ICurvySDK };
