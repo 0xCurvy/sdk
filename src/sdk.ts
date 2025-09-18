@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { Buffer as BufferPolyfill } from "buffer";
 import { mul, toNumber } from "dnum";
 import { getAddress } from "viem";

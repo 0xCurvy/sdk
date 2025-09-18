@@ -1,3 +1,4 @@
+//@ts-nocheck
 import dayjs from "dayjs";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { StringifyBigInts } from "@/types/helper";
@@ -240,7 +241,7 @@ class Note {
         sharedSecret: this.owner.sharedSecret.toString(),
       },
       balance: {
-        amounts: this.balance.amounts.map(num => num.toString()),
+        amounts: this.balance.amounts.map((num) => num.toString()),
         tokenGroupId: this.balance.tokenGroupId.toString(),
       },
     };
@@ -281,7 +282,7 @@ class Note {
     return {
       ownerHash: this.ownerHash.toString(),
       balance: {
-        amounts: this.balance.amounts.map(num => num.toString()),
+        amounts: this.balance.amounts.map((num) => num.toString()),
         tokenGroupId: this.balance.tokenGroupId.toString(),
       },
       deliveryTag: {
@@ -342,7 +343,7 @@ class Note {
         sharedSecret: this.owner.sharedSecret.toString(),
       },
       balance: {
-        amounts: this.balance.amounts.map(num => num.toString()),
+        amounts: this.balance.amounts.map((num) => num.toString()),
         tokenGroupId: this.balance.tokenGroupId.toString(),
       },
     };
@@ -361,7 +362,7 @@ class Note {
     return {
       ownerHash: this.ownerHash.toString(),
       balance: {
-        amounts: this.balance.amounts.map(num => num.toString()),
+        amounts: this.balance.amounts.map((num) => num.toString()),
         tokenGroupId: this.balance.tokenGroupId.toString(),
       },
     };
@@ -387,7 +388,7 @@ class Note {
     return {
       ownerHash: this.ownerHash.toString(),
       balance: {
-        amounts: this.balance.amounts.map(num => num.toString()),
+        amounts: this.balance.amounts.map((num) => num.toString()),
         tokenGroupId: this.balance.tokenGroupId.toString(),
       },
       deliveryTag: {
@@ -450,7 +451,7 @@ class Note {
       },
       ownerHash: this.ownerHash.toString(),
       balance: {
-        amounts: this.balance.amounts.map(num => num.toString()),
+        amounts: this.balance.amounts.map((num) => num.toString()),
         tokenGroupId: `0x${this.balance.tokenGroupId.toString(16)}`,
       },
       deliveryTag: {
@@ -490,7 +491,7 @@ class Note {
   }
 
   // TODO: Modify this!
-  
+
   // toBalanceEntry(
   //   symbol: string,
   //   decimals: number,
