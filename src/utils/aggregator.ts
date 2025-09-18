@@ -35,7 +35,7 @@ const generateOutputNoteHash = (outputNote: Note) => {
 };
 
 const generateOutputsHash = (outputNotes: Note[]) => {
-  const outputNoteHashes = outputNotes.map(generateOutputNoteHash);
+  const outputNoteHashes = outputNotes.map((note) => note.id);
   return poseidonHash(outputNoteHashes);
 };
 

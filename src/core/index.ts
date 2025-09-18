@@ -184,7 +184,7 @@ class Core implements ICore {
           x: noteData.ownerBabyJubjubPublicKey.split(".")[0],
           y: noteData.ownerBabyJubjubPublicKey.split(".")[1],
         },
-        sharedSecret: `0x${Buffer.from(spendingPubKey.split(".")[0], "hex").toString("hex")}`,
+        sharedSecret: spendingPubKey.split(".")[0],
       },
       balance: {
         amount: noteData.amount.toString(),
@@ -205,7 +205,7 @@ class Core implements ICore {
     );
 
     const sharedSecrets = scanResult.spendingPubKeys.map((pubKey: string) =>
-      pubKey.length > 0 ? BigInt(`0x${Buffer.from(pubKey.split(".")[0], "hex").toString("hex")}`) : null,
+      pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null,
     );
 
     const { babyJubjubPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);

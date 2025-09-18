@@ -9,11 +9,15 @@ export class AggregatorWithdrawToCSUCCommand extends AggregatorCommand {
 
     const { address: csucAddress } = await this.sdk.getNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
 
+    console.log("WITHDRAWAL INPUT NOTES\n", this);
+
     // TODO: Fix this so that we dont have same return values as args
     const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload({
-      inputNotes: this.inputNotes.map((note) => note.serializeWithdrawalNote()),
+      inputNotes: this.inputNotes,
       destinationAddress: csucAddress,
     });
+
+    console.log("INPUT NOTES", inputNotes);
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw({
       inputNotes,

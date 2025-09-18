@@ -437,6 +437,8 @@ class Note {
       throw new Error("Note is not fully initialized");
     }
 
+    console.log("Serializing full note:", this);
+
     return {
       owner: {
         babyJubjubPublicKey: {
@@ -469,6 +471,8 @@ class Note {
   }
 
   static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress }: NoteBalanceEntry): Note {
+    console.log("Creating note from balance entry:", owner);
+
     return new Note({
       balance: { amount: balance.toString(), token: currencyAddress },
       owner: {
@@ -501,6 +505,8 @@ class Note {
     } = this;
 
     const { owner, deliveryTag } = this.serializeFullNote();
+
+    console.log("Note toBalanceEntry:", owner);
 
     return {
       walletId,

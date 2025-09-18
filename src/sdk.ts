@@ -66,6 +66,7 @@ import type {
 import type { HexString } from "@/types/helper";
 import { Note } from "@/types/note";
 import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
+import { jsonStringify } from "@/utils";
 import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
@@ -639,33 +640,49 @@ class CurvySDK implements ICurvySDK {
 
     const { s } = this.walletManager.activeWallet.keyPairs;
 
-    for (let i = inputNotes.length; i < 10; i++) {
-      inputNotes.push({
-        owner: {
-          babyJubjubPublicKey: {
-            x: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-            y: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+    const inputNotesLength = inputNotes.length;
+
+    for (let i = inputNotesLength; i < 10; i++) {
+      inputNotes.push(
+        new Note({
+          owner: {
+            babyJubjubPublicKey: {
+              x: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+              y: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+            },
+            sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
           },
-          sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-        },
-        balance: {
-          amount: "0",
-          token: "0",
-        },
-      });
+          balance: {
+            amount: "0",
+            token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+          },
+        }),
+      );
     }
 
-    const msgHash = generateOutputsHash(inputNotes.map((note) => Note.deserializeWithdrawalNote(note)));
-    const signature = this.#core.signWithBabyJubjubPrivateKey(
-      poseidonHash([msgHash, BigInt(destinationAddress), 0n]),
-      s,
-    );
+    const sortedInputNotes = inputNotes.sort((a, b) => (a.id < b.id ? -1 : 1));
+
+    const msgHash = generateOutputsHash(sortedInputNotes);
+
+    console.log("NOTES\n", jsonStringify(sortedInputNotes));
+    console.log(sortedInputNotes.map((note) => note.id));
+
+    console.log("MSG HASH", msgHash);
+    const dstHash = poseidonHash([msgHash, BigInt(destinationAddress)]);
+
+    console.log("DST HASH", dstHash);
+
+    const signature = this.#core.signWithBabyJubjubPrivateKey(dstHash, s);
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
 
-    return { inputNotes, signatures, destinationAddress };
+    return {
+      inputNotes: sortedInputNotes.map((note) => note.serializeWithdrawalNote()),
+      signatures,
+      destinationAddress,
+    };
   }
 
   onSyncStarted(listener: (event: SyncStartedEvent) => void) {
