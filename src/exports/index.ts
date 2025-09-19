@@ -31,7 +31,6 @@ export * from "../csuc";
 export * from "../errors";
 export * from "../interfaces";
 export * from "../planner/plan";
-export { generatePlan } from "../planner/planner";
 export * from "../rpc";
 export { CurvySDK } from "../sdk";
 export * from "../types";

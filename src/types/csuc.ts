@@ -21,6 +21,7 @@ export type CsucActionPayload = {
 
 export type CsucEstimatedActionCost = {
   payload: CsucActionPayload;
+  gas: string;
   offeredTotalFee: string;
   explanation: string;
 };

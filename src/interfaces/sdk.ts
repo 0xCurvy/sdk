@@ -1,6 +1,8 @@
 import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
+import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
+import type { CommandPlanner } from "@/planner/planner";
 import type { MultiRpc } from "@/rpc/multi";
 import type {
   BalanceEntry,
@@ -47,11 +49,14 @@ import type { CurvySignatureParameters } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
 
 interface ICurvySDK {
+  storage: StorageInterface;
+  apiClient: IApiClient;
+  commandPlanner: CommandPlanner;
+
   // Getters
-  get rpcClient(): MultiRpc;
+  get rpcClient(): Readonly<MultiRpc>;
   get activeNetworks(): Network[];
   get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
-  get apiClient(): IApiClient;
   get walletManager(): IWalletManager;
 
   createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest;
@@ -104,10 +109,8 @@ interface ICurvySDK {
   ): Promise<SendReturnType>;
 
   onboardToCSUC(
-    networkIdentifier: NetworkFilter,
     input: BalanceEntry,
     toAddress: HexString,
-    currencySymbol: string,
     amount: string,
   ): Promise<SubmitGasSponsorshipRequestReturnType | undefined>;
 
@@ -121,7 +124,6 @@ interface ICurvySDK {
   ): Promise<CsucEstimatedActionCost>;
 
   requestActionInsideCSUC(
-    networkFilter: NetworkFilter,
     input: CsucBalanceEntry,
     payload: CsucActionPayload,
     totalFee: string,

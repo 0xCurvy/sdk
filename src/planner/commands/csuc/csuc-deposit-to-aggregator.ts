@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { formatEther } from "viem";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { CSUCCommand } from "@/planner/commands/csuc/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
@@ -11,19 +12,23 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
 
     const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, BigInt(currencyAddress), this.input.balance);
 
-    const { payload, offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
+    const { curvyFee, gas } = await this.estimate();
+
+    const { payload } = await this.sdk.estimateActionInsideCSUC(
       this.network.id,
       CsucActionSet.DEPOSIT_TO_AGGREGATOR,
       this.input.source as HexString,
       note.ownerHash,
       currencyAddress as HexString,
-      this.input.balance,
+      this.input.balance - gas - curvyFee,
     );
+
+    console.log(gas + curvyFee, formatEther(gas + curvyFee), this.input.balance - gas - curvyFee);
 
     const {
       action: { signature },
       response: { id },
-    } = await this.sdk.requestActionInsideCSUC(this.network.id, this.input, payload, offeredTotalFee);
+    } = await this.sdk.requestActionInsideCSUC(this.input, payload, curvyFee.toString());
 
     // TODO: better configure max retries and timeout
     await this.sdk.pollForCriteria(
@@ -44,7 +49,7 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
 
       return {
         ownerHash: BigInt(ownerHash),
-        amount: BigInt(amount),
+        amount: BigInt(amount) - curvyFee,
         token: BigInt(token),
       };
     });
@@ -92,17 +97,15 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
   async estimate(): Promise<CurvyCommandEstimate> {
     const currencyAddress = this.input.currencyAddress;
 
-    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, BigInt(currencyAddress), this.input.balance);
-
-    const { offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
+    const { offeredTotalFee, gas } = await this.sdk.estimateActionInsideCSUC(
       this.network.id,
       CsucActionSet.DEPOSIT_TO_AGGREGATOR,
       this.input.source as HexString,
-      note.ownerHash,
+      0n, // Mock ownerHash value, not used in the estimation
       currencyAddress as HexString,
       this.input.balance,
     );
 
-    return { curvyFee: BigInt(offeredTotalFee), gas: 0n }; // TODO what is gas here?
+    return { curvyFee: BigInt(offeredTotalFee), gas: BigInt(gas) };
   }
 }

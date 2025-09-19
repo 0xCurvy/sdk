@@ -13,12 +13,9 @@ export class SaDepositToCsuc extends SACommand {
   }
 
   async execute(): Promise<CurvyCommandData> {
-    // TODO check why deposit to CSUC fails immediately after wrapNative
     const result = await this.sdk.onboardToCSUC(
-      this.input.networkSlug,
       this.input,
       this.input.source as HexString,
-      this.input.symbol,
       formatUnits(this.input.balance, this.input.decimals),
     );
 

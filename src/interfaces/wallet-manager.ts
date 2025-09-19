@@ -41,7 +41,7 @@ interface IWalletManager {
   scanWallet(wallet: CurvyWallet): Promise<void>;
   rescanWallets(walletIds?: Array<string>): Promise<void>;
 
-  getAddressPrivateKey(address: CurvyAddress): HexString;
+  getAddressPrivateKey(address: CurvyAddress | HexString): Promise<HexString>;
 }
 
 export type { IWalletManager };

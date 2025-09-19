@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { formatEther } from "viem";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { CSUCCommand } from "@/planner/commands/csuc/abstract";
@@ -29,18 +30,22 @@ export class CSUCWithdrawToEOACommand extends CSUCCommand {
   async execute(): Promise<CurvyCommandData> {
     const currencyAddress = this.input.currencyAddress;
 
-    const { payload, offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
+    const { curvyFee, gas } = await this.estimate();
+
+    const { payload } = await this.sdk.estimateActionInsideCSUC(
       this.network.id,
       CsucActionSet.WITHDRAW,
       this.input.source as HexString,
       this.#intent.toAddress as HexString,
       currencyAddress as HexString,
-      this.input.balance,
+      this.input.balance - gas - curvyFee,
     );
+
+    console.log(gas + curvyFee, formatEther(gas + curvyFee), this.input.balance - gas - curvyFee);
 
     const {
       response: { id },
-    } = await this.sdk.requestActionInsideCSUC(this.network.id, this.input, payload, offeredTotalFee);
+    } = await this.sdk.requestActionInsideCSUC(this.input, payload, curvyFee.toString());
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.csuc.GetActionStatus({ actionIds: [id] }),
@@ -54,10 +59,10 @@ export class CSUCWithdrawToEOACommand extends CSUCCommand {
     return {
       type: BALANCE_TYPE.SA,
       walletId: "PLACEHOLDER", // TODO Remove
-      source: this.#intent.toAddress,
+      source: this.#intent.toAddress as HexString,
       networkSlug: this.input.networkSlug,
       environment: this.input.environment,
-      balance: this.#intent.amount - BigInt(offeredTotalFee),
+      balance: this.#intent.amount - BigInt(curvyFee),
       symbol: this.input.symbol,
       decimals: this.input.decimals,
       currencyAddress,
@@ -69,7 +74,7 @@ export class CSUCWithdrawToEOACommand extends CSUCCommand {
   async estimate(): Promise<CurvyCommandEstimate> {
     const currencyAddress = this.input.currencyAddress;
 
-    const { offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
+    const { offeredTotalFee, gas } = await this.sdk.estimateActionInsideCSUC(
       this.network.id,
       CsucActionSet.WITHDRAW,
       this.input.source as HexString,
@@ -80,7 +85,7 @@ export class CSUCWithdrawToEOACommand extends CSUCCommand {
 
     return {
       curvyFee: BigInt(offeredTotalFee),
-      gas: 0n,
+      gas: BigInt(gas),
     };
   }
 }

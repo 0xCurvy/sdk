@@ -34,19 +34,22 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { CommandExecutor } from "@/planner/executor";
+import { CommandPlanner } from "@/planner/planner";
+import type { Rpc } from "@/rpc/abstract";
 import { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type {
-  AggregationRequest,
-  AggregationRequestParams,
-  BalanceEntry,
-  CsucBalanceEntry,
-  DepositRequest,
-  Network,
-  WithdrawRequest,
-  WithdrawRequestParams,
+import {
+  type AggregationRequest,
+  type AggregationRequestParams,
+  type BalanceEntry,
+  type CsucBalanceEntry,
+  type DepositRequest,
+  isNoteBalanceEntry,
+  type Network,
+  type WithdrawRequest,
+  type WithdrawRequestParams,
 } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
@@ -66,7 +69,6 @@ import type {
 import type { HexString } from "@/types/helper";
 import { Note } from "@/types/note";
 import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
-import { jsonStringify } from "@/utils";
 import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
@@ -100,6 +102,7 @@ class CurvySDK implements ICurvySDK {
   #state: SdkState;
 
   #commandExecutor: CommandExecutor;
+  readonly commandPlanner: CommandPlanner;
 
   readonly apiClient: IApiClient;
   readonly storage: StorageInterface;
@@ -121,6 +124,7 @@ class CurvySDK implements ICurvySDK {
       activeNetworks: [],
     };
     this.#commandExecutor = new CommandExecutor(commandFactory, this.#emitter);
+    this.commandPlanner = new CommandPlanner(this);
   }
 
   get walletManager(): IWalletManager {
@@ -129,6 +133,14 @@ class CurvySDK implements ICurvySDK {
     }
 
     return this.#walletManager;
+  }
+
+  getRpcClient(network: NetworkFilter): Rpc {
+    if (!this.#rpcClient) {
+      throw new Error("Rpc client is not initialized!");
+    }
+
+    return this.#rpcClient.Network(network);
   }
 
   static async init(
@@ -153,9 +165,13 @@ class CurvySDK implements ICurvySDK {
       sdk.setActiveNetworks(networkFilter);
     }
 
-    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
+    if (!sdk.#rpcClient) {
+      throw new Error("RPC client is not initialized!");
+    }
+
+    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.#rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(
-      sdk.rpcClient,
+      sdk.#rpcClient,
       sdk.apiClient,
       sdk.storage,
       sdk.#emitter,
@@ -211,7 +227,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Rpc client is not initialized!");
     }
 
-    return this.#rpcClient;
+    return Object.freeze(this.#rpcClient);
   }
 
   get activeNetworks() {
@@ -445,7 +461,7 @@ class CurvySDK implements ICurvySDK {
     amount: string,
     currency: string,
   ) {
-    const privateKey = this.walletManager.getAddressPrivateKey(from);
+    const privateKey = await this.walletManager.getAddressPrivateKey(from);
 
     let recipientData: RecipientData;
 
@@ -477,7 +493,7 @@ class CurvySDK implements ICurvySDK {
     fee: StarknetFeeEstimate | bigint,
     message?: string,
   ) {
-    const privateKey = this.walletManager.getAddressPrivateKey(from);
+    const privateKey = await this.walletManager.getAddressPrivateKey(from);
 
     let recipientData: RecipientData;
 
@@ -513,25 +529,21 @@ class CurvySDK implements ICurvySDK {
     return this.apiClient.aggregator.GetAggregatorRequestStatus(requestId);
   }
 
-  async onboardToCSUC(
-    networkIdentifier: NetworkFilter,
-    input: BalanceEntry,
-    toAddress: HexString,
-    currencySymbol: string,
-    amount: string,
-  ) {
-    const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
+  async onboardToCSUC(input: BalanceEntry, toAddress: HexString, amount: string) {
+    const currency = this.getNetwork(input.networkSlug).currencies.find((c) => c.symbol === input.symbol);
 
     if (!currency) {
-      throw new Error(`Currency with symbol ${currencySymbol} not found on network ${networkIdentifier}!`);
+      throw new Error(`Currency with symbol ${input.symbol} not found on network ${input.networkSlug}!`);
     }
 
-    const curvyAddress = await this.storage.getCurvyAddress(input.source);
+    if (isNoteBalanceEntry(input)) {
+      throw new Error("Onboarding to CSUC from Note balance is not supported");
+    }
 
-    const privateKey = this.walletManager.getAddressPrivateKey(curvyAddress);
+    const privateKey = await this.walletManager.getAddressPrivateKey(input.source);
 
     if (currency.nativeCurrency) {
-      const rpc = this.rpcClient.Network(networkIdentifier);
+      const rpc = this.rpcClient.Network(input.networkSlug);
 
       // TODO For now we only support Ethereum Sepolia and Localnet for CSUC
       if (rpc instanceof EvmRpc) {
@@ -541,7 +553,7 @@ class CurvySDK implements ICurvySDK {
     }
 
     const request = await this.rpcClient
-      .Network(networkIdentifier)
+      .Network(input.networkSlug)
       .prepareCSUCOnboardTransaction(privateKey, toAddress, currency, amount);
 
     return await this.apiClient.gasSponsorship.SubmitRequest(request);
@@ -573,21 +585,14 @@ class CurvySDK implements ICurvySDK {
     return response.data[0];
   }
 
-  async requestActionInsideCSUC(
-    networkFilter: NetworkFilter,
-    input: CsucBalanceEntry,
-    payload: CsucActionPayload,
-    totalFee: string,
-  ) {
-    const curvyAddress = await this.storage.getCurvyAddress(input.source);
-
-    const network = this.getNetwork(networkFilter);
+  async requestActionInsideCSUC(input: CsucBalanceEntry, payload: CsucActionPayload, totalFee: string) {
+    const network = this.getNetwork(input.networkSlug);
 
     if (!network.csucContractAddress) {
       throw new Error(`CSUC contract address not found for network ${network.name}`);
     }
 
-    const privateKey = this.walletManager.getAddressPrivateKey(curvyAddress);
+    const privateKey = await this.walletManager.getAddressPrivateKey(input.source);
 
     const action = await prepareCuscActionRequest(network, input.nonce, privateKey, payload, totalFee);
 
@@ -664,13 +669,9 @@ class CurvySDK implements ICurvySDK {
 
     const msgHash = generateOutputsHash(sortedInputNotes);
 
-    console.log("NOTES\n", jsonStringify(sortedInputNotes));
     console.log(sortedInputNotes.map((note) => note.id));
 
-    console.log("MSG HASH", msgHash);
     const dstHash = poseidonHash([msgHash, BigInt(destinationAddress)]);
-
-    console.log("DST HASH", dstHash);
 
     const signature = this.#core.signWithBabyJubjubPrivateKey(dstHash, s);
     const signatures = Array.from({ length: 10 }).map(() => ({
