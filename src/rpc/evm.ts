@@ -8,7 +8,6 @@ import {
   getContract,
   http,
   type PublicClient,
-  type TransactionRequest,
   type WalletClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -16,14 +15,11 @@ import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { erc1155ABI } from "@/contracts/evm/abi/erc1155";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
-import { ARTIFACT as CSUC_ETH_SEPOLIA_ARTIFACT } from "@/contracts/evm/curvy-artifacts/ethereum-sepolia/CSUC";
 import { Rpc } from "@/rpc/abstract";
-import { type BalanceEntry, type Erc1155Balance, isSaBalanceEntry, type RpcBalance, type RpcBalances } from "@/types";
+import type { Erc1155Balance, RpcBalance, RpcBalances } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
-import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
-import { jsonStringify } from "@/utils/common";
 import { parseDecimal } from "@/utils/currency";
 import { toSlug } from "@/utils/helpers";
 import { generateViemChainFromNetwork } from "@/utils/rpc";
@@ -261,54 +257,6 @@ class EvmRpc extends Rpc {
     return feeEstimate;
   }
 
-  async onboardNativeToCSUC(input: BalanceEntry, privateKey: HexString, currency: Currency, amount: string) {
-    if (!this.network.erc1155ContractAddress) {
-      throw new Error("[CSUCOnboard]: CSUC actions not supported on this network");
-    }
-
-    if (!isSaBalanceEntry(input)) {
-      throw new Error("Input balance entry must be of SA type");
-    }
-
-    const { maxFeePerGas } = await this.provider.estimateFeesPerGas();
-
-    const gasLimit = await this.#publicClient
-      .estimateContractGas({
-        account: privateKeyToAccount(privateKey),
-        address: this.network.erc1155ContractAddress as HexString,
-        abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
-        functionName: "wrapNative",
-        args: [input.source as HexString],
-        value: 1n,
-      })
-      .then((res) => res)
-      .catch(() => 65_000n); // Generous overhead in case of estimation failure
-
-    const fee = gasLimit * ((maxFeePerGas * 120n) / 100n); // add 20% buffer
-
-    const hash = await this.walletClient.writeContract({
-      abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
-      functionName: "wrapNative",
-      account: privateKeyToAccount(privateKey),
-      chain: this.#walletClient.chain,
-      address: this.network.erc1155ContractAddress as HexString,
-      args: [input.source as HexString],
-      value: parseDecimal(amount, currency) - fee,
-    });
-
-    const receipt = await this.provider.waitForTransactionReceipt({
-      hash,
-    });
-
-    const txExplorerUrl = `${this.network.blockExplorerUrl}/tx/${hash}`;
-
-    return {
-      txHash: hash,
-      txExplorerUrl,
-      receipt,
-    };
-  }
-
   async injectErc1155Ids(currencies: Currency[]) {
     if (!this.network.erc1155ContractAddress) {
       throw new Error(" Erc1155 actions not supported on this network");
@@ -375,77 +323,6 @@ class EvmRpc extends Rpc {
       balances: balances.map((balance, idx) => {
         return { balance, currencyAddress: erc1155EnabledCurrencies[idx].contractAddress };
       }),
-    };
-  }
-
-  async prepareCSUCOnboardTransaction(
-    privateKey: HexString,
-    toAddress: HexString,
-    currency: Currency,
-    amount: string,
-  ): Promise<GasSponsorshipRequest> {
-    if (!this.network.erc1155ContractAddress) {
-      throw new Error("[CSUCOnboard]: CSUC actions not supported on this network");
-    }
-
-    // Legacy CSA
-    const account = privateKeyToAccount(privateKey);
-
-    let nonce = await this.provider.getTransactionCount({
-      address: account.address,
-    });
-
-    const accountClient = { ...this.walletClient, account };
-
-    const txInfo = [
-      // ERC20 approve transaction
-      {
-        to: currency.contractAddress as HexString,
-        data: encodeFunctionData({
-          abi: erc20Abi,
-          functionName: "approve",
-          args: [this.network.erc1155ContractAddress as HexString, parseDecimal(amount, currency)],
-        }),
-        gas: 70_000n,
-        nonce,
-      },
-      // CSUC wrap transaction
-      {
-        to: this.network.erc1155ContractAddress as HexString,
-        data: encodeFunctionData({
-          abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
-          functionName: "wrapERC20",
-          args: [toAddress, currency.contractAddress as `0x${string}`, parseDecimal(amount, currency)],
-        }),
-        gas: 120_000n,
-        nonce: ++nonce,
-      },
-    ];
-
-    const payloads: TransactionRequest[] = [];
-    const signedPayloads: string[] = [];
-
-    for (const txI of txInfo) {
-      const pTx = await accountClient.prepareTransactionRequest({
-        ...txI,
-        value: 0n,
-        gasPrice: 1_000_000_000n, // 1 GWei
-        account,
-        chain: accountClient.chain,
-      });
-
-      const sTx = await accountClient.signTransaction(pTx);
-
-      payloads.push(pTx);
-      signedPayloads.push(sTx);
-    }
-
-    return {
-      networkId: this.network.id,
-      payloads: payloads.map((p) => ({
-        data: jsonStringify(p),
-      })),
-      signedPayloads,
     };
   }
 }

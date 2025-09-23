@@ -35,4 +35,5 @@ export type MetaTransaction = {
   updatedAt?: Date;
 };
 
+// TODO: Think about this
 export type MetaTransactionEstimate = CurvyCommandEstimate;

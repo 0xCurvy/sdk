@@ -1,9 +1,9 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { type AggregatorRequestStatusValuesType, BALANCE_TYPE, type CsucBalanceEntry } from "@/types";
+import { type AggregatorRequestStatusValuesType, BALANCE_TYPE, type Erc1155BalanceEntry } from "@/types";
 
-export class AggregatorWithdrawToCSUCCommand extends AggregatorCommand {
+export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
   async execute(): Promise<CurvyCommandData> {
     const { walletId, networkSlug, environment, symbol, lastUpdated, currencyAddress } = this.input[0];
 
@@ -55,7 +55,7 @@ export class AggregatorWithdrawToCSUCCommand extends AggregatorCommand {
       decimals: this.input[0].decimals,
       currencyAddress,
       lastUpdated,
-    } satisfies CsucBalanceEntry;
+    } satisfies Erc1155BalanceEntry;
   }
 
   // In the case of aggregator-withdraw-to-csuc command, both the circuit

@@ -48,10 +48,10 @@ const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
   return entry.type === BALANCE_TYPE.SA;
 };
 
-type CsucBalanceEntry = BalanceEntryBase & {
+type Erc1155BalanceEntry = BalanceEntryBase & {
   type: BALANCE_TYPE["CSUC"];
 };
-const isCsucBalanceEntry = (entry: BalanceEntry): entry is CsucBalanceEntry => {
+const isErc1155BalanceEntry = (entry: BalanceEntry): entry is Erc1155BalanceEntry => {
   return entry.type === BALANCE_TYPE.CSUC;
 };
 
@@ -70,7 +70,7 @@ const isNoteBalanceEntry = (entry: BalanceEntry): entry is NoteBalanceEntry => {
   return entry.type === BALANCE_TYPE.NOTE;
 };
 
-type BalanceEntry = SaBalanceEntry | CsucBalanceEntry | NoteBalanceEntry;
+type BalanceEntry = SaBalanceEntry | Erc1155BalanceEntry | NoteBalanceEntry;
 
 type TotalBalance = {
   walletId: string;
@@ -92,10 +92,10 @@ export type {
   PriceData,
   BalanceEntry,
   TotalBalance,
-  CsucBalanceEntry,
+  Erc1155BalanceEntry,
   SaBalanceEntry,
   NoteBalanceEntry,
   BALANCE_TYPE_VALUES,
   BalanceSourcesOptions,
 };
-export { isSaBalanceEntry, isCsucBalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };
+export { isSaBalanceEntry, isErc1155BalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };

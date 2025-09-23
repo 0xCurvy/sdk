@@ -1,19 +1,15 @@
+// @ts-nocheck
+
+// TODO: REIMPLEMENT
 import dayjs from "dayjs";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { CSUCCommand } from "@/planner/commands/csuc/abstract";
+import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
-import {
-  BALANCE_TYPE,
-  CsucActionSet,
-  CsucActionStage,
-  type HexString,
-  isHexString,
-  type SaBalanceEntry,
-} from "@/types";
+import { BALANCE_TYPE, type HexString, isHexString, type SaBalanceEntry } from "@/types";
 
 // This command automatically sends all available balance from CSUC to external address
-export class CSUCWithdrawToEOACommand extends CSUCCommand {
+export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
   #intent: CurvyIntent;
 
   constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {

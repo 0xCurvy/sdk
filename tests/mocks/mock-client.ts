@@ -1,22 +1,17 @@
 import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
+import type { MetaTransactionEstimate, MetaTransactionStatus } from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  CreateActionRequest,
-  CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  GetActionEstimatedCostRequest,
-  GetActionEstimatedCostResponse,
-  GetActionStatusResponse,
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsReturnType,
-  GetCSAInfoRequest,
-  GetCSAInfoResponse,
   GetCurvyHandleByOwnerAddressReturnType,
   GetNetworksReturnType,
+  MetaTransactionEstimationRequestBody,
   RawAnnouncement,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
@@ -25,8 +20,6 @@ import type {
   SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
-  SubmitGasSponsorshipRequest,
-  SubmitGasSponsorshipRequestReturnType,
   SubmitNoteOwnershipProofReturnType,
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
@@ -152,7 +145,7 @@ export class MockAPIClient implements IApiClient {
               contractAddress: "0x123",
               updatedAt: "",
               nativeCurrency: false,
-              csucEnabled: false,
+              erc1155Enabled: false,
             },
           ],
         },
@@ -203,34 +196,13 @@ export class MockAPIClient implements IApiClient {
     SubmitAggregation: async (_data: AggregationRequest): Promise<SubmitAggregationReturnType> => {
       throw new Error("Method not implemented.");
     },
-    SubmitNotesOwnerhipProof: async (_data: {
+    SubmitNotesOwnershipProof: async (_data: {
       proof: Groth16Proof;
       ownerHashes: string[];
     }): Promise<SubmitNoteOwnershipProofReturnType> => {
       throw new Error("Method not implemented.");
     },
     GetAggregatorRequestStatus: async (_requestId: string): Promise<GetAggregatorRequestStatusReturnType> => {
-      throw new Error("Method not implemented.");
-    },
-  };
-
-  csuc = {
-    GetCSAInfo: async (_req: GetCSAInfoRequest): Promise<GetCSAInfoResponse> => {
-      throw new Error("Method not implemented.");
-    },
-    EstimateAction: async (_req: GetActionEstimatedCostRequest): Promise<GetActionEstimatedCostResponse> => {
-      throw new Error("Method not implemented.");
-    },
-    SubmitActionRequest: async (_req: CreateActionRequest): Promise<CreateActionResponse> => {
-      throw new Error("Method not implemented.");
-    },
-    GetActionStatus: async (_req: { actionIds: string[] }): Promise<GetActionStatusResponse> => {
-      throw new Error("Method not implemented.");
-    },
-  };
-
-  gasSponsorship = {
-    SubmitRequest: async (_request: SubmitGasSponsorshipRequest): Promise<SubmitGasSponsorshipRequestReturnType> => {
       throw new Error("Method not implemented.");
     },
   };

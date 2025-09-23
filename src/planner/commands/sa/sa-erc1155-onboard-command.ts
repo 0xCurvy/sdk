@@ -1,12 +1,15 @@
+// @ts-nocheck
+
+// TODO: REIMPLEMENT
 import { formatUnits } from "viem";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { SACommand } from "@/planner/commands/sa/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { BALANCE_TYPE, type CsucBalanceEntry, type HexString } from "@/types";
+import { BALANCE_TYPE, type Erc1155BalanceEntry, type HexString } from "@/types";
 
 // This command automatically sends all available balance from SA to CSUC address
-export class ERC1155OnboardCommand extends SACommand {
+export class SaErc1155OnboardCommand extends SACommand {
   // biome-ignore lint/complexity/noUselessConstructor: Abstract class protected constructor
   constructor(sdk: ICurvySDK, input: CurvyCommandData) {
     super(sdk, input);
@@ -48,7 +51,7 @@ export class ERC1155OnboardCommand extends SACommand {
       balance: BigInt(csucBalance.amount),
       type: BALANCE_TYPE.CSUC,
       nonce: 0n,
-    } satisfies CsucBalanceEntry;
+    } satisfies Erc1155BalanceEntry;
   }
 
   async estimate(): Promise<CurvyCommandEstimate> {

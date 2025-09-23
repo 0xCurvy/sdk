@@ -23,7 +23,6 @@ import { starknetErc20Abi } from "@/contracts/starknet/abi/erc20";
 import { starknetMulticallAbi } from "@/contracts/starknet/abi/multicall";
 import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
-import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
 import type { Erc1155Balance, RpcBalance, RpcBalances, StarknetFeeEstimate } from "@/types/rpc";
 import { parseDecimal } from "@/utils/currency";
@@ -362,15 +361,6 @@ class StarknetRpc extends Rpc {
 
   async getErc1155Balances(_address: CurvyAddress): Promise<Erc1155Balance> {
     throw new Error("ERC1155 is not supported on Starknet");
-  }
-
-  prepareCSUCOnboardTransaction(
-    _privateKey: HexString,
-    _toAddress: HexString,
-    _currency: Currency,
-    _amount: string,
-  ): Promise<GasSponsorshipRequest> {
-    throw new Error("CSUC is not supported on Starknet");
   }
 }
 

@@ -8,8 +8,8 @@ import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
 import {
   BALANCE_TYPE,
-  type CsucBalanceEntry,
   type CurvyAddress,
+  type Erc1155BalanceEntry,
   type NoteBalanceEntry,
   type SaBalanceEntry,
 } from "@/types";
@@ -114,7 +114,7 @@ export class BalanceScanner implements IBalanceScanner {
   async #processCsucBalances(addresses: CurvyAddress[]): Promise<BalanceEntry[]> {
     const arrLength = addresses.length;
 
-    const entries: CsucBalanceEntry[] = [];
+    const entries: Erc1155BalanceEntry[] = [];
 
     for (let i = 0; i < arrLength; i++) {
       const address = addresses[i];
@@ -254,7 +254,7 @@ export class BalanceScanner implements IBalanceScanner {
           babyJubjubPublicKey,
         );
 
-        const { notes: authenticatedNotes } = await this.apiClient.aggregator.SubmitNotesOwnerhipProof({
+        const { notes: authenticatedNotes } = await this.apiClient.aggregator.SubmitNotesOwnershipProof({
           proof,
           ownerHashes,
         });

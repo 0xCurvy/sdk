@@ -1,11 +1,13 @@
+// @ts-nocheck
+
+// TODO: REIMPLEMENT
 import { ethers } from "ethers";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { CSUCCommand } from "@/planner/commands/csuc/abstract";
+import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { CsucActionSet, CsucActionStage, type HexString, type Note } from "@/types";
 
-// This command automatically sends all available balance from CSUC to Aggregator
-export class CSUCDepositToAggregatorCommand extends CSUCCommand {
+// This command automatically sends all available balance from ERC1155 to Aggregator
+export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
   async execute(): Promise<CurvyCommandData> {
     const currencyAddress = this.input.currencyAddress;
 

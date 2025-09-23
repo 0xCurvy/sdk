@@ -2,17 +2,7 @@ import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } fro
 import type { IApiClient } from "@/interfaces/api";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type {
-  BalanceEntry,
-  CsucAction,
-  CsucActionPayload,
-  CsucActionSet,
-  CsucActionStatus,
-  CsucBalanceEntry,
-  CsucEstimatedActionCost,
-  Note,
-  SubmitGasSponsorshipRequestReturnType,
-} from "@/types";
+import type { Note } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type {
   AggregationRequest,
@@ -90,30 +80,6 @@ interface ICurvySDK {
     fee: StarknetFeeEstimate | bigint,
     message?: string,
   ): Promise<SendReturnType>;
-
-  onboardToCSUC(
-    networkIdentifier: NetworkFilter,
-    input: BalanceEntry,
-    toAddress: HexString,
-    currencySymbol: string,
-    amount: string,
-  ): Promise<SubmitGasSponsorshipRequestReturnType | undefined>;
-
-  estimateActionInsideCSUC(
-    networkFilter: NetworkFilter,
-    actionId: CsucActionSet,
-    from: HexString,
-    to: HexString | bigint,
-    token: HexString,
-    _amount: bigint, // Doesn't accept decimal numbers i.e. `0.001`
-  ): Promise<CsucEstimatedActionCost>;
-
-  requestActionInsideCSUC(
-    networkFilter: NetworkFilter,
-    input: CsucBalanceEntry,
-    payload: CsucActionPayload,
-    totalFee: string,
-  ): Promise<{ action: CsucAction; response: CsucActionStatus }>;
 
   createDeposit(payload: DepositRequest): Promise<SubmitDepositReturnType>;
   createWithdraw(payload: WithdrawRequest): Promise<SubmitWithdrawReturnType>;

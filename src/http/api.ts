@@ -1,26 +1,15 @@
 import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
-import type {
-  MetaTransactionEstimate,
-  MetaTransactionEstimationRequestBody,
-  MetaTransactionStatus,
-  SubmitNoteOwnershipProofReturnType,
-} from "@/types";
+import type { SubmitNoteOwnershipProofReturnType } from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  CreateActionRequest,
-  CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  GetActionEstimatedCostRequest,
-  GetActionEstimatedCostResponse,
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsResponse,
-  GetCSAInfoRequest,
-  GetCSAInfoResponse,
   GetCurvyHandleByOwnerAddressResponse,
   NetworksWithCurrenciesResponse,
   RegisterCurvyHandleRequestBody,
@@ -30,13 +19,10 @@ import type {
   SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
-  SubmitGasSponsorshipRequest,
-  SubmitGasSponsorshipRequestReturnType,
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
-import type { CsucActionStatus } from "@/types/csuc";
 import type { CurvyHandle } from "@/types/curvy";
 
 class ApiClient extends HttpClient implements IApiClient {
@@ -196,7 +182,7 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    SubmitNotesOwnerhipProof: async (data: { proof: Groth16Proof; ownerHashes: string[] }) => {
+    SubmitNotesOwnershipProof: async (data: { proof: Groth16Proof; ownerHashes: string[] }) => {
       return await this.request<SubmitNoteOwnershipProofReturnType>({
         method: "POST",
         path: "/aggregator/verify-note-ownership-proof",
@@ -210,66 +196,6 @@ class ApiClient extends HttpClient implements IApiClient {
         path: `/aggregator/request-status/${requestId}/status`,
       });
     },
-  };
-
-  csuc = {
-    GetCSAInfo: async (req: GetCSAInfoRequest) => {
-      return this.request<GetCSAInfoResponse>({
-        method: "POST",
-        path: "/csuc/csa-info",
-        body: { ...req },
-      });
-    },
-
-    EstimateAction: async (req: GetActionEstimatedCostRequest) => {
-      return this.request<GetActionEstimatedCostResponse>({
-        method: "POST",
-        path: "/csuc/estimate-action-cost",
-        body: {
-          ...req,
-        },
-      });
-    },
-    SubmitActionRequest: async (req: CreateActionRequest) => {
-      return this.request<CreateActionResponse>({
-        method: "POST",
-        path: "/csuc/submit-action",
-        body: {
-          ...req,
-        },
-      });
-    },
-    GetActionStatus: async (body: { actionIds: string[] }) => {
-      return await this.request<{ data: CsucActionStatus[]; error: null }>({
-        method: "POST",
-        path: "/csuc/action-status",
-        body,
-      });
-    },
-  };
-
-  gasSponsorship = {
-    SubmitRequest: async (action: SubmitGasSponsorshipRequest) => {
-      return await this.request<SubmitGasSponsorshipRequestReturnType>({
-        method: "POST",
-        path: "/gas-sponsorship/submit-action",
-        body: { actions: [action] },
-      });
-    },
-  };
-
-  metaTransaction = {
-    Estimate: async (body: MetaTransactionEstimationRequestBody): Promise<MetaTransactionEstimate> => {
-      return (
-        await this.request<{ data: { estimate: MetaTransactionEstimate } }>({
-          method: "POST",
-          path: "/meta-transaction/estimate",
-          body,
-        })
-      ).data.estimate;
-    },
-    Submit: async (signature: string, id: string): Promise<{ error?: string }> => {},
-    Status: async (id: string): Promise<MetaTransactionStatus | null> => {},
   };
 }
 

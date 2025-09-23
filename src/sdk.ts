@@ -1,4 +1,3 @@
-//@ts-nocheck
 import { Buffer as BufferPolyfill } from "buffer";
 import { mul, toNumber } from "dnum";
 import { getAddress } from "viem";
@@ -9,7 +8,6 @@ import {
   type NETWORK_FLAVOUR_VALUES,
   type NETWORKS,
 } from "@/constants/networks";
-import { prepareCsucActionEstimationRequest, prepareCuscActionRequest } from "@/csuc";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import type { IApiClient } from "@/interfaces/api";
@@ -20,15 +18,12 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { CommandExecutor } from "@/planner/executor";
-import { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
 import type {
   AggregationRequest,
   AggregationRequestParams,
-  BalanceEntry,
-  CsucBalanceEntry,
   CurvyEventType,
   DepositRequest,
   Network,
@@ -36,7 +31,6 @@ import type {
   WithdrawRequestParams,
 } from "@/types";
 import type { CurvyAddress } from "@/types/address";
-import type { CsucActionPayload, CsucActionSet, CsucEstimatedActionCost } from "@/types/csuc";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { Note } from "@/types/note";
@@ -83,6 +77,8 @@ class CurvySDK implements ICurvySDK {
     core: Core,
     apiBaseUrl?: string,
     storage: StorageInterface = new MapStorage(),
+    // TODO: IMPORTANT FIX!
+    // @ts-expect-error
     commandFactory: ICommandFactory = new CurvyCommandFactory(this),
   ) {
     this.#core = core;
@@ -490,91 +486,7 @@ class CurvySDK implements ICurvySDK {
     return this.apiClient.aggregator.GetAggregatorRequestStatus(requestId);
   }
 
-  async onboardToCSUC(
-    networkIdentifier: NetworkFilter,
-    input: BalanceEntry,
-    toAddress: HexString,
-    currencySymbol: string,
-    amount: string,
-  ) {
-    const currency = this.getNetwork(networkIdentifier).currencies.find((c) => c.symbol === currencySymbol);
-
-    if (!currency) {
-      throw new Error(`Currency with symbol ${currencySymbol} not found on network ${networkIdentifier}!`);
-    }
-
-    const curvyAddress = await this.storage.getCurvyAddress(input.source);
-
-    const privateKey = this.walletManager.getAddressPrivateKey(curvyAddress);
-
-    if (currency.nativeCurrency) {
-      const rpc = this.rpcClient.Network(networkIdentifier);
-
-      // TODO For now we only support Ethereum Sepolia and Localnet for CSUC
-      if (rpc instanceof EvmRpc) {
-        await rpc.onboardNativeToCSUC(input, privateKey, currency, amount);
-        return;
-      }
-    }
-
-    const request = await this.rpcClient
-      .Network(networkIdentifier)
-      .prepareCSUCOnboardTransaction(privateKey, toAddress, currency, amount);
-
-    return await this.apiClient.gasSponsorship.SubmitRequest(request);
-  }
-
-  async estimateActionInsideCSUC(
-    networkFilter: NetworkFilter,
-    actionId: CsucActionSet,
-    from: HexString,
-    to: HexString | bigint,
-    token: HexString,
-    _amount: bigint, // Doesn't accept decimal numbers i.e. `0.001`
-  ): Promise<CsucEstimatedActionCost> {
-    const network = this.getNetwork(networkFilter);
-
-    if (!network.csucContractAddress) {
-      throw new Error(`CSUC contract address not found for network ${network.name}`);
-    }
-
-    // User creates an action payload, and determines the wanted cost/speed
-    const amount = _amount.toString();
-
-    const payload = await prepareCsucActionEstimationRequest(network, actionId, from, to, token, amount);
-
-    const response = await this.apiClient.csuc.EstimateAction({
-      payloads: [payload],
-    });
-
-    return response.data[0];
-  }
-
-  async requestActionInsideCSUC(
-    networkFilter: NetworkFilter,
-    input: CsucBalanceEntry,
-    payload: CsucActionPayload,
-    totalFee: string,
-  ) {
-    const curvyAddress = await this.storage.getCurvyAddress(input.source);
-
-    const network = this.getNetwork(networkFilter);
-
-    if (!network.csucContractAddress) {
-      throw new Error(`CSUC contract address not found for network ${network.name}`);
-    }
-
-    const privateKey = this.walletManager.getAddressPrivateKey(curvyAddress);
-
-    const action = await prepareCuscActionRequest(network, input.nonce, privateKey, payload, totalFee);
-
-    const response = await this.apiClient.csuc.SubmitActionRequest({
-      action: action,
-    });
-
-    return { action, response: response.data };
-  }
-
+  // TODO: IMPORTANT FIX!
   createAggregationPayload(params: AggregationRequestParams): AggregationRequest {
     const { inputNotes, outputNotes } = params;
 
@@ -584,6 +496,7 @@ class CurvySDK implements ICurvySDK {
       outputNotes.push({
         ownerHash: "0",
         balance: {
+          // @ts-expect-error
           amount: "0",
           token: "0",
         },
@@ -627,6 +540,8 @@ class CurvySDK implements ICurvySDK {
           sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
         },
         balance: {
+          // TODO: IMPORTANT FIX!
+          // @ts-expect-error
           amount: "0",
           token: "0",
         },
@@ -673,6 +588,8 @@ class CurvySDK implements ICurvySDK {
     throw new Error(`Polling failed!`);
   }
 
+  // TODO: IMPORTANT FIX!
+  //@ts-expect-error
   async getNewNoteForUser(handle: string, tokenGroupId: bigint, amounts: bigint[]) {
     const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
 
@@ -684,6 +601,7 @@ class CurvySDK implements ICurvySDK {
     if (!babyJubjubPublicKey) {
       throw new Error(`BabyJubjub public key not found for handle ${handle}`);
     }
+    //@ts-expect-error
     return this.#core.sendNote(spendingKey, viewingKey, {
       ownerBabyJubjubPublicKey: babyJubjubPublicKey,
       // amounts,

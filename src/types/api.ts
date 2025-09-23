@@ -6,9 +6,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES, NETWORKS } from "@/constants/networks";
-import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
-import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
+import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
 import type { HexString } from "@/types/helper";
 import type { MetaTransactionType } from "@/types/meta-transaction";
 import type { PublicNote } from "@/types/note";
@@ -215,63 +213,6 @@ export type {
   SubmitAggregationReturnType,
   GetAggregatorRequestStatusReturnType,
 };
-
-//#endregion
-
-//#region CSUC
-
-type GetCSAInfoRequest = {
-  network: NETWORKS;
-  csas: string[];
-};
-
-type GetCSAInfoResponse = {
-  data: {
-    csaInfo: CSAInfo[];
-  };
-};
-
-type GetActionEstimatedCostRequest = {
-  payloads: CsucActionPayload[];
-};
-
-type GetActionEstimatedCostResponse = {
-  data: CsucEstimatedActionCost[];
-};
-
-type CreateActionRequest = {
-  action: CsucAction;
-};
-
-type CreateActionResponse = {
-  data: CsucActionStatus;
-};
-
-type GetActionStatusResponse = {
-  data: CsucActionStatus[];
-};
-
-export type {
-  GetCSAInfoRequest,
-  GetCSAInfoResponse,
-  GetActionEstimatedCostRequest,
-  GetActionEstimatedCostResponse,
-  CreateActionRequest,
-  CreateActionResponse,
-  GetActionStatusResponse,
-};
-
-//#endregion
-
-//#region GasSponsorship
-
-type SubmitGasSponsorshipRequest = GasSponsorshipRequest;
-
-type SubmitGasSponsorshipRequestReturnType = {
-  data: { actionIds: string[] };
-};
-
-export type { SubmitGasSponsorshipRequest, SubmitGasSponsorshipRequestReturnType };
 
 //#endregion
 
