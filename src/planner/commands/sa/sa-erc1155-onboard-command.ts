@@ -6,7 +6,7 @@ import type { CurvyCommandData } from "@/planner/plan";
 import { BALANCE_TYPE, type CsucBalanceEntry, type HexString } from "@/types";
 
 // This command automatically sends all available balance from SA to CSUC address
-export class SaDepositToCsuc extends SACommand {
+export class ERC1155OnboardCommand extends SACommand {
   // biome-ignore lint/complexity/noUselessConstructor: Abstract class protected constructor
   constructor(sdk: ICurvySDK, input: CurvyCommandData) {
     super(sdk, input);
