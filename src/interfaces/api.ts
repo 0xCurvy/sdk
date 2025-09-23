@@ -1,4 +1,5 @@
 import type { Groth16Proof } from "snarkjs";
+import type { MetaTransaction, MetaTransactionEstimate, MetaTransactionStatus } from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
   CreateActionResponse,
@@ -91,6 +92,12 @@ interface IApiClient {
 
   gasSponsorship: {
     SubmitRequest(action: SubmitGasSponsorshipRequest): Promise<SubmitGasSponsorshipRequestReturnType>;
+  };
+
+  metaTransaction: {
+    Estimate(metaTransaction: MetaTransaction): Promise<MetaTransactionEstimate>;
+    Submit(signature: string, id: string): Promise<{ error?: string }>;
+    Status(id: string): Promise<MetaTransactionStatus | null>;
   };
 }
 

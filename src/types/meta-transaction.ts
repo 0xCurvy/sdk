@@ -1,93 +1,35 @@
-import type { Network } from "@/types/api";
+import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
+import type { Currency, Network } from "@/types/api";
+import type { ExtractValues, HexString } from "@/types/helper";
 
-export enum CsucActionSet {
-  TRANSFER = "transfer",
-  WITHDRAW = "withdraw",
-  DEPOSIT_TO_AGGREGATOR = "deposit-to-aggregator",
-}
+const META_TRANSACTION_TYPES = {
+  ERC1155_TRANSFER: "erc1155_transfer",
+  ERC1155_ONBOARD: "erc1155_onboard",
+} as const;
 
-export type CsucActionType = {
-  service: "CSUC";
-  type: CsucActionSet;
-};
-export type CsucActionPayload = {
-  id?: number;
-  networkId: number;
-  from: string;
-  actionType: CsucActionType;
-  encodedData: string;
-  createdAt: Date;
-};
+export type MetaTransactionType = ExtractValues<typeof META_TRANSACTION_TYPES>;
 
-export type CsucEstimatedActionCost = {
-  payload: CsucActionPayload;
-  offeredTotalFee: string;
-  explanation: string;
-};
+const META_TRANSACTION_STATUSES = {
+  PENDING: "pending",
+  COMPLETED: "completed",
+  FAILED: "failed",
+  REJECTED: "rejected",
+} as const;
 
-export type CsucAction = {
+export type MetaTransactionStatus = ExtractValues<typeof META_TRANSACTION_STATUSES>;
+
+export type MetaTransaction = {
   id?: string;
-  payload: CsucActionPayload;
-  totalFee: string;
-  signature: CsucSignature;
-  createdAt?: Date;
-};
-
-export type CsucSignature = {
-  curve: "secp256k1";
-  hash: string;
-  r: string;
-  s: string;
-  v: string;
-};
-
-export enum CsucActionStage {
-  INVALID = "INVALID",
-  ACCEPTED = "ACCEPTED",
-  BATCHED = "BATCHED",
-  FINALIZED = "FINALIZED",
-}
-
-export type CsucActionStatus = {
-  id: string;
-  stage: CsucActionStage;
-  estimatedInclusionTime: Date;
-  batchId: string;
-  explanation?: string;
-};
-
-export enum CsucBatchStage {
-  WAITING = "WAITING",
-  FULL = "FULL",
-  SUBMITTED = "SUBMITTED",
-  REVERTED = "REVERTED",
-  FINALIZED = "FINALIZED",
-}
-
-export type CsucBatch = {
-  id: string;
   network: Network;
-  stage: CsucBatchStage;
-  actionIds: string[];
-  onChainHash: string;
-  onChainCallParameters: unknown;
-  onChainCost: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
-export type CSAInfo = {
-  network: string; // TODO: NetworkSlug
-  address: string;
-  balances: CsucBalance[];
-  nonce: CsucNonce[];
+  currency: Currency;
+  fromAddress: HexString;
+  type: MetaTransactionType;
+  payload: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  gasFee: bigint;
+  curvyFee: bigint;
+  status: MetaTransactionStatus;
 };
 
-export type CsucBalance = {
-  token: string;
-  amount: string;
-};
-
-export type CsucNonce = {
-  token: string;
-  value: string;
-};
+export type MetaTransactionEstimate = CurvyCommandEstimate;

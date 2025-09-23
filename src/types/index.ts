@@ -18,6 +18,7 @@ export {
   type Prettify,
   type StringifyBigInts,
 } from "./helper";
+export * from "./meta-transaction";
 export * from "./note";
 export * from "./rpc";
 export * from "./signature";

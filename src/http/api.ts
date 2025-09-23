@@ -1,7 +1,12 @@
 import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
-import type { SubmitNoteOwnershipProofReturnType } from "@/types";
+import type {
+  MetaTransaction,
+  MetaTransactionEstimate,
+  MetaTransactionStatus,
+  SubmitNoteOwnershipProofReturnType,
+} from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
   CreateActionRequest,
@@ -251,6 +256,20 @@ class ApiClient extends HttpClient implements IApiClient {
         body: { actions: [action] },
       });
     },
+  };
+
+  metaTransaction = {
+    Estimate: async (metaTransaction: MetaTransaction): Promise<MetaTransactionEstimate> => {
+      return (
+        await this.request<{ data: { estimate: MetaTransactionEstimate } }>({
+          method: "POST",
+          path: "/meta-transaction/estimate",
+          body: metaTransaction,
+        })
+      ).data.estimate;
+    },
+    Submit: async (signature: string, id: string): Promise<{ error?: string }> => {},
+    Status: async (id: string): Promise<MetaTransactionStatus | null> => {},
   };
 }
 
