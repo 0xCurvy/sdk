@@ -6,8 +6,10 @@ const META_TRANSACTION_TYPES = {
   ERC1155_TRANSFER: "erc1155_transfer",
   ERC1155_ONBOARD: "erc1155_onboard",
 } as const;
+type META_TRANSACTION_TYPES = typeof META_TRANSACTION_TYPES;
 
-export type MetaTransactionType = ExtractValues<typeof META_TRANSACTION_TYPES>;
+export { META_TRANSACTION_TYPES };
+export type MetaTransactionType = ExtractValues<META_TRANSACTION_TYPES>;
 
 const META_TRANSACTION_STATUSES = {
   PENDING: "pending",

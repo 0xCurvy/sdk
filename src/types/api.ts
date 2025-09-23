@@ -10,6 +10,7 @@ import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES, NETWORKS } from "@/c
 import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
+import type { MetaTransactionType } from "@/types/meta-transaction";
 import type { PublicNote } from "@/types/note";
 
 type _Announcement = {
@@ -272,6 +273,22 @@ type SubmitGasSponsorshipRequestReturnType = {
 
 export type { SubmitGasSponsorshipRequest, SubmitGasSponsorshipRequestReturnType };
 
+//#endregion
+
+//#region MetaTransaction
+
+type MetaTransactionEstimationRequestBody = {
+  type: MetaTransactionType;
+
+  from: string;
+  to: string;
+  amount: string;
+
+  network: string;
+  currencyAddress: string;
+};
+
+export type { MetaTransactionEstimationRequestBody };
 //#endregion
 
 export type {

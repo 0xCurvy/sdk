@@ -2,8 +2,8 @@ import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
 import type {
-  MetaTransaction,
   MetaTransactionEstimate,
+  MetaTransactionEstimationRequestBody,
   MetaTransactionStatus,
   SubmitNoteOwnershipProofReturnType,
 } from "@/types";
@@ -259,12 +259,12 @@ class ApiClient extends HttpClient implements IApiClient {
   };
 
   metaTransaction = {
-    Estimate: async (metaTransaction: MetaTransaction): Promise<MetaTransactionEstimate> => {
+    Estimate: async (body: MetaTransactionEstimationRequestBody): Promise<MetaTransactionEstimate> => {
       return (
         await this.request<{ data: { estimate: MetaTransactionEstimate } }>({
           method: "POST",
           path: "/meta-transaction/estimate",
-          body: metaTransaction,
+          body,
         })
       ).data.estimate;
     },

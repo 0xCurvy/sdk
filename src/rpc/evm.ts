@@ -50,7 +50,7 @@ class EvmRpc extends Rpc {
     });
   }
 
-  get publicClient() {
+  get provider() {
     return this.#publicClient;
   }
 
@@ -232,7 +232,7 @@ class EvmRpc extends Rpc {
 
     const hash = await this.#walletClient.sendRawTransaction({ serializedTransaction });
 
-    const receipt = await this.publicClient.waitForTransactionReceipt({
+    const receipt = await this.provider.waitForTransactionReceipt({
       hash,
     });
 
@@ -270,7 +270,7 @@ class EvmRpc extends Rpc {
       throw new Error("Input balance entry must be of SA type");
     }
 
-    const { maxFeePerGas } = await this.publicClient.estimateFeesPerGas();
+    const { maxFeePerGas } = await this.provider.estimateFeesPerGas();
 
     const gasLimit = await this.#publicClient
       .estimateContractGas({
@@ -296,7 +296,7 @@ class EvmRpc extends Rpc {
       value: parseDecimal(amount, currency) - fee,
     });
 
-    const receipt = await this.publicClient.waitForTransactionReceipt({
+    const receipt = await this.provider.waitForTransactionReceipt({
       hash,
     });
 
@@ -362,7 +362,7 @@ class EvmRpc extends Rpc {
 
     const erc1155EnabledCurrencies = this.network.currencies.filter(({ erc1155Enabled }) => erc1155Enabled);
 
-    const balances = await this.publicClient.readContract({
+    const balances = await this.provider.readContract({
       abi: erc1155ABI,
       address: this.network.erc1155ContractAddress as Address,
       functionName: "balanceOfBatch",
@@ -391,7 +391,7 @@ class EvmRpc extends Rpc {
     // Legacy CSA
     const account = privateKeyToAccount(privateKey);
 
-    let nonce = await this.publicClient.getTransactionCount({
+    let nonce = await this.provider.getTransactionCount({
       address: account.address,
     });
 

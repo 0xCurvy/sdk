@@ -43,6 +43,10 @@ class StarknetRpc extends Rpc {
     });
   }
 
+  get provider(): Provider {
+    return this.#provider;
+  }
+
   async getBalances(stealthAddress: CurvyAddress) {
     const starkMulticall = new Contract(
       starknetMulticallAbi,
