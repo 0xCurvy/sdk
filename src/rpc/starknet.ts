@@ -25,7 +25,7 @@ import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
-import type { RpcBalance, RpcBalances, StarknetFeeEstimate } from "@/types/rpc";
+import type { Erc1155Balance, RpcBalance, RpcBalances, StarknetFeeEstimate } from "@/types/rpc";
 import { parseDecimal } from "@/utils/currency";
 import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { toSlug } from "@/utils/helpers";
@@ -350,6 +350,14 @@ class StarknetRpc extends Rpc {
         throw new Error(`Unsupported wallet ID: ${walletId}`);
       }
     }
+  }
+
+  async injectErc1155Ids(_currencies: Currency[]): Promise<Currency[]> {
+    throw new Error("ERC1155 is not supported on Starknet");
+  }
+
+  async getErc1155Balances(_address: CurvyAddress): Promise<Erc1155Balance> {
+    throw new Error("ERC1155 is not supported on Starknet");
   }
 
   prepareCSUCOnboardTransaction(

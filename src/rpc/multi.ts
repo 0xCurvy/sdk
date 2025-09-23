@@ -1,5 +1,5 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { CurvyAddress, RpcBalances } from "@/types";
+import type { CurvyAddress, Erc1155Balance, Network, RpcBalances } from "@/types";
 import { toSlug } from "@/utils/helpers";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
 import type { Rpc } from "./abstract";
@@ -29,6 +29,14 @@ class MultiRpc {
     });
   }
 
+  getErc1155Balances(curvyAddress: CurvyAddress): Promise<Erc1155Balance[]> {
+    const rpcs = this.#rpcArray.filter((rpc) => rpc.network.flavour === curvyAddress.networkFlavour);
+
+    return Promise.all(rpcs.map((rpc) => rpc.getErc1155Balances(curvyAddress))).then((results) => {
+      return results;
+    });
+  }
+
   Network(networkFilter: NetworkFilter): Rpc {
     const rpc = this.#rpcArray.filter((rpc) => {
       return filterNetworks([rpc.network], networkFilter).length;
@@ -43,6 +51,26 @@ class MultiRpc {
     }
 
     return rpc[0];
+  }
+
+  async injectErc1155Ids(networks: Network[]): Promise<Network[]> {
+    const injectedNetworks = [];
+
+    for (const network of networks) {
+      if (!network.erc1155ContractAddress) injectedNetworks.push(network);
+
+      const rpc = this.#rpcArray.find((rpc) => rpc.network.name === network.name);
+
+      if (!rpc) {
+        injectedNetworks.push(network);
+        continue;
+      }
+
+      network.currencies = await rpc.injectErc1155Ids(network.currencies);
+      injectedNetworks.push(network);
+    }
+
+    return injectedNetworks;
   }
 
   get environment() {

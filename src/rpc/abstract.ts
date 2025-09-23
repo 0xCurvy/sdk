@@ -2,7 +2,7 @@ import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
 import type { HexString } from "@/types/helper";
-import type { RpcBalance, RpcBalances, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
+import type { Erc1155Balance, RpcBalance, RpcBalances, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
 
 abstract class Rpc {
   readonly #network: Network;
@@ -37,6 +37,9 @@ abstract class Rpc {
   ): Promise<bigint | StarknetFeeEstimate>;
 
   abstract feeToAmount(feeEstimate: StarknetFeeEstimate | bigint): bigint;
+
+  abstract injectErc1155Ids(currencies: Currency[]): Promise<Currency[]>;
+  abstract getErc1155Balances(address: CurvyAddress): Promise<Erc1155Balance>;
 
   abstract prepareCSUCOnboardTransaction(
     privateKey: HexString,

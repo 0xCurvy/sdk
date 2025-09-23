@@ -50,7 +50,6 @@ const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
 
 type CsucBalanceEntry = BalanceEntryBase & {
   type: BALANCE_TYPE["CSUC"];
-  nonce: bigint;
 };
 const isCsucBalanceEntry = (entry: BalanceEntry): entry is CsucBalanceEntry => {
   return entry.type === BALANCE_TYPE.CSUC;

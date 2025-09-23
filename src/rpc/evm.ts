@@ -14,10 +14,11 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
+import { erc1155ABI } from "@/contracts/evm/abi/erc1155";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { ARTIFACT as CSUC_ETH_SEPOLIA_ARTIFACT } from "@/contracts/evm/curvy-artifacts/ethereum-sepolia/CSUC";
 import { Rpc } from "@/rpc/abstract";
-import { type BalanceEntry, isSaBalanceEntry, type RpcBalance, type RpcBalances } from "@/types";
+import { type BalanceEntry, type Erc1155Balance, isSaBalanceEntry, type RpcBalance, type RpcBalances } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
 import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
@@ -261,7 +262,7 @@ class EvmRpc extends Rpc {
   }
 
   async onboardNativeToCSUC(input: BalanceEntry, privateKey: HexString, currency: Currency, amount: string) {
-    if (!this.network.csucContractAddress) {
+    if (!this.network.erc1155ContractAddress) {
       throw new Error("[CSUCOnboard]: CSUC actions not supported on this network");
     }
 
@@ -274,7 +275,7 @@ class EvmRpc extends Rpc {
     const gasLimit = await this.#publicClient
       .estimateContractGas({
         account: privateKeyToAccount(privateKey),
-        address: this.network.csucContractAddress as HexString,
+        address: this.network.erc1155ContractAddress as HexString,
         abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
         functionName: "wrapNative",
         args: [input.source as HexString],
@@ -290,7 +291,7 @@ class EvmRpc extends Rpc {
       functionName: "wrapNative",
       account: privateKeyToAccount(privateKey),
       chain: this.#walletClient.chain,
-      address: this.network.csucContractAddress as HexString,
+      address: this.network.erc1155ContractAddress as HexString,
       args: [input.source as HexString],
       value: parseDecimal(amount, currency) - fee,
     });
@@ -308,13 +309,82 @@ class EvmRpc extends Rpc {
     };
   }
 
+  async injectErc1155Ids(currencies: Currency[]) {
+    if (!this.network.erc1155ContractAddress) {
+      throw new Error(" Erc1155 actions not supported on this network");
+    }
+
+    const evmMulticall = getContract({
+      abi: evmMulticall3Abi,
+      address: this.network.multiCallContractAddress as Address,
+      client: this.#publicClient,
+    });
+
+    const currencyMap = new Map(currencies.map((c) => [c.id, c]));
+
+    const filteredCurrencies = currencies.filter(({ erc1155Enabled }) => erc1155Enabled);
+
+    const calls = filteredCurrencies.map(({ contractAddress }) => {
+      return {
+        target: this.network.erc1155ContractAddress as Address,
+        callData: encodeFunctionData({
+          abi: erc1155ABI,
+          functionName: "getTokenID",
+          args: [contractAddress as Address],
+        }),
+        gasLimit: 30_000n,
+      };
+    });
+
+    const {
+      result: [_, erc1155Ids],
+    } = await evmMulticall.simulate.aggregate([calls]);
+
+    erc1155Ids.forEach((encodedErc1155Id, idx) => {
+      const erc1155Id = decodeFunctionResult({
+        abi: erc1155ABI,
+        functionName: "getTokenID",
+        data: encodedErc1155Id,
+      });
+
+      const currency = filteredCurrencies[idx];
+
+      currencyMap.set(currency.id, { ...currency, erc1155Enabled: true, erc1155Id });
+    });
+
+    return Array.from(currencyMap.values());
+  }
+
+  async getErc1155Balances({ address }: CurvyAddress): Promise<Erc1155Balance> {
+    if (!this.network.erc1155ContractAddress) {
+      throw new Error(" Erc1155 actions not supported on this network");
+    }
+
+    const erc1155EnabledCurrencies = this.network.currencies.filter(({ erc1155Enabled }) => erc1155Enabled);
+
+    const balances = await this.publicClient.readContract({
+      abi: erc1155ABI,
+      address: this.network.erc1155ContractAddress as Address,
+      functionName: "balanceOfBatch",
+      args: [[address], erc1155EnabledCurrencies.flatMap((c) => (c.erc1155Enabled ? c.erc1155Id : []))],
+    });
+
+    return {
+      network: toSlug(this.network.name),
+      address,
+      balances: balances.map((balance, idx) => {
+        return { balance, currencyAddress: erc1155EnabledCurrencies[idx].contractAddress };
+      }),
+    };
+  }
+
   async prepareCSUCOnboardTransaction(
     privateKey: HexString,
     toAddress: HexString,
     currency: Currency,
     amount: string,
   ): Promise<GasSponsorshipRequest> {
-    if (!this.network.csucContractAddress) {
+    if (!this.network.erc1155ContractAddress) {
       throw new Error("[CSUCOnboard]: CSUC actions not supported on this network");
     }
 
@@ -334,14 +404,14 @@ class EvmRpc extends Rpc {
         data: encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
-          args: [this.network.csucContractAddress as HexString, parseDecimal(amount, currency)],
+          args: [this.network.erc1155ContractAddress as HexString, parseDecimal(amount, currency)],
         }),
         gas: 70_000n,
         nonce,
       },
       // CSUC wrap transaction
       {
-        to: this.network.csucContractAddress as HexString,
+        to: this.network.erc1155ContractAddress as HexString,
         data: encodeFunctionData({
           abi: CSUC_ETH_SEPOLIA_ARTIFACT.abi,
           functionName: "wrapERC20",

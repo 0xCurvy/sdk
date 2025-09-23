@@ -114,51 +114,46 @@ export class BalanceScanner implements IBalanceScanner {
   async #processCsucBalances(addresses: CurvyAddress[]): Promise<BalanceEntry[]> {
     const arrLength = addresses.length;
 
-    //TODO Support multiple networks
-    const {
-      data: { csaInfo },
-    } = await this.apiClient.csuc.GetCSAInfo({ network: "localnet", csas: addresses.map((a) => a.address) });
-
     const entries: CsucBalanceEntry[] = [];
 
     for (let i = 0; i < arrLength; i++) {
-      const { balances, address, nonce: nonces, network } = csaInfo[i];
-      const balancesLength = balances.length;
+      const address = addresses[i];
 
-      for (let j = 0; j < balancesLength; j++) {
-        const { token: currencyAddress, amount } = balances[j];
+      const erc1155Data = await this.rpcClient.getErc1155Balances(address);
 
-        const { symbol, environment, decimals } = await this.#storage.getCurrencyMetadata(
-          currencyAddress,
-          toSlug(network),
-        );
+      for (const { network, address, balances } of erc1155Data) {
+        const balancesLength = balances.length;
+        for (let j = 0; j < balancesLength; j++) {
+          const { currencyAddress, balance } = balances[j];
 
-        const balance = BigInt(amount);
-        if (balance === 0n) continue; // Skip zero balances
+          if (balance === 0n) continue; // Skip zero balances
 
-        const nonce = BigInt(nonces[j].value);
+          const { symbol, environment, decimals } = await this.#storage.getCurrencyMetadata(
+            currencyAddress,
+            toSlug(network),
+          );
 
-        entries.push({
-          walletId: addresses[i].walletId,
-          source: address,
-          type: BALANCE_TYPE.CSUC,
+          entries.push({
+            walletId: addresses[i].walletId,
+            source: address,
+            type: BALANCE_TYPE.CSUC,
 
-          networkSlug: toSlug(network),
-          environment,
-          decimals,
+            networkSlug: toSlug(network),
+            environment,
+            decimals,
 
-          currencyAddress,
-          balance,
-          symbol,
+            currencyAddress,
+            balance,
+            symbol,
 
-          nonce,
-
-          lastUpdated: +dayjs(),
-        });
+            lastUpdated: +dayjs(),
+          });
+        }
       }
     }
     return entries;
   }
+
   async #processNotes(notes: FullNoteData[]): Promise<BalanceEntry[]> {
     const entries: NoteBalanceEntry[] = [];
 
@@ -175,7 +170,10 @@ export class BalanceScanner implements IBalanceScanner {
       const networkSlug = "localnet"; // TODO Support multiple networks
 
       // TODO: WARNING This is a hack, token group ID DOES NOT MATCH currency id
-      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(tokenGroupId, networkSlug);
+      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(
+        tokenGroupId,
+        networkSlug,
+      );
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,

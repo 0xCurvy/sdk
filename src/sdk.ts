@@ -115,17 +115,20 @@ class CurvySDK implements ICurvySDK {
     const core = await Core.init(wasmUrl);
 
     const sdk = new CurvySDK(apiKey, core, apiBaseUrl, storage);
-    sdk.#networks = await sdk.apiClient.network.GetNetworks();
-    await sdk.storage.upsertCurrencyMetadata(networksToCurrencyMetadata(sdk.#networks));
-
-    await sdk.#priceUpdate(sdk.#networks);
-    sdk.startPriceIntervalUpdate();
 
     if (networkFilter === undefined) {
       sdk.setActiveNetworks(false); // all mainnets by default
     } else {
       sdk.setActiveNetworks(networkFilter);
     }
+
+    const networks = await sdk.rpcClient.injectErc1155Ids(await sdk.apiClient.network.GetNetworks());
+
+    sdk.#networks = networks;
+    await sdk.storage.upsertCurrencyMetadata(networksToCurrencyMetadata(networks));
+
+    await sdk.#priceUpdate(networks);
+    sdk.startPriceIntervalUpdate();
 
     sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(

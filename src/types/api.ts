@@ -23,7 +23,7 @@ type RawAnnouncement = _Announcement & {
   ephemeralPublicKey: string;
 };
 
-type Currency = {
+type _Currency = {
   id: number;
   name: string;
   symbol: string;
@@ -34,8 +34,18 @@ type Currency = {
   decimals: number;
   contractAddress: string;
   nativeCurrency: boolean;
-  csucEnabled: boolean;
 };
+
+type Currency = _Currency &
+  (
+    | {
+        erc1155Enabled: false;
+      }
+    | {
+        erc1155Enabled: true;
+        erc1155Id: bigint;
+      }
+  );
 
 type Network = {
   id: number;
@@ -45,7 +55,7 @@ type Network = {
   slip0044: number;
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
-  csucContractAddress?: string;
+  erc1155ContractAddress?: string;
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   nativeCurrency: string | null; // TODO: Why is this string?

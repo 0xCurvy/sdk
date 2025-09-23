@@ -56,4 +56,18 @@ type RpcBalances = Partial<
   >
 >;
 
-export type { StarknetFeeEstimate, CurvyFeeEstimate, RecipientData, SendReturnType, RpcBalance, RpcBalances };
+type Erc1155Balance = {
+  network: string;
+  address: `0x${string}`;
+  balances: { balance: bigint; currencyAddress: string }[];
+};
+
+export type {
+  StarknetFeeEstimate,
+  CurvyFeeEstimate,
+  RecipientData,
+  SendReturnType,
+  RpcBalance,
+  RpcBalances,
+  Erc1155Balance,
+};
