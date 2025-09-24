@@ -77,8 +77,6 @@ class CurvySDK implements ICurvySDK {
     core: Core,
     apiBaseUrl?: string,
     storage: StorageInterface = new MapStorage(),
-    // TODO: IMPORTANT FIX!
-    // @ts-expect-error
     commandFactory: ICommandFactory = new CurvyCommandFactory(this),
   ) {
     this.#core = core;
@@ -141,8 +139,7 @@ class CurvySDK implements ICurvySDK {
 
   static async DANGER_DO_NOT_USE_init(): Promise<CurvySDK> {
     const core = await Core.init();
-    // @ts-expect-error
-    return new CurvySDK(null, core, null, null);
+    return new CurvySDK("", core);
   }
 
   // TODO: Think about calling it just executor
@@ -486,7 +483,6 @@ class CurvySDK implements ICurvySDK {
     return this.apiClient.aggregator.GetAggregatorRequestStatus(requestId);
   }
 
-  // TODO: IMPORTANT FIX!
   createAggregationPayload(params: AggregationRequestParams): AggregationRequest {
     const { inputNotes, outputNotes } = params;
 
@@ -496,7 +492,6 @@ class CurvySDK implements ICurvySDK {
       outputNotes.push({
         ownerHash: "0",
         balance: {
-          // @ts-expect-error
           amount: "0",
           token: "0",
         },
@@ -540,8 +535,6 @@ class CurvySDK implements ICurvySDK {
           sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
         },
         balance: {
-          // TODO: IMPORTANT FIX!
-          // @ts-expect-error
           amount: "0",
           token: "0",
         },

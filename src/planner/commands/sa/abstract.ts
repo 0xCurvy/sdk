@@ -1,14 +1,11 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { BALANCE_TYPE, type CsucActionPayload, type Network, type SaBalanceEntry } from "@/types";
+import { BALANCE_TYPE, type Network, type SaBalanceEntry } from "@/types";
 
 export abstract class SACommand extends CurvyCommand {
   // SA address that will sign / auth. the action to be executed
   protected declare input: SaBalanceEntry;
-
-  // Payload that will be used for estimation / execution of the action
-  protected actionPayload?: CsucActionPayload;
 
   protected network: Network;
 

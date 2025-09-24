@@ -1,6 +1,5 @@
 import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
-import type { MetaTransactionEstimate, MetaTransactionStatus } from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
   CreateAnnouncementRequestBody,
@@ -11,7 +10,6 @@ import type {
   GetAnnouncementsReturnType,
   GetCurvyHandleByOwnerAddressReturnType,
   GetNetworksReturnType,
-  MetaTransactionEstimationRequestBody,
   RawAnnouncement,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
