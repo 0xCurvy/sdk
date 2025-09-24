@@ -259,7 +259,7 @@ class EvmRpc extends Rpc {
 
   async injectErc1155Ids(currencies: Currency[]) {
     if (!this.network.erc1155ContractAddress) {
-      throw new Error(" Erc1155 actions not supported on this network");
+      throw new Error("Erc1155 actions not supported on this network");
     }
 
     const evmMulticall = getContract({
@@ -305,7 +305,7 @@ class EvmRpc extends Rpc {
 
   async getErc1155Balances({ address }: CurvyAddress): Promise<Erc1155Balance> {
     if (!this.network.erc1155ContractAddress) {
-      throw new Error(" Erc1155 actions not supported on this network");
+      throw new Error("Erc1155 actions not supported on this network");
     }
 
     const erc1155EnabledCurrencies = this.network.currencies.filter(({ erc1155Enabled }) => erc1155Enabled);
@@ -323,6 +323,46 @@ class EvmRpc extends Rpc {
       balances: balances.map((balance, idx) => {
         return { balance, currencyAddress: erc1155EnabledCurrencies[idx].contractAddress };
       }),
+    };
+  }
+
+  async estimateOnboardNativeToErc1155(from: HexString, amount: bigint) {
+    if (!this.network.erc1155ContractAddress) {
+      throw new Error("Erc1155 actions not supported on this network");
+    }
+    const { maxFeePerGas } = await this.provider.estimateFeesPerGas();
+
+    const gasLimit = await this.provider.estimateGas({
+      account: from,
+      value: amount,
+      to: this.network.erc1155ContractAddress as Address,
+    });
+
+    return maxFeePerGas * gasLimit;
+  }
+
+  async onboardNativeToErc1155(amount: bigint, privateKey: HexString) {
+    if (!this.network.erc1155ContractAddress) {
+      throw new Error("Erc1155 actions not supported on this network");
+    }
+
+    const hash = await this.#walletClient.sendTransaction({
+      chain: this.#walletClient.chain,
+      account: privateKeyToAccount(privateKey),
+      to: this.network.erc1155ContractAddress as HexString,
+      value: amount,
+    });
+
+    const receipt = await this.provider.waitForTransactionReceipt({
+      hash,
+    });
+
+    const txExplorerUrl = `${this.network.blockExplorerUrl}/tx/${hash}`;
+
+    return {
+      txHash: hash,
+      txExplorerUrl,
+      receipt,
     };
   }
 }

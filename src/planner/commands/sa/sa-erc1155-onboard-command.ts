@@ -1,60 +1,72 @@
-// @ts-nocheck
-
-// TODO: REIMPLEMENT
-import { formatUnits } from "viem";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { SACommand } from "@/planner/commands/sa/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
+import type { Rpc } from "@/rpc/abstract";
 import { BALANCE_TYPE, type Erc1155BalanceEntry, type HexString } from "@/types";
 
 // This command automatically sends all available balance from SA to CSUC address
 export class SaErc1155OnboardCommand extends SACommand {
-  // biome-ignore lint/complexity/noUselessConstructor: Abstract class protected constructor
+  #rpc: Rpc;
+
   constructor(sdk: ICurvySDK, input: CurvyCommandData) {
     super(sdk, input);
+    this.#rpc = this.sdk.rpcClient.Network(this.input.networkSlug);
   }
 
   async execute(): Promise<CurvyCommandData> {
-    // TODO check why deposit to CSUC fails immediately after wrapNative
-    const result = await this.sdk.onboardToCSUC(
+    const { native: isOnboardingNative } = await this.sdk.storage.getCurrencyMetadata(
+      this.input.currencyAddress,
       this.input.networkSlug,
-      this.input,
-      this.input.source as HexString,
-      this.input.symbol,
-      formatUnits(this.input.balance, this.input.decimals),
     );
 
-    const { createdAt: _, ...inputData } = this.input;
+    const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
+    const privateKey = this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
 
-    if (result)
+    const { gas, curvyFee } = await this.estimate();
+    const amount = this.input.balance - curvyFee - gas;
+
+    if (isOnboardingNative) {
+      await this.#rpc.onboardNativeToErc1155(amount, privateKey);
+    } else {
+      // const result = await this.sdk.apiClient.submit(amount, ...)
       await this.sdk.pollForCriteria(
-        () => this.sdk.apiClient.csuc.GetActionStatus({ actionIds: result.data.actionIds }),
-        (res) => res.data[0].stage === "FINALIZED",
+        () => Promise.resolve(true),
+        (res) => res,
         120,
         10_000,
       );
+    }
 
-    const {
-      data: {
-        csaInfo: [{ balances }],
-      },
-    } = await this.sdk.apiClient.csuc.GetCSAInfo({ network: this.input.networkSlug, csas: [this.input.source] });
-    const csucBalance = balances.find((b) => b.token === this.input.currencyAddress);
+    const { createdAt: _, ...inputData } = this.input;
 
-    if (!csucBalance) {
-      throw new Error("Failed to retrieve CSUC balance after deposit");
+    const { balances } = await this.#rpc.getErc1155Balances(curvyAddress);
+    const erc1155Balance = balances.find((b) => b.currencyAddress === this.input.currencyAddress);
+
+    if (!erc1155Balance) {
+      throw new Error("Failed to retrieve ERC1155 balance after deposit!");
     }
 
     return {
       ...inputData,
-      balance: BigInt(csucBalance.amount),
-      type: BALANCE_TYPE.CSUC,
-      nonce: 0n,
+      balance: BigInt(erc1155Balance.balance),
+      type: BALANCE_TYPE.ERC1155,
     } satisfies Erc1155BalanceEntry;
   }
 
   async estimate(): Promise<CurvyCommandEstimate> {
-    return { curvyFee: this.input.balance / 1000n, gas: 0n };
+    const { native: isOnboardingNative } = await this.sdk.storage.getCurrencyMetadata(
+      this.input.currencyAddress,
+      this.input.networkSlug,
+    );
+
+    if (isOnboardingNative) {
+      const gas = await this.#rpc.estimateOnboardNativeToErc1155(this.input.source as HexString, this.input.balance);
+
+      return { curvyFee: 0n, gas };
+    } else {
+      // this.sdk.apiClient.metaTransaction.estimate();
+      return { curvyFee: 0n, gas: 0n };
+    }
   }
 }

@@ -45,7 +45,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
 
     // TODO: Create utility methods for creating balance entries in commands
     return {
-      type: BALANCE_TYPE.CSUC,
+      type: BALANCE_TYPE.ERC1155,
       nonce: BigInt(csucNonce),
       walletId,
       source: destinationAddress,

@@ -17,7 +17,7 @@ export abstract class AbstractErc1155Command extends CurvyCommand {
       throw new Error("Invalid input for command, CSUC commands only accept one data as input.");
     }
 
-    if (input.type !== BALANCE_TYPE.CSUC) {
+    if (input.type !== BALANCE_TYPE.ERC1155) {
       throw new Error("Invalid input for command, CSUC commands only accept CSUC balance type as input.");
     }
 

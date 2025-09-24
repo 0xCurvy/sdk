@@ -136,7 +136,7 @@ export class BalanceScanner implements IBalanceScanner {
           entries.push({
             walletId: addresses[i].walletId,
             source: address,
-            type: BALANCE_TYPE.CSUC,
+            type: BALANCE_TYPE.ERC1155,
 
             networkSlug: toSlug(network),
             environment,

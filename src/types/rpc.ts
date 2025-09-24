@@ -24,7 +24,7 @@ type RecipientData = {
   pubKey?: string;
 };
 
-type SendReturnType = {
+type RpcCallReturnType = {
   txHash: string;
   txExplorerUrl: string;
   receipt: EvmTransactionReceipt | StarknetTransactionReceipt;
@@ -66,7 +66,7 @@ export type {
   StarknetFeeEstimate,
   CurvyFeeEstimate,
   RecipientData,
-  SendReturnType,
+  RpcCallReturnType,
   RpcBalance,
   RpcBalances,
   Erc1155Balance,

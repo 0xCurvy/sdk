@@ -1,5 +1,6 @@
 import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
+import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
 import type { Note } from "@/types";
@@ -20,16 +21,18 @@ import type {
   SubmitWithdrawReturnType,
 } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
+import type { CurvyFeeEstimate, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
 import type { CurvySignatureParameters } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
 
 interface ICurvySDK {
+  storage: StorageInterface;
+  apiClient: IApiClient;
+
   // Getters
   get rpcClient(): MultiRpc;
   get activeNetworks(): Network[];
   get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
-  get apiClient(): IApiClient;
   get walletManager(): IWalletManager;
 
   createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest;
@@ -79,7 +82,7 @@ interface ICurvySDK {
     currency: string,
     fee: StarknetFeeEstimate | bigint,
     message?: string,
-  ): Promise<SendReturnType>;
+  ): Promise<RpcCallReturnType>;
 
   createDeposit(payload: DepositRequest): Promise<SubmitDepositReturnType>;
   createWithdraw(payload: WithdrawRequest): Promise<SubmitWithdrawReturnType>;

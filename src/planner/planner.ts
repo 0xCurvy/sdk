@@ -1,6 +1,6 @@
-import type {CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl} from "@/planner/plan";
-import {BALANCE_TYPE, type BalanceEntry} from "@/types";
-import {isHexString} from "@/types/helper";
+import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
+import { BALANCE_TYPE, type BalanceEntry } from "@/types";
+import { isHexString } from "@/types/helper";
 
 const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
   const plan: CurvyPlan = {
@@ -22,7 +22,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   }
 
   // Then addresses can be deposited from CSUC to Aggregator
-  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.CSUC) {
+  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.ERC1155) {
     plan.items.push({
       type: "command",
       name: "csuc-deposit-to-aggregator",

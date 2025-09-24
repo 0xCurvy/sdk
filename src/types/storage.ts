@@ -3,7 +3,7 @@ import type { ExtractValues } from "@/types/helper";
 
 const BALANCE_TYPE = {
   SA: "sa",
-  CSUC: "csuc",
+  ERC1155: "erc1155",
   NOTE: "note",
 } as const;
 type BALANCE_TYPE = typeof BALANCE_TYPE;
@@ -49,10 +49,10 @@ const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
 };
 
 type Erc1155BalanceEntry = BalanceEntryBase & {
-  type: BALANCE_TYPE["CSUC"];
+  type: BALANCE_TYPE["ERC1155"];
 };
 const isErc1155BalanceEntry = (entry: BalanceEntry): entry is Erc1155BalanceEntry => {
-  return entry.type === BALANCE_TYPE.CSUC;
+  return entry.type === BALANCE_TYPE.ERC1155;
 };
 
 type NoteBalanceEntry = BalanceEntryBase & {
