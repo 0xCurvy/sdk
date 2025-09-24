@@ -1,62 +1,28 @@
 // @ts-nocheck
 
 // TODO: REIMPLEMENT
-import { ethers } from "ethers";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
+import { META_TRANSACTION_TYPES, type Note } from "@/types";
 
 // This command automatically sends all available balance from ERC1155 to Aggregator
 export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
   async execute(): Promise<CurvyCommandData> {
-    const currencyAddress = this.input.currencyAddress;
+    const { id, gas, curvyFee, note } = await this.estimate();
 
-    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, BigInt(currencyAddress), this.input.balance);
+    note.balance!.amount = this.input.balance - curvyFee - gas;
 
-    const { payload, offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
-      this.network.id,
-      CsucActionSet.DEPOSIT_TO_AGGREGATOR,
-      this.input.source as HexString,
-      note.ownerHash,
-      currencyAddress as HexString,
-      this.input.balance,
-    );
+    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id });
 
-    const {
-      action: { signature },
-      response: { id },
-    } = await this.sdk.requestActionInsideCSUC(this.network.id, this.input, payload, offeredTotalFee);
-
-    // TODO: better configure max retries and timeout
     await this.sdk.pollForCriteria(
-      () => this.sdk.apiClient.csuc.GetActionStatus({ actionIds: [id] }),
+      () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
-        return res.data[0]?.stage === CsucActionStage.FINALIZED;
+        return res === "completed";
       },
       120,
       10000,
     );
-
-    // Decode the payload to extract the notes
-    const encodedData = JSON.parse(payload.encodedData) as any;
-    const decodedParams = new ethers.AbiCoder().decode(["tuple(uint256,uint256,uint256)[]"], encodedData.parameters);
-
-    const csucPayloadNotes = (decodedParams[0] as any[]).map((param) => {
-      const [ownerHash, token, amount] = param.values();
-
-      return {
-        ownerHash: BigInt(ownerHash),
-        amount: BigInt(amount),
-        token: BigInt(token),
-      };
-    });
-
-    // Create deposit notes for each of the notes in the CSUC payload
-    const depositNotes: Note[] = [];
-
-    for (let i = 0; i < csucPayloadNotes.length; i++) {
-      depositNotes.push(note);
-    }
 
     const { erc1155ContractAddress } = this.network;
 
@@ -65,7 +31,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     }
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
-      outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
+      outputNotes: note.serializeDepositNote(),
       csucAddress: erc1155ContractAddress,
       csucTransferAllowanceSignature: signature.hash.toString(),
     });
@@ -91,20 +57,21 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     );
   }
 
-  async estimate(): Promise<CurvyCommandEstimate> {
+  async estimate(): Promise<CurvyCommandEstimate & { id: string; note: Note }> {
     const currencyAddress = this.input.currencyAddress;
 
     const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, BigInt(currencyAddress), this.input.balance);
 
-    const { offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
-      this.network.id,
-      CsucActionSet.DEPOSIT_TO_AGGREGATOR,
-      this.input.source as HexString,
-      note.ownerHash,
-      currencyAddress as HexString,
-      this.input.balance,
-    );
+    const { id, estimate } = await this.sdk.apiClient.metaTransaction.EstimateGas({
+      type: META_TRANSACTION_TYPES.ERC1155_DEPOSIT_TO_AGGREGATOR,
+      currencyAddress,
+      amount: this.input.balance.toString(),
+      fromAddress: this.input.source,
+      toAddress: this.input.source,
+      network: this.input.networkSlug,
+      ownerHash: note.ownerHash,
+    });
 
-    return { curvyFee: BigInt(offeredTotalFee), gas: 0n }; // TODO what is gas here?
+    return { ...estimate, id, note };
   }
 }

@@ -27,6 +27,7 @@ export type MetaTransaction = {
   id?: string;
   network: Network;
   currency: Currency;
+  ownerHash?: string;
   fromAddress: HexString;
   toAddress?: HexString;
   type: MetaTransactionType;
