@@ -310,11 +310,15 @@ class EvmRpc extends Rpc {
 
     const erc1155EnabledCurrencies = this.network.currencies.filter(({ erc1155Enabled }) => erc1155Enabled);
 
+    // MUST REPEAT OWNER ADDRESS FOR EACH TOKEN ID
+    const currencyIds = erc1155EnabledCurrencies.flatMap((c) => (c.erc1155Enabled ? c.erc1155Id : []));
+    const ownerArray = new Array(currencyIds.length).fill(address as Address);
+
     const balances = await this.provider.readContract({
       abi: erc1155ABI,
       address: this.network.erc1155ContractAddress as Address,
       functionName: "balanceOfBatch",
-      args: [[address], erc1155EnabledCurrencies.flatMap((c) => (c.erc1155Enabled ? c.erc1155Id : []))],
+      args: [ownerArray, currencyIds],
     });
 
     return {

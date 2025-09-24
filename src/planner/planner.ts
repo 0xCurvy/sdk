@@ -17,7 +17,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   if (balanceEntry.type === BALANCE_TYPE.SA) {
     plan.items.push({
       type: "command",
-      name: "sa-deposit-to-csuc", // This includes gas sponsorship as well.
+      name: "sa-erc1155-onboard-command", // This includes gas sponsorship as well.
     });
   }
 
@@ -25,7 +25,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.ERC1155) {
     plan.items.push({
       type: "command",
-      name: "csuc-deposit-to-aggregator",
+      name: "erc1155-deposit-to-aggregator",
     });
   }
 
@@ -119,11 +119,11 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
     aggregationPlan.items.push(
       {
         type: "command",
-        name: "aggregator-withdraw-to-csuc",
+        name: "aggregator-withdraw-to-erc1155",
       },
       {
         type: "command",
-        name: "csuc-withdraw-to-eoa",
+        name: "erc1155-withdraw-to-eoa",
         intent,
       },
     );

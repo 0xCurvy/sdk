@@ -9,7 +9,11 @@ import type {
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsReturnType,
   GetCurvyHandleByOwnerAddressReturnType,
+  GetMetaTransactionStatusReturnType,
   GetNetworksReturnType,
+  MetaEstimateGasReturnType,
+  MetaTransactionEstimationRequestBody,
+  MetaTransactionSubmitBody,
   RawAnnouncement,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
@@ -201,6 +205,17 @@ export class MockAPIClient implements IApiClient {
       throw new Error("Method not implemented.");
     },
     GetAggregatorRequestStatus: async (_requestId: string): Promise<GetAggregatorRequestStatusReturnType> => {
+      throw new Error("Method not implemented.");
+    },
+  };
+  metaTransaction = {
+    SubmitTransaction: async (_body: MetaTransactionSubmitBody): Promise<void> => {
+      throw new Error("Method not implemented.");
+    },
+    GetStatus: async (_requestId: string): Promise<GetMetaTransactionStatusReturnType> => {
+      throw new Error("Method not implemented.");
+    },
+    EstimateGas: async (_body: MetaTransactionEstimationRequestBody): Promise<MetaEstimateGasReturnType> => {
       throw new Error("Method not implemented.");
     },
   };

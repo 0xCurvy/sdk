@@ -1,7 +1,7 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand } from "@/planner/commands/abstract";
 import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
-import { AggregatorWithdrawToErc1155Command } from "@/planner/commands/aggregator/aggregator-withdraw-to-csuc";
+import { AggregatorWithdrawToErc1155Command } from "@/planner/commands/aggregator/aggregator-withdraw-to-erc1155";
 import { Erc1155DepositToAggregatorCommand } from "@/planner/commands/erc1155/erc1155-deposit-to-aggregator";
 import { Erc1155WithdrawToEOACommand } from "@/planner/commands/erc1155/erc1155-withdraw-to-eoa";
 import { SaErc1155OnboardCommand } from "@/planner/commands/sa/sa-erc1155-onboard-command";

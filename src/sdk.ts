@@ -110,18 +110,16 @@ class CurvySDK implements ICurvySDK {
 
     const sdk = new CurvySDK(apiKey, core, apiBaseUrl, storage);
 
+    sdk.#networks = await sdk.apiClient.network.GetNetworks();
+    await sdk.storage.upsertCurrencyMetadata(networksToCurrencyMetadata(sdk.#networks));
+
     if (networkFilter === undefined) {
-      sdk.setActiveNetworks(false); // all mainnets by default
+      await sdk.setActiveNetworks(false); // all mainnets by default
     } else {
-      sdk.setActiveNetworks(networkFilter);
+      await sdk.setActiveNetworks(networkFilter);
     }
 
-    const networks = await sdk.rpcClient.injectErc1155Ids(await sdk.apiClient.network.GetNetworks());
-
-    sdk.#networks = networks;
-    await sdk.storage.upsertCurrencyMetadata(networksToCurrencyMetadata(networks));
-
-    await sdk.#priceUpdate(networks);
+    await sdk.#priceUpdate(sdk.#networks);
     sdk.startPriceIntervalUpdate();
 
     sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
@@ -320,7 +318,7 @@ class CurvySDK implements ICurvySDK {
     }
   }
 
-  setActiveNetworks(networkFilter: NetworkFilter) {
+  async setActiveNetworks(networkFilter: NetworkFilter) {
     const networks = this.getNetworks(networkFilter);
 
     const uniqueEnvironmentSet = new Set(networks.map((n) => n.testnet));
@@ -335,13 +333,15 @@ class CurvySDK implements ICurvySDK {
     const newRpc = newMultiRpc(networks);
     this.#rpcClient = newRpc;
 
+    this.#networks = await newRpc.injectErc1155Ids(this.#networks);
+
     const environment = uniqueEnvironmentSet.values().next().value;
 
     if (environment === undefined) throw new Error("No environment set.");
 
     this.#state = {
       environment: environment ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
-      activeNetworks: networks,
+      activeNetworks: this.getNetworks(networkFilter),
     };
 
     if (this.#balanceScanner) this.#balanceScanner.rpcClient = newRpc;
