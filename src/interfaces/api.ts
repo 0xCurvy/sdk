@@ -8,7 +8,11 @@ import type {
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsReturnType,
   GetCurvyHandleByOwnerAddressReturnType,
+  GetMetaTransactionStatusReturnType,
   GetNetworksReturnType,
+  MetaEstimateGasReturnType,
+  MetaTransactionEstimationRequestBody,
+  MetaTransactionSubmitBody,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
@@ -71,6 +75,12 @@ interface IApiClient {
       ownerHashes: string[];
     }): Promise<SubmitNoteOwnershipProofReturnType>;
     GetAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
+  };
+
+  metaTransaction: {
+    SubmitTransaction(body: MetaTransactionSubmitBody): Promise<void>;
+    GetStatus(requestId: string): Promise<GetMetaTransactionStatusReturnType>;
+    EstimateGas(body: MetaTransactionEstimationRequestBody): Promise<MetaEstimateGasReturnType>;
   };
 }
 

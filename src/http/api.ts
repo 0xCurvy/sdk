@@ -1,7 +1,13 @@
 import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
-import type { SubmitNoteOwnershipProofReturnType } from "@/types";
+import type {
+  GetMetaTransactionStatusReturnType,
+  MetaEstimateGasReturnType,
+  MetaTransactionEstimationRequestBody,
+  MetaTransactionSubmitBody,
+  SubmitNoteOwnershipProofReturnType,
+} from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
   CreateAnnouncementRequestBody,
@@ -195,6 +201,35 @@ class ApiClient extends HttpClient implements IApiClient {
         method: "GET",
         path: `/aggregator/request-status/${requestId}/status`,
       });
+    },
+  };
+
+  metaTransaction = {
+    SubmitTransaction: async (body: MetaTransactionSubmitBody) => {
+      await this.request<null>({
+        method: "POST",
+        path: `/meta-transaction/submit`,
+        body,
+      });
+    },
+
+    GetStatus: async (requestId: string) => {
+      return (
+        await this.request<{ data: { metaTransaction: GetMetaTransactionStatusReturnType } }>({
+          method: "GET",
+          path: `/meta-transaction/status/${requestId}`,
+        })
+      ).data.metaTransaction;
+    },
+
+    EstimateGas: async (body: MetaTransactionEstimationRequestBody) => {
+      return (
+        await this.request<{ data: MetaEstimateGasReturnType }>({
+          method: "POST",
+          path: `/meta-transaction/estimate`,
+          body,
+        })
+      ).data;
     },
   };
 }
