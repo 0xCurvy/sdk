@@ -15,8 +15,6 @@ export abstract class AggregatorCommand extends CurvyCommand {
     // make sure we have an array and that it is completely comprised of notes
     const balanceEntries = Array.isArray(this.input) ? this.input.flat() : [this.input];
 
-    console.dir(this, { depth: null });
-
     const allAreNotes = balanceEntries.every((addr) => addr.type === "note");
     if (!allAreNotes) {
       throw new Error("Invalid input for command, aggregator commands only accept notes as input.");

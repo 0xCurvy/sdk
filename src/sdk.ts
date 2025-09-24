@@ -669,8 +669,6 @@ class CurvySDK implements ICurvySDK {
 
     const msgHash = generateOutputsHash(sortedInputNotes);
 
-    console.log(sortedInputNotes.map((note) => note.id));
-
     const dstHash = poseidonHash([msgHash, BigInt(destinationAddress)]);
 
     const signature = this.#core.signWithBabyJubjubPrivateKey(dstHash, s);
