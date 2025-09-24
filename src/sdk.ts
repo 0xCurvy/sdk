@@ -588,9 +588,7 @@ class CurvySDK implements ICurvySDK {
     throw new Error(`Polling failed!`);
   }
 
-  // TODO: IMPORTANT FIX!
-  //@ts-expect-error
-  async getNewNoteForUser(handle: string, tokenGroupId: bigint, amounts: bigint[]) {
+  async getNewNoteForUser(handle: string, token: bigint, amount: bigint) {
     const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
 
     if (!recipientDetails) {
@@ -601,11 +599,10 @@ class CurvySDK implements ICurvySDK {
     if (!babyJubjubPublicKey) {
       throw new Error(`BabyJubjub public key not found for handle ${handle}`);
     }
-    //@ts-expect-error
     return this.#core.sendNote(spendingKey, viewingKey, {
       ownerBabyJubjubPublicKey: babyJubjubPublicKey,
-      // amounts,
-      tokenGroupId,
+      amount,
+      token,
     });
   }
 }
