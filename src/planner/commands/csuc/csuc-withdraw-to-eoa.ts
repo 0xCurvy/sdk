@@ -1,5 +1,4 @@
 import dayjs from "dayjs";
-import { formatEther } from "viem";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { CSUCCommand } from "@/planner/commands/csuc/abstract";
@@ -41,8 +40,6 @@ export class CSUCWithdrawToEOACommand extends CSUCCommand {
       this.input.balance - gas - curvyFee,
     );
 
-    console.log(gas + curvyFee, formatEther(gas + curvyFee), this.input.balance - gas - curvyFee);
-
     const {
       response: { id },
     } = await this.sdk.requestActionInsideCSUC(this.input, payload, curvyFee.toString());
@@ -74,7 +71,7 @@ export class CSUCWithdrawToEOACommand extends CSUCCommand {
   async estimate(): Promise<CurvyCommandEstimate> {
     const currencyAddress = this.input.currencyAddress;
 
-    const { offeredTotalFee, gas } = await this.sdk.estimateActionInsideCSUC(
+    const { offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
       this.network.id,
       CsucActionSet.WITHDRAW,
       this.input.source as HexString,
@@ -85,7 +82,7 @@ export class CSUCWithdrawToEOACommand extends CSUCCommand {
 
     return {
       curvyFee: BigInt(offeredTotalFee),
-      gas: BigInt(gas),
+      gas: 1_000_000_000n,
     };
   }
 }

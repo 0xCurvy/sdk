@@ -1,5 +1,4 @@
 import { ethers } from "ethers";
-import { formatEther } from "viem";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { CSUCCommand } from "@/planner/commands/csuc/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
@@ -22,8 +21,6 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
       currencyAddress as HexString,
       this.input.balance - gas - curvyFee,
     );
-
-    console.log(gas + curvyFee, formatEther(gas + curvyFee), this.input.balance - gas - curvyFee);
 
     const {
       action: { signature },
@@ -97,7 +94,7 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
   async estimate(): Promise<CurvyCommandEstimate> {
     const currencyAddress = this.input.currencyAddress;
 
-    const { offeredTotalFee, gas } = await this.sdk.estimateActionInsideCSUC(
+    const { offeredTotalFee } = await this.sdk.estimateActionInsideCSUC(
       this.network.id,
       CsucActionSet.DEPOSIT_TO_AGGREGATOR,
       this.input.source as HexString,
@@ -106,6 +103,6 @@ export class CSUCDepositToAggregatorCommand extends CSUCCommand {
       this.input.balance,
     );
 
-    return { curvyFee: BigInt(offeredTotalFee), gas: BigInt(gas) };
+    return { curvyFee: BigInt(offeredTotalFee), gas: 1_000_000_000n };
   }
 }

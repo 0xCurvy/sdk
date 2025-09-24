@@ -1,15 +1,13 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { type AggregatorRequestStatusValuesType, BALANCE_TYPE, type CsucBalanceEntry } from "@/types";
+import { type AggregatorRequestStatusValuesType, BALANCE_TYPE, type CsucBalanceEntry, type HexString } from "@/types";
 
 export class AggregatorWithdrawToCSUCCommand extends AggregatorCommand {
   async execute(): Promise<CurvyCommandData> {
     const { walletId, networkSlug, environment, symbol, lastUpdated, currencyAddress } = this.input[0];
 
     const { address: csucAddress } = await this.sdk.getNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
-
-    console.log("WITHDRAWAL INPUT NOTES\n", this);
 
     // TODO: Fix this so that we dont have same return values as args
     const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload({
@@ -51,7 +49,7 @@ export class AggregatorWithdrawToCSUCCommand extends AggregatorCommand {
       type: BALANCE_TYPE.CSUC,
       nonce: BigInt(csucNonce),
       walletId,
-      source: destinationAddress,
+      source: destinationAddress as HexString,
       networkSlug,
       environment,
       balance: this.inputNotesSum,
