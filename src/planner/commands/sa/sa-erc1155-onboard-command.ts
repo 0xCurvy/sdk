@@ -51,11 +51,15 @@ export class SaErc1155OnboardCommand extends SACommand {
       throw new Error("Failed to retrieve ERC1155 balance after deposit!");
     }
 
-    return {
+    const erc1155BalanceEntry = {
       ...inputData,
       balance: BigInt(erc1155Balance.balance),
       type: BALANCE_TYPE.ERC1155,
     } satisfies Erc1155BalanceEntry;
+
+    await this.sdk.storage.updateBalancesAndTotals(inputData.walletId, [erc1155BalanceEntry]);
+
+    return erc1155BalanceEntry;
   }
 
   async estimate(): Promise<CurvyCommandEstimate & { id: string | null }> {
@@ -69,7 +73,7 @@ export class SaErc1155OnboardCommand extends SACommand {
 
       return { curvyFee: 0n, gas, id: null };
     } else {
-      const { estimate, id } = await this.sdk.apiClient.metaTransaction.EstimateGas({
+      const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
         amount: this.input.balance.toString(),
         currencyAddress: this.input.currencyAddress,
         fromAddress: this.input.source,
@@ -77,7 +81,7 @@ export class SaErc1155OnboardCommand extends SACommand {
         type: META_TRANSACTION_TYPES.ERC1155_ONBOARD,
         toAddress: this.input.source,
       });
-      return { ...estimate, id };
+      return { id, gas: gasFeeInCurrency ?? 0n, curvyFee: curvyFeeInCurrency ?? 0n };
     }
   }
 }

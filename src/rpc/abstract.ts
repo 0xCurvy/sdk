@@ -1,3 +1,5 @@
+import type { SignMessageParameters } from "viem";
+import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTransaction";
 import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
@@ -45,6 +47,9 @@ abstract class Rpc {
 
   abstract estimateOnboardNativeToErc1155(from: HexString, amount: bigint): Promise<bigint>;
   abstract onboardNativeToErc1155(amount: bigint, privateKey: HexString): Promise<RpcCallReturnType>;
+
+  abstract signRawTransaction(privateKey: HexString, txRequest: SignTransactionRequest): Promise<string>;
+  abstract signMessage(privateKey: HexString, params: Omit<SignMessageParameters, "account">): Promise<string>;
 }
 
 export { Rpc };

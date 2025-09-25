@@ -8,8 +8,10 @@ import {
   getContract,
   http,
   type PublicClient,
+  type SignMessageParameters,
   type WalletClient,
 } from "viem";
+import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTransaction";
 import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
@@ -368,6 +370,21 @@ class EvmRpc extends Rpc {
       txExplorerUrl,
       receipt,
     };
+  }
+
+  async signRawTransaction(privateKey: HexString, txRequest: SignTransactionRequest) {
+    return this.#walletClient.signTransaction({
+      account: privateKeyToAccount(privateKey),
+      chain: this.#walletClient.chain,
+      ...txRequest,
+    });
+  }
+
+  async signMessage(privateKey: HexString, params: Omit<SignMessageParameters, "account">) {
+    return this.#walletClient.signMessage({
+      account: privateKeyToAccount(privateKey),
+      ...params,
+    });
   }
 }
 

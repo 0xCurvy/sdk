@@ -3,7 +3,7 @@ import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
 import type {
   GetMetaTransactionStatusReturnType,
-  MetaEstimateGasReturnType,
+  MetaTransaction,
   MetaTransactionEstimationRequestBody,
   MetaTransactionSubmitBody,
   SubmitNoteOwnershipProofReturnType,
@@ -224,12 +224,12 @@ class ApiClient extends HttpClient implements IApiClient {
 
     EstimateGas: async (body: MetaTransactionEstimationRequestBody) => {
       return (
-        await this.request<{ data: MetaEstimateGasReturnType }>({
+        await this.request<{ data: { metaTransaction: MetaTransaction } }>({
           method: "POST",
           path: `/meta-transaction/estimate`,
           body,
         })
-      ).data;
+      ).data.metaTransaction as MetaTransaction & { id: string };
     },
   };
 }

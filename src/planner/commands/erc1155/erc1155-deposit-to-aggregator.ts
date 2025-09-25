@@ -1,6 +1,3 @@
-// @ts-nocheck
-
-// TODO: REIMPLEMENT
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
@@ -13,7 +10,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
 
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
-    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id });
+    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: "" });
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
@@ -31,9 +28,9 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     }
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
-      outputNotes: note.serializeDepositNote(),
+      outputNotes: [note.serializeDepositNote()],
       csucAddress: erc1155ContractAddress,
-      csucTransferAllowanceSignature: signature.hash.toString(),
+      csucTransferAllowanceSignature: "",
     });
 
     await this.sdk.pollForCriteria(
@@ -45,15 +42,12 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       10000,
     );
 
-    // Return the balance entries for each of the deposit notes
-    return depositNotes.map((note) =>
-      note.toBalanceEntry(
-        this.input.symbol,
-        this.input.decimals,
-        this.input.walletId,
-        this.input.environment,
-        this.input.networkSlug,
-      ),
+    return note.toBalanceEntry(
+      this.input.symbol,
+      this.input.decimals,
+      this.input.walletId,
+      this.input.environment,
+      this.input.networkSlug,
     );
   }
 
@@ -62,16 +56,20 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
 
     const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, BigInt(currencyAddress), this.input.balance);
 
-    const { id, estimate } = await this.sdk.apiClient.metaTransaction.EstimateGas({
+    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
       type: META_TRANSACTION_TYPES.ERC1155_DEPOSIT_TO_AGGREGATOR,
       currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,
-      toAddress: this.input.source,
       network: this.input.networkSlug,
-      ownerHash: note.ownerHash,
+      ownerHash: note.ownerHash.toString(16),
     });
 
-    return { ...estimate, id, note };
+    return {
+      gas: gasFeeInCurrency ?? 0n,
+      curvyFee: curvyFeeInCurrency ?? 0n,
+      id,
+      note,
+    };
   }
 }

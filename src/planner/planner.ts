@@ -17,7 +17,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   if (balanceEntry.type === BALANCE_TYPE.SA) {
     plan.items.push({
       type: "command",
-      name: "sa-erc1155-onboard-command", // This includes gas sponsorship as well.
+      name: "sa-erc1155-onboard", // This includes gas sponsorship as well.
     });
   }
 
@@ -103,6 +103,22 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
 
   // FUTURE TODO: Skip unnecessary aggregation (if exact amount)
   // FUTURE TODO: Check if we have exact amount on CSUC/SA, and  skip the aggregator altogether
+
+  if (isHexString(intent.toAddress))
+    return {
+      type: "serial",
+      items: [
+        {
+          type: "data",
+          data: balances[0],
+        },
+        {
+          type: "command",
+          name: "erc1155-withdraw-to-eoa",
+          intent,
+        },
+      ],
+    };
 
   // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
   // into aggregator supported batch sizes

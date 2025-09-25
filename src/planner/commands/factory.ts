@@ -22,7 +22,7 @@ export class CurvyCommandFactory implements ICommandFactory {
   // TODO: Think about moving checks from constructors here, and just adjusting the map of commands for mocks so that we can still test constraints
   createCommand(name: string, input: CurvyCommandData, intent?: CurvyIntent): CurvyCommand {
     switch (name) {
-      case "sa-deposit-to-csuc": // This is with gas sponsorship as well
+      case "sa-erc1155-onboard": // This is with gas sponsorship as well
         return new SaErc1155OnboardCommand(this.#sdk, input);
       case "erc1155-deposit-to-aggregator":
         return new Erc1155DepositToAggregatorCommand(this.#sdk, input);

@@ -8,7 +8,7 @@
 
 import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
 import type { HexString } from "@/types/helper";
-import type { MetaTransactionEstimate, MetaTransactionType } from "@/types/meta-transaction";
+import type { MetaTransactionType } from "@/types/meta-transaction";
 import type { PublicNote } from "@/types/note";
 
 type _Announcement = {
@@ -221,10 +221,11 @@ export type {
 type MetaTransactionEstimationRequestBody = {
   type: MetaTransactionType;
   fromAddress: string;
-  toAddress: string;
+  toAddress?: string;
   amount: string;
   network: string;
   currencyAddress: string;
+  ownerHash?: string;
 };
 
 type MetaTransactionSubmitBody = {
@@ -234,17 +235,7 @@ type MetaTransactionSubmitBody = {
 
 type GetMetaTransactionStatusReturnType = "estimated" | "pending" | "completed" | "failed" | "rejected";
 
-type MetaEstimateGasReturnType = {
-  id: string;
-  estimate: MetaTransactionEstimate;
-};
-
-export type {
-  MetaTransactionEstimationRequestBody,
-  GetMetaTransactionStatusReturnType,
-  MetaEstimateGasReturnType,
-  MetaTransactionSubmitBody,
-};
+export type { MetaTransactionEstimationRequestBody, GetMetaTransactionStatusReturnType, MetaTransactionSubmitBody };
 //#endregion
 
 export type {

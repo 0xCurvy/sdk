@@ -370,6 +370,14 @@ class StarknetRpc extends Rpc {
   async onboardNativeToErc1155(_amount: bigint, _privateKey: HexString): Promise<RpcCallReturnType> {
     throw new Error("ERC1155 is not supported on Starknet");
   }
+
+  async signRawTransaction(_privateKey: HexString, _txRequest: unknown): Promise<string> {
+    throw new Error("Raw transaction signing is not supported on Starknet");
+  }
+
+  async signMessage(_privateKey: HexString, _params: unknown): Promise<string> {
+    throw new Error("Message signing is not supported on Starknet");
+  }
 }
 
 export { StarknetRpc };
