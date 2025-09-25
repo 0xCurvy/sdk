@@ -53,8 +53,8 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
       this.input.source as HexString,
       this.#intent.toAddress as HexString,
       tokenId,
-      this.#intent.amount - curvyFee - gas,
-      1n,
+      this.input.balance,
+      0n,
     ]);
 
     const transferData = "0x";
@@ -79,6 +79,14 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
     const signature = (await this.sdk.rpcClient
       .Network(this.input.networkSlug)
       .signMessage(privateKey, { message: { raw: toBytes(eip712Hash) } })) as HexString;
+
+    console.log("Encoded members (encMembers):", encMembers);
+    console.log("Signed data:", signedData);
+    console.log("Struct hash:", structHash);
+    console.log("separator", domainSeparator);
+    console.log("eip712Hash:", eip712Hash);
+    console.log("Nonce:", nonce);
+    console.log("Signature:", signature);
 
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
