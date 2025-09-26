@@ -8,6 +8,41 @@ import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { BALANCE_TYPE, type HexString, isHexString, META_TRANSACTION_TYPES, type SaBalanceEntry } from "@/types";
 
+const helper = (fees: bigint, erc1155Address: HexString, tokenId: bigint) => {
+  const feeRecipient = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" as const; // Operator's address
+
+  const encodedAddressAndId = encodeAbiParameters(
+    [{ type: "address" }, { type: "uint256" }],
+    [erc1155Address, tokenId],
+  );
+
+  const feeTokenData = encodePacked(["bytes", "uint8"], [encodedAddressAndId, 0]); // 0 for ERC1155
+
+  const gasReceipt = {
+    gasFee: fees,
+    gasLimitCallback: fees,
+    feeRecipient: feeRecipient,
+    feeTokenData: feeTokenData,
+  };
+
+  return encodeAbiParameters(
+    [
+      {
+        type: "tuple",
+        name: "gasReceipt",
+        components: [
+          { name: "gasFee", type: "uint256" },
+          { name: "gasLimitCallback", type: "uint256" },
+          { name: "feeRecipient", type: "address" },
+          { name: "feeTokenData", type: "bytes" },
+        ],
+      },
+      { name: "transferData", type: "bytes" },
+    ],
+    [gasReceipt, "0x"], // Assuming no extra transferData
+  );
+};
+
 // This command automatically sends all available balance from CSUC to external address
 export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
   #intent: CurvyIntent;
@@ -45,7 +80,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
       args: [this.input.currencyAddress as HexString],
     });
 
-    console.log(gas, curvyFee, this.#intent.amount);
+    const amount = this.input.balance - gas - curvyFee;
 
     const META_TX_TYPEHASH = "0xce0b514b3931bdbe4d5d44e4f035afe7113767b7db71949271f6a62d9c60f558";
     const encMembers = encodeAbiParameters(parseAbiParameters("bytes32, address, address, uint256, uint256, uint256"), [
@@ -53,12 +88,13 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
       this.input.source as HexString,
       this.#intent.toAddress as HexString,
       tokenId,
-      this.input.balance,
-      0n,
+      amount,
+      1n,
     ]);
 
-    const transferData = "0x";
-    const signedData = encodeAbiParameters(parseAbiParameters("bytes"), [transferData]);
+    console.log(gas, curvyFee, this.network.erc1155ContractAddress, tokenId);
+
+    const signedData = helper(gas + curvyFee, this.network.erc1155ContractAddress as HexString, tokenId);
 
     const structHash = keccak256(
       encodePacked(["bytes", "uint256", "bytes32"], [encMembers, nonce, keccak256(signedData) as HexString]),
@@ -117,7 +153,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
   async estimate(): Promise<CurvyCommandEstimate & { id: string }> {
     const currencyAddress = this.input.currencyAddress;
 
-    const { id, gasFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
+    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
       type: META_TRANSACTION_TYPES.ERC1155_WITHDRAW,
       currencyAddress,
       amount: this.input.balance.toString(),
@@ -128,7 +164,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
 
     return {
       gas: BigInt(gasFeeInCurrency ?? "0"),
-      curvyFee: 0n,
+      curvyFee: BigInt(curvyFeeInCurrency ?? "0"),
       id,
     };
   }
