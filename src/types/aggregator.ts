@@ -13,7 +13,6 @@ type DepositRequestParams = {
 type DepositRequest = {
   outputNotes: DepositNote[];
   fromAddress: string;
-  // csucTransferAllowanceSignature: string;
 };
 
 type AggregationRequestParams = {
