@@ -62,6 +62,7 @@ type Network = {
   blockExplorerUrl: string;
   rpcUrl: string;
   currencies: Array<Currency>;
+  feeCollectorAddress?: string;
 };
 
 //#endregion

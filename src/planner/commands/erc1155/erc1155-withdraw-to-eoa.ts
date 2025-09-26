@@ -1,47 +1,12 @@
 import dayjs from "dayjs";
-import { keccak256 } from "ethers";
-import { encodeAbiParameters, encodePacked, parseAbiParameters, toBytes } from "viem";
+import { toBytes } from "viem";
 import { erc1155ABI } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { BALANCE_TYPE, type HexString, isHexString, META_TRANSACTION_TYPES, type SaBalanceEntry } from "@/types";
-
-const helper = (fees: bigint, erc1155Address: HexString, tokenId: bigint) => {
-  const feeRecipient = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" as const; // Operator's address
-
-  const encodedAddressAndId = encodeAbiParameters(
-    [{ type: "address" }, { type: "uint256" }],
-    [erc1155Address, tokenId],
-  );
-
-  const feeTokenData = encodePacked(["bytes", "uint8"], [encodedAddressAndId, 0]); // 0 for ERC1155
-
-  const gasReceipt = {
-    gasFee: fees,
-    gasLimitCallback: fees,
-    feeRecipient: feeRecipient,
-    feeTokenData: feeTokenData,
-  };
-
-  return encodeAbiParameters(
-    [
-      {
-        type: "tuple",
-        name: "gasReceipt",
-        components: [
-          { name: "gasFee", type: "uint256" },
-          { name: "gasLimitCallback", type: "uint256" },
-          { name: "feeRecipient", type: "address" },
-          { name: "feeTokenData", type: "bytes" },
-        ],
-      },
-      { name: "transferData", type: "bytes" },
-    ],
-    [gasReceipt, "0x"], // Assuming no extra transferData
-  );
-};
+import { getMetaTransactionEip712HashAndSignedData } from "@/utils/meta-transaction";
 
 // This command automatically sends all available balance from CSUC to external address
 export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
@@ -80,56 +45,33 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
       args: [this.input.currencyAddress as HexString],
     });
 
-    const amount = this.input.balance - gas - curvyFee;
+    const amount = this.input.balance;
 
-    const META_TX_TYPEHASH = "0xce0b514b3931bdbe4d5d44e4f035afe7113767b7db71949271f6a62d9c60f558";
-    const encMembers = encodeAbiParameters(parseAbiParameters("bytes32, address, address, uint256, uint256, uint256"), [
-      META_TX_TYPEHASH,
+    const totalFees = gas + curvyFee;
+
+    const effectiveAmount = amount - totalFees;
+
+    const [eip712Hash] = getMetaTransactionEip712HashAndSignedData(
       this.input.source as HexString,
       this.#intent.toAddress as HexString,
       tokenId,
-      amount,
-      1n,
-    ]);
-
-    console.log(gas, curvyFee, this.network.erc1155ContractAddress, tokenId);
-
-    const signedData = helper(gas + curvyFee, this.network.erc1155ContractAddress as HexString, tokenId);
-
-    const structHash = keccak256(
-      encodePacked(["bytes", "uint256", "bytes32"], [encMembers, nonce, keccak256(signedData) as HexString]),
-    ) as HexString;
-
-    const DOMAIN_SEPARATOR_TYPEHASH = "0x035aff83d86937d35b32e04f0ddc6ff469290eef2f1b692d8a815c89404d4749";
-    const domainSeparator = keccak256(
-      encodeAbiParameters(parseAbiParameters("bytes32, address"), [
-        DOMAIN_SEPARATOR_TYPEHASH,
-        rpc.network.erc1155ContractAddress as HexString,
-      ]),
-    ) as HexString;
-
-    const eip712Hash = keccak256(
-      encodePacked(["bytes2", "bytes32", "bytes32"], ["0x1901", domainSeparator, structHash]),
+      effectiveAmount,
+      totalFees,
+      nonce,
+      this.network.erc1155ContractAddress as HexString,
+      this.network.feeCollectorAddress as HexString,
     );
 
     const signature = (await this.sdk.rpcClient
       .Network(this.input.networkSlug)
       .signMessage(privateKey, { message: { raw: toBytes(eip712Hash) } })) as HexString;
 
-    console.log("Encoded members (encMembers):", encMembers);
-    console.log("Signed data:", signedData);
-    console.log("Struct hash:", structHash);
-    console.log("separator", domainSeparator);
-    console.log("eip712Hash:", eip712Hash);
-    console.log("Nonce:", nonce);
-    console.log("Signature:", signature);
-
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
-        return res === "completed";
+        return res === "completed"; // TODO: All end-states must be observed here and errors tackled properly
       },
       120,
       10000,
