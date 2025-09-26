@@ -57,28 +57,18 @@ class MultiRpc {
   }
 
   async injectErc1155Ids(networks: Network[]): Promise<Network[]> {
-    const injectedNetworks = [];
+    for (const [index, network] of networks.entries()) {
+      if (network.erc1155ContractAddress) {
+        const rpc = this.#rpcArray.find((rpc) => rpc.network.id === network.id);
+        if (rpc) {
+          network.currencies = await rpc.injectErc1155Ids(network.currencies);
+        }
 
-    for (const network of networks) {
-      if (!network.erc1155ContractAddress) {
-        injectedNetworks.push(network);
-        continue;
+        networks[index] = network;
       }
-
-      const rpc = this.#rpcArray.find((rpc) => rpc.network.name === network.name);
-
-      if (!rpc) {
-        injectedNetworks.push(network);
-        continue;
-      }
-
-      network.currencies = await rpc.injectErc1155Ids(network.currencies);
-      injectedNetworks.push(network);
     }
 
-    console.log(injectedNetworks);
-
-    return injectedNetworks;
+    return networks;
   }
 
   get environment() {

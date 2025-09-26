@@ -333,7 +333,9 @@ class CurvySDK implements ICurvySDK {
     const newRpc = newMultiRpc(networks);
     this.#rpcClient = newRpc;
 
+    console.log("HERE");
     this.#networks = await newRpc.injectErc1155Ids(this.#networks);
+    console.log("NOT HERE");
 
     const environment = uniqueEnvironmentSet.values().next().value;
 
