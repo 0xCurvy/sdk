@@ -29,7 +29,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
     const rpc = this.sdk.rpcClient.Network(this.input.networkSlug);
 
     const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-    const privateKey = this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
+    const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
 
     const nonce = await rpc.provider.readContract({
       abi: erc1155ABI,
@@ -80,7 +80,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
     return {
       type: BALANCE_TYPE.SA,
       walletId: "PLACEHOLDER", // TODO Remove
-      source: this.#intent.toAddress,
+      source: this.#intent.toAddress as HexString,
       networkSlug: this.input.networkSlug,
       environment: this.input.environment,
       balance: this.#intent.amount - curvyFee - gas,

@@ -1,6 +1,5 @@
 import { Buffer as BufferPolyfill } from "buffer";
 import { mul, toNumber } from "dnum";
-import { ethers } from "ethers";
 import { getAddress } from "viem";
 import { BalanceScanner } from "@/balance-scanner";
 import {
@@ -9,8 +8,6 @@ import {
   type NETWORK_FLAVOUR_VALUES,
   type NETWORKS,
 } from "@/constants/networks";
-import { aggregatorABI } from "@/contracts/evm/abi/aggregator";
-import { prepareCsucActionEstimationRequest, prepareCuscActionRequest } from "@/csuc";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import type { IApiClient } from "@/interfaces/api";
@@ -21,21 +18,18 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { CommandExecutor } from "@/planner/executor";
-import { CommandPlanner } from "@/planner/planner";
 import type { Rpc } from "@/rpc/abstract";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import {
-  type AggregationRequest,
-  type AggregationRequestParams,
-  type BalanceEntry,
-  type CsucBalanceEntry,
-  type DepositRequest,
-  isNoteBalanceEntry,
-  type Network,
-  type WithdrawRequest,
-  type WithdrawRequestParams,
+import type {
+  AggregationRequest,
+  AggregationRequestParams,
+  CurvyEventType,
+  DepositRequest,
+  Network,
+  WithdrawRequest,
+  WithdrawRequestParams,
 } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
@@ -75,7 +69,6 @@ class CurvySDK implements ICurvySDK {
   #state: SdkState;
 
   #commandExecutor: CommandExecutor;
-  readonly commandPlanner: CommandPlanner;
 
   readonly apiClient: IApiClient;
   readonly storage: StorageInterface;
@@ -97,7 +90,6 @@ class CurvySDK implements ICurvySDK {
       activeNetworks: [],
     };
     this.#commandExecutor = new CommandExecutor(commandFactory, this.#emitter);
-    this.commandPlanner = new CommandPlanner(this);
   }
 
   get walletManager(): IWalletManager {
@@ -141,7 +133,8 @@ class CurvySDK implements ICurvySDK {
 
     sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(
-      sdk.#rpcClient,
+      // TODO: Pogledati ovo
+      sdk.#rpcClient!,
       sdk.apiClient,
       sdk.storage,
       sdk.#emitter,
@@ -543,19 +536,21 @@ class CurvySDK implements ICurvySDK {
     const { s } = this.walletManager.activeWallet.keyPairs;
 
     for (let i = inputNotes.length; i < 2; i++) {
-      inputNotes.push({
-        owner: {
-          babyJubjubPublicKey: {
-            x: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-            y: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+      inputNotes.push(
+        new Note({
+          owner: {
+            babyJubjubPublicKey: {
+              x: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+              y: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+            },
+            sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
           },
-          sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-        },
-        balance: {
-          amount: "0",
-          token: "2",
-        },
-      });
+          balance: {
+            amount: "0",
+            token: "2",
+          },
+        }),
+      );
     }
 
     const sortedInputNotes = inputNotes.sort((a, b) => (a.id < b.id ? -1 : 1));

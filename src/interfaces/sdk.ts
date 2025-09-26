@@ -2,7 +2,6 @@ import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } fro
 import type { IApiClient } from "@/interfaces/api";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
-import type { CommandPlanner } from "@/planner/planner";
 import type { MultiRpc } from "@/rpc/multi";
 import type { Note } from "@/types";
 import type { CurvyAddress } from "@/types/address";
@@ -29,7 +28,6 @@ import type { NetworkFilter } from "@/utils/network";
 interface ICurvySDK {
   storage: StorageInterface;
   apiClient: IApiClient;
-  commandPlanner: CommandPlanner;
 
   // Getters
   get rpcClient(): MultiRpc;

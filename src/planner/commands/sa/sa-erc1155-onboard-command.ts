@@ -21,7 +21,7 @@ export class SaErc1155OnboardCommand extends SACommand {
     );
 
     const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-    const privateKey = this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
+    const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
 
     const { gas, curvyFee, id } = await this.estimate();
     const amount = this.input.balance - curvyFee - gas;

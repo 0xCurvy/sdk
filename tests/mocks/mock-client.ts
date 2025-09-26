@@ -1,5 +1,6 @@
 import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
+import type { MetaTransaction } from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
   CreateAnnouncementRequestBody,
@@ -11,7 +12,6 @@ import type {
   GetCurvyHandleByOwnerAddressReturnType,
   GetMetaTransactionStatusReturnType,
   GetNetworksReturnType,
-  MetaEstimateGasReturnType,
   MetaTransactionEstimationRequestBody,
   MetaTransactionSubmitBody,
   RawAnnouncement,
@@ -215,7 +215,7 @@ export class MockAPIClient implements IApiClient {
     GetStatus: async (_requestId: string): Promise<GetMetaTransactionStatusReturnType> => {
       throw new Error("Method not implemented.");
     },
-    EstimateGas: async (_body: MetaTransactionEstimationRequestBody): Promise<MetaEstimateGasReturnType> => {
+    EstimateGas: async (body: MetaTransactionEstimationRequestBody): Promise<MetaTransaction & { id: string }> => {
       throw new Error("Method not implemented.");
     },
   };
