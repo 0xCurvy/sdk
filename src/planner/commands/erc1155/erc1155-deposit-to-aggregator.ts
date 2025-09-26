@@ -6,31 +6,33 @@ import { META_TRANSACTION_TYPES, type Note } from "@/types";
 // This command automatically sends all available balance from ERC1155 to Aggregator
 export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
   async execute(): Promise<CurvyCommandData> {
-    const { id, gas, curvyFee, note } = await this.estimate();
+    const { /*id, */ gas, curvyFee, note } = await this.estimate();
 
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
-    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: "" });
+    // TODO: Re-enable meta transaction submission for deposits
+    // ========================================================
+    // await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: "" });
 
-    await this.sdk.pollForCriteria(
-      () => this.sdk.apiClient.metaTransaction.GetStatus(id),
-      (res) => {
-        return res === "completed";
-      },
-      120,
-      10000,
-    );
+    // await this.sdk.pollForCriteria(
+    //   () => this.sdk.apiClient.metaTransaction.GetStatus(id),
+    //   (res) => {
+    //     return res === "completed";
+    //   },
+    //   120,
+    //   10000,
+    // );
 
-    const { erc1155ContractAddress } = this.network;
+    // const { erc1155ContractAddress } = this.network;
 
-    if (!erc1155ContractAddress) {
-      throw new Error(`CSUC contract address not found for ${this.network.name} network.`);
-    }
+    // if (!erc1155ContractAddress) {
+    //   throw new Error(`CSUC contract address not found for ${this.network.name} network.`);
+    // }
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
       outputNotes: [note.serializeDepositNote()],
-      csucAddress: erc1155ContractAddress,
-      csucTransferAllowanceSignature: "",
+      fromAddress: this.input.source,
+      // TODO: Re-enable signature validation for deposits
     });
 
     await this.sdk.pollForCriteria(

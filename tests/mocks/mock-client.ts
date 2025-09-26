@@ -11,7 +11,7 @@ import type {
   GetCurvyHandleByOwnerAddressReturnType,
   GetMetaTransactionStatusReturnType,
   GetNetworksReturnType,
-  MetaEstimateGasReturnType,
+  // MetaEstimateGasReturnType, TODO: Fix this, error "no exported member 'MetaEstimateGasReturnType'"
   MetaTransactionEstimationRequestBody,
   MetaTransactionSubmitBody,
   RawAnnouncement,
