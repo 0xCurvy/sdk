@@ -178,15 +178,13 @@ class Core implements ICore {
   sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
     const { R, viewTag, spendingPubKey } = this.send(S, V);
 
-    console.log("NEW NOTE", R, S, V, viewTag);
-
     return new Note({
       owner: {
         babyJubjubPublicKey: {
           x: noteData.ownerBabyJubjubPublicKey.split(".")[0],
           y: noteData.ownerBabyJubjubPublicKey.split(".")[1],
         },
-        sharedSecret: `0x${Buffer.from(spendingPubKey.split(".")[0], "hex").toString("hex")}`,
+        sharedSecret: spendingPubKey.split(".")[0],
       },
       balance: {
         amount: noteData.amount.toString(),
@@ -207,7 +205,7 @@ class Core implements ICore {
     );
 
     const sharedSecrets = scanResult.spendingPubKeys.map((pubKey: string) =>
-      pubKey.length > 0 ? BigInt(`0x${Buffer.from(pubKey.split(".")[0], "hex").toString("hex")}`) : null,
+      pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null,
     );
 
     const { babyJubjubPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
@@ -241,8 +239,9 @@ class Core implements ICore {
   ) {
     const NUM_NOTES = 10;
 
-    let wasm: any;
-    let zkey: any;
+    // Node is Buffer, browser is string / Uint8Array
+    let wasm: string | Buffer;
+    let zkey: Uint8Array | Buffer;
 
     if (isNode) {
       const fs = await import("node:fs/promises");
@@ -262,21 +261,21 @@ class Core implements ICore {
 
       wasm = await fs.readFile(wasmPath);
       zkey = await fs.readFile(zkeyPath);
+    } else {
+      wasm = (
+        await import(
+          "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm?url"
+        )
+      ).default;
+
+      zkey = (
+        await import("../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey?url")
+      ).default;
     }
 
-    wasm = (
-      await import(
-        // @ts-expect-error
-        "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm?url"
-      )
-    ).default;
-
-    zkey = (
-      await import(
-        // @ts-expect-error
-        "../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey?url"
-      )
-    ).default;
+    if (!wasm || !zkey) {
+      throw new Error("Generete note ownership proof: could not load wasm or zkey!");
+    }
 
     const paddedOwnedNotes = ownedNotes.concat(
       ...Array(NUM_NOTES - ownedNotes.length).fill({

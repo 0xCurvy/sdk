@@ -248,7 +248,7 @@ class Note {
 
   // Used when receiving aggregation input note from aggregator backend
   static deserializeAggregationInputNote(aggregationInputNote: AggregationInputNote): Note {
-    const note = new Note({
+    return new Note({
       owner: aggregationInputNote.owner,
       balance: {
         amount: aggregationInputNote.balance.amount,
@@ -261,7 +261,6 @@ class Note {
         viewTag: "0",
       },
     });
-    return note;
   }
 
   // Used when sending aggregation request to aggregator backend
@@ -293,7 +292,7 @@ class Note {
 
   // Used when receiving aggregation output note from aggregator backend
   static deserializeAggregationOutputNote(aggregationOutputNote: AggregationOutputNote): Note {
-    const note = new Note({
+    return new Note({
       ownerHash: aggregationOutputNote.ownerHash,
       balance: {
         token: aggregationOutputNote.balance.token,
@@ -304,7 +303,6 @@ class Note {
         viewTag: aggregationOutputNote.deliveryTag.viewTag,
       },
     });
-    return note;
   }
 
   // Withdrawal note
@@ -399,7 +397,7 @@ class Note {
 
   // Used when receiving note with balances after verification of clientside proof of ownership
   static deserializeAuthenticatedNote(authenticatedNote: StringifyBigInts<AuthenticatedNote>): Note {
-    const note = new Note({
+    return new Note({
       ownerHash: authenticatedNote.ownerHash,
       balance: {
         token: authenticatedNote.balance.token,
@@ -410,7 +408,6 @@ class Note {
         viewTag: authenticatedNote.deliveryTag.viewTag,
       },
     });
-    return note;
   }
 
   // Public note
@@ -471,7 +468,8 @@ class Note {
     });
   }
 
-  static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress, source }: NoteBalanceEntry): Note {
+  static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress }: NoteBalanceEntry): Note {
+
     return new Note({
       balance: { amount: balance.toString(), token: currencyAddress },
       owner: {
@@ -485,7 +483,6 @@ class Note {
         ephemeralKey: deliveryTag.ephemeralKey,
         viewTag: deliveryTag.viewTag,
       },
-      ownerHash: source,
     });
   }
 
@@ -508,11 +505,11 @@ class Note {
 
     return {
       walletId,
-      source: ownerHash.toString(16),
+      source: `0x${ownerHash.toString(16)}`,
       type: BALANCE_TYPE.NOTE,
       networkSlug,
       environment,
-      currencyAddress: token.toString(16),
+      currencyAddress: `0x${token.toString(16)}`,
       symbol,
       balance: BigInt(amount),
       decimals,

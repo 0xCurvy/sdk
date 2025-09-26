@@ -19,6 +19,7 @@ import {
   type CurvyHandle,
   type EvmSignatureData,
   type EvmSignTypedDataParameters,
+  type HexString,
   isHexString,
   isStarkentSignature,
   type StarknetSignatureData,
@@ -382,7 +383,13 @@ class WalletManager implements IWalletManager {
     this.#scanInterval = null;
   }
 
-  getAddressPrivateKey(address: CurvyAddress) {
+  async getAddressPrivateKey(_address: CurvyAddress | HexString) {
+    let address: CurvyAddress;
+
+    if (isHexString(_address)) {
+      address = await this.#storage.getCurvyAddress(_address);
+    } else address = _address;
+
     const wallet = this.getWalletById(address.walletId);
     if (!wallet) {
       throw new Error(`Cannot send from address ${address.address} because it's wallet is not found!`);

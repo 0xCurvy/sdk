@@ -6,9 +6,9 @@ import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { Note } from "@/types/note";
 
 export class AggregatorAggregateCommand extends AggregatorCommand {
-  readonly #intent: CurvyIntent | undefined;
+  readonly #intent: CurvyIntent;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent?: CurvyIntent) {
+  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {
     super(sdk, input);
     this.#intent = intent;
   }
@@ -22,7 +22,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
 
     // If we have the intent passed, and it's amount is less than the sum of input notes
     // then we calculate the change for passing it as the second output note, instead of the dummy one
-    if (this.#intent && this.#intent.amount < this.inputNotesSum) {
+    if (this.#intent.amount < this.inputNotesSum) {
       // This means we should address the note to another recipient right now
       if (isValidCurvyHandle(this.#intent.toAddress)) {
         toAddress = this.#intent.toAddress;
@@ -57,7 +57,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     // that will either aggregate the funds to our Curvy handle
     // or the Curvy handle of the intent's toAddress recipient
     const { curvyFee } = await this.estimate();
-    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.inputNotesSum - curvyFee);
+    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.#intent.amount - curvyFee);
 
     const prepareInputs: AggregationRequestParams = {
       inputNotes: this.inputNotes.map((note) => note.serializeAggregationInputNote()),
@@ -72,9 +72,9 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
       (res: { status: AggregatorRequestStatusValuesType }) => {
         if (res.status === "failed") {
-          throw new Error(`Aggregator withdraw ${res.status}`);
+          throw new Error(`Aggregator aggregate ${res.status}`);
         }
-        return res.status === "completed";
+        return res.status === "success";
       },
       120,
       10_000,

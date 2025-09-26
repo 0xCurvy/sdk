@@ -1,5 +1,5 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { ExtractValues } from "@/types/helper";
+import type { ExtractValues, HexString } from "@/types/helper";
 
 const BALANCE_TYPE = {
   SA: "sa",
@@ -27,7 +27,6 @@ type CurrencyMetadata = {
 
 type BalanceEntryBase = {
   walletId: string;
-  source: string;
 
   networkSlug: string;
   environment: NETWORK_ENVIRONMENT_VALUES;
@@ -41,6 +40,7 @@ type BalanceEntryBase = {
 };
 
 type SaBalanceEntry = BalanceEntryBase & {
+  source: HexString;
   type: BALANCE_TYPE["SA"];
   createdAt: string;
 };
@@ -49,6 +49,7 @@ const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
 };
 
 type Erc1155BalanceEntry = BalanceEntryBase & {
+  source: HexString;
   type: BALANCE_TYPE["ERC1155"];
 };
 const isErc1155BalanceEntry = (entry: BalanceEntry): entry is Erc1155BalanceEntry => {
@@ -56,6 +57,8 @@ const isErc1155BalanceEntry = (entry: BalanceEntry): entry is Erc1155BalanceEntr
 };
 
 type NoteBalanceEntry = BalanceEntryBase & {
+  source: string;
+
   type: BALANCE_TYPE["NOTE"];
   owner: {
     babyJubjubPublicKey: {

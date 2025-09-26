@@ -1,8 +1,7 @@
-//@ts-nocheck
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { type AggregatorRequestStatusValuesType, BALANCE_TYPE, type Erc1155BalanceEntry } from "@/types";
+import { type AggregatorRequestStatusValuesType, BALANCE_TYPE, type Erc1155BalanceEntry, type HexString } from "@/types";
 
 export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
   async execute(): Promise<CurvyCommandData> {
@@ -12,7 +11,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
 
     // TODO: Fix this so that we dont have same return values as args
     const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload({
-      inputNotes: this.inputNotes.map((note) => note.serializeWithdrawalNote()),
+      inputNotes: this.inputNotes,
       destinationAddress: csucAddress,
     });
 
@@ -48,7 +47,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
       type: BALANCE_TYPE.ERC1155,
       nonce: BigInt(csucNonce),
       walletId,
-      source: destinationAddress,
+      source: destinationAddress as HexString,
       networkSlug,
       environment,
       balance: this.inputNotesSum,

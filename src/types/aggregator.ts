@@ -1,5 +1,5 @@
 import type { Signature } from "./core";
-import type { AggregationInputNote, AggregationOutputNote, DepositNote, WithdrawalNote } from "./note";
+import type { AggregationInputNote, AggregationOutputNote, DepositNote, Note, WithdrawalNote } from "./note";
 
 type DepositRequestParams = {
   recipient: {
@@ -27,7 +27,7 @@ type AggregationRequest = {
 };
 
 type WithdrawRequestParams = {
-  inputNotes: WithdrawalNote[];
+  inputNotes: Note[];
   destinationAddress: string;
 };
 

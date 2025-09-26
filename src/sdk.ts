@@ -1,5 +1,6 @@
 import { Buffer as BufferPolyfill } from "buffer";
 import { mul, toNumber } from "dnum";
+import { ethers } from "ethers";
 import { getAddress } from "viem";
 import { BalanceScanner } from "@/balance-scanner";
 import {
@@ -8,6 +9,8 @@ import {
   type NETWORK_FLAVOUR_VALUES,
   type NETWORKS,
 } from "@/constants/networks";
+import { aggregatorABI } from "@/contracts/evm/abi/aggregator";
+import { prepareCsucActionEstimationRequest, prepareCuscActionRequest } from "@/csuc";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import type { IApiClient } from "@/interfaces/api";
@@ -18,17 +21,21 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { CommandExecutor } from "@/planner/executor";
+import { CommandPlanner } from "@/planner/planner";
+import type { Rpc } from "@/rpc/abstract";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type {
-  AggregationRequest,
-  AggregationRequestParams,
-  CurvyEventType,
-  DepositRequest,
-  Network,
-  WithdrawRequest,
-  WithdrawRequestParams,
+import {
+  type AggregationRequest,
+  type AggregationRequestParams,
+  type BalanceEntry,
+  type CsucBalanceEntry,
+  type DepositRequest,
+  isNoteBalanceEntry,
+  type Network,
+  type WithdrawRequest,
+  type WithdrawRequestParams,
 } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
@@ -68,6 +75,7 @@ class CurvySDK implements ICurvySDK {
   #state: SdkState;
 
   #commandExecutor: CommandExecutor;
+  readonly commandPlanner: CommandPlanner;
 
   readonly apiClient: IApiClient;
   readonly storage: StorageInterface;
@@ -89,6 +97,7 @@ class CurvySDK implements ICurvySDK {
       activeNetworks: [],
     };
     this.#commandExecutor = new CommandExecutor(commandFactory, this.#emitter);
+    this.commandPlanner = new CommandPlanner(this);
   }
 
   get walletManager(): IWalletManager {
@@ -97,6 +106,14 @@ class CurvySDK implements ICurvySDK {
     }
 
     return this.#walletManager;
+  }
+
+  getRpcClient(network: NetworkFilter): Rpc {
+    if (!this.#rpcClient) {
+      throw new Error("Rpc client is not initialized!");
+    }
+
+    return this.#rpcClient.Network(network);
   }
 
   static async init(
@@ -124,7 +141,7 @@ class CurvySDK implements ICurvySDK {
 
     sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(
-      sdk.rpcClient,
+      sdk.#rpcClient,
       sdk.apiClient,
       sdk.storage,
       sdk.#emitter,
@@ -333,9 +350,7 @@ class CurvySDK implements ICurvySDK {
     const newRpc = newMultiRpc(networks);
     this.#rpcClient = newRpc;
 
-    console.log("HERE");
     this.#networks = await newRpc.injectErc1155Ids(this.#networks);
-    console.log("NOT HERE");
 
     const environment = uniqueEnvironmentSet.values().next().value;
 
@@ -417,7 +432,7 @@ class CurvySDK implements ICurvySDK {
     amount: string,
     currency: string,
   ) {
-    const privateKey = this.walletManager.getAddressPrivateKey(from);
+    const privateKey = await this.walletManager.getAddressPrivateKey(from);
 
     let recipientData: RecipientData;
 
@@ -449,7 +464,7 @@ class CurvySDK implements ICurvySDK {
     fee: StarknetFeeEstimate | bigint,
     message?: string,
   ) {
-    const privateKey = this.walletManager.getAddressPrivateKey(from);
+    const privateKey = await this.walletManager.getAddressPrivateKey(from);
 
     let recipientData: RecipientData;
 
@@ -527,7 +542,7 @@ class CurvySDK implements ICurvySDK {
 
     const { s } = this.walletManager.activeWallet.keyPairs;
 
-    for (let i = inputNotes.length; i < 15; i++) {
+    for (let i = inputNotes.length; i < 2; i++) {
       inputNotes.push({
         owner: {
           babyJubjubPublicKey: {
@@ -538,22 +553,28 @@ class CurvySDK implements ICurvySDK {
         },
         balance: {
           amount: "0",
-          token: "0",
+          token: "2",
         },
       });
     }
 
-    const msgHash = generateOutputsHash(inputNotes.map((note) => Note.deserializeWithdrawalNote(note)));
-    const signature = this.#core.signWithBabyJubjubPrivateKey(
-      poseidonHash([msgHash, BigInt(destinationAddress), 0n]),
-      s,
-    );
+    const sortedInputNotes = inputNotes.sort((a, b) => (a.id < b.id ? -1 : 1));
+
+    const msgHash = generateOutputsHash(sortedInputNotes);
+
+    const dstHash = poseidonHash([msgHash, BigInt(destinationAddress)]);
+
+    const signature = this.#core.signWithBabyJubjubPrivateKey(dstHash, s);
     const signatures = Array.from({ length: 10 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
 
-    return { inputNotes, signatures, destinationAddress };
+    return {
+      inputNotes: sortedInputNotes.map((note) => note.serializeWithdrawalNote()),
+      signatures,
+      destinationAddress,
+    };
   }
 
   subscribeToEventType(eventType: CurvyEventType, listener: (event: any) => void) {
