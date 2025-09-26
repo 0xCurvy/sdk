@@ -249,16 +249,16 @@ class Note {
   // Used when receiving aggregation input note from aggregator backend
   static deserializeAggregationInputNote(aggregationInputNote: AggregationInputNote): Note {
     const note = new Note({
-      ownerHash: Note.generateOwnerHash({
-        babyJubjubPublicKey: {
-          x: BigInt(aggregationInputNote.owner.babyJubjubPublicKey.x),
-          y: BigInt(aggregationInputNote.owner.babyJubjubPublicKey.y),
-        },
-        sharedSecret: BigInt(aggregationInputNote.owner.sharedSecret),
-      }).toString(),
+      owner: aggregationInputNote.owner,
       balance: {
         amount: aggregationInputNote.balance.amount,
         token: aggregationInputNote.balance.token,
+      },
+      deliveryTag: {
+        ephemeralKey: bigIntToDecimalString(
+          BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+        ),
+        viewTag: "0",
       },
     });
     return note;
