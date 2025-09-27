@@ -1,11 +1,16 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { type AggregatorRequestStatusValuesType, BALANCE_TYPE, type Erc1155BalanceEntry, type HexString } from "@/types";
+import {
+  type AggregatorRequestStatusValuesType,
+  BALANCE_TYPE,
+  type Erc1155BalanceEntry,
+  type HexString,
+} from "@/types";
 
 export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
   async execute(): Promise<CurvyCommandData> {
-    const { walletId, networkSlug, environment, symbol, lastUpdated, currencyAddress } = this.input[0];
+    const { networkSlug, environment, symbol, lastUpdated, currencyAddress } = this.input[0];
 
     const { address: csucAddress } = await this.sdk.getNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
 
@@ -33,20 +38,10 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
       10_000,
     );
 
-    const csucNonce = (
-      await this.sdk.apiClient.csuc.GetCSAInfo({ network: networkSlug, csas: [destinationAddress] })
-    ).data.csaInfo[0].nonce.find(({ token }) => token === currencyAddress)?.value;
-    if (!csucNonce) {
-      throw new Error(
-        `Can't get nonce for currency ${currencyAddress}, network ${networkSlug}, address ${destinationAddress}`,
-      );
-    }
-
     // TODO: Create utility methods for creating balance entries in commands
     return {
       type: BALANCE_TYPE.ERC1155,
-      nonce: BigInt(csucNonce),
-      walletId,
+      // walletId,
       source: destinationAddress as HexString,
       networkSlug,
       environment,
