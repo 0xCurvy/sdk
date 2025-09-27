@@ -476,10 +476,16 @@ class CurvySDK implements ICurvySDK {
       .sendToAddress(from, privateKey, recipientData.address, amount, currency, fee);
   }
 
-  createAggregationPayload(params: AggregationRequestParams): AggregationRequest {
+  createAggregationPayload(params: AggregationRequestParams, privKey?: string): AggregationRequest {
     const { inputNotes, outputNotes } = params;
 
-    const { s } = this.walletManager.activeWallet.keyPairs;
+    let bjjPrivateKey;
+
+    if (privKey) {
+      bjjPrivateKey = privKey;
+    } else {
+      bjjPrivateKey = this.walletManager.activeWallet.keyPairs.s;
+    }
 
     if (outputNotes.length < 2) {
       outputNotes.push({
@@ -496,8 +502,8 @@ class CurvySDK implements ICurvySDK {
     }
 
     const msgHash = generateAggregationHash(outputNotes.map((note) => Note.deserializeAggregationOutputNote(note)));
-    const signature = this.#core.signWithBabyJubjubPrivateKey(msgHash, s);
-    const signatures = Array.from({ length: 10 }).map(() => ({
+    const signature = this.#core.signWithBabyJubjubPrivateKey(msgHash, bjjPrivateKey);
+    const signatures = Array.from({ length: 2 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
@@ -509,14 +515,20 @@ class CurvySDK implements ICurvySDK {
     };
   }
 
-  createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest {
+  createWithdrawPayload(params: WithdrawRequestParams, privKey?: string): WithdrawRequest {
     const { inputNotes, destinationAddress } = params;
 
     if (!inputNotes || !destinationAddress) {
       throw new Error("Invalid withdraw payload parameters");
     }
 
-    const { s } = this.walletManager.activeWallet.keyPairs;
+    let bjjPrivateKey;
+
+    if (privKey) {
+      bjjPrivateKey = privKey;
+    } else {
+      bjjPrivateKey = this.walletManager.activeWallet.keyPairs.s;
+    }
 
     const inputNotesLength = inputNotes.length;
 
@@ -545,8 +557,8 @@ class CurvySDK implements ICurvySDK {
 
     const dstHash = poseidonHash([msgHash, BigInt(destinationAddress)]);
 
-    const signature = this.#core.signWithBabyJubjubPrivateKey(dstHash, s);
-    const signatures = Array.from({ length: 10 }).map(() => ({
+    const signature = this.#core.signWithBabyJubjubPrivateKey(dstHash, bjjPrivateKey);
+    const signatures = Array.from({ length: 2 }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));

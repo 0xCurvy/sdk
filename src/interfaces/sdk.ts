@@ -8,17 +8,12 @@ import type { CurvyAddress } from "@/types/address";
 import type {
   AggregationRequest,
   AggregationRequestParams,
-  DepositRequest,
   WithdrawRequest,
   WithdrawRequestParams,
 } from "@/types/aggregator";
 import type {
   Currency,
-  GetAggregatorRequestStatusReturnType,
   Network,
-  SubmitAggregationReturnType,
-  SubmitDepositReturnType,
-  SubmitWithdrawReturnType,
 } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { CurvyFeeEstimate, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
@@ -35,7 +30,6 @@ interface ICurvySDK {
   get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
   get walletManager(): IWalletManager;
 
-  createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest;
   getStealthAddressById(id: string): Promise<CurvyAddress>;
   getNetwork(networkFilter?: NetworkFilter): Network;
   getNetworks(networkFilter?: NetworkFilter): Network[];
@@ -84,7 +78,8 @@ interface ICurvySDK {
     message?: string,
   ): Promise<RpcCallReturnType>;
 
-  createAggregationPayload(params: AggregationRequestParams): AggregationRequest;
+  createAggregationPayload(params: AggregationRequestParams, privKey?: string): AggregationRequest;
+  createWithdrawPayload(params: WithdrawRequestParams, privKey?: string): WithdrawRequest;
   pollForCriteria<T>(
     pollFunction: () => Promise<T>,
     pollCriteria: (res: T) => boolean,

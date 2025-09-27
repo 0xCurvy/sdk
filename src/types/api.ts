@@ -194,6 +194,7 @@ type GetAllNotesReturnType = {
 type SubmitDepositReturnType = { requestId: string };
 type SubmitWithdrawReturnType = { requestId: string };
 type SubmitAggregationReturnType = { requestId: string };
+type ResetContractReturnType = { reset: boolean };
 type SubmitNoteOwnershipProofReturnType = {
   notes: {
     ownerHash: string;
@@ -213,6 +214,7 @@ export type {
   SubmitWithdrawReturnType,
   SubmitAggregationReturnType,
   GetAggregatorRequestStatusReturnType,
+  ResetContractReturnType,
 };
 
 //#endregion
