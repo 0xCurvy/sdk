@@ -189,7 +189,9 @@ class Note {
     if (!this.balance) {
       throw new Error("Missing balance");
     }
-
+    console.log("note ownerHash", this.ownerHash);
+    console.log("note amount", this.balance.amount);
+    console.log("note token", this.balance.token);
     return poseidonHash([this.ownerHash, this.balance.amount, this.balance.token]);
   }
 
