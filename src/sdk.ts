@@ -535,7 +535,10 @@ class CurvySDK implements ICurvySDK {
 
     const { s } = this.walletManager.activeWallet.keyPairs;
 
-    for (let i = inputNotes.length; i < 2; i++) {
+    const inputNotesLength = inputNotes.length;
+    
+    // TODO: read circuit config from config
+    for (let i = inputNotesLength; i < 2; i++) {
       inputNotes.push(
         new Note({
           owner: {
