@@ -84,11 +84,6 @@ interface ICurvySDK {
     message?: string,
   ): Promise<RpcCallReturnType>;
 
-  createDeposit(payload: DepositRequest): Promise<SubmitDepositReturnType>;
-  createWithdraw(payload: WithdrawRequest): Promise<SubmitWithdrawReturnType>;
-  createAggregation(payload: AggregationRequest): Promise<SubmitAggregationReturnType>;
-  getAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
-
   createAggregationPayload(params: AggregationRequestParams): AggregationRequest;
   pollForCriteria<T>(
     pollFunction: () => Promise<T>,

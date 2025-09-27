@@ -26,7 +26,6 @@ import type {
   AggregationRequest,
   AggregationRequestParams,
   CurvyEventType,
-  DepositRequest,
   Network,
   WithdrawRequest,
   WithdrawRequestParams,
@@ -477,22 +476,6 @@ class CurvySDK implements ICurvySDK {
       .sendToAddress(from, privateKey, recipientData.address, amount, currency, fee);
   }
 
-  async createDeposit(payload: DepositRequest) {
-    return this.apiClient.aggregator.SubmitDeposit(payload);
-  }
-
-  async createWithdraw(payload: WithdrawRequest) {
-    return this.apiClient.aggregator.SubmitWithdraw(payload);
-  }
-
-  async createAggregation(payload: AggregationRequest) {
-    return this.apiClient.aggregator.SubmitAggregation(payload);
-  }
-
-  async getAggregatorRequestStatus(requestId: string) {
-    return this.apiClient.aggregator.GetAggregatorRequestStatus(requestId);
-  }
-
   createAggregationPayload(params: AggregationRequestParams): AggregationRequest {
     const { inputNotes, outputNotes } = params;
 
@@ -536,7 +519,7 @@ class CurvySDK implements ICurvySDK {
     const { s } = this.walletManager.activeWallet.keyPairs;
 
     const inputNotesLength = inputNotes.length;
-    
+
     // TODO: read circuit config from config
     for (let i = inputNotesLength; i < 2; i++) {
       inputNotes.push(
