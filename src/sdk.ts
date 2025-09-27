@@ -42,7 +42,7 @@ import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
 import { deriveAddress } from "./utils/address";
-import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
+import { generateAggregationHash, generateOutputsHash, MOCK_ERC20_TOKEN_ID } from "./utils/aggregator";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { poseidonHash } from "./utils/poseidon-hash";
 import { WalletManager } from "./wallet-manager";
@@ -547,7 +547,7 @@ class CurvySDK implements ICurvySDK {
           },
           balance: {
             amount: "0",
-            token: "2",
+            token: MOCK_ERC20_TOKEN_ID,
           },
         }),
       );
