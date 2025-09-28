@@ -149,7 +149,7 @@ class Note {
     if (data.owner) {
       if (data.ownerHash) {
         this.ownerHash = BigInt(data.ownerHash);
-      } else
+      } else {
         this.ownerHash = Note.generateOwnerHash({
           babyJubjubPublicKey: {
             x: BigInt(data.owner.babyJubjubPublicKey.x),
@@ -157,6 +157,7 @@ class Note {
           },
           sharedSecret: BigInt(data.owner.sharedSecret),
         });
+      }
       this.owner = {
         babyJubjubPublicKey: {
           x: BigInt(data.owner.babyJubjubPublicKey.x),

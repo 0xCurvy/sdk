@@ -7,20 +7,20 @@ import { CurvySDK } from "@/sdk";
 const BEARER_TOKEN =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZXZlbnYwMDAwMDAwMDAwMDEubG9jYWwtY3VydnkubmFtZSIsImlhdCI6MTc1OTAwMzAwNywiZXhwIjoyMTE5MDAzMDA3fQ.UooAgQTvwZTZUqrAGzynr69Vul8ebA7tC-5-VXwiSws";
 
-const waitForRequest = async (requestId: string, api: ApiClient): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const interval = setInterval(async () => {
-        const { status } = await api.aggregator.GetAggregatorRequestStatus(requestId);
-        if (status === "completed") {
-          clearInterval(interval);
-          resolve(status);
-        }
-        if (status === "failed") {
-          clearInterval(interval);
-          reject("Request failed");
-        }
-      }, 1000);
-    });
+const waitForRequest = async (requestId: string, api: ApiClient, maxRetries = 20, delayMs = 5_000) => {
+  for (let i = 0; i < maxRetries; i++) {
+    const { status } = await api.aggregator.GetAggregatorRequestStatus(requestId);
+
+    console.log(`Polling request ${requestId} status:`, status);
+
+    if (status === "success") {
+      return status;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  throw new Error(`Polling failed for request ${requestId}: status never became success`);
 };
 
 describe("Integration test", async () => {
@@ -52,17 +52,19 @@ describe("Integration test", async () => {
             fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
         };
 
+        console.log("DEPOSIT NOTES");
+        for (let i = 0; i < depositNotes.length; i++) {
+            console.log("NOTE ID", depositNotes[i].id);
+        }
+
         const depositResponse = await api.aggregator.SubmitDeposit(depositPayload);
         expect(depositResponse.requestId).toBeDefined();
 
         console.log("Deposit API response:", depositResponse.requestId);
 
-        // console.log("Turn on aggregator server");
-        await new Promise(resolve => setTimeout(resolve, 20_000));
+        const depositStatus = await waitForRequest(depositResponse.requestId, api);
 
-        // const depositStatus = await waitForRequest(depositResponse.requestId, api);
-
-        // expect(depositStatus).toBe("success");
+        expect(depositStatus).toBe("success");
         console.log("✅ Deposit reached success status");
 
         const { notes: allNotes1 } = await api.aggregator.GetAllNotes();
@@ -89,6 +91,11 @@ describe("Integration test", async () => {
 
         expect(aggregationInputNotes.length).toBe(2);
 
+        console.log("AGGREGATION INPUT NOTES");
+        for (let i = 0; i < aggregationInputNotes.length; i++) {
+            console.log("NOTE ID", aggregationInputNotes[i].id);
+        }
+
         const outputAmount = (3000n + 1000n) * 999n / 1000n;
 
         const aggregationOutputNotes: Note[] = [];
@@ -98,6 +105,8 @@ describe("Integration test", async () => {
             amount: outputAmount,
             token: BigInt(MOCK_ERC20_TOKEN_ID),
         }));
+
+        console.dir(aggregationOutputNotes, { depth: null });
         
         const aggregationParams: AggregationRequestParams = {
             inputNotes: aggregationInputNotes.map((note) => note.serializeAggregationInputNote()),
@@ -106,13 +115,12 @@ describe("Integration test", async () => {
 
         const aggregationPayload = sdk.createAggregationPayload(aggregationParams, keyPairs.s);
 
+        console.dir(aggregationPayload, { depth: null });
+
         const aggregationResponse = await api.aggregator.SubmitAggregation(aggregationPayload);
         expect(aggregationResponse.requestId).toBeDefined();
 
         console.log("Aggregation API response:", aggregationResponse.requestId);
-
-        console.log("Turn on aggregator server");
-        await new Promise(resolve => setTimeout(resolve, 10000));
 
         const aggregationStatus = await waitForRequest(aggregationResponse.requestId, api);
 
@@ -154,9 +162,6 @@ describe("Integration test", async () => {
         expect(withdrawalResponse.requestId).toBeDefined();
 
         console.log("Withdraw API response:", withdrawalResponse.requestId);
-
-        console.log("Turn on aggregator server");
-        await new Promise(resolve => setTimeout(resolve, 10000));
 
         const withdrawalStatus = await waitForRequest(withdrawalResponse.requestId, api);
 

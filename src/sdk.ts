@@ -45,6 +45,7 @@ import { generateAggregationHash, generateOutputsHash, MOCK_ERC20_TOKEN_ID } fro
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { poseidonHash } from "./utils/poseidon-hash";
 import { WalletManager } from "./wallet-manager";
+import { bigIntToDecimalString } from "./utils/decimal-conversions";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -488,17 +489,27 @@ class CurvySDK implements ICurvySDK {
     }
 
     if (outputNotes.length < 2) {
-      outputNotes.push({
-        ownerHash: "0",
+      outputNotes.push(new Note({
+        owner: {
+          babyJubjubPublicKey: {
+            x: "0",
+            y: "0",
+          },
+          sharedSecret: BigInt(
+            `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+          ).toString(),
+        },
         balance: {
           amount: "0",
-          token: "0",
+          token: MOCK_ERC20_TOKEN_ID,
         },
         deliveryTag: {
-          ephemeralKey: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-          viewTag: "0",
+          ephemeralKey: bigIntToDecimalString(
+            BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+          ),
+          viewTag: "0x0",
         },
-      });
+      }).serializeAggregationOutputNote());
     }
 
     const msgHash = generateAggregationHash(outputNotes.map((note) => Note.deserializeAggregationOutputNote(note)));
