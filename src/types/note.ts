@@ -150,6 +150,8 @@ class Note {
       if (data.ownerHash) {
         this.ownerHash = BigInt(data.ownerHash);
       } else {
+        console.log("ovde generisem owner hash od");
+        console.dir(data.owner, { depth: null });
         this.ownerHash = Note.generateOwnerHash({
           babyJubjubPublicKey: {
             x: BigInt(data.owner.babyJubjubPublicKey.x),
@@ -157,6 +159,7 @@ class Note {
           },
           sharedSecret: BigInt(data.owner.sharedSecret),
         });
+        console.log("izgenerisani owner hash je:", this.ownerHash);
       }
       this.owner = {
         babyJubjubPublicKey: {
@@ -249,18 +252,11 @@ class Note {
 
   // Used when receiving aggregation input note from aggregator backend
   static deserializeAggregationInputNote(aggregationInputNote: AggregationInputNote): Note {
+    console.log("ovde parvim Note od aggregation input note");
+    console.dir(aggregationInputNote, { depth: null });
     return new Note({
       owner: aggregationInputNote.owner,
-      balance: {
-        amount: aggregationInputNote.balance.amount,
-        token: aggregationInputNote.balance.token,
-      },
-      deliveryTag: {
-        ephemeralKey: bigIntToDecimalString(
-          BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
-        ),
-        viewTag: "0",
-      },
+      balance: aggregationInputNote.balance,
     });
   }
 

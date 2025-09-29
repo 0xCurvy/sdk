@@ -53,6 +53,7 @@ describe("Integration test", async () => {
         };
 
         console.log("DEPOSIT NOTES");
+        console.dir(depositNotes, { depth: null });
         for (let i = 0; i < depositNotes.length; i++) {
             console.log("NOTE ID", depositNotes[i].id);
         }
@@ -69,6 +70,9 @@ describe("Integration test", async () => {
 
         const { notes: allNotes1 } = await api.aggregator.GetAllNotes();
 
+        console.log("ALL NOTES");
+        console.dir(allNotes1, { depth: null });
+
         const ownedNotes1 = core.getNoteOwnershipData(
             allNotes1.map((note) => ({
               ownerHash: note.ownerHash,
@@ -78,12 +82,18 @@ describe("Integration test", async () => {
             keyPairs.v,
         );
 
+        console.log("OWNED NOTES");
+        console.dir(ownedNotes1, { depth: null });
+
         expect(ownedNotes1.length).toBe(2);
 
         const { proof: proof1, publicSignals: ownerHashes1 } = await core.generateNoteOwnershipProof(ownedNotes1, keyPairs.babyJubjubPublicKey);
 
         const authenticatedNotes1 = await api.aggregator.SubmitNotesOwnershipProof({ proof: proof1, ownerHashes: ownerHashes1 });
         expect(authenticatedNotes1.notes.length).toBe(2);
+
+        console.log("AUTHENTICATED NOTES");
+        console.dir(authenticatedNotes1, { depth: null });
 
         console.log("✅ Owned notes fetched");
 
@@ -92,6 +102,7 @@ describe("Integration test", async () => {
         expect(aggregationInputNotes.length).toBe(2);
 
         console.log("AGGREGATION INPUT NOTES");
+        console.dir(aggregationInputNotes, { depth: null });
         for (let i = 0; i < aggregationInputNotes.length; i++) {
             console.log("NOTE ID", aggregationInputNotes[i].id);
         }
@@ -105,8 +116,6 @@ describe("Integration test", async () => {
             amount: outputAmount,
             token: BigInt(MOCK_ERC20_TOKEN_ID),
         }));
-
-        console.dir(aggregationOutputNotes, { depth: null });
         
         const aggregationParams: AggregationRequestParams = {
             inputNotes: aggregationInputNotes.map((note) => note.serializeAggregationInputNote()),
@@ -115,6 +124,7 @@ describe("Integration test", async () => {
 
         const aggregationPayload = sdk.createAggregationPayload(aggregationParams, keyPairs.s);
 
+        console.log("AGGREGATION PAYLOAD");
         console.dir(aggregationPayload, { depth: null });
 
         const aggregationResponse = await api.aggregator.SubmitAggregation(aggregationPayload);
