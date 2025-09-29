@@ -29,6 +29,8 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     //   throw new Error(`CSUC contract address not found for ${this.network.name} network.`);
     // }
 
+    console.dir(note);
+
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
       outputNotes: [note.serializeDepositNote()],
       fromAddress: this.input.source,
@@ -57,7 +59,15 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
   async estimate(): Promise<CurvyCommandEstimate & { id: string; note: Note }> {
     const currencyAddress = this.input.currencyAddress;
 
-    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, BigInt(currencyAddress), this.input.balance);
+    if (!this.input.erc1155TokenId) {
+      throw new Error("Erc1155DepositToAggregatorCommand: erc1155TokenId is required");
+    }
+
+    const note = await this.sdk.getNewNoteForUser(
+      this.senderCurvyHandle,
+      this.input.erc1155TokenId,
+      this.input.balance,
+    );
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
       type: META_TRANSACTION_TYPES.ERC1155_DEPOSIT_TO_AGGREGATOR,
