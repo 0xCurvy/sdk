@@ -51,7 +51,7 @@ const generateAggregationHash = (outputNotes: Note[]) => {
 };
 
 // TODO: We cannot go to production with this
-const MOCK_ERC20_TOKEN_ID = "2" as const;
+const MOCK_ERC20_TOKEN_ID = "1" as const;
 
 export {
   generateDummyOutputNote,

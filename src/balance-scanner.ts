@@ -158,7 +158,7 @@ export class BalanceScanner implements IBalanceScanner {
     const entries: NoteBalanceEntry[] = [];
 
     for (let i = 0; i < notes.length; i++) {
-      const {
+      let {
         balance: { token, amount },
         ownerHash,
         owner,
@@ -168,6 +168,10 @@ export class BalanceScanner implements IBalanceScanner {
       if (amount === "0") continue; // Skip zero balance notes
 
       const networkSlug = "localnet"; // TODO Support multiple networks
+
+      if (token === "0x1") {
+        token = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+      }
 
       const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(token, networkSlug);
 
@@ -256,6 +260,8 @@ export class BalanceScanner implements IBalanceScanner {
         });
 
         const unpackedNotes = this.#core.unpackAuthenticatedNotes(s, v, authenticatedNotes, babyJubPublicKey);
+
+        console.log(authenticatedNotes, unpackedNotes);
 
         try {
           const noteEntries = await this.#processNotes(unpackedNotes.map((n) => n.serializeFullNote()));
