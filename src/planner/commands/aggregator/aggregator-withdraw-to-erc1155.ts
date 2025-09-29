@@ -12,12 +12,12 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
   async execute(): Promise<CurvyCommandData> {
     const { networkSlug, environment, symbol, lastUpdated, currencyAddress } = this.input[0];
 
-    const { address: csucAddress } = await this.sdk.getNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
+    const { address: erc1155Address } = await this.sdk.getNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
 
     // TODO: Fix this so that we dont have same return values as args
     const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload({
       inputNotes: this.inputNotes,
-      destinationAddress: csucAddress,
+      destinationAddress: erc1155Address,
     });
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw({
@@ -32,7 +32,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
         if (res.status === "failed") {
           throw new Error(`Aggregator withdraw ${res.status}`);
         }
-        return res.status === "completed";
+        return res.status === "success";
       },
       120,
       10_000,
@@ -41,7 +41,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     // TODO: Create utility methods for creating balance entries in commands
     return {
       type: BALANCE_TYPE.ERC1155,
-      // walletId,
+      walletId: this.input[0].walletId,
       source: destinationAddress as HexString,
       networkSlug,
       environment,

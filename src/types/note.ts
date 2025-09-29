@@ -252,6 +252,10 @@ class Note {
     return new Note({
       owner: aggregationInputNote.owner,
       balance: aggregationInputNote.balance,
+      deliveryTag: {
+        ephemeralKey: "0.0",
+        viewTag: "0x0",
+      },
     });
   }
 
@@ -461,7 +465,6 @@ class Note {
   }
 
   static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress }: NoteBalanceEntry): Note {
-
     return new Note({
       balance: { amount: balance.toString(), token: currencyAddress },
       owner: {

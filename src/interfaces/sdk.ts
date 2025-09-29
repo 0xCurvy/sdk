@@ -11,10 +11,7 @@ import type {
   WithdrawRequest,
   WithdrawRequestParams,
 } from "@/types/aggregator";
-import type {
-  Currency,
-  Network,
-} from "@/types/api";
+import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { CurvyFeeEstimate, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
 import type { CurvySignatureParameters } from "@/types/signature";
@@ -87,6 +84,9 @@ interface ICurvySDK {
     delayMs: number,
   ): Promise<T>;
   getNewNoteForUser(handle: string, token: bigint, amount: bigint): Promise<Note>;
+
+  resetAggregator(): Promise<void>;
+  treeRoot(): Promise<any>;
 }
 
 export type { ICurvySDK };
