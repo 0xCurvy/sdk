@@ -74,6 +74,17 @@ type NoteOwnershipProof = {
   publicSignals: PublicSignals;
 };
 
+type CircuitConfig = {
+  id: string;
+  circuit: string;
+  title: string;
+  treeDepth: number;
+  maxInputs: number;
+  maxOutputs: number;
+  batchSize: number;
+  groupFee: number;
+};
+
 export type {
   PublicKey,
   Signature,
@@ -88,4 +99,5 @@ export type {
   CoreViewerScanReturnType,
   NoteOwnershipData,
   NoteOwnershipProof,
+  CircuitConfig,
 };
