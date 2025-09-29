@@ -249,7 +249,7 @@ class Core implements ICore {
     }
 
     const relativeWasmPath = `../../../zk-keys/staging/prod/${circuitConfig.title}/${circuitConfig.circuit}_js/${circuitConfig.circuit}.wasm`;
-    const relativeZkeyPath = `../../../zk-keys/staging/prod/${circuitConfig.title}/${circuitConfig.circuit}_js/${circuitConfig.circuit}.zkey`;
+    const relativeZkeyPath = `../../../zk-keys/staging/prod/${circuitConfig.title}/keys/${circuitConfig.circuit}_0001.zkey`;
 
     if (isNode) {
       const fs = await import("node:fs/promises");

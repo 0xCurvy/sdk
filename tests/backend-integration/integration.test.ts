@@ -1,8 +1,8 @@
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api";
-import { AggregationRequestParams, Note, WithdrawRequestParams } from "@/types";
-import { MOCK_ERC20_TOKEN_ID } from "@/utils";
 import { CurvySDK } from "@/sdk";
+import type { AggregationRequestParams, Note, WithdrawRequestParams } from "@/types";
+import { MOCK_ERC20_TOKEN_ID } from "@/utils";
 
 const BEARER_TOKEN =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZXZlbnYwMDAwMDAwMDAwMDEubG9jYWwtY3VydnkubmFtZSIsImlhdCI6MTc1OTAwMzAwNywiZXhwIjoyMTE5MDAzMDA3fQ.UooAgQTvwZTZUqrAGzynr69Vul8ebA7tC-5-VXwiSws";
@@ -24,136 +24,173 @@ const waitForRequest = async (requestId: string, api: ApiClient, maxRetries = 20
 };
 
 describe("Integration test", async () => {
-    const api = new ApiClient("local", "http://localhost:4000");
-    api.updateBearerToken(BEARER_TOKEN);
+  const api = new ApiClient("local", "http://localhost:4000");
+  api.updateBearerToken(BEARER_TOKEN);
 
-    const core = await Core.init();
-    const sdk = await CurvySDK.init("local", undefined, "http://localhost:4000");
+  const core = await Core.init();
+  const sdk = await CurvySDK.init("local", undefined, "http://localhost:4000");
 
-    const keyPairs = core.generateKeyPairs();
+  const keyPairs = core.generateKeyPairs();
 
-    it("deposit, aggregation and withdraw, should create proofs and verify them on-chain", async () => {
-        const depositNotes: Note[] = [];
+  it("deposit, aggregation and withdraw, should create proofs and verify them on-chain", async () => {
+    const depositNotes: Note[] = [];
 
-        depositNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
-            ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
-            amount: 3000n,
-            token: BigInt(MOCK_ERC20_TOKEN_ID),
-        }));
+    depositNotes.push(
+      core.sendNote(keyPairs.S, keyPairs.V, {
+        ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+        amount: 3000n,
+        token: BigInt(MOCK_ERC20_TOKEN_ID),
+      }),
+    );
 
-        depositNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
-            ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
-            amount: 1000n,
-            token: BigInt(MOCK_ERC20_TOKEN_ID),
-        }));
+    depositNotes.push(
+      core.sendNote(keyPairs.S, keyPairs.V, {
+        ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+        amount: 1000n,
+        token: BigInt(MOCK_ERC20_TOKEN_ID),
+      }),
+    );
 
-        const depositPayload = {
-            outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
-            fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
-        };
+    const depositPayload = {
+      outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
+      fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    };
 
-        const depositResponse = await api.aggregator.SubmitDeposit(depositPayload);
-        expect(depositResponse.requestId).toBeDefined();
+    const depositResponse = await api.aggregator.SubmitDeposit(depositPayload);
+    expect(depositResponse.requestId).toBeDefined();
 
-        console.log("Deposit API response:", depositResponse.requestId);
+    console.log("Deposit API response:", depositResponse.requestId);
 
-        const depositStatus = await waitForRequest(depositResponse.requestId, api);
+    const depositStatus = await waitForRequest(depositResponse.requestId, api);
 
-        expect(depositStatus).toBe("success");
-        console.log("✅ Deposit reached success status");
+    expect(depositStatus).toBe("success");
+    console.log("✅ Deposit reached success status");
 
-        const { notes: allNotes1 } = await api.aggregator.GetAllNotes();
+    const { notes: allNotes1 } = await api.aggregator.GetAllNotes();
 
-        const ownedNotes1 = core.getNoteOwnershipData(
-            allNotes1.map((note) => ({
-              ownerHash: note.ownerHash,
-              deliveryTag: note.deliveryTag,
-            })),
-            keyPairs.s,
-            keyPairs.v,
-        );
+    const ownedNotes1 = core.getNoteOwnershipData(
+      allNotes1.map((note) => ({
+        ownerHash: note.ownerHash,
+        deliveryTag: note.deliveryTag,
+      })),
+      keyPairs.s,
+      keyPairs.v,
+    );
 
-        expect(ownedNotes1.length).toBe(2);
+    expect(ownedNotes1.length).toBe(2);
 
-        const { proof: proof1, publicSignals: ownerHashes1 } = await core.generateNoteOwnershipProof(ownedNotes1, keyPairs.babyJubjubPublicKey);
+    const networks = await api.network.GetNetworks();
 
-        const authenticatedNotes1 = await api.aggregator.SubmitNotesOwnershipProof({ proof: proof1, ownerHashes: ownerHashes1 });
-        expect(authenticatedNotes1.notes.length).toBe(2);
+    const network = networks.find((network) => network.name === "Localnet");
+    if (!network) {
+      throw new Error("Network not found");
+    }
 
-        console.log("✅ Owned notes fetched");
+    const { proof: proof1, publicSignals: ownerHashes1 } = await core.generateNoteOwnershipProof(
+      ownedNotes1,
+      keyPairs.babyJubjubPublicKey,
+      network,
+    );
 
-        const aggregationInputNotes = core.unpackAuthenticatedNotes(keyPairs.s, keyPairs.v, authenticatedNotes1.notes, keyPairs.babyJubjubPublicKey.split(".") as [string, string]);
+    const authenticatedNotes1 = await api.aggregator.SubmitNotesOwnershipProof({
+      proof: proof1,
+      ownerHashes: ownerHashes1,
+    });
+    expect(authenticatedNotes1.notes.length).toBe(2);
 
-        expect(aggregationInputNotes.length).toBe(2);
+    console.log("✅ Owned notes fetched");
 
-        const outputAmount = (3000n + 1000n) * 999n / 1000n;
+    const aggregationInputNotes = core.unpackAuthenticatedNotes(
+      keyPairs.s,
+      keyPairs.v,
+      authenticatedNotes1.notes,
+      keyPairs.babyJubjubPublicKey.split(".") as [string, string],
+    );
 
-        const aggregationOutputNotes: Note[] = [];
+    expect(aggregationInputNotes.length).toBe(2);
 
-        aggregationOutputNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
-            ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
-            amount: outputAmount,
-            token: BigInt(MOCK_ERC20_TOKEN_ID),
-        }));
-        
-        const aggregationParams: AggregationRequestParams = {
-            inputNotes: aggregationInputNotes.map((note) => note.serializeAggregationInputNote()),
-            outputNotes: aggregationOutputNotes.map((note) => note.serializeAggregationOutputNote())
-        };
+    const outputAmount = ((3000n + 1000n) * 999n) / 1000n;
 
-        const aggregationPayload = sdk.createAggregationPayload(aggregationParams, keyPairs.s);
+    const aggregationOutputNotes: Note[] = [];
 
-        const aggregationResponse = await api.aggregator.SubmitAggregation(aggregationPayload);
-        expect(aggregationResponse.requestId).toBeDefined();
+    aggregationOutputNotes.push(
+      core.sendNote(keyPairs.S, keyPairs.V, {
+        ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+        amount: outputAmount,
+        token: BigInt(MOCK_ERC20_TOKEN_ID),
+      }),
+    );
 
-        console.log("Aggregation API response:", aggregationResponse.requestId);
+    const aggregationParams: AggregationRequestParams = {
+      inputNotes: aggregationInputNotes.map((note) => note.serializeAggregationInputNote()),
+      outputNotes: aggregationOutputNotes.map((note) => note.serializeAggregationOutputNote()),
+    };
 
-        const aggregationStatus = await waitForRequest(aggregationResponse.requestId, api);
+    const aggregationPayload = sdk.createAggregationPayload(aggregationParams, keyPairs.s);
 
-        expect(aggregationStatus).toBe("success");
-        console.log("✅ Aggregation reached success status");
+    const aggregationResponse = await api.aggregator.SubmitAggregation(aggregationPayload);
+    expect(aggregationResponse.requestId).toBeDefined();
 
-        const { notes: allNotes2 } = await api.aggregator.GetAllNotes();
+    console.log("Aggregation API response:", aggregationResponse.requestId);
 
-        const ownedNotes2 = core.getNoteOwnershipData(
-            allNotes2.map((note) => ({
-              ownerHash: note.ownerHash,
-              deliveryTag: note.deliveryTag,
-            })),
-            keyPairs.s,
-            keyPairs.v,
-        );
+    const aggregationStatus = await waitForRequest(aggregationResponse.requestId, api);
 
-        expect(ownedNotes2.length).toBe(1);
+    expect(aggregationStatus).toBe("success");
+    console.log("✅ Aggregation reached success status");
 
-        const { proof: proof2, publicSignals: ownerHashes2 } = await core.generateNoteOwnershipProof(ownedNotes2, keyPairs.babyJubjubPublicKey);
+    const { notes: allNotes2 } = await api.aggregator.GetAllNotes();
 
-        const authenticatedNotes2 = await api.aggregator.SubmitNotesOwnershipProof({ proof: proof2, ownerHashes: ownerHashes2 });
-        expect(authenticatedNotes2.notes.length).toBe(1);
+    const ownedNotes2 = core.getNoteOwnershipData(
+      allNotes2.map((note) => ({
+        ownerHash: note.ownerHash,
+        deliveryTag: note.deliveryTag,
+      })),
+      keyPairs.s,
+      keyPairs.v,
+    );
 
-        console.log("✅ Owned notes fetched");
+    expect(ownedNotes2.length).toBe(1);
 
-        const withdrawalNotes = core.unpackAuthenticatedNotes(keyPairs.s, keyPairs.v, authenticatedNotes2.notes, keyPairs.babyJubjubPublicKey.split(".") as [string, string]);
+    const { proof: proof2, publicSignals: ownerHashes2 } = await core.generateNoteOwnershipProof(
+      ownedNotes2,
+      keyPairs.babyJubjubPublicKey,
+      network,
+    );
 
-        expect(withdrawalNotes.length).toBe(1);
+    const authenticatedNotes2 = await api.aggregator.SubmitNotesOwnershipProof({
+      proof: proof2,
+      ownerHashes: ownerHashes2,
+    });
+    expect(authenticatedNotes2.notes.length).toBe(1);
 
-        const withdrawalRequestParams: WithdrawRequestParams = {
-            inputNotes: withdrawalNotes,
-            destinationAddress: "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
-        };
+    console.log("✅ Owned notes fetched");
 
-        const withdrawalPayload = sdk.createWithdrawPayload(withdrawalRequestParams, keyPairs.s);
+    const withdrawalNotes = core.unpackAuthenticatedNotes(
+      keyPairs.s,
+      keyPairs.v,
+      authenticatedNotes2.notes,
+      keyPairs.babyJubjubPublicKey.split(".") as [string, string],
+    );
 
-        const withdrawalResponse = await api.aggregator.SubmitWithdraw(withdrawalPayload);
-        expect(withdrawalResponse.requestId).toBeDefined();
+    expect(withdrawalNotes.length).toBe(1);
 
-        console.log("Withdraw API response:", withdrawalResponse.requestId);
+    const withdrawalRequestParams: WithdrawRequestParams = {
+      inputNotes: withdrawalNotes,
+      destinationAddress: "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+    };
 
-        const withdrawalStatus = await waitForRequest(withdrawalResponse.requestId, api);
+    const withdrawalPayload = sdk.createWithdrawPayload(withdrawalRequestParams, keyPairs.s);
 
-        expect(withdrawalStatus).toBe("success");
-        console.log("✅ Withdraw reached success status");
+    const withdrawalResponse = await api.aggregator.SubmitWithdraw(withdrawalPayload);
+    expect(withdrawalResponse.requestId).toBeDefined();
 
-        console.log("✅ Integration test passed");
-    }, 300_000);
+    console.log("Withdraw API response:", withdrawalResponse.requestId);
+
+    const withdrawalStatus = await waitForRequest(withdrawalResponse.requestId, api);
+
+    expect(withdrawalStatus).toBe("success");
+    console.log("✅ Withdraw reached success status");
+
+    console.log("✅ Integration test passed");
+  }, 300_000);
 });
