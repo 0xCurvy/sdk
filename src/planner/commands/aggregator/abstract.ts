@@ -1,12 +1,13 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { Note, type NoteBalanceEntry } from "@/types";
+import { type Network, Note, type NoteBalanceEntry } from "@/types";
 
 export abstract class AggregatorCommand extends CurvyCommand {
   protected declare input: NoteBalanceEntry[];
   protected readonly inputNotes: Note[];
   protected readonly inputNotesSum: bigint;
+  protected network: Network;
 
   constructor(sdk: ICurvySDK, input: CurvyCommandData) {
     super(sdk, input);
@@ -20,6 +21,7 @@ export abstract class AggregatorCommand extends CurvyCommand {
       throw new Error("Invalid input for command, aggregator commands only accept notes as input.");
     }
 
+    this.network = sdk.getNetwork(balanceEntries[0].networkSlug);
     this.input = balanceEntries;
 
     this.inputNotes = this.input.map((note) => Note.fromNoteBalanceEntry(note));

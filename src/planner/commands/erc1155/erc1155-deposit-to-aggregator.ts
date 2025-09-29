@@ -10,6 +10,8 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
 
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
+    await this.sdk.treeRoot();
+
     // TODO: Re-enable meta transaction submission for deposits
     // ========================================================
     // await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: "" });
@@ -38,11 +40,13 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res) => {
-        return res.status === "completed";
+        return res.status === "success";
       },
       120,
       10000,
     );
+
+    await this.sdk.treeRoot();
 
     return note.toBalanceEntry(
       this.input.symbol,
@@ -68,8 +72,8 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     });
 
     return {
-      gas: gasFeeInCurrency ?? 0n,
-      curvyFee: curvyFeeInCurrency ?? 0n,
+      gas: BigInt(gasFeeInCurrency ?? "0"),
+      curvyFee: BigInt(curvyFeeInCurrency ?? "0"),
       id,
       note,
     };

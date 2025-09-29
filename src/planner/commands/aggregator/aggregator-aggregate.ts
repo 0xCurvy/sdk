@@ -1,4 +1,9 @@
-import { type AggregationRequestParams, type AggregatorRequestStatusValuesType, isValidCurvyHandle } from "@/exports";
+import {
+  type AggregationRequestParams,
+  type AggregatorRequestStatusValuesType,
+  bigIntToDecimalString,
+  isValidCurvyHandle,
+} from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
@@ -15,7 +20,13 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
 
   // TODO: Check how will token symbol and those things be affected with multi asset notes?
   async execute(): Promise<CurvyCommandData | undefined> {
-    const token = this.inputNotes[0].balance!.token;
+    // const token = this.network.currencies.find(
+    //   (c) => c.contractAddress === this.inputNotes[0].balance!.token.toString(16),
+    // );
+    // if (!token?.erc1155Enabled) {
+    //   throw new Error("Aggregator aggregation only supports ERC1155 tokens");
+    // }
+
     let toAddress = this.senderCurvyHandle;
 
     let changeOrDummyOutputNote: Note;
@@ -30,7 +41,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
 
       // Change note
       const change = this.inputNotesSum - this.#intent.amount;
-      changeOrDummyOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, change);
+      changeOrDummyOutputNote = await this.sdk.getNewNoteForUser(toAddress, 1n, change);
     } else {
       // If there is no change, then we create a dummy note
       changeOrDummyOutputNote = new Note({
@@ -39,15 +50,19 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
             x: "0",
             y: "0",
           },
-          sharedSecret: "0",
+          sharedSecret: BigInt(
+            `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+          ).toString(),
         },
         ownerHash: "0",
         balance: {
           amount: "0",
-          token: "0",
+          token: "1",
         },
         deliveryTag: {
-          ephemeralKey: "0.0",
+          ephemeralKey: bigIntToDecimalString(
+            BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+          ),
           viewTag: "0",
         },
       });
@@ -57,7 +72,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     // that will either aggregate the funds to our Curvy handle
     // or the Curvy handle of the intent's toAddress recipient
     const { curvyFee } = await this.estimate();
-    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.#intent.amount - curvyFee);
+    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, 1n, this.#intent.amount - curvyFee);
 
     const prepareInputs: AggregationRequestParams = {
       inputNotes: this.inputNotes.map((note) => note.serializeAggregationInputNote()),
@@ -65,6 +80,8 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     };
 
     const payload = this.sdk.createAggregationPayload(prepareInputs);
+
+    await this.sdk.treeRoot();
 
     const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(payload);
 
