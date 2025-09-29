@@ -352,7 +352,6 @@ class Core implements ICore {
     );
 
     return scanResult.spendingPubKeys.map((pubKey: string, index: number) => {
-      console.log("pubkey [0] je:", pubKey.split(".")[0]);
       return new Note({
         owner: {
           babyJubjubPublicKey: {

@@ -52,12 +52,6 @@ describe("Integration test", async () => {
             fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
         };
 
-        console.log("DEPOSIT NOTES");
-        console.dir(depositNotes, { depth: null });
-        for (let i = 0; i < depositNotes.length; i++) {
-            console.log("NOTE ID", depositNotes[i].id);
-        }
-
         const depositResponse = await api.aggregator.SubmitDeposit(depositPayload);
         expect(depositResponse.requestId).toBeDefined();
 
@@ -70,9 +64,6 @@ describe("Integration test", async () => {
 
         const { notes: allNotes1 } = await api.aggregator.GetAllNotes();
 
-        console.log("ALL NOTES");
-        console.dir(allNotes1, { depth: null });
-
         const ownedNotes1 = core.getNoteOwnershipData(
             allNotes1.map((note) => ({
               ownerHash: note.ownerHash,
@@ -82,9 +73,6 @@ describe("Integration test", async () => {
             keyPairs.v,
         );
 
-        console.log("OWNED NOTES");
-        console.dir(ownedNotes1, { depth: null });
-
         expect(ownedNotes1.length).toBe(2);
 
         const { proof: proof1, publicSignals: ownerHashes1 } = await core.generateNoteOwnershipProof(ownedNotes1, keyPairs.babyJubjubPublicKey);
@@ -92,20 +80,11 @@ describe("Integration test", async () => {
         const authenticatedNotes1 = await api.aggregator.SubmitNotesOwnershipProof({ proof: proof1, ownerHashes: ownerHashes1 });
         expect(authenticatedNotes1.notes.length).toBe(2);
 
-        console.log("AUTHENTICATED NOTES");
-        console.dir(authenticatedNotes1, { depth: null });
-
         console.log("✅ Owned notes fetched");
 
         const aggregationInputNotes = core.unpackAuthenticatedNotes(keyPairs.s, keyPairs.v, authenticatedNotes1.notes, keyPairs.babyJubjubPublicKey.split(".") as [string, string]);
 
         expect(aggregationInputNotes.length).toBe(2);
-
-        console.log("AGGREGATION INPUT NOTES");
-        console.dir(aggregationInputNotes, { depth: null });
-        for (let i = 0; i < aggregationInputNotes.length; i++) {
-            console.log("NOTE ID", aggregationInputNotes[i].id);
-        }
 
         const outputAmount = (3000n + 1000n) * 999n / 1000n;
 
@@ -123,9 +102,6 @@ describe("Integration test", async () => {
         };
 
         const aggregationPayload = sdk.createAggregationPayload(aggregationParams, keyPairs.s);
-
-        console.log("AGGREGATION PAYLOAD");
-        console.dir(aggregationPayload, { depth: null });
 
         const aggregationResponse = await api.aggregator.SubmitAggregation(aggregationPayload);
         expect(aggregationResponse.requestId).toBeDefined();
