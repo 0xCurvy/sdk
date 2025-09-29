@@ -42,7 +42,7 @@ type Currency = _Currency &
       }
     | {
         erc1155Enabled: true;
-        erc1155Id: bigint;
+        erc1155TokenId: bigint;
       }
   );
 

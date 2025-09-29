@@ -1,7 +1,7 @@
 import type { SignMessageParameters } from "viem";
 import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTransaction";
 import type { CurvyAddress } from "@/types/address";
-import type { Currency, Network } from "@/types/api";
+import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { Erc1155Balance, RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
 
@@ -42,7 +42,6 @@ abstract class Rpc {
 
   abstract feeToAmount(feeEstimate: StarknetFeeEstimate | bigint): bigint;
 
-  abstract injectErc1155Ids(currencies: Currency[]): Promise<Currency[]>;
   abstract getErc1155Balances(address: CurvyAddress): Promise<Erc1155Balance>;
 
   abstract estimateOnboardNativeToErc1155(from: HexString, amount: bigint): Promise<bigint>;

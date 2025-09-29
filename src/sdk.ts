@@ -42,10 +42,10 @@ import { getSignatureParams as starknetGetSignatureParams } from "./constants/st
 import { Core } from "./core";
 import { deriveAddress } from "./utils/address";
 import { generateAggregationHash, generateOutputsHash, MOCK_ERC20_TOKEN_ID } from "./utils/aggregator";
+import { bigIntToDecimalString } from "./utils/decimal-conversions";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { poseidonHash } from "./utils/poseidon-hash";
 import { WalletManager } from "./wallet-manager";
-import { bigIntToDecimalString } from "./utils/decimal-conversions";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -343,8 +343,6 @@ class CurvySDK implements ICurvySDK {
     const newRpc = newMultiRpc(networks);
     this.#rpcClient = newRpc;
 
-    this.#networks = await newRpc.injectErc1155Ids(this.#networks);
-
     const environment = uniqueEnvironmentSet.values().next().value;
 
     if (environment === undefined) throw new Error("No environment set.");
@@ -480,7 +478,7 @@ class CurvySDK implements ICurvySDK {
   createAggregationPayload(params: AggregationRequestParams, privKey?: string): AggregationRequest {
     const { inputNotes, outputNotes } = params;
 
-    let bjjPrivateKey;
+    let bjjPrivateKey: string;
 
     if (privKey) {
       bjjPrivateKey = privKey;
@@ -489,27 +487,29 @@ class CurvySDK implements ICurvySDK {
     }
 
     if (outputNotes.length < 2) {
-      outputNotes.push(new Note({
-        owner: {
-          babyJubjubPublicKey: {
-            x: "0",
-            y: "0",
+      outputNotes.push(
+        new Note({
+          owner: {
+            babyJubjubPublicKey: {
+              x: "0",
+              y: "0",
+            },
+            sharedSecret: BigInt(
+              `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+            ).toString(),
           },
-          sharedSecret: BigInt(
-            `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-          ).toString(),
-        },
-        balance: {
-          amount: "0",
-          token: MOCK_ERC20_TOKEN_ID,
-        },
-        deliveryTag: {
-          ephemeralKey: bigIntToDecimalString(
-            BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
-          ),
-          viewTag: "0x0",
-        },
-      }).serializeAggregationOutputNote());
+          balance: {
+            amount: "0",
+            token: MOCK_ERC20_TOKEN_ID,
+          },
+          deliveryTag: {
+            ephemeralKey: bigIntToDecimalString(
+              BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+            ),
+            viewTag: "0x0",
+          },
+        }).serializeAggregationOutputNote(),
+      );
     }
 
     const msgHash = generateAggregationHash(outputNotes.map((note) => Note.deserializeAggregationOutputNote(note)));
@@ -533,7 +533,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Invalid withdraw payload parameters");
     }
 
-    let bjjPrivateKey;
+    let bjjPrivateKey: string;
 
     if (privKey) {
       bjjPrivateKey = privKey;

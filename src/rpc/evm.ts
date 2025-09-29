@@ -20,7 +20,7 @@ import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { Rpc } from "@/rpc/abstract";
 import type { Erc1155Balance, RpcBalance, RpcBalances } from "@/types";
 import type { CurvyAddress } from "@/types/address";
-import type { Currency, Network } from "@/types/api";
+import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { parseDecimal } from "@/utils/currency";
 import { toSlug } from "@/utils/helpers";
@@ -259,52 +259,6 @@ class EvmRpc extends Rpc {
     return feeEstimate;
   }
 
-  async injectErc1155Ids(currencies: Currency[]) {
-    if (!this.network.erc1155ContractAddress) {
-      throw new Error("Erc1155 actions not supported on this network");
-    }
-
-    const evmMulticall = getContract({
-      abi: evmMulticall3Abi,
-      address: this.network.multiCallContractAddress as Address,
-      client: this.#publicClient,
-    });
-
-    const currencyMap = new Map(currencies.map((c) => [c.id, c]));
-
-    const filteredCurrencies = currencies.filter(({ erc1155Enabled }) => erc1155Enabled);
-
-    const calls = filteredCurrencies.map(({ contractAddress }) => {
-      return {
-        target: this.network.erc1155ContractAddress as Address,
-        callData: encodeFunctionData({
-          abi: erc1155ABI,
-          functionName: "getTokenID",
-          args: [contractAddress as Address],
-        }),
-        gasLimit: 30_000n,
-      };
-    });
-
-    const {
-      result: [_, erc1155Ids],
-    } = await evmMulticall.simulate.aggregate([calls]);
-
-    erc1155Ids.forEach((encodedErc1155Id, idx) => {
-      const erc1155Id = decodeFunctionResult({
-        abi: erc1155ABI,
-        functionName: "getTokenID",
-        data: encodedErc1155Id,
-      });
-
-      const currency = filteredCurrencies[idx];
-
-      currencyMap.set(currency.id, { ...currency, erc1155Enabled: true, erc1155Id });
-    });
-
-    return Array.from(currencyMap.values());
-  }
-
   async getErc1155Balances({ address }: CurvyAddress): Promise<Erc1155Balance> {
     if (!this.network.erc1155ContractAddress) {
       throw new Error("Erc1155 actions not supported on this network");
@@ -313,7 +267,7 @@ class EvmRpc extends Rpc {
     const erc1155EnabledCurrencies = this.network.currencies.filter(({ erc1155Enabled }) => erc1155Enabled);
 
     // MUST REPEAT OWNER ADDRESS FOR EACH TOKEN ID
-    const currencyIds = erc1155EnabledCurrencies.flatMap((c) => (c.erc1155Enabled ? c.erc1155Id : []));
+    const currencyIds = erc1155EnabledCurrencies.flatMap((c) => (c.erc1155Enabled ? c.erc1155TokenId : []));
     const ownerArray = new Array(currencyIds.length).fill(address as Address);
 
     const balances = await this.provider.readContract({
