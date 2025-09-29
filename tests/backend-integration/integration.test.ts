@@ -1,7 +1,6 @@
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api";
 import { AggregationRequestParams, Note, WithdrawRequestParams } from "@/types";
-import { MOCK_ERC20_TOKEN_ID } from "@/utils";
 import { CurvySDK } from "@/sdk";
 
 const BEARER_TOKEN =
@@ -38,13 +37,13 @@ describe("Integration test", async () => {
         depositNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
             ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
             amount: 3000n,
-            token: BigInt(MOCK_ERC20_TOKEN_ID),
+            token: BigInt(2),
         }));
 
         depositNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
             ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
             amount: 1000n,
-            token: BigInt(MOCK_ERC20_TOKEN_ID),
+            token: BigInt(2),
         }));
 
         const depositPayload = {
@@ -93,7 +92,7 @@ describe("Integration test", async () => {
         aggregationOutputNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
             ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
             amount: outputAmount,
-            token: BigInt(MOCK_ERC20_TOKEN_ID),
+            token: BigInt(2),
         }));
         
         const aggregationParams: AggregationRequestParams = {

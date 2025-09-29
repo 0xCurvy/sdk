@@ -444,7 +444,7 @@ class Note {
       ownerHash: this.ownerHash.toString(),
       balance: {
         amount: this.balance.amount.toString(),
-        token: `0x${this.balance.token.toString(16)}`,
+        token: this.balance.token.toString(),
       },
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
