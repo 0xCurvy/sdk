@@ -236,10 +236,19 @@ export class BalanceScanner implements IBalanceScanner {
 
     const onProgress = options?.onProgress;
 
+    //TODO: Must handle ALL networks
+    const networks = await this.apiClient.network.GetNetworks();
+    const network = networks.find((network) => network.name === "Localnet");
+
+    if (!network) {
+      throw new Error("Cannot find network");
+    }
+
     try {
       const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes();
 
       const { s, v, babyJubjubPublicKey } = this.#walletManager.activeWallet.keyPairs;
+
       const bjjParts = babyJubjubPublicKey.split(".");
       if (bjjParts.length !== 2) {
         throw new Error("Invalid BabyJubjub public key format.");
@@ -253,6 +262,7 @@ export class BalanceScanner implements IBalanceScanner {
         const { proof, publicSignals: ownerHashes } = await this.#core.generateNoteOwnershipProof(
           noteOwnershipData.slice(batchNumber * this.#NOTE_BATCH_SIZE, (batchNumber + 1) * this.#NOTE_BATCH_SIZE),
           babyJubjubPublicKey,
+          network,
         );
 
         const { notes: authenticatedNotes } = await this.apiClient.aggregator.SubmitNotesOwnershipProof({

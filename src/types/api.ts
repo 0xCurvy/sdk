@@ -7,6 +7,7 @@
 //////////////////////////////////////////////////////////////////////////////
 
 import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
+import type { CircuitConfig } from "@/types/core";
 import type { HexString } from "@/types/helper";
 import type { MetaTransactionType } from "@/types/meta-transaction";
 import type { PublicNote } from "@/types/note";
@@ -63,6 +64,7 @@ type Network = {
   rpcUrl: string;
   currencies: Array<Currency>;
   feeCollectorAddress?: string;
+  circuitConfig?: CircuitConfig;
 };
 
 //#endregion
