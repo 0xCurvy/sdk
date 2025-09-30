@@ -17,7 +17,6 @@ const META_TRANSACTION_STATUSES = {
   PENDING: "pending",
   COMPLETED: "completed",
   FAILED: "failed",
-  REJECTED: "rejected",
 } as const;
 type META_TRANSACTION_STATUSES = typeof META_TRANSACTION_STATUSES;
 export { META_TRANSACTION_STATUSES };

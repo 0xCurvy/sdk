@@ -242,7 +242,7 @@ type MetaTransactionSubmitBody = {
   signature: any;
 };
 
-type GetMetaTransactionStatusReturnType = "estimated" | "pending" | "completed" | "failed" | "rejected";
+type GetMetaTransactionStatusReturnType = "estimated" | "pending" | "completed" | "failed";
 
 export type { MetaTransactionEstimationRequestBody, GetMetaTransactionStatusReturnType, MetaTransactionSubmitBody };
 //#endregion
