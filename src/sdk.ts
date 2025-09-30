@@ -43,7 +43,7 @@ import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
 import { deriveAddress } from "./utils/address";
-import { generateAggregationHash, generateOutputsHash, MOCK_ERC20_TOKEN_ID } from "./utils/aggregator";
+import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
 import { bigIntToDecimalString } from "./utils/decimal-conversions";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { poseidonHash } from "./utils/poseidon-hash";
@@ -345,8 +345,6 @@ class CurvySDK implements ICurvySDK {
     const newRpc = newMultiRpc(networks);
     this.#rpcClient = newRpc;
 
-    this.#networks = await newRpc.injectErc1155Ids(this.#networks);
-
     const environment = uniqueEnvironmentSet.values().next().value;
 
     if (environment === undefined) throw new Error("No environment set.");
@@ -504,7 +502,7 @@ class CurvySDK implements ICurvySDK {
           },
           balance: {
             amount: "0",
-            token: MOCK_ERC20_TOKEN_ID,
+            token: outputNotes[0].balance.token,
           },
           deliveryTag: {
             ephemeralKey: bigIntToDecimalString(
@@ -560,7 +558,7 @@ class CurvySDK implements ICurvySDK {
           },
           balance: {
             amount: "0",
-            token: MOCK_ERC20_TOKEN_ID,
+            token: inputNotes[0].balance!.token.toString(),
           },
         }),
       );

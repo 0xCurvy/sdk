@@ -2,6 +2,7 @@ import {
   type AggregationRequestParams,
   type AggregatorRequestStatusValuesType,
   bigIntToDecimalString,
+  type HexString,
   isValidCurvyHandle,
 } from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
@@ -20,12 +21,11 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
 
   // TODO: Check how will token symbol and those things be affected with multi asset notes?
   async execute(): Promise<CurvyCommandData | undefined> {
-    // const token = this.network.currencies.find(
-    //   (c) => c.contractAddress === this.inputNotes[0].balance!.token.toString(16),
-    // );
-    // if (!token?.erc1155Enabled) {
-    //   throw new Error("Aggregator aggregation only supports ERC1155 tokens");
-    // }
+    const token = this.input[0].erc1155TokenId;
+
+    if (!token) {
+      throw new Error("[AggregatorAggregateCommand]: Could not find erc1155TokenId of the input note!");
+    }
 
     let toAddress = this.senderCurvyHandle;
 
@@ -41,7 +41,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
 
       // Change note
       const change = this.inputNotesSum - this.#intent.amount;
-      changeOrDummyOutputNote = await this.sdk.getNewNoteForUser(toAddress, 1n, change);
+      changeOrDummyOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, change);
     } else {
       // If there is no change, then we create a dummy note
       changeOrDummyOutputNote = new Note({
@@ -57,7 +57,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
         ownerHash: "0",
         balance: {
           amount: "0",
-          token: "1",
+          token: token.toString(),
         },
         deliveryTag: {
           ephemeralKey: bigIntToDecimalString(
@@ -72,7 +72,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     // that will either aggregate the funds to our Curvy handle
     // or the Curvy handle of the intent's toAddress recipient
     const { curvyFee } = await this.estimate();
-    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, 1n, this.#intent.amount - curvyFee);
+    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.#intent.amount - curvyFee);
 
     const prepareInputs: AggregationRequestParams = {
       inputNotes: this.inputNotes.map((note) => note.serializeAggregationInputNote()),
@@ -80,8 +80,6 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     };
 
     const payload = this.sdk.createAggregationPayload(prepareInputs);
-
-    await this.sdk.treeRoot();
 
     const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(payload);
 
@@ -100,9 +98,16 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     // If we are aggregating the funds to our own address, that's the only case
     // when we want to return the output note to the rest of the plan
     if (toAddress === this.senderCurvyHandle) {
-      const { symbol, walletId, environment, networkSlug, decimals } = this.input[0];
+      const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 
-      return mainOutputNote.toBalanceEntry(symbol, decimals, walletId, environment, networkSlug);
+      return mainOutputNote.toBalanceEntry(
+        symbol,
+        decimals,
+        walletId,
+        environment,
+        networkSlug,
+        currencyAddress as HexString,
+      );
     }
   }
 

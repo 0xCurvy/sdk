@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { StringifyBigInts } from "@/types/helper";
+import type { HexString, StringifyBigInts } from "@/types/helper";
 import type { NoteBalanceEntry } from "@/types/storage";
 import { bigIntToDecimalString, decimalStringToBigInt } from "@/utils/decimal-conversions";
 import { poseidonHash } from "@/utils/poseidon-hash";
@@ -444,7 +444,7 @@ class Note {
       ownerHash: this.ownerHash.toString(),
       balance: {
         amount: this.balance.amount.toString(),
-        token: `0x${this.balance.token.toString(16)}`,
+        token: this.balance.token.toString(),
       },
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
@@ -464,9 +464,9 @@ class Note {
     });
   }
 
-  static fromNoteBalanceEntry({ balance, owner, deliveryTag, currencyAddress }: NoteBalanceEntry): Note {
+  static fromNoteBalanceEntry({ balance, owner, deliveryTag, erc1155TokenId }: NoteBalanceEntry): Note {
     return new Note({
-      balance: { amount: balance.toString(), token: currencyAddress },
+      balance: { amount: balance.toString(), token: erc1155TokenId!.toString() },
       owner: {
         babyJubjubPublicKey: {
           x: owner.babyJubjubPublicKey.x,
@@ -487,6 +487,7 @@ class Note {
     walletId: string,
     environment: NETWORK_ENVIRONMENT_VALUES,
     networkSlug: string,
+    currencyAddress: HexString,
   ): NoteBalanceEntry {
     if (!this.balance || !this.owner || !this.deliveryTag) {
       throw new Error("Note is not fully initialized");
@@ -504,7 +505,8 @@ class Note {
       type: BALANCE_TYPE.NOTE,
       networkSlug,
       environment,
-      currencyAddress: `0x${token.toString(16)}`,
+      erc1155TokenId: token,
+      currencyAddress,
       symbol,
       balance: BigInt(amount),
       decimals,

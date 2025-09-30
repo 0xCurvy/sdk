@@ -1,7 +1,7 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { META_TRANSACTION_TYPES, type Note } from "@/types";
+import { type HexString, META_TRANSACTION_TYPES, type Note } from "@/types";
 
 // This command automatically sends all available balance from ERC1155 to Aggregator
 export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
@@ -9,8 +9,6 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     const { /*id, */ gas, curvyFee, note } = await this.estimate();
 
     note.balance!.amount = this.input.balance - curvyFee - gas;
-
-    await this.sdk.treeRoot();
 
     // TODO: Re-enable meta transaction submission for deposits
     // ========================================================
@@ -31,6 +29,8 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     //   throw new Error(`CSUC contract address not found for ${this.network.name} network.`);
     // }
 
+    console.dir(note);
+
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
       outputNotes: [note.serializeDepositNote()],
       fromAddress: this.input.source,
@@ -46,21 +46,28 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       10000,
     );
 
-    await this.sdk.treeRoot();
-
     return note.toBalanceEntry(
       this.input.symbol,
       this.input.decimals,
       this.input.walletId,
       this.input.environment,
       this.input.networkSlug,
+      this.input.currencyAddress as HexString,
     );
   }
 
   async estimate(): Promise<CurvyCommandEstimate & { id: string; note: Note }> {
     const currencyAddress = this.input.currencyAddress;
 
-    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, BigInt(currencyAddress), this.input.balance);
+    if (!this.input.erc1155TokenId) {
+      throw new Error("Erc1155DepositToAggregatorCommand: erc1155TokenId is required");
+    }
+
+    const note = await this.sdk.getNewNoteForUser(
+      this.senderCurvyHandle,
+      this.input.erc1155TokenId,
+      this.input.balance,
+    );
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
       type: META_TRANSACTION_TYPES.ERC1155_DEPOSIT_TO_AGGREGATOR,

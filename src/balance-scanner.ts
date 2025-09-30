@@ -128,7 +128,7 @@ export class BalanceScanner implements IBalanceScanner {
 
           if (balance === 0n) continue; // Skip zero balances
 
-          const { symbol, environment, decimals } = await this.#storage.getCurrencyMetadata(
+          const { symbol, environment, decimals, erc1155TokenId } = await this.#storage.getCurrencyMetadata(
             currencyAddress,
             toSlug(network),
           );
@@ -142,6 +142,7 @@ export class BalanceScanner implements IBalanceScanner {
             environment,
             decimals,
 
+            erc1155TokenId,
             currencyAddress,
             balance,
             symbol,
@@ -158,7 +159,7 @@ export class BalanceScanner implements IBalanceScanner {
     const entries: NoteBalanceEntry[] = [];
 
     for (let i = 0; i < notes.length; i++) {
-      let {
+      const {
         balance: { token, amount },
         ownerHash,
         owner,
@@ -169,11 +170,10 @@ export class BalanceScanner implements IBalanceScanner {
 
       const networkSlug = "localnet"; // TODO Support multiple networks
 
-      if (token === "0x1") {
-        token = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-      }
-
-      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(token, networkSlug);
+      const { symbol, environment, address, decimals, erc1155TokenId } = await this.#storage.getCurrencyMetadata(
+        token,
+        networkSlug,
+      );
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
@@ -184,6 +184,7 @@ export class BalanceScanner implements IBalanceScanner {
         environment,
 
         currencyAddress: address,
+        erc1155TokenId,
         symbol,
         balance: BigInt(amount),
         decimals,

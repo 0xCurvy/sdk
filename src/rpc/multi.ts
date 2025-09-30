@@ -1,5 +1,5 @@
 import { type NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR } from "@/constants/networks";
-import type { CurvyAddress, Erc1155Balance, Network, RpcBalances } from "@/types";
+import type { CurvyAddress, Erc1155Balance, RpcBalances } from "@/types";
 import { toSlug } from "@/utils/helpers";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
 import type { Rpc } from "./abstract";
@@ -54,21 +54,6 @@ class MultiRpc {
     }
 
     return rpc[0];
-  }
-
-  async injectErc1155Ids(networks: Network[]): Promise<Network[]> {
-    for (const [index, network] of networks.entries()) {
-      if (network.erc1155ContractAddress) {
-        const rpc = this.#rpcArray.find((rpc) => rpc.network.id === network.id);
-        if (rpc) {
-          network.currencies = await rpc.injectErc1155Ids(network.currencies);
-        }
-
-        networks[index] = network;
-      }
-    }
-
-    return networks;
   }
 
   get environment() {

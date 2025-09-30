@@ -16,6 +16,7 @@ type PriceData = {
 
 type CurrencyMetadata = {
   address: string;
+  erc1155TokenId?: bigint;
   symbol: string;
   name: string;
   native?: boolean;
@@ -50,6 +51,7 @@ const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
 
 type Erc1155BalanceEntry = BalanceEntryBase & {
   source: HexString;
+  erc1155TokenId?: bigint;
   type: BALANCE_TYPE["ERC1155"];
 };
 const isErc1155BalanceEntry = (entry: BalanceEntry): entry is Erc1155BalanceEntry => {
@@ -60,6 +62,7 @@ type NoteBalanceEntry = BalanceEntryBase & {
   source: string;
 
   type: BALANCE_TYPE["NOTE"];
+  erc1155TokenId?: bigint;
   owner: {
     babyJubjubPublicKey: {
       x: string;

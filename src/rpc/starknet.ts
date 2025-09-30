@@ -22,7 +22,7 @@ import { starknetAccountAbi } from "@/contracts/starknet/abi/account";
 import { starknetErc20Abi } from "@/contracts/starknet/abi/erc20";
 import { starknetMulticallAbi } from "@/contracts/starknet/abi/multicall";
 import type { CurvyAddress } from "@/types/address";
-import type { Currency, Network } from "@/types/api";
+import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { Erc1155Balance, RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
 import { parseDecimal } from "@/utils/currency";
@@ -353,10 +353,6 @@ class StarknetRpc extends Rpc {
         throw new Error(`Unsupported wallet ID: ${walletId}`);
       }
     }
-  }
-
-  async injectErc1155Ids(_currencies: Currency[]): Promise<Currency[]> {
-    throw new Error("ERC1155 is not supported on Starknet");
   }
 
   async getErc1155Balances(_address: CurvyAddress): Promise<Erc1155Balance> {

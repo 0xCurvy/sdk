@@ -2,7 +2,6 @@ import { Core } from "@/core";
 import { ApiClient } from "@/http/api";
 import { CurvySDK } from "@/sdk";
 import type { AggregationRequestParams, Note, WithdrawRequestParams } from "@/types";
-import { MOCK_ERC20_TOKEN_ID } from "@/utils";
 
 const BEARER_TOKEN =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZXZlbnYwMDAwMDAwMDAwMDEubG9jYWwtY3VydnkubmFtZSIsImlhdCI6MTc1OTAwMzAwNywiZXhwIjoyMTE5MDAzMDA3fQ.UooAgQTvwZTZUqrAGzynr69Vul8ebA7tC-5-VXwiSws";
@@ -35,21 +34,17 @@ describe("Integration test", async () => {
   it("deposit, aggregation and withdraw, should create proofs and verify them on-chain", async () => {
     const depositNotes: Note[] = [];
 
-    depositNotes.push(
-      core.sendNote(keyPairs.S, keyPairs.V, {
+    depositNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
         ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
         amount: 3000n,
-        token: BigInt(MOCK_ERC20_TOKEN_ID),
-      }),
-    );
+        token: BigInt(2),
+    }));
 
-    depositNotes.push(
-      core.sendNote(keyPairs.S, keyPairs.V, {
+    depositNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
         ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
         amount: 1000n,
-        token: BigInt(MOCK_ERC20_TOKEN_ID),
-      }),
-    );
+        token: BigInt(2),
+    }));
 
     const depositPayload = {
       outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
@@ -112,18 +107,16 @@ describe("Integration test", async () => {
     const outputAmount = ((3000n + 1000n) * 999n) / 1000n;
 
     const aggregationOutputNotes: Note[] = [];
-
-    aggregationOutputNotes.push(
-      core.sendNote(keyPairs.S, keyPairs.V, {
+    
+    aggregationOutputNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
         ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
         amount: outputAmount,
-        token: BigInt(MOCK_ERC20_TOKEN_ID),
-      }),
-    );
-
+        token: BigInt(2),
+    }));
+    
     const aggregationParams: AggregationRequestParams = {
-      inputNotes: aggregationInputNotes.map((note) => note.serializeAggregationInputNote()),
-      outputNotes: aggregationOutputNotes.map((note) => note.serializeAggregationOutputNote()),
+        inputNotes: aggregationInputNotes.map((note) => note.serializeAggregationInputNote()),
+        outputNotes: aggregationOutputNotes.map((note) => note.serializeAggregationOutputNote())
     };
 
     const aggregationPayload = sdk.createAggregationPayload(aggregationParams, keyPairs.s);

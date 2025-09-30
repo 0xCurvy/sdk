@@ -50,9 +50,6 @@ const generateAggregationHash = (outputNotes: Note[]) => {
   return poseidonHash([outputNoteHash, ephemeralKeyHash]);
 };
 
-// TODO: We cannot go to production with this
-const MOCK_ERC20_TOKEN_ID = "1" as const;
-
 export {
   generateDummyOutputNote,
   padAggregationOutputNotes,
@@ -60,5 +57,4 @@ export {
   generateOutputsHash,
   generateEphemeralKeysHash,
   generateAggregationHash,
-  MOCK_ERC20_TOKEN_ID,
 };

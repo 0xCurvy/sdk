@@ -15,7 +15,6 @@ import type {
   MetaTransactionSubmitBody,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
-  ResetContractReturnType,
   ResolveCurvyHandleReturnType,
   SetBabyJubjubPublicKeyRequestBody,
   SetBabyJubjubPublicKeyReturnType,
@@ -76,7 +75,6 @@ interface IApiClient {
       ownerHashes: string[];
     }): Promise<SubmitNoteOwnershipProofReturnType>;
     GetAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
-    ResetContract(): Promise<ResetContractReturnType>;
   };
 
   metaTransaction: {
