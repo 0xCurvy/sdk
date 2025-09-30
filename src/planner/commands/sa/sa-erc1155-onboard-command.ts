@@ -82,7 +82,7 @@ export class SaErc1155OnboardCommand extends SACommand {
         type: META_TRANSACTION_TYPES.ERC1155_ONBOARD,
         toAddress: this.input.source,
       });
-      return { id, gas: gasFeeInCurrency ?? 0n, curvyFee: curvyFeeInCurrency ?? 0n };
+      return { id, gas: BigInt(gasFeeInCurrency ?? "0"), curvyFee: BigInt(curvyFeeInCurrency ?? "0") };
     }
   }
 }
