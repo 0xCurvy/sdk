@@ -68,7 +68,9 @@ type Network = {
   rpcUrl: string;
   currencies: Array<Currency>;
   feeCollectorAddress?: string;
-  circuitConfig?: CircuitConfig;
+  aggregationCircuitConfig?: CircuitConfig;
+  withdrawCircuitConfig?: CircuitConfig;
+  noteOwnershipCircuitConfig?: CircuitConfig;
 };
 
 //#endregion

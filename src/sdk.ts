@@ -491,8 +491,8 @@ class CurvySDK implements ICurvySDK {
   }
 
   createAggregationPayload(params: AggregationRequestParams, network: Network, privKey?: string): AggregationRequest {
-    if (!network.circuitConfig) {
-      throw new Error("Network circuit config is not defined!");
+    if (!network.aggregationCircuitConfig) {
+      throw new Error("Network aggregation circuit config is not defined!");
     }
 
     const { inputNotes, outputNotes } = params;
@@ -505,8 +505,7 @@ class CurvySDK implements ICurvySDK {
       bjjPrivateKey = this.walletManager.activeWallet.keyPairs.s;
     }
 
-    // TODO: read circuit config from config
-    if (outputNotes.length < network.circuitConfig.maxOutputs) {
+    if (outputNotes.length < network.aggregationCircuitConfig.maxOutputs) {
       outputNotes.push(
         new Note({
           owner: {
@@ -534,7 +533,7 @@ class CurvySDK implements ICurvySDK {
 
     const msgHash = generateAggregationHash(outputNotes.map((note) => Note.deserializeAggregationOutputNote(note)));
     const signature = this.#core.signWithBabyJubjubPrivateKey(msgHash, bjjPrivateKey);
-    const signatures = Array.from({ length: network.circuitConfig.maxInputs }).map(() => ({
+    const signatures = Array.from({ length: network.aggregationCircuitConfig.maxInputs }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
@@ -547,8 +546,8 @@ class CurvySDK implements ICurvySDK {
   }
 
   createWithdrawPayload(params: WithdrawRequestParams, network: Network, privKey?: string): WithdrawRequest {
-    if (!network.circuitConfig) {
-      throw new Error("Network circuit config is not defined!");
+    if (!network.withdrawCircuitConfig) {
+      throw new Error("Network withdraw circuit config is not defined!");
     }
 
     const { inputNotes, destinationAddress } = params;
@@ -567,8 +566,7 @@ class CurvySDK implements ICurvySDK {
 
     const inputNotesLength = inputNotes.length;
 
-    // TODO: read circuit config from config
-    for (let i = inputNotesLength; i < network.circuitConfig.maxInputs; i++) {
+    for (let i = inputNotesLength; i < network.withdrawCircuitConfig.maxInputs; i++) {
       inputNotes.push(
         new Note({
           owner: {
@@ -593,7 +591,7 @@ class CurvySDK implements ICurvySDK {
     const dstHash = poseidonHash([msgHash, BigInt(destinationAddress)]);
 
     const signature = this.#core.signWithBabyJubjubPrivateKey(dstHash, bjjPrivateKey);
-    const signatures = Array.from({ length: 2 }).map(() => ({
+    const signatures = Array.from({ length: network.withdrawCircuitConfig.maxInputs }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));

@@ -242,7 +242,7 @@ class Core implements ICore {
     let wasm: string | Buffer;
     let zkey: Uint8Array | Buffer;
 
-    const circuitConfig = network.circuitConfig;
+    const circuitConfig = network.noteOwnershipCircuitConfig;
 
     if (!circuitConfig) {
       throw new Error("Generete note ownership proof: circuitConfig is not defined!");
