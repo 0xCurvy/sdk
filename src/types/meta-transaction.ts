@@ -31,6 +31,7 @@ export type MetaTransaction = {
   fromAddress: HexString;
   toAddress?: HexString;
   type: MetaTransactionType;
+  signature?: string;
   gasFeeInCurrency?: bigint;
   curvyFeeInCurrency?: bigint;
   status?: MetaTransactionStatus;
