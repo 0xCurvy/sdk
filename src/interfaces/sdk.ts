@@ -75,8 +75,8 @@ interface ICurvySDK {
     message?: string,
   ): Promise<RpcCallReturnType>;
 
-  createAggregationPayload(params: AggregationRequestParams, privKey?: string): AggregationRequest;
-  createWithdrawPayload(params: WithdrawRequestParams, privKey?: string): WithdrawRequest;
+  createAggregationPayload(params: AggregationRequestParams, network: Network, privKey?: string): AggregationRequest;
+  createWithdrawPayload(params: WithdrawRequestParams, network: Network, privKey?: string): WithdrawRequest;
   pollForCriteria<T>(
     pollFunction: () => Promise<T>,
     pollCriteria: (res: T) => boolean,

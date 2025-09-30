@@ -119,7 +119,7 @@ describe("Integration test", async () => {
         outputNotes: aggregationOutputNotes.map((note) => note.serializeAggregationOutputNote())
     };
 
-    const aggregationPayload = sdk.createAggregationPayload(aggregationParams, keyPairs.s);
+    const aggregationPayload = sdk.createAggregationPayload(aggregationParams, network, keyPairs.s);
 
     const aggregationResponse = await api.aggregator.SubmitAggregation(aggregationPayload);
     expect(aggregationResponse.requestId).toBeDefined();
@@ -172,7 +172,7 @@ describe("Integration test", async () => {
       destinationAddress: "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
     };
 
-    const withdrawalPayload = sdk.createWithdrawPayload(withdrawalRequestParams, keyPairs.s);
+    const withdrawalPayload = sdk.createWithdrawPayload(withdrawalRequestParams, network, keyPairs.s);
 
     const withdrawalResponse = await api.aggregator.SubmitWithdraw(withdrawalPayload);
     expect(withdrawalResponse.requestId).toBeDefined();
