@@ -20,7 +20,6 @@ import type {
   NetworksWithCurrenciesResponse,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
-  ResetContractReturnType,
   ResolveCurvyHandleReturnType,
   SetBabyJubjubPublicKeyRequestBody,
   SetBabyJubjubPublicKeyReturnType,
@@ -201,13 +200,6 @@ class ApiClient extends HttpClient implements IApiClient {
       return await this.request<GetAggregatorRequestStatusReturnType>({
         method: "GET",
         path: `/aggregator/request-status/${requestId}/status`,
-      });
-    },
-
-    ResetContract: async () => {
-      return await this.request<ResetContractReturnType>({
-        method: "POST",
-        path: `/aggregator/reset-contract`,
       });
     },
   };

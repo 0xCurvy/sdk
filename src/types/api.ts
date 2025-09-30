@@ -7,6 +7,7 @@
 //////////////////////////////////////////////////////////////////////////////
 
 import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
+import type { CircuitConfig } from "@/types/core";
 import type { HexString } from "@/types/helper";
 import type { MetaTransactionType } from "@/types/meta-transaction";
 import type { PublicNote } from "@/types/note";
@@ -67,6 +68,7 @@ type Network = {
   rpcUrl: string;
   currencies: Array<Currency>;
   feeCollectorAddress?: string;
+  circuitConfig?: CircuitConfig;
 };
 
 //#endregion
@@ -198,7 +200,6 @@ type GetAllNotesReturnType = {
 type SubmitDepositReturnType = { requestId: string };
 type SubmitWithdrawReturnType = { requestId: string };
 type SubmitAggregationReturnType = { requestId: string };
-type ResetContractReturnType = { reset: boolean };
 type SubmitNoteOwnershipProofReturnType = {
   notes: {
     ownerHash: string;
@@ -218,7 +219,6 @@ export type {
   SubmitWithdrawReturnType,
   SubmitAggregationReturnType,
   GetAggregatorRequestStatusReturnType,
-  ResetContractReturnType,
 };
 
 //#endregion

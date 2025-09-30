@@ -43,7 +43,7 @@ import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
 import { deriveAddress } from "./utils/address";
-import { generateAggregationHash, generateOutputsHash, MOCK_ERC20_TOKEN_ID } from "./utils/aggregator";
+import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
 import { bigIntToDecimalString } from "./utils/decimal-conversions";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { poseidonHash } from "./utils/poseidon-hash";
@@ -490,7 +490,11 @@ class CurvySDK implements ICurvySDK {
       .sendToAddress(from, privateKey, recipientAddress, amount, currency, fee);
   }
 
-  createAggregationPayload(params: AggregationRequestParams, privKey?: string): AggregationRequest {
+  createAggregationPayload(params: AggregationRequestParams, network: Network, privKey?: string): AggregationRequest {
+    if (!network.circuitConfig) {
+      throw new Error("Network circuit config is not defined!");
+    }
+
     const { inputNotes, outputNotes } = params;
 
     let bjjPrivateKey: string;
@@ -501,7 +505,8 @@ class CurvySDK implements ICurvySDK {
       bjjPrivateKey = this.walletManager.activeWallet.keyPairs.s;
     }
 
-    if (outputNotes.length < 2) {
+    // TODO: read circuit config from config
+    if (outputNotes.length < network.circuitConfig.maxOutputs) {
       outputNotes.push(
         new Note({
           owner: {
@@ -515,7 +520,7 @@ class CurvySDK implements ICurvySDK {
           },
           balance: {
             amount: "0",
-            token: MOCK_ERC20_TOKEN_ID,
+            token: outputNotes[0].balance.token,
           },
           deliveryTag: {
             ephemeralKey: bigIntToDecimalString(
@@ -529,7 +534,7 @@ class CurvySDK implements ICurvySDK {
 
     const msgHash = generateAggregationHash(outputNotes.map((note) => Note.deserializeAggregationOutputNote(note)));
     const signature = this.#core.signWithBabyJubjubPrivateKey(msgHash, bjjPrivateKey);
-    const signatures = Array.from({ length: 2 }).map(() => ({
+    const signatures = Array.from({ length: network.circuitConfig.maxInputs }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
@@ -541,7 +546,11 @@ class CurvySDK implements ICurvySDK {
     };
   }
 
-  createWithdrawPayload(params: WithdrawRequestParams, privKey?: string): WithdrawRequest {
+  createWithdrawPayload(params: WithdrawRequestParams, network: Network, privKey?: string): WithdrawRequest {
+    if (!network.circuitConfig) {
+      throw new Error("Network circuit config is not defined!");
+    }
+
     const { inputNotes, destinationAddress } = params;
 
     if (!inputNotes || !destinationAddress) {
@@ -559,7 +568,7 @@ class CurvySDK implements ICurvySDK {
     const inputNotesLength = inputNotes.length;
 
     // TODO: read circuit config from config
-    for (let i = inputNotesLength; i < 2; i++) {
+    for (let i = inputNotesLength; i < network.circuitConfig.maxInputs; i++) {
       inputNotes.push(
         new Note({
           owner: {
@@ -571,7 +580,7 @@ class CurvySDK implements ICurvySDK {
           },
           balance: {
             amount: "0",
-            token: MOCK_ERC20_TOKEN_ID,
+            token: inputNotes[0].balance!.token.toString(),
           },
         }),
       );

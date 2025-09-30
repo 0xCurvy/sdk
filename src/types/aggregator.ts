@@ -27,7 +27,7 @@ type AggregationRequest = {
 };
 
 type WithdrawRequestParams = {
-  inputNotes: Note[];
+  inputNotes: Note[]; // TODO: Add type as WithdrawalNote
   destinationAddress: string;
 };
 
