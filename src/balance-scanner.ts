@@ -133,6 +133,10 @@ export class BalanceScanner implements IBalanceScanner {
             toSlug(network),
           );
 
+          if (!erc1155TokenId) {
+            throw new Error(`ERC1155 token not found in currency metadata, for address ${currencyAddress}.`);
+          }
+
           entries.push({
             walletId: addresses[i].walletId,
             source: address,
@@ -142,7 +146,7 @@ export class BalanceScanner implements IBalanceScanner {
             environment,
             decimals,
 
-            erc1155TokenId,
+            erc1155TokenId: BigInt(erc1155TokenId),
             currencyAddress,
             balance,
             symbol,
@@ -170,8 +174,10 @@ export class BalanceScanner implements IBalanceScanner {
 
       const networkSlug = "localnet"; // TODO Support multiple networks
 
-      const { symbol, environment, address, decimals, erc1155TokenId } = await this.#storage.getCurrencyMetadata(
-        token,
+      const erc1155TokenId = BigInt(token);
+
+      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(
+        erc1155TokenId,
         networkSlug,
       );
 
@@ -261,8 +267,6 @@ export class BalanceScanner implements IBalanceScanner {
         });
 
         const unpackedNotes = this.#core.unpackAuthenticatedNotes(s, v, authenticatedNotes, babyJubPublicKey);
-
-        console.log(authenticatedNotes, unpackedNotes);
 
         try {
           const noteEntries = await this.#processNotes(unpackedNotes.map((n) => n.serializeFullNote()));

@@ -42,7 +42,7 @@ abstract class Rpc {
 
   abstract feeToAmount(feeEstimate: StarknetFeeEstimate | bigint): bigint;
 
-  abstract getErc1155Balances(address: CurvyAddress): Promise<Erc1155Balance>;
+  abstract getErc1155Balances(address: HexString): Promise<Erc1155Balance>;
 
   abstract estimateOnboardNativeToErc1155(from: HexString, amount: bigint): Promise<bigint>;
   abstract onboardNativeToErc1155(amount: bigint, privateKey: HexString): Promise<RpcCallReturnType>;

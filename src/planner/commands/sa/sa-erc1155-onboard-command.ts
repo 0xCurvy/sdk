@@ -44,7 +44,7 @@ export class SaErc1155OnboardCommand extends SACommand {
 
     const { createdAt: _, ...inputData } = this.input;
 
-    const { balances } = await this.#rpc.getErc1155Balances(curvyAddress);
+    const { balances } = await this.#rpc.getErc1155Balances(curvyAddress.address);
     const erc1155Balance = balances.find((b) => b.currencyAddress === this.input.currencyAddress);
 
     if (!erc1155Balance) {
@@ -53,6 +53,7 @@ export class SaErc1155OnboardCommand extends SACommand {
 
     const erc1155BalanceEntry = {
       ...inputData,
+      erc1155TokenId: erc1155Balance.erc1155TokenId,
       balance: BigInt(erc1155Balance.balance),
       type: BALANCE_TYPE.ERC1155,
     } satisfies Erc1155BalanceEntry;

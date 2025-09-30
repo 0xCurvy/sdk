@@ -3,7 +3,7 @@ import type { IApiClient } from "@/interfaces/api";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type { Note } from "@/types";
+import type { ExtendedAnnouncement, Note } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type {
   AggregationRequest,
@@ -35,7 +35,7 @@ interface ICurvySDK {
   getNewStealthAddressForUser(
     networkIdentifier: NetworkFilter,
     handle: string,
-  ): Promise<{ address: HexString; id: string; pubKey: string }>;
+  ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
 
   getAddressEncryptedMessage(address: CurvyAddress): Promise<string>;
 
@@ -86,7 +86,6 @@ interface ICurvySDK {
   getNewNoteForUser(handle: string, token: bigint, amount: bigint): Promise<Note>;
 
   resetAggregator(): Promise<void>;
-  treeRoot(): Promise<any>;
 }
 
 export type { ICurvySDK };

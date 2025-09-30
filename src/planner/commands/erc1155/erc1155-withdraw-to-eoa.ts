@@ -51,7 +51,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
 
     const effectiveAmount = amount - totalFees;
 
-    const [eip712Hash] = getMetaTransactionEip712HashAndSignedData(
+    const [eip712Hash, signData] = getMetaTransactionEip712HashAndSignedData(
       this.input.source as HexString,
       this.#intent.toAddress as HexString,
       tokenId,
@@ -61,6 +61,18 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
       this.network.erc1155ContractAddress as HexString,
       this.network.feeCollectorAddress as HexString,
     );
+
+    console.log("source:", this.input.source as HexString);
+    console.log("toAddress:", this.#intent.toAddress as HexString);
+    console.log("tokenId:", tokenId);
+    console.log("effectiveAmount:", effectiveAmount);
+    console.log("totalFees:", totalFees);
+    console.log("nonce:", nonce);
+    console.log("erc1155ContractAddress:", this.network.erc1155ContractAddress as HexString);
+    console.log("feeCollectorAddress:", this.network.feeCollectorAddress as HexString);
+
+    console.log("Withdrawing ERC1155 with meta transaction:");
+    console.log(eip712Hash, signData);
 
     const signature = (await this.sdk.rpcClient
       .Network(this.input.networkSlug)

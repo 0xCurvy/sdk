@@ -131,11 +131,15 @@ export class MapStorage implements StorageInterface {
     }
   }
 
-  async getCurrencyMetadata(address: string, networkSlug: string) {
-    const currencyMetadata = this.#currencyMetadata.get(this.#getCurrencyMetadataKey({ address, networkSlug }));
+  async getCurrencyMetadata(addressOrId: string | bigint, networkSlug: string) {
+    const currencyMetadata = this.#currencyMetadata.get(
+      this.#getCurrencyMetadataKey({ addressOrId: addressOrId.toString(), networkSlug }),
+    );
 
     if (!currencyMetadata) {
-      throw new StorageError(`Currency metadata for address ${address} on network ${networkSlug} not found`);
+      throw new StorageError(
+        `Currency metadata for address / erc1155TokenId ${addressOrId} on network ${networkSlug} not found`,
+      );
     }
 
     return currencyMetadata;
@@ -148,8 +152,8 @@ export class MapStorage implements StorageInterface {
   #getTotalBalanceKey(e: { walletId: string; currencyAddress: string; networkSlug: string }): string {
     return `${e.walletId}-${e.currencyAddress}-${e.networkSlug}`;
   }
-  #getCurrencyMetadataKey(e: { address: string; networkSlug: string }): string {
-    return `${e.address}-${e.networkSlug}`;
+  #getCurrencyMetadataKey(e: { addressOrId: string; networkSlug: string }): string {
+    return `${e.addressOrId}-${e.networkSlug}`;
   }
 
   async storeCurvyWallet(wallet: CurvyWallet) {

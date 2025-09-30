@@ -1,6 +1,7 @@
 import type { EstimateFee, GetTransactionReceiptResponse as StarknetTransactionReceipt } from "starknet";
 import type { TransactionReceipt as EvmTransactionReceipt } from "viem";
 import type { NETWORK_ENVIRONMENT_VALUES, NETWORKS, TOKENS } from "@/constants/networks";
+import type { RawAnnouncement } from "@/types/api";
 import type { HexString } from "@/types/helper";
 
 type StarknetFeeEstimate = {
@@ -20,8 +21,7 @@ type CurvyFeeEstimate = {
 
 type RecipientData = {
   address: HexString;
-  addressId?: string;
-  pubKey?: string;
+  rawAnnouncement: RawAnnouncement;
 };
 
 type RpcCallReturnType = {
@@ -59,7 +59,7 @@ type RpcBalances = Partial<
 type Erc1155Balance = {
   network: string;
   address: `0x${string}`;
-  balances: { balance: bigint; currencyAddress: string }[];
+  balances: { balance: bigint; currencyAddress: string; erc1155TokenId: bigint }[];
 };
 
 export type {

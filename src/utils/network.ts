@@ -86,7 +86,7 @@ const networksToCurrencyMetadata = (networks: Network[]) => {
         address,
         native: nativeCurrency,
         networkSlug: toSlug(network.name),
-        erc1155TokenId: rest.erc1155Enabled && rest.erc1155TokenId ? BigInt(rest.erc1155TokenId) : undefined,
+        erc1155TokenId: rest.erc1155Enabled && rest.erc1155TokenId ? rest.erc1155TokenId.toString() : undefined,
         environment: network.testnet ? "testnet" : "mainnet",
       });
     }

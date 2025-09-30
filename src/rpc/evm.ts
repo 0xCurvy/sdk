@@ -259,7 +259,7 @@ class EvmRpc extends Rpc {
     return feeEstimate;
   }
 
-  async getErc1155Balances({ address }: CurvyAddress): Promise<Erc1155Balance> {
+  async getErc1155Balances(address: HexString): Promise<Erc1155Balance> {
     if (!this.network.erc1155ContractAddress) {
       throw new Error("Erc1155 actions not supported on this network");
     }
@@ -281,7 +281,11 @@ class EvmRpc extends Rpc {
       network: toSlug(this.network.name),
       address,
       balances: balances.map((balance, idx) => {
-        return { balance, currencyAddress: erc1155EnabledCurrencies[idx].contractAddress };
+        return {
+          balance,
+          currencyAddress: erc1155EnabledCurrencies[idx].contractAddress,
+          erc1155TokenId: currencyIds[idx],
+        };
       }),
     };
   }

@@ -35,7 +35,7 @@ class MultiRpc {
       (rpc) => rpc.network.flavour === curvyAddress.networkFlavour && !!rpc.network.erc1155ContractAddress,
     );
 
-    return Promise.all(rpcs.map((rpc) => rpc.getErc1155Balances(curvyAddress))).then((results) => {
+    return Promise.all(rpcs.map((rpc) => rpc.getErc1155Balances(curvyAddress.address))).then((results) => {
       return results;
     });
   }

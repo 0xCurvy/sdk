@@ -355,7 +355,7 @@ class StarknetRpc extends Rpc {
     }
   }
 
-  async getErc1155Balances(_address: CurvyAddress): Promise<Erc1155Balance> {
+  async getErc1155Balances(_address: HexString): Promise<Erc1155Balance> {
     throw new Error("ERC1155 is not supported on Starknet");
   }
 

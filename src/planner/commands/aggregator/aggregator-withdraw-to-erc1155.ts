@@ -10,9 +10,19 @@ import {
 
 export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
   async execute(): Promise<CurvyCommandData> {
-    const { networkSlug, environment, symbol, lastUpdated, currencyAddress } = this.input[0];
+    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, walletId } = this.input[0];
 
-    const { address: erc1155Address } = await this.sdk.getNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
+    const { address: erc1155Address, announcementData } = await this.sdk.getNewStealthAddressForUser(
+      networkSlug,
+      this.senderCurvyHandle,
+    );
+
+    await this.sdk.storage.storeCurvyAddress({
+      ...announcementData,
+      address: erc1155Address,
+      walletId,
+      lastScannedAt: { mainnet: 0, testnet: 0 },
+    });
 
     // TODO: Fix this so that we dont have same return values as args
     const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload({
@@ -38,14 +48,24 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
       10_000,
     );
 
+    const { balances } = await this.sdk.rpcClient
+      .Network(this.input[0].networkSlug)
+      .getErc1155Balances(destinationAddress as HexString);
+    const erc1155Balance = balances.find((b) => b.currencyAddress === this.input[0].currencyAddress);
+
+    if (!erc1155Balance) {
+      throw new Error("Failed to retrieve ERC1155 balance after deposit!");
+    }
+
     // TODO: Create utility methods for creating balance entries in commands
     return {
       type: BALANCE_TYPE.ERC1155,
       walletId: this.input[0].walletId,
       source: destinationAddress as HexString,
+      erc1155TokenId: erc1155Balance.erc1155TokenId,
       networkSlug,
       environment,
-      balance: this.inputNotesSum,
+      balance: erc1155Balance.balance,
       symbol,
       decimals: this.input[0].decimals,
       currencyAddress,

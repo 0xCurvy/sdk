@@ -36,7 +36,7 @@ import type { CurvyAddress } from "@/types/address";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { Note } from "@/types/note";
-import type { RecipientData, StarknetFeeEstimate } from "@/types/rpc";
+import type { StarknetFeeEstimate } from "@/types/rpc";
 import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
@@ -266,7 +266,17 @@ class CurvySDK implements ICurvySDK {
 
     if (response.data?.message !== "Saved") throw new Error("Failed to register announcement");
 
-    return { address, id: response.data.id, pubKey: recipientStealthPublicKey };
+    return {
+      address,
+      announcementData: {
+        createdAt: new Date().toISOString(),
+        id: response.data.id,
+        networkFlavour: network.flavour,
+        viewTag,
+        ephemeralPublicKey,
+        publicKey: recipientStealthPublicKey,
+      },
+    };
   }
 
   async getAddressEncryptedMessage(address: CurvyAddress) {
@@ -427,14 +437,15 @@ class CurvySDK implements ICurvySDK {
   ) {
     const privateKey = await this.walletManager.getAddressPrivateKey(from);
 
-    let recipientData: RecipientData;
+    let recipientAddress: HexString;
 
-    if (isValidCurvyHandle(to)) recipientData = await this.getNewStealthAddressForUser(networkIdentifier, to);
-    else recipientData = { address: to };
+    if (isValidCurvyHandle(to))
+      recipientAddress = (await this.getNewStealthAddressForUser(networkIdentifier, to)).address;
+    else recipientAddress = to;
 
     const rpc = this.rpcClient.Network(networkIdentifier);
     const nativeToken = this.getNetwork(networkIdentifier).currencies.find((c) => c.nativeCurrency)!;
-    const fee = await rpc.estimateFee(from, privateKey, recipientData.address, amount, currency);
+    const fee = await rpc.estimateFee(from, privateKey, recipientAddress, amount, currency);
     const raw = rpc.feeToAmount(fee);
     const fiat = toNumber(
       mul([raw, nativeToken.decimals], (await this.storage.getCurrencyPrice(nativeToken.symbol)).price),
@@ -459,22 +470,24 @@ class CurvySDK implements ICurvySDK {
   ) {
     const privateKey = await this.walletManager.getAddressPrivateKey(from);
 
-    let recipientData: RecipientData;
+    let recipientAddress: HexString;
 
     if (isValidCurvyHandle(to)) {
-      recipientData = await this.getNewStealthAddressForUser(networkIdentifier, to);
+      const { address, announcementData } = await this.getNewStealthAddressForUser(networkIdentifier, to);
 
-      if (message && recipientData.addressId && recipientData.pubKey) {
-        await this.apiClient.announcement.UpdateAnnouncementEncryptedMessage(recipientData.addressId, {
-          encryptedMessage: JSON.stringify(await encryptCurvyMessage(message, privateKey, recipientData.pubKey)),
+      recipientAddress = address;
+
+      if (message && announcementData.id && announcementData.publicKey) {
+        await this.apiClient.announcement.UpdateAnnouncementEncryptedMessage(announcementData.id, {
+          encryptedMessage: JSON.stringify(await encryptCurvyMessage(message, privateKey, announcementData.publicKey)),
           encryptedMessageSenderPublicKey: from.publicKey,
         });
       }
-    } else recipientData = { address: to };
+    } else recipientAddress = to;
 
     return this.rpcClient
       .Network(networkIdentifier)
-      .sendToAddress(from, privateKey, recipientData.address, amount, currency, fee);
+      .sendToAddress(from, privateKey, recipientAddress, amount, currency, fee);
   }
 
   createAggregationPayload(params: AggregationRequestParams, privKey?: string): AggregationRequest {
@@ -636,18 +649,6 @@ class CurvySDK implements ICurvySDK {
     const receipt = await tx.wait();
 
     if (receipt.status !== 1) throw new Error("Aggregator reset failed");
-  }
-
-  async treeRoot(): Promise<any> {
-    const provider = new ethers.JsonRpcProvider("http://localhost:8545");
-    const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
-    const noteTree = await new ethers.Contract(
-      "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
-      aggregatorABI,
-      signer,
-    ).noteTree();
-
-    console.log("NOTE TREE:", noteTree);
   }
 }
 

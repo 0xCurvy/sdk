@@ -22,6 +22,10 @@ type RawAnnouncement = _Announcement & {
   ephemeralPublicKey: string;
 };
 
+type ExtendedAnnouncement = RawAnnouncement & {
+  publicKey: string;
+};
+
 type _Currency = {
   id: number;
   name: string;
@@ -247,6 +251,7 @@ export type {
   GetAnnouncementsResponse,
   GetAnnouncementsReturnType,
   RawAnnouncement,
+  ExtendedAnnouncement,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
   GetAnnouncementEncryptedMessageReturnType,
