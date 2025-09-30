@@ -3,7 +3,7 @@ import "./wasm-exec.js";
 import { buildEddsa, type Eddsa } from "circomlibjs";
 import { groth16 } from "snarkjs";
 import type { ICore } from "@/interfaces/core";
-import type { Network, RawAnnouncement } from "@/types/api";
+import type { RawAnnouncement } from "@/types/api";
 import type {
   CoreLegacyKeyPairs,
   CoreScanArgs,
@@ -236,20 +236,12 @@ class Core implements ICore {
       sharedSecret: bigint;
     }[],
     babyJubjubPublicKey: string,
-    network: Network,
   ) {
+    const NUM_NOTES = 10;
+
     // Node is Buffer, browser is string / Uint8Array
     let wasm: string | Buffer;
     let zkey: Uint8Array | Buffer;
-
-    const circuitConfig = network.noteOwnershipCircuitConfig;
-
-    if (!circuitConfig) {
-      throw new Error("Generete note ownership proof: circuitConfig is not defined!");
-    }
-
-    const relativeWasmPath = `../../../zk-keys/staging/prod/${circuitConfig.title}/${circuitConfig.circuit}_js/${circuitConfig.circuit}.wasm`;
-    const relativeZkeyPath = `../../../zk-keys/staging/prod/${circuitConfig.title}/keys/${circuitConfig.circuit}_0001.zkey`;
 
     if (isNode) {
       const fs = await import("node:fs/promises");
@@ -258,15 +250,27 @@ class Core implements ICore {
 
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
-      const wasmPath = path.resolve(__dirname, relativeWasmPath);
-      const zkeyPath = path.resolve(__dirname, relativeZkeyPath);
+      const wasmPath = path.resolve(
+        __dirname,
+        "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm",
+      );
+      const zkeyPath = path.resolve(
+        __dirname,
+        "../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey",
+      );
 
       wasm = await fs.readFile(wasmPath);
       zkey = await fs.readFile(zkeyPath);
     } else {
-      wasm = (await import(`${relativeWasmPath}?url`)).default;
+      wasm = (
+        await import(
+          "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm?url"
+        )
+      ).default;
 
-      zkey = (await import(`${relativeZkeyPath}?url`)).default;
+      zkey = (
+        await import("../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey?url")
+      ).default;
     }
 
     if (!wasm || !zkey) {
@@ -274,7 +278,7 @@ class Core implements ICore {
     }
 
     const paddedOwnedNotes = ownedNotes.concat(
-      ...Array(circuitConfig.batchSize - ownedNotes.length).fill({
+      ...Array(NUM_NOTES - ownedNotes.length).fill({
         babyJubjubPublicKey: "0.0",
         sharedSecret: "0",
         ownerHash: "0",

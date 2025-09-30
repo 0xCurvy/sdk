@@ -25,10 +25,13 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     });
 
     // TODO: Fix this so that we dont have same return values as args
-    const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload({
-      inputNotes: this.inputNotes,
-      destinationAddress: erc1155Address,
-    });
+    const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload(
+      {
+        inputNotes: this.inputNotes,
+        destinationAddress: erc1155Address,
+      },
+      this.network,
+    );
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw({
       inputNotes,

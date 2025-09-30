@@ -25,6 +25,8 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
   async execute(): Promise<CurvyCommandData> {
     const currencyAddress = this.input.currencyAddress;
 
+    console.dir(this, { depth: null });
+
     const { id, gas, curvyFee } = await this.estimate();
     const rpc = this.sdk.rpcClient.Network(this.input.networkSlug);
 

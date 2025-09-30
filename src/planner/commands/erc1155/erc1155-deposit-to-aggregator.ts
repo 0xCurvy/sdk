@@ -29,8 +29,6 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     //   throw new Error(`CSUC contract address not found for ${this.network.name} network.`);
     // }
 
-    console.dir(note);
-
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
       outputNotes: [note.serializeDepositNote()],
       fromAddress: this.input.source,

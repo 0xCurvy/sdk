@@ -79,7 +79,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
       outputNotes: [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeAggregationOutputNote()),
     };
 
-    const payload = this.sdk.createAggregationPayload(prepareInputs);
+    const payload = this.sdk.createAggregationPayload(prepareInputs, this.network);
 
     const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(payload);
 
