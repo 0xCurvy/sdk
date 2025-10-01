@@ -302,7 +302,7 @@ class EvmRpc extends Rpc {
       to: this.network.erc1155ContractAddress as Address,
     });
 
-    return maxFeePerGas * gasLimit;
+    return (maxFeePerGas * gasLimit * 120n)/100n;
   }
 
   async onboardNativeToErc1155(amount: bigint, privateKey: HexString) {
