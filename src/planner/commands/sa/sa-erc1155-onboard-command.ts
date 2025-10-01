@@ -1,11 +1,11 @@
+import { encodeFunctionData, erc20Abi, type PublicClient } from "viem";
+import { erc1155ABI } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { SACommand } from "@/planner/commands/sa/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import type { Rpc } from "@/rpc/abstract";
 import { BALANCE_TYPE, type Erc1155BalanceEntry, type HexString, META_TRANSACTION_TYPES } from "@/types";
-import { encodeFunctionData, erc20Abi, PublicClient } from "viem";
-import { erc1155ABI } from "@/contracts/evm/abi";
 
 // This command automatically sends all available balance from SA to CSUC address
 export class SaErc1155OnboardCommand extends SACommand {
@@ -37,7 +37,6 @@ export class SaErc1155OnboardCommand extends SACommand {
         throw new Error("[SaErc1155OnboardCommand] Meta transaction ID is null for non-native onboarding!");
       }
 
-
       const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
       const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
 
@@ -52,9 +51,9 @@ export class SaErc1155OnboardCommand extends SACommand {
           args: [
             this.network.erc1155ContractAddress as HexString,
             this.input.balance, // Approve entire balance
-          ]
+          ],
         }),
-        chain: this.#provider.chain
+        chain: this.#provider.chain,
       });
 
       const signedApprovalTransaction = await this.#rpc.signRawTransaction(privateKey, approvalTransaction);
@@ -66,25 +65,23 @@ export class SaErc1155OnboardCommand extends SACommand {
         data: encodeFunctionData({
           abi: erc1155ABI,
           functionName: "deposit",
-          args: [
-            this.input.currencyAddress as HexString,
-            this.input.source,
-            this.input.balance
-          ],
+          args: [this.input.currencyAddress as HexString, this.input.source, this.input.balance],
         }),
-        chain: this.#provider.chain
+        chain: this.#provider.chain,
       });
-
-      console.log('HELLOOOOOOOOOO');
 
       const signedDepositTransaction = await this.#rpc.signRawTransaction(privateKey, depositTransaction);
 
-      await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: [signedApprovalTransaction, signedDepositTransaction].join(",") });
+      await this.sdk.apiClient.metaTransaction.SubmitTransaction({
+        id,
+        signature: [signedApprovalTransaction, signedDepositTransaction].join(","),
+      });
       await this.sdk.pollForCriteria(
         () => this.sdk.apiClient.metaTransaction.GetStatus(id),
-        (res) => res === "completed",
-        120,
-        10_000,
+        (res) => {
+          if (res === "failed") throw new Error(`[SaOnboardToERC1155] Meta-transaction execution failed!`);
+          return res === "completed";
+        },
       );
     }
 

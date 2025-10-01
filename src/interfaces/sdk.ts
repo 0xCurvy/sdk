@@ -77,11 +77,20 @@ interface ICurvySDK {
 
   createAggregationPayload(params: AggregationRequestParams, network: Network, privKey?: string): AggregationRequest;
   createWithdrawPayload(params: WithdrawRequestParams, network: Network, privKey?: string): WithdrawRequest;
+
+  /**
+   *  * Polls a function until the criteria is met or max retries is reached.
+   *
+   * @param pollFunction
+   * @param pollCriteria
+   * @param {number} [maxRetries=120] - Maximum number of retries
+   * @param {number} [delayMs=10_000] - Delay between retries in milliseconds
+   */
   pollForCriteria<T>(
     pollFunction: () => Promise<T>,
     pollCriteria: (res: T) => boolean,
-    maxRetries: number,
-    delayMs: number,
+    maxRetries?: number,
+    delayMs?: number,
   ): Promise<T>;
   getNewNoteForUser(handle: string, token: bigint, amount: bigint): Promise<Note>;
 

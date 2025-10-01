@@ -1,10 +1,4 @@
-import {
-  type AggregationRequestParams,
-  type AggregatorRequestStatusValuesType,
-  bigIntToDecimalString,
-  type HexString,
-  isValidCurvyHandle,
-} from "@/exports";
+import { type AggregationRequestParams, bigIntToDecimalString, type HexString, isValidCurvyHandle } from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
@@ -85,14 +79,12 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
-      (res: { status: AggregatorRequestStatusValuesType }) => {
+      (res) => {
         if (res.status === "failed") {
-          throw new Error(`Aggregator aggregate ${res.status}`);
+          throw new Error(`[AggregatorAggregateCommand]Aggregator aggregate failed!`);
         }
         return res.status === "success";
       },
-      120,
-      10_000,
     );
 
     // If we are aggregating the funds to our own address, that's the only case

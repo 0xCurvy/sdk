@@ -1,12 +1,7 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import {
-  type AggregatorRequestStatusValuesType,
-  BALANCE_TYPE,
-  type Erc1155BalanceEntry,
-  type HexString,
-} from "@/types";
+import { BALANCE_TYPE, type Erc1155BalanceEntry, type HexString } from "@/types";
 
 export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
   async execute(): Promise<CurvyCommandData> {
@@ -41,14 +36,12 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
-      (res: { status: AggregatorRequestStatusValuesType }) => {
+      (res) => {
         if (res.status === "failed") {
-          throw new Error(`Aggregator withdraw ${res.status}`);
+          throw new Error(`[AggregatorWithdrawToERC1155Command] Aggregator withdraw failed!`);
         }
         return res.status === "success";
       },
-      120,
-      10_000,
     );
 
     const { balances } = await this.sdk.rpcClient
