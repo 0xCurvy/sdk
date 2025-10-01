@@ -4,14 +4,18 @@ import { SACommand } from "@/planner/commands/sa/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import type { Rpc } from "@/rpc/abstract";
 import { BALANCE_TYPE, type Erc1155BalanceEntry, type HexString, META_TRANSACTION_TYPES } from "@/types";
+import { encodeFunctionData, erc20Abi, PublicClient } from "viem";
+import { erc1155ABI } from "@/contracts/evm/abi";
 
 // This command automatically sends all available balance from SA to CSUC address
 export class SaErc1155OnboardCommand extends SACommand {
   #rpc: Rpc;
+  #provider: PublicClient;
 
   constructor(sdk: ICurvySDK, input: CurvyCommandData) {
     super(sdk, input);
     this.#rpc = this.sdk.rpcClient.Network(this.input.networkSlug);
+    this.#provider = this.#rpc.provider;
   }
 
   async execute(): Promise<CurvyCommandData> {
@@ -33,7 +37,49 @@ export class SaErc1155OnboardCommand extends SACommand {
         throw new Error("[SaErc1155OnboardCommand] Meta transaction ID is null for non-native onboarding!");
       }
 
-      await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: "" });
+
+      const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
+      const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
+
+      // approval = approvujemo ceo erc20 balans na erc20 kontraktu da moze njime da raspolaze erc1155
+      const approvalTransaction = await this.#provider.prepareTransactionRequest({
+        to: this.input.currencyAddress as HexString,
+        gas: 50_000n,
+        nonce: 0,
+        data: encodeFunctionData({
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [
+            this.network.erc1155ContractAddress as HexString,
+            this.input.balance, // Approve entire balance
+          ]
+        }),
+        chain: this.#provider.chain
+      });
+
+      const signedApprovalTransaction = await this.#rpc.signRawTransaction(privateKey, approvalTransaction);
+
+      const depositTransaction = await this.#provider.prepareTransactionRequest({
+        to: this.network.erc1155ContractAddress as HexString,
+        gas: 80_000n,
+        nonce: 1,
+        data: encodeFunctionData({
+          abi: erc1155ABI,
+          functionName: "deposit",
+          args: [
+            this.input.currencyAddress as HexString,
+            this.input.source,
+            this.input.balance
+          ],
+        }),
+        chain: this.#provider.chain
+      });
+
+      console.log('HELLOOOOOOOOOO');
+
+      const signedDepositTransaction = await this.#rpc.signRawTransaction(privateKey, depositTransaction);
+
+      await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: [signedApprovalTransaction, signedDepositTransaction].join(",") });
       await this.sdk.pollForCriteria(
         () => this.sdk.apiClient.metaTransaction.GetStatus(id),
         (res) => res === "completed",
@@ -45,6 +91,7 @@ export class SaErc1155OnboardCommand extends SACommand {
     const { createdAt: _, ...inputData } = this.input;
 
     const { balances } = await this.#rpc.getErc1155Balances(curvyAddress.address);
+
     const erc1155Balance = balances.find((b) => b.currencyAddress === this.input.currencyAddress);
 
     if (!erc1155Balance) {
