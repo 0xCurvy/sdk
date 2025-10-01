@@ -91,8 +91,7 @@ describe("Integration test", async () => {
 
     const { proof: proof1, publicSignals: ownerHashes1 } = await core.generateNoteOwnershipProof(
       ownedNotes1,
-      keyPairs.babyJubjubPublicKey,
-      network,
+      keyPairs.babyJubjubPublicKey
     );
 
     const authenticatedNotes1 = await api.aggregator.SubmitNotesOwnershipProof({
@@ -154,8 +153,7 @@ describe("Integration test", async () => {
 
     const { proof: proof2, publicSignals: ownerHashes2 } = await core.generateNoteOwnershipProof(
       ownedNotes2,
-      keyPairs.babyJubjubPublicKey,
-      network,
+      keyPairs.babyJubjubPublicKey
     );
 
     const authenticatedNotes2 = await api.aggregator.SubmitNotesOwnershipProof({
