@@ -1,48 +1,32 @@
 import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
+import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type {
-  BalanceEntry,
-  CsucAction,
-  CsucActionPayload,
-  CsucActionSet,
-  CsucActionStatus,
-  CsucBalanceEntry,
-  CsucEstimatedActionCost,
-  Note,
-  SubmitGasSponsorshipRequestReturnType,
-} from "@/types";
+import type { ExtendedAnnouncement, Note } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type {
   AggregationRequest,
   AggregationRequestParams,
-  DepositRequest,
   WithdrawRequest,
   WithdrawRequestParams,
 } from "@/types/aggregator";
-import type {
-  Currency,
-  GetAggregatorRequestStatusReturnType,
-  Network,
-  SubmitAggregationReturnType,
-  SubmitDepositReturnType,
-  SubmitWithdrawReturnType,
-} from "@/types/api";
+import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import type { CurvyFeeEstimate, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
+import type { CurvyFeeEstimate, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
 import type { CurvySignatureParameters } from "@/types/signature";
 import type { NetworkFilter } from "@/utils/network";
 
 interface ICurvySDK {
+  storage: StorageInterface;
+  apiClient: IApiClient;
+
   // Getters
   get rpcClient(): MultiRpc;
   get activeNetworks(): Network[];
   get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
-  get apiClient(): IApiClient;
   get walletManager(): IWalletManager;
 
-  createWithdrawPayload(params: WithdrawRequestParams): WithdrawRequest;
   getStealthAddressById(id: string): Promise<CurvyAddress>;
   getNetwork(networkFilter?: NetworkFilter): Network;
   getNetworks(networkFilter?: NetworkFilter): Network[];
@@ -51,7 +35,7 @@ interface ICurvySDK {
   getNewStealthAddressForUser(
     networkIdentifier: NetworkFilter,
     handle: string,
-  ): Promise<{ address: HexString; id: string; pubKey: string }>;
+  ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
 
   getAddressEncryptedMessage(address: CurvyAddress): Promise<string>;
 
@@ -89,43 +73,24 @@ interface ICurvySDK {
     currency: string,
     fee: StarknetFeeEstimate | bigint,
     message?: string,
-  ): Promise<SendReturnType>;
+  ): Promise<RpcCallReturnType>;
 
-  onboardToCSUC(
-    networkIdentifier: NetworkFilter,
-    input: BalanceEntry,
-    toAddress: HexString,
-    currencySymbol: string,
-    amount: string,
-  ): Promise<SubmitGasSponsorshipRequestReturnType | undefined>;
+  createAggregationPayload(params: AggregationRequestParams, network: Network, privKey?: string): AggregationRequest;
+  createWithdrawPayload(params: WithdrawRequestParams, network: Network, privKey?: string): WithdrawRequest;
 
-  estimateActionInsideCSUC(
-    networkFilter: NetworkFilter,
-    actionId: CsucActionSet,
-    from: HexString,
-    to: HexString | bigint,
-    token: HexString,
-    _amount: bigint, // Doesn't accept decimal numbers i.e. `0.001`
-  ): Promise<CsucEstimatedActionCost>;
-
-  requestActionInsideCSUC(
-    networkFilter: NetworkFilter,
-    input: CsucBalanceEntry,
-    payload: CsucActionPayload,
-    totalFee: string,
-  ): Promise<{ action: CsucAction; response: CsucActionStatus }>;
-
-  createDeposit(payload: DepositRequest): Promise<SubmitDepositReturnType>;
-  createWithdraw(payload: WithdrawRequest): Promise<SubmitWithdrawReturnType>;
-  createAggregation(payload: AggregationRequest): Promise<SubmitAggregationReturnType>;
-  getAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
-
-  createAggregationPayload(params: AggregationRequestParams): AggregationRequest;
+  /**
+   *  * Polls a function until the criteria is met or max retries is reached.
+   *
+   * @param pollFunction
+   * @param pollCriteria
+   * @param {number} [maxRetries=120] - Maximum number of retries
+   * @param {number} [delayMs=10_000] - Delay between retries in milliseconds
+   */
   pollForCriteria<T>(
     pollFunction: () => Promise<T>,
     pollCriteria: (res: T) => boolean,
-    maxRetries: number,
-    delayMs: number,
+    maxRetries?: number,
+    delayMs?: number,
   ): Promise<T>;
   getNewNoteForUser(handle: string, token: bigint, amount: bigint): Promise<Note>;
 }

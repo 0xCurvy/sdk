@@ -1,9 +1,9 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { ExtractValues } from "@/types/helper";
+import type { ExtractValues, HexString } from "@/types/helper";
 
 const BALANCE_TYPE = {
   SA: "sa",
-  CSUC: "csuc",
+  ERC1155: "erc1155",
   NOTE: "note",
 } as const;
 type BALANCE_TYPE = typeof BALANCE_TYPE;
@@ -16,6 +16,7 @@ type PriceData = {
 
 type CurrencyMetadata = {
   address: string;
+  erc1155TokenId?: string;
   symbol: string;
   name: string;
   native?: boolean;
@@ -27,7 +28,6 @@ type CurrencyMetadata = {
 
 type BalanceEntryBase = {
   walletId: string;
-  source: string;
 
   networkSlug: string;
   environment: NETWORK_ENVIRONMENT_VALUES;
@@ -41,6 +41,7 @@ type BalanceEntryBase = {
 };
 
 type SaBalanceEntry = BalanceEntryBase & {
+  source: HexString;
   type: BALANCE_TYPE["SA"];
   createdAt: string;
 };
@@ -48,16 +49,20 @@ const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
   return entry.type === BALANCE_TYPE.SA;
 };
 
-type CsucBalanceEntry = BalanceEntryBase & {
-  type: BALANCE_TYPE["CSUC"];
-  nonce: bigint;
+type Erc1155BalanceEntry = BalanceEntryBase & {
+  source: HexString;
+  erc1155TokenId: bigint;
+  type: BALANCE_TYPE["ERC1155"];
 };
-const isCsucBalanceEntry = (entry: BalanceEntry): entry is CsucBalanceEntry => {
-  return entry.type === BALANCE_TYPE.CSUC;
+const isErc1155BalanceEntry = (entry: BalanceEntry): entry is Erc1155BalanceEntry => {
+  return entry.type === BALANCE_TYPE.ERC1155;
 };
 
 type NoteBalanceEntry = BalanceEntryBase & {
+  source: string;
+
   type: BALANCE_TYPE["NOTE"];
+  erc1155TokenId: bigint;
   owner: {
     babyJubjubPublicKey: {
       x: string;
@@ -71,7 +76,7 @@ const isNoteBalanceEntry = (entry: BalanceEntry): entry is NoteBalanceEntry => {
   return entry.type === BALANCE_TYPE.NOTE;
 };
 
-type BalanceEntry = SaBalanceEntry | CsucBalanceEntry | NoteBalanceEntry;
+type BalanceEntry = SaBalanceEntry | Erc1155BalanceEntry | NoteBalanceEntry;
 
 type TotalBalance = {
   walletId: string;
@@ -93,10 +98,10 @@ export type {
   PriceData,
   BalanceEntry,
   TotalBalance,
-  CsucBalanceEntry,
+  Erc1155BalanceEntry,
   SaBalanceEntry,
   NoteBalanceEntry,
   BALANCE_TYPE_VALUES,
   BalanceSourcesOptions,
 };
-export { isSaBalanceEntry, isCsucBalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };
+export { isSaBalanceEntry, isErc1155BalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };

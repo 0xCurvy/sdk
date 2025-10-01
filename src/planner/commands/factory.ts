@@ -1,10 +1,10 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand } from "@/planner/commands/abstract";
 import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
-import { AggregatorWithdrawToCSUCCommand } from "@/planner/commands/aggregator/aggregator-withdraw-to-csuc";
-import { CSUCDepositToAggregatorCommand } from "@/planner/commands/csuc/csuc-deposit-to-aggregator";
-import { CSUCWithdrawToEOACommand } from "@/planner/commands/csuc/csuc-withdraw-to-eoa";
-import { SaDepositToCsuc } from "@/planner/commands/sa/sa-deposit-to-csuc";
+import { AggregatorWithdrawToErc1155Command } from "@/planner/commands/aggregator/aggregator-withdraw-to-erc1155";
+import { Erc1155DepositToAggregatorCommand } from "@/planner/commands/erc1155/erc1155-deposit-to-aggregator";
+import { Erc1155WithdrawToEOACommand } from "@/planner/commands/erc1155/erc1155-withdraw-to-eoa";
+import { SaErc1155OnboardCommand } from "@/planner/commands/sa/sa-erc1155-onboard-command";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 
 export interface ICommandFactory {
@@ -22,19 +22,23 @@ export class CurvyCommandFactory implements ICommandFactory {
   // TODO: Think about moving checks from constructors here, and just adjusting the map of commands for mocks so that we can still test constraints
   createCommand(name: string, input: CurvyCommandData, intent?: CurvyIntent): CurvyCommand {
     switch (name) {
-      case "sa-deposit-to-csuc": // This is with gas sponsorship as well
-        return new SaDepositToCsuc(this.#sdk, input);
-      case "csuc-deposit-to-aggregator":
-        return new CSUCDepositToAggregatorCommand(this.#sdk, input);
-      case "csuc-withdraw-to-eoa":
+      case "sa-erc1155-onboard": // This is with gas sponsorship as well
+        return new SaErc1155OnboardCommand(this.#sdk, input);
+      case "erc1155-deposit-to-aggregator":
+        return new Erc1155DepositToAggregatorCommand(this.#sdk, input);
+      case "erc1155-withdraw-to-eoa":
         if (!intent) {
-          throw new Error("CSUCWithdrawToEOACommand requires an intent");
+          throw new Error(`${name} requires an intent`);
         }
-        return new CSUCWithdrawToEOACommand(this.#sdk, input, intent);
+
+        return new Erc1155WithdrawToEOACommand(this.#sdk, input, intent);
       case "aggregator-aggregate":
+        if (!intent) {
+          throw new Error("Aggregator aggregate requires an intent");
+        }
         return new AggregatorAggregateCommand(this.#sdk, input, intent);
-      case "aggregator-withdraw-to-csuc":
-        return new AggregatorWithdrawToCSUCCommand(this.#sdk, input);
+      case "aggregator-withdraw-to-erc1155":
+        return new AggregatorWithdrawToErc1155Command(this.#sdk, input);
     }
 
     throw new Error(`Unknown command name: ${name}`);

@@ -3,7 +3,7 @@
 import { NETWORK_FLAVOUR, NETWORK_GROUP } from "@/constants/networks";
 import type { CurvyIntent } from "@/planner/plan";
 import { generatePlan } from "@/planner/planner";
-import type { CsucBalanceEntry, Currency, Network, NoteBalanceEntry, SaBalanceEntry } from "@/types";
+import type { Currency, Erc1155BalanceEntry, Network, NoteBalanceEntry, SaBalanceEntry } from "@/types";
 
 const mockCurrency: Currency = {
   id: 0,
@@ -52,7 +52,7 @@ const generateMockSABalances = (...balances: bigint[]): SaBalanceEntry[] => {
   });
 };
 
-const generateMockCSUCBalances = (...balances: bigint[]): CsucBalanceEntry[] => {
+const generateMockCSUCBalances = (...balances: bigint[]): Erc1155BalanceEntry[] => {
   return balances.map((balance) => {
     return {
       source: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",

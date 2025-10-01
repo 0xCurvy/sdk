@@ -66,7 +66,15 @@ const networksToPriceData = (networks: Network[]) => {
 
 const networksToCurrencyMetadata = (networks: Network[]) => {
   return networks.reduce((res, network) => {
-    for (const { decimals, iconUrl, name, nativeCurrency, symbol, contractAddress: address } of network.currencies) {
+    for (const {
+      decimals,
+      iconUrl,
+      name,
+      nativeCurrency,
+      symbol,
+      contractAddress: address,
+      ...rest
+    } of network.currencies) {
       const currencyMetadataKey = `${address}-${toSlug(network.name)}`;
       if (res.has(currencyMetadataKey)) continue;
 
@@ -78,6 +86,7 @@ const networksToCurrencyMetadata = (networks: Network[]) => {
         address,
         native: nativeCurrency,
         networkSlug: toSlug(network.name),
+        erc1155TokenId: rest.erc1155Enabled && rest.erc1155TokenId ? rest.erc1155TokenId.toString() : undefined,
         environment: network.testnet ? "testnet" : "mainnet",
       });
     }

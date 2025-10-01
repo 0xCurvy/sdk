@@ -1,20 +1,18 @@
 import type { Groth16Proof } from "snarkjs";
+import type { MetaTransaction } from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  GetActionEstimatedCostRequest,
-  GetActionEstimatedCostResponse,
-  GetActionStatusResponse,
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsReturnType,
-  GetCSAInfoRequest,
-  GetCSAInfoResponse,
   GetCurvyHandleByOwnerAddressReturnType,
+  GetMetaTransactionStatusReturnType,
   GetNetworksReturnType,
+  MetaTransactionEstimationRequestBody,
+  MetaTransactionSubmitBody,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
   ResolveCurvyHandleReturnType,
@@ -22,14 +20,11 @@ import type {
   SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
-  SubmitGasSponsorshipRequest,
-  SubmitGasSponsorshipRequestReturnType,
   SubmitNoteOwnershipProofReturnType,
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
-import type { CsucAction } from "@/types/csuc";
 import type { CurvyHandle } from "@/types/curvy";
 
 interface IApiClient {
@@ -75,22 +70,17 @@ interface IApiClient {
     SubmitDeposit(data: DepositRequest): Promise<SubmitDepositReturnType>;
     SubmitWithdraw(data: WithdrawRequest): Promise<SubmitWithdrawReturnType>;
     SubmitAggregation(data: AggregationRequest): Promise<SubmitAggregationReturnType>;
-    SubmitNotesOwnerhipProof(data: {
+    SubmitNotesOwnershipProof(data: {
       proof: Groth16Proof;
       ownerHashes: string[];
     }): Promise<SubmitNoteOwnershipProofReturnType>;
     GetAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
   };
 
-  csuc: {
-    GetCSAInfo(req: GetCSAInfoRequest): Promise<GetCSAInfoResponse>;
-    EstimateAction(req: GetActionEstimatedCostRequest): Promise<GetActionEstimatedCostResponse>;
-    SubmitActionRequest(req: { action: CsucAction }): Promise<CreateActionResponse>;
-    GetActionStatus(req: { actionIds: string[] }): Promise<GetActionStatusResponse>;
-  };
-
-  gasSponsorship: {
-    SubmitRequest(action: SubmitGasSponsorshipRequest): Promise<SubmitGasSponsorshipRequestReturnType>;
+  metaTransaction: {
+    SubmitTransaction(body: MetaTransactionSubmitBody): Promise<void>;
+    GetStatus(requestId: string): Promise<GetMetaTransactionStatusReturnType>;
+    EstimateGas(body: MetaTransactionEstimationRequestBody): Promise<MetaTransaction & { id: string }>;
   };
 }
 

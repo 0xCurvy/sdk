@@ -6,10 +6,10 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES, NETWORKS } from "@/constants/networks";
-import type { CSAInfo, CsucAction, CsucActionPayload, CsucActionStatus, CsucEstimatedActionCost } from "@/types/csuc";
-import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
+import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
+import type { CircuitConfig } from "@/types/core";
 import type { HexString } from "@/types/helper";
+import type { MetaTransactionType } from "@/types/meta-transaction";
 import type { PublicNote } from "@/types/note";
 
 type _Announcement = {
@@ -23,7 +23,11 @@ type RawAnnouncement = _Announcement & {
   ephemeralPublicKey: string;
 };
 
-type Currency = {
+type ExtendedAnnouncement = RawAnnouncement & {
+  publicKey: string;
+};
+
+type _Currency = {
   id: number;
   name: string;
   symbol: string;
@@ -34,8 +38,18 @@ type Currency = {
   decimals: number;
   contractAddress: string;
   nativeCurrency: boolean;
-  csucEnabled: boolean;
 };
+
+type Currency = _Currency &
+  (
+    | {
+        erc1155Enabled: false;
+      }
+    | {
+        erc1155Enabled: true;
+        erc1155TokenId: bigint;
+      }
+  );
 
 type Network = {
   id: number;
@@ -45,7 +59,7 @@ type Network = {
   slip0044: number;
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
-  csucContractAddress?: string;
+  erc1155ContractAddress?: string;
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   nativeCurrency: string | null; // TODO: Why is this string?
@@ -53,6 +67,10 @@ type Network = {
   blockExplorerUrl: string;
   rpcUrl: string;
   currencies: Array<Currency>;
+  feeCollectorAddress?: string;
+  aggregationCircuitConfig?: CircuitConfig;
+  withdrawCircuitConfig?: CircuitConfig;
+  noteOwnershipCircuitConfig?: CircuitConfig;
 };
 
 //#endregion
@@ -188,7 +206,7 @@ type SubmitNoteOwnershipProofReturnType = {
   notes: {
     ownerHash: string;
     deliveryTag: { viewTag: string; ephemeralKey: string };
-    balance: { tokenGroupId: HexString; amounts: string[] };
+    balance: { token: HexString; amount: string };
   }[];
 };
 type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed" | "success";
@@ -207,61 +225,26 @@ export type {
 
 //#endregion
 
-//#region CSUC
+//#region MetaTransaction
 
-type GetCSAInfoRequest = {
-  network: NETWORKS;
-  csas: string[];
+type MetaTransactionEstimationRequestBody = {
+  type: MetaTransactionType;
+  fromAddress: string;
+  toAddress?: string;
+  amount: string;
+  network: string;
+  currencyAddress: string;
+  ownerHash?: string;
 };
 
-type GetCSAInfoResponse = {
-  data: {
-    csaInfo: CSAInfo[];
-  };
+type MetaTransactionSubmitBody = {
+  id: string;
+  signature: any;
 };
 
-type GetActionEstimatedCostRequest = {
-  payloads: CsucActionPayload[];
-};
+type GetMetaTransactionStatusReturnType = "estimated" | "pending" | "completed" | "failed";
 
-type GetActionEstimatedCostResponse = {
-  data: CsucEstimatedActionCost[];
-};
-
-type CreateActionRequest = {
-  action: CsucAction;
-};
-
-type CreateActionResponse = {
-  data: CsucActionStatus;
-};
-
-type GetActionStatusResponse = {
-  data: CsucActionStatus[];
-};
-
-export type {
-  GetCSAInfoRequest,
-  GetCSAInfoResponse,
-  GetActionEstimatedCostRequest,
-  GetActionEstimatedCostResponse,
-  CreateActionRequest,
-  CreateActionResponse,
-  GetActionStatusResponse,
-};
-
-//#endregion
-
-//#region GasSponsorship
-
-type SubmitGasSponsorshipRequest = GasSponsorshipRequest;
-
-type SubmitGasSponsorshipRequestReturnType = {
-  data: { actionIds: string[] };
-};
-
-export type { SubmitGasSponsorshipRequest, SubmitGasSponsorshipRequestReturnType };
-
+export type { MetaTransactionEstimationRequestBody, GetMetaTransactionStatusReturnType, MetaTransactionSubmitBody };
 //#endregion
 
 export type {
@@ -270,6 +253,7 @@ export type {
   GetAnnouncementsResponse,
   GetAnnouncementsReturnType,
   RawAnnouncement,
+  ExtendedAnnouncement,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
   GetAnnouncementEncryptedMessageReturnType,

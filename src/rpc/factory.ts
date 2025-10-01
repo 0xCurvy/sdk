@@ -15,8 +15,8 @@ function newRpc(network: Network) {
   }
 }
 
-function newMultiRpc(networks: Network[]) {
-  const rpcs = networks.map((network) => {
+function newMultiRpc(networks: Network[], filterCallback: (network: Network) => boolean = () => true) {
+  const rpcs = networks.filter(filterCallback).map((network) => {
     return newRpc(network);
   });
 

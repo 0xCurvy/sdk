@@ -1,21 +1,21 @@
 import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
-import type { SubmitNoteOwnershipProofReturnType } from "@/types";
+import type {
+  GetMetaTransactionStatusReturnType,
+  MetaTransaction,
+  MetaTransactionEstimationRequestBody,
+  MetaTransactionSubmitBody,
+  SubmitNoteOwnershipProofReturnType,
+} from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  CreateActionRequest,
-  CreateActionResponse,
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
-  GetActionEstimatedCostRequest,
-  GetActionEstimatedCostResponse,
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsResponse,
-  GetCSAInfoRequest,
-  GetCSAInfoResponse,
   GetCurvyHandleByOwnerAddressResponse,
   NetworksWithCurrenciesResponse,
   RegisterCurvyHandleRequestBody,
@@ -25,13 +25,10 @@ import type {
   SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
-  SubmitGasSponsorshipRequest,
-  SubmitGasSponsorshipRequestReturnType,
   SubmitWithdrawReturnType,
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
-import type { CsucActionStatus } from "@/types/csuc";
 import type { CurvyHandle } from "@/types/curvy";
 
 class ApiClient extends HttpClient implements IApiClient {
@@ -191,7 +188,7 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    SubmitNotesOwnerhipProof: async (data: { proof: Groth16Proof; ownerHashes: string[] }) => {
+    SubmitNotesOwnershipProof: async (data: { proof: Groth16Proof; ownerHashes: string[] }) => {
       return await this.request<SubmitNoteOwnershipProofReturnType>({
         method: "POST",
         path: "/aggregator/verify-note-ownership-proof",
@@ -207,49 +204,32 @@ class ApiClient extends HttpClient implements IApiClient {
     },
   };
 
-  csuc = {
-    GetCSAInfo: async (req: GetCSAInfoRequest) => {
-      return this.request<GetCSAInfoResponse>({
+  metaTransaction = {
+    SubmitTransaction: async (body: MetaTransactionSubmitBody) => {
+      await this.request<null>({
         method: "POST",
-        path: "/csuc/csa-info",
-        body: { ...req },
-      });
-    },
-
-    EstimateAction: async (req: GetActionEstimatedCostRequest) => {
-      return this.request<GetActionEstimatedCostResponse>({
-        method: "POST",
-        path: "/csuc/estimate-action-cost",
-        body: {
-          ...req,
-        },
-      });
-    },
-    SubmitActionRequest: async (req: CreateActionRequest) => {
-      return this.request<CreateActionResponse>({
-        method: "POST",
-        path: "/csuc/submit-action",
-        body: {
-          ...req,
-        },
-      });
-    },
-    GetActionStatus: async (body: { actionIds: string[] }) => {
-      return await this.request<{ data: CsucActionStatus[]; error: null }>({
-        method: "POST",
-        path: "/csuc/action-status",
+        path: `/meta-transaction/submit`,
         body,
       });
     },
-  };
 
-  gasSponsorship = {
-    SubmitRequest: async (action: SubmitGasSponsorshipRequest) => {
-      return await this.request<SubmitGasSponsorshipRequestReturnType>({
-        method: "POST",
-        path: "/gas-sponsorship/submit-action",
-        body: { actions: [action] },
-      });
+    GetStatus: async (requestId: string) => {
+      return (
+        await this.request<{ data: { metaTransactionStatus: GetMetaTransactionStatusReturnType } }>({
+          method: "GET",
+          path: `/meta-transaction/status/${requestId}`,
+        })
+      ).data.metaTransactionStatus;
+    },
+
+    EstimateGas: async (body: MetaTransactionEstimationRequestBody) => {
+      return (
+        await this.request<{ data: { metaTransaction: MetaTransaction } }>({
+          method: "POST",
+          path: `/meta-transaction/estimate`,
+          body,
+        })
+      ).data.metaTransaction as MetaTransaction & { id: string };
     },
   };
 }

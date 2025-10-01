@@ -1,6 +1,6 @@
-import type {CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl} from "@/planner/plan";
-import {BALANCE_TYPE, type BalanceEntry} from "@/types";
-import {isHexString} from "@/types/helper";
+import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
+import { BALANCE_TYPE, type BalanceEntry } from "@/types";
+import { isHexString } from "@/types/helper";
 
 const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
   const plan: CurvyPlan = {
@@ -17,15 +17,15 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   if (balanceEntry.type === BALANCE_TYPE.SA) {
     plan.items.push({
       type: "command",
-      name: "sa-deposit-to-csuc", // This includes gas sponsorship as well.
+      name: "sa-erc1155-onboard", // This includes gas sponsorship as well.
     });
   }
 
   // Then addresses can be deposited from CSUC to Aggregator
-  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.CSUC) {
+  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.ERC1155) {
     plan.items.push({
       type: "command",
-      name: "csuc-deposit-to-aggregator",
+      name: "erc1155-deposit-to-aggregator",
     });
   }
 
@@ -104,6 +104,23 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
   // FUTURE TODO: Skip unnecessary aggregation (if exact amount)
   // FUTURE TODO: Check if we have exact amount on CSUC/SA, and  skip the aggregator altogether
 
+  // FORCES WITHDRAW TO EOA AND SKIPS THE REST OF THE PLAN
+  // if (isHexString(intent.toAddress))
+  //   return {
+  //     type: "serial",
+  //     items: [
+  //       {
+  //         type: "data",
+  //         data: balances[0],
+  //       },
+  //       {
+  //         type: "command",
+  //         name: "erc1155-withdraw-to-eoa",
+  //         intent,
+  //       },
+  //     ],
+  //   };
+
   // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
   // into aggregator supported batch sizes
   const aggregationPlan = generateAggregationPlan(intent.amount, plansToUpgradeNecessaryAddressesToNotes);
@@ -119,11 +136,11 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
     aggregationPlan.items.push(
       {
         type: "command",
-        name: "aggregator-withdraw-to-csuc",
+        name: "aggregator-withdraw-to-erc1155",
       },
       {
         type: "command",
-        name: "csuc-withdraw-to-eoa",
+        name: "erc1155-withdraw-to-eoa",
         intent,
       },
     );

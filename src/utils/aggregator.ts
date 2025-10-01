@@ -1,5 +1,5 @@
-import { poseidon2, poseidon3 } from "poseidon-lite";
 import type { Note } from "@/types";
+import { poseidonHash } from "@/utils/poseidon-hash";
 
 // TODO: Check if any of these functions are needed
 const generateDummyOutputNote = (token?: string) => ({
@@ -27,7 +27,7 @@ const padAggregationOutputNotes = (outputNotes: any, numberOfNotes: number = 2) 
 };
 
 const generateOutputNoteHash = (outputNote: Note) => {
-  return poseidon3([
+  return poseidonHash([
     BigInt(outputNote.ownerHash),
     BigInt(outputNote.balance!.amount),
     BigInt(outputNote.balance!.token),
@@ -35,19 +35,19 @@ const generateOutputNoteHash = (outputNote: Note) => {
 };
 
 const generateOutputsHash = (outputNotes: Note[]) => {
-  const outputNoteHashes = outputNotes.map(generateOutputNoteHash);
-  return poseidon2(outputNoteHashes);
+  const outputNoteHashes = outputNotes.map((note) => note.id);
+  return poseidonHash(outputNoteHashes);
 };
 
 const generateEphemeralKeysHash = (outputNotes: Note[]) => {
   const ephemeralKeys = outputNotes.map((note) => note.deliveryTag!.ephemeralKey);
-  return poseidon2(ephemeralKeys);
+  return poseidonHash(ephemeralKeys);
 };
 
 const generateAggregationHash = (outputNotes: Note[]) => {
   const outputNoteHash = generateOutputsHash(outputNotes);
   const ephemeralKeyHash = generateEphemeralKeysHash(outputNotes);
-  return poseidon2([outputNoteHash, ephemeralKeyHash]);
+  return poseidonHash([outputNoteHash, ephemeralKeyHash]);
 };
 
 export {

@@ -8,8 +8,8 @@ import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
 import {
   BALANCE_TYPE,
-  type CsucBalanceEntry,
   type CurvyAddress,
+  type Erc1155BalanceEntry,
   type NoteBalanceEntry,
   type SaBalanceEntry,
 } from "@/types";
@@ -114,68 +114,72 @@ export class BalanceScanner implements IBalanceScanner {
   async #processCsucBalances(addresses: CurvyAddress[]): Promise<BalanceEntry[]> {
     const arrLength = addresses.length;
 
-    //TODO Support multiple networks
-    const {
-      data: { csaInfo },
-    } = await this.apiClient.csuc.GetCSAInfo({ network: "localnet", csas: addresses.map((a) => a.address) });
-
-    const entries: CsucBalanceEntry[] = [];
+    const entries: Erc1155BalanceEntry[] = [];
 
     for (let i = 0; i < arrLength; i++) {
-      const { balances, address, nonce: nonces, network } = csaInfo[i];
-      const balancesLength = balances.length;
+      const address = addresses[i];
 
-      for (let j = 0; j < balancesLength; j++) {
-        const { token: currencyAddress, amount } = balances[j];
+      const erc1155Data = await this.rpcClient.getErc1155Balances(address);
 
-        const { symbol, environment, decimals } = await this.#storage.getCurrencyMetadata(
-          currencyAddress,
-          toSlug(network),
-        );
+      for (const { network, address, balances } of erc1155Data) {
+        const balancesLength = balances.length;
+        for (let j = 0; j < balancesLength; j++) {
+          const { currencyAddress, balance } = balances[j];
 
-        const balance = BigInt(amount);
-        if (balance === 0n) continue; // Skip zero balances
+          if (balance === 0n) continue; // Skip zero balances
 
-        const nonce = BigInt(nonces[j].value);
+          const { symbol, environment, decimals, erc1155TokenId } = await this.#storage.getCurrencyMetadata(
+            currencyAddress,
+            toSlug(network),
+          );
 
-        entries.push({
-          walletId: addresses[i].walletId,
-          source: address,
-          type: BALANCE_TYPE.CSUC,
+          if (!erc1155TokenId) {
+            throw new Error(`ERC1155 token not found in currency metadata, for address ${currencyAddress}.`);
+          }
 
-          networkSlug: toSlug(network),
-          environment,
-          decimals,
+          entries.push({
+            walletId: addresses[i].walletId,
+            source: address,
+            type: BALANCE_TYPE.ERC1155,
 
-          currencyAddress,
-          balance,
-          symbol,
+            networkSlug: toSlug(network),
+            environment,
+            decimals,
 
-          nonce,
+            erc1155TokenId: BigInt(erc1155TokenId),
+            currencyAddress,
+            balance,
+            symbol,
 
-          lastUpdated: +dayjs(),
-        });
+            lastUpdated: +dayjs(),
+          });
+        }
       }
     }
     return entries;
   }
+
   async #processNotes(notes: FullNoteData[]): Promise<BalanceEntry[]> {
     const entries: NoteBalanceEntry[] = [];
 
     for (let i = 0; i < notes.length; i++) {
       const {
-        balance: { tokenGroupId, amounts },
+        balance: { token, amount },
         ownerHash,
         owner,
         deliveryTag,
       } = notes[i];
 
-      if (amounts.every((amount) => amount === "0")) continue; // Skip zero balance notes
+      if (amount === "0") continue; // Skip zero balance notes
 
       const networkSlug = "localnet"; // TODO Support multiple networks
 
-      // TODO: WARNING This is a hack, token group ID DOES NOT MATCH currency id
-      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(tokenGroupId, networkSlug);
+      const erc1155TokenId = BigInt(token);
+
+      const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(
+        erc1155TokenId,
+        networkSlug,
+      );
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
@@ -186,8 +190,9 @@ export class BalanceScanner implements IBalanceScanner {
         environment,
 
         currencyAddress: address,
+        erc1155TokenId,
         symbol,
-        balance: 0n, // TODO: HARDCODED FOR NOW
+        balance: BigInt(amount),
         decimals,
 
         owner: {
@@ -237,10 +242,19 @@ export class BalanceScanner implements IBalanceScanner {
 
     const onProgress = options?.onProgress;
 
+    //TODO: Must handle ALL networks
+    const networks = await this.apiClient.network.GetNetworks();
+    const network = networks.find((network) => network.name === "Localnet");
+
+    if (!network) {
+      throw new Error("Cannot find network");
+    }
+
     try {
       const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes();
 
       const { s, v, babyJubjubPublicKey } = this.#walletManager.activeWallet.keyPairs;
+
       const bjjParts = babyJubjubPublicKey.split(".");
       if (bjjParts.length !== 2) {
         throw new Error("Invalid BabyJubjub public key format.");
@@ -254,9 +268,10 @@ export class BalanceScanner implements IBalanceScanner {
         const { proof, publicSignals: ownerHashes } = await this.#core.generateNoteOwnershipProof(
           noteOwnershipData.slice(batchNumber * this.#NOTE_BATCH_SIZE, (batchNumber + 1) * this.#NOTE_BATCH_SIZE),
           babyJubjubPublicKey,
+          network,
         );
 
-        const { notes: authenticatedNotes } = await this.apiClient.aggregator.SubmitNotesOwnerhipProof({
+        const { notes: authenticatedNotes } = await this.apiClient.aggregator.SubmitNotesOwnershipProof({
           proof,
           ownerHashes,
         });
@@ -264,12 +279,7 @@ export class BalanceScanner implements IBalanceScanner {
         const unpackedNotes = this.#core.unpackAuthenticatedNotes(s, v, authenticatedNotes, babyJubPublicKey);
 
         try {
-          const noteEntries = await this.#processNotes(
-            unpackedNotes.map((n) => {
-              console.log(n);
-              return n.serializeFullNote();
-            }),
-          );
+          const noteEntries = await this.#processNotes(unpackedNotes.map((n) => n.serializeFullNote()));
           if (noteEntries.length > 0) {
             if (onProgress) onProgress(noteEntries);
             await this.#storage.updateBalancesAndTotals(walletId, noteEntries);

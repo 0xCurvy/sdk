@@ -1,8 +1,9 @@
+import type { SignMessageParameters } from "viem";
+import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTransaction";
 import type { CurvyAddress } from "@/types/address";
-import type { Currency, Network } from "@/types/api";
-import type { GasSponsorshipRequest } from "@/types/gas-sponsorship";
+import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import type { RpcBalance, RpcBalances, SendReturnType, StarknetFeeEstimate } from "@/types/rpc";
+import type { Erc1155Balance, RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
 
 abstract class Rpc {
   readonly #network: Network;
@@ -15,6 +16,9 @@ abstract class Rpc {
     return this.#network;
   }
 
+  // biome-ignore lint/suspicious/noExplicitAny: Different networks have different provider types
+  abstract get provider(): any;
+
   abstract getBalances(stealthAddress: CurvyAddress): Promise<RpcBalances>;
 
   abstract getBalance(stealthAddress: CurvyAddress, symbol: string): Promise<RpcBalance>;
@@ -26,7 +30,7 @@ abstract class Rpc {
     amount: string,
     currency: string,
     fee?: StarknetFeeEstimate | bigint,
-  ): Promise<SendReturnType>;
+  ): Promise<RpcCallReturnType>;
 
   abstract estimateFee(
     _curvyAddress: CurvyAddress,
@@ -38,12 +42,13 @@ abstract class Rpc {
 
   abstract feeToAmount(feeEstimate: StarknetFeeEstimate | bigint): bigint;
 
-  abstract prepareCSUCOnboardTransaction(
-    privateKey: HexString,
-    toAddress: HexString,
-    currency: Currency,
-    amount: string,
-  ): Promise<GasSponsorshipRequest>;
+  abstract getErc1155Balances(address: HexString): Promise<Erc1155Balance>;
+
+  abstract estimateOnboardNativeToErc1155(from: HexString, amount: bigint): Promise<bigint>;
+  abstract onboardNativeToErc1155(amount: bigint, privateKey: HexString): Promise<RpcCallReturnType>;
+
+  abstract signRawTransaction(privateKey: HexString, txRequest: SignTransactionRequest): Promise<string>;
+  abstract signMessage(privateKey: HexString, params: Omit<SignMessageParameters, "account">): Promise<string>;
 }
 
 export { Rpc };

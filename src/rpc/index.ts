@@ -1,2 +1,4 @@
-export type { EvmRpc } from "./evm";
-export type { StarknetRpc } from "./starknet";
+export { EvmRpc } from "./evm";
+export { newMultiRpc } from "./factory";
+export { MultiRpc } from "./multi";
+export { StarknetRpc } from "./starknet";

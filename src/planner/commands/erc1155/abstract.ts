@@ -1,15 +1,12 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
-import { BALANCE_TYPE, type CsucActionPayload, type CsucBalanceEntry, type Network } from "@/types";
+import { BALANCE_TYPE, type Erc1155BalanceEntry, type Network } from "@/types";
 
 // This command automatically sends all available balance from CSUC to Aggregator
-export abstract class CSUCCommand extends CurvyCommand {
+export abstract class AbstractErc1155Command extends CurvyCommand {
   // CSUC address that will sign / auth. the action to be executed
-  protected declare input: CsucBalanceEntry;
-
-  // Payload that will be used for estimation / execution of the action
-  protected actionPayload?: CsucActionPayload;
+  protected declare input: Erc1155BalanceEntry;
 
   protected network: Network;
 
@@ -20,7 +17,7 @@ export abstract class CSUCCommand extends CurvyCommand {
       throw new Error("Invalid input for command, CSUC commands only accept one data as input.");
     }
 
-    if (input.type !== BALANCE_TYPE.CSUC) {
+    if (input.type !== BALANCE_TYPE.ERC1155) {
       throw new Error("Invalid input for command, CSUC commands only accept CSUC balance type as input.");
     }
 
