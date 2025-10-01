@@ -215,11 +215,11 @@ class ApiClient extends HttpClient implements IApiClient {
 
     GetStatus: async (requestId: string) => {
       return (
-        await this.request<{ data: { metaTransaction: GetMetaTransactionStatusReturnType } }>({
+        await this.request<{ data: { metaTransactionStatus: GetMetaTransactionStatusReturnType } }>({
           method: "GET",
           path: `/meta-transaction/status/${requestId}`,
         })
-      ).data.metaTransaction;
+      ).data.metaTransactionStatus;
     },
 
     EstimateGas: async (body: MetaTransactionEstimationRequestBody) => {
