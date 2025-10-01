@@ -172,7 +172,7 @@ export class BalanceScanner implements IBalanceScanner {
 
       if (amount === "0") continue; // Skip zero balance notes
 
-      const networkSlug = "localnet"; // TODO Support multiple networks
+      const networkSlug = "ethereum-sepolia"; // TODO Support multiple networks
 
       const erc1155TokenId = BigInt(token);
 
@@ -244,7 +244,7 @@ export class BalanceScanner implements IBalanceScanner {
 
     //TODO: Must handle ALL networks
     const networks = await this.apiClient.network.GetNetworks();
-    const network = networks.find((network) => network.name === "Localnet");
+    const network = networks.find((network) => network.name === "Ethereum Sepolia");
 
     if (!network) {
       throw new Error("Cannot find network");
