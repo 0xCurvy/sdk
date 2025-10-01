@@ -32,27 +32,31 @@ describe("Integration test", async () => {
   const keyPairs = core.generateKeyPairs();
 
   it("deposit, aggregation and withdraw, should create proofs and verify them on-chain", async () => {
-    try {
-      await sdk.resetAggregator();
-    } catch (error) {
-      console.log(error);
-    }
+    // try {
+    //   await sdk.resetAggregator();
+    // } catch (error) {
+    //   console.log(error);
+    // }
 
     console.log("✅ Aggregator reset");
 
     const depositNotes: Note[] = [];
 
-    depositNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
+    depositNotes.push(
+      core.sendNote(keyPairs.S, keyPairs.V, {
         ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
         amount: 3000n,
         token: BigInt(2),
-    }));
+      }),
+    );
 
-    depositNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
+    depositNotes.push(
+      core.sendNote(keyPairs.S, keyPairs.V, {
         ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
         amount: 1000n,
         token: BigInt(2),
-    }));
+      }),
+    );
 
     const depositPayload = {
       outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
@@ -91,7 +95,7 @@ describe("Integration test", async () => {
 
     const { proof: proof1, publicSignals: ownerHashes1 } = await core.generateNoteOwnershipProof(
       ownedNotes1,
-      keyPairs.babyJubjubPublicKey
+      keyPairs.babyJubjubPublicKey,
     );
 
     const authenticatedNotes1 = await api.aggregator.SubmitNotesOwnershipProof({
@@ -114,16 +118,18 @@ describe("Integration test", async () => {
     const outputAmount = ((3000n + 1000n) * 999n) / 1000n;
 
     const aggregationOutputNotes: Note[] = [];
-    
-    aggregationOutputNotes.push(core.sendNote(keyPairs.S, keyPairs.V, {
+
+    aggregationOutputNotes.push(
+      core.sendNote(keyPairs.S, keyPairs.V, {
         ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
         amount: outputAmount,
         token: BigInt(2),
-    }));
-    
+      }),
+    );
+
     const aggregationParams: AggregationRequestParams = {
-        inputNotes: aggregationInputNotes.map((note) => note.serializeAggregationInputNote()),
-        outputNotes: aggregationOutputNotes.map((note) => note.serializeAggregationOutputNote())
+      inputNotes: aggregationInputNotes.map((note) => note.serializeAggregationInputNote()),
+      outputNotes: aggregationOutputNotes.map((note) => note.serializeAggregationOutputNote()),
     };
 
     const aggregationPayload = sdk.createAggregationPayload(aggregationParams, network, keyPairs.s);
@@ -153,7 +159,7 @@ describe("Integration test", async () => {
 
     const { proof: proof2, publicSignals: ownerHashes2 } = await core.generateNoteOwnershipProof(
       ownedNotes2,
-      keyPairs.babyJubjubPublicKey
+      keyPairs.babyJubjubPublicKey,
     );
 
     const authenticatedNotes2 = await api.aggregator.SubmitNotesOwnershipProof({
