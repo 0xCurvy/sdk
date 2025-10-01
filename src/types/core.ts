@@ -75,9 +75,7 @@ type NoteOwnershipProof = {
 };
 
 type CircuitConfig = {
-  id: string;
   circuit: string;
-  title: string;
   treeDepth: number;
   maxInputs: number;
   maxOutputs: number;
