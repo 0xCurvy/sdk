@@ -1,22 +1,23 @@
 import dayjs from "dayjs";
-import type { IApiClient } from "@/interfaces/api";
-import type { IBalanceScanner } from "@/interfaces/balance-scanner";
-import type { ICore } from "@/interfaces/core";
-import type { ICurvyEventEmitter } from "@/interfaces/events";
-import type { StorageInterface } from "@/interfaces/storage";
-import type { IWalletManager } from "@/interfaces/wallet-manager";
-import type { MultiRpc } from "@/rpc/multi";
+import type {IApiClient} from "@/interfaces/api";
+import type {IBalanceScanner} from "@/interfaces/balance-scanner";
+import type {ICore} from "@/interfaces/core";
+import type {ICurvyEventEmitter} from "@/interfaces/events";
+import type {StorageInterface} from "@/interfaces/storage";
+import type {IWalletManager} from "@/interfaces/wallet-manager";
+import type {MultiRpc} from "@/rpc/multi";
 import {
-  BALANCE_TYPE,
-  type CurvyAddress,
-  type Erc1155BalanceEntry,
-  type NoteBalanceEntry,
-  type SaBalanceEntry,
+    BALANCE_TYPE,
+    type CurvyAddress,
+    type Erc1155BalanceEntry,
+    type Network,
+    type NoteBalanceEntry,
+    type SaBalanceEntry,
 } from "@/types";
-import type { FullNoteData } from "@/types/note";
-import type { BalanceEntry } from "@/types/storage";
-import { toSlug } from "@/utils/helpers";
-import type { NETWORK_ENVIRONMENT_VALUES } from "./constants/networks";
+import type {FullNoteData} from "@/types/note";
+import type {BalanceEntry} from "@/types/storage";
+import {toSlug} from "@/utils/helpers";
+import type {NETWORK_ENVIRONMENT_VALUES} from "./constants/networks";
 
 export class BalanceScanner implements IBalanceScanner {
   readonly #NOTE_BATCH_SIZE = 10;
@@ -159,7 +160,7 @@ export class BalanceScanner implements IBalanceScanner {
     return entries;
   }
 
-  async #processNotes(notes: FullNoteData[]): Promise<BalanceEntry[]> {
+  async #processNotes(notes: FullNoteData[], network: Network): Promise<BalanceEntry[]> {
     const entries: NoteBalanceEntry[] = [];
 
     for (let i = 0; i < notes.length; i++) {
@@ -172,7 +173,7 @@ export class BalanceScanner implements IBalanceScanner {
 
       if (amount === "0") continue; // Skip zero balance notes
 
-      const networkSlug = "ethereum-sepolia"; // TODO Support multiple networks
+      const networkSlug = toSlug(network.name);
 
       const erc1155TokenId = BigInt(token);
 
@@ -232,7 +233,7 @@ export class BalanceScanner implements IBalanceScanner {
 
   async #noteScan(
     walletId: string,
-    _environment: NETWORK_ENVIRONMENT_VALUES,
+    environment: NETWORK_ENVIRONMENT_VALUES,
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
       scanAll?: boolean;
@@ -242,13 +243,17 @@ export class BalanceScanner implements IBalanceScanner {
 
     const onProgress = options?.onProgress;
 
-    //TODO: Must handle ALL networks
-    const networks = await this.apiClient.network.GetNetworks();
-    const network = networks.find((network) => network.name === "Ethereum Sepolia");
+    const networks = (await this.apiClient.network.GetNetworks()).filter(
+      (network) => network.testnet === (environment === "testnet") && !!network.erc1155ContractAddress,
+    );
 
-    if (!network) {
-      throw new Error("Cannot find network");
+    if (networks.length === 0) {
+      console.warn("[BalanceScanner] No networks available for note scanning.");
+      this.#scanProgress.notes = 1;
+      return;
     }
+
+    // TODO Support multiple networks, currently taking only the first one
 
     try {
       const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes();
@@ -268,7 +273,7 @@ export class BalanceScanner implements IBalanceScanner {
         const { proof, publicSignals: ownerHashes } = await this.#core.generateNoteOwnershipProof(
           noteOwnershipData.slice(batchNumber * this.#NOTE_BATCH_SIZE, (batchNumber + 1) * this.#NOTE_BATCH_SIZE),
           babyJubjubPublicKey,
-          network,
+          networks[0], // TODO Support multiple networks
         );
 
         const { notes: authenticatedNotes } = await this.apiClient.aggregator.SubmitNotesOwnershipProof({
@@ -279,7 +284,10 @@ export class BalanceScanner implements IBalanceScanner {
         const unpackedNotes = this.#core.unpackAuthenticatedNotes(s, v, authenticatedNotes, babyJubPublicKey);
 
         try {
-          const noteEntries = await this.#processNotes(unpackedNotes.map((n) => n.serializeFullNote()));
+          const noteEntries = await this.#processNotes(
+            unpackedNotes.map((n) => n.serializeFullNote()),
+            networks[0], // TODO Support multiple networks
+          );
           if (noteEntries.length > 0) {
             if (onProgress) onProgress(noteEntries);
             await this.#storage.updateBalancesAndTotals(walletId, noteEntries);
