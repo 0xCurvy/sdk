@@ -87,6 +87,11 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
       },
     );
 
+    await this.sdk.storage.updateBalancesAndTotals(
+      this.input[0].walletId,
+      this.input.map((i) => ({ ...i, balance: 0n })),
+    );
+
     // If we are aggregating the funds to our own address, that's the only case
     // when we want to return the output note to the rest of the plan
     if (toAddress === this.senderCurvyHandle) {

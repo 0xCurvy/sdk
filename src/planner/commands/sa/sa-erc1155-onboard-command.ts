@@ -102,7 +102,7 @@ export class SaErc1155OnboardCommand extends SACommand {
       type: BALANCE_TYPE.ERC1155,
     } satisfies Erc1155BalanceEntry;
 
-    await this.sdk.storage.updateBalancesAndTotals(inputData.walletId, [erc1155BalanceEntry]);
+    // await this.sdk.storage.updateBalancesAndTotals(inputData.walletId, [erc1155BalanceEntry]); TODO this is buggy, needs a fix
 
     return erc1155BalanceEntry;
   }

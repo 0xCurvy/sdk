@@ -33,6 +33,8 @@ export type CurvyPlanFlowControl = {
 };
 
 export type CurvyPlan = CurvyPlanFlowControl | CurvyPlanCommand | CurvyPlanData;
+export const isCurvyPlanFlowControl = (plan: CurvyPlan): plan is CurvyPlanFlowControl =>
+  plan.type === "parallel" || plan.type === "serial";
 
 export type CurvyPlanSuccessfulEstimation = {
   success: true;

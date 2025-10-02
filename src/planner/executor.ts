@@ -19,9 +19,9 @@ export class CommandExecutor {
     this.eventEmitter = eventEmitter;
   }
 
-  async executePlan(plan: CurvyPlan): Promise<CurvyPlanExecution> {
+  async executePlan(plan: CurvyPlan, onCommandStarted?: (command: string) => void): Promise<CurvyPlanExecution> {
     this.eventEmitter.emitPlanExecutionStarted({ plan });
-    const result = await this.executeRecursively(plan);
+    const result = await this.executeRecursively(plan, undefined, onCommandStarted);
 
     if (result.success) {
       this.eventEmitter.emitPlanExecutionComplete({ plan, result });
@@ -32,12 +32,18 @@ export class CommandExecutor {
     return result;
   }
 
-  private async executeRecursively(plan: CurvyPlan, input?: CurvyCommandData): Promise<CurvyPlanExecution> {
+  private async executeRecursively(
+    plan: CurvyPlan,
+    input?: CurvyCommandData,
+    onCommandStarted?: (command: string) => void,
+  ): Promise<CurvyPlanExecution> {
     // CurvyPlanFlowControl, parallel
     if (plan.type === "parallel") {
       // Parallel plans don't take any input,
       // because that would mean that each of its children is getting the same Address as input
-      const result = await Promise.all(plan.items.map((item) => this.executeRecursively(item)));
+      const result = await Promise.all(
+        plan.items.map((item) => this.executeRecursively(item, undefined, onCommandStarted)),
+      );
       const success = result.every((r) => r.success);
 
       this.eventEmitter.emitPlanExecutionProgress({ plan, result: { success, items: result } as CurvyPlanExecution });
@@ -67,7 +73,7 @@ export class CommandExecutor {
 
       let data = input;
       for (const item of plan.items) {
-        const result = await this.executeRecursively(item, data);
+        const result = await this.executeRecursively(item, data, onCommandStarted);
 
         results.push(result);
 
@@ -100,6 +106,7 @@ export class CommandExecutor {
 
       try {
         const command = this.commandFactory.createCommand(plan.name, input, plan.intent);
+        onCommandStarted?.(plan.name);
         const data = await command.execute();
 
         return <CurvyPlanSuccessfulExecution>{
