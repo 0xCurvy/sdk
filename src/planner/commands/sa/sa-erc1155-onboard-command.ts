@@ -43,7 +43,7 @@ export class SaErc1155OnboardCommand extends SACommand {
       // approval = approvujemo ceo erc20 balans na erc20 kontraktu da moze njime da raspolaze erc1155
       const approvalTransaction = await this.#provider.prepareTransactionRequest({
         to: this.input.currencyAddress as HexString,
-        gas: 50_000n,
+        gas: 60_000n,
         nonce: 0,
         data: encodeFunctionData({
           abi: erc20Abi,
@@ -60,7 +60,7 @@ export class SaErc1155OnboardCommand extends SACommand {
 
       const depositTransaction = await this.#provider.prepareTransactionRequest({
         to: this.network.erc1155ContractAddress as HexString,
-        gas: 80_000n,
+        gas: 100_000n,
         nonce: 1,
         data: encodeFunctionData({
           abi: erc1155ABI,
