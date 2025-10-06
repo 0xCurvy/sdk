@@ -6,6 +6,7 @@ interface IWalletManager {
   get wallets(): Array<CurvyWallet>;
   get activeWallet(): Readonly<CurvyWallet>;
 
+  addWalletWithPrivateKeys(s: string, v: string, requestingAddress: HexString): Promise<CurvyWallet>;
   addWalletWithSignature(flavour: NETWORK_FLAVOUR["EVM"], signature: EvmSignatureData): Promise<CurvyWallet>;
   addWalletWithSignature(flavour: NETWORK_FLAVOUR["STARKNET"], signature: StarknetSignatureData): Promise<CurvyWallet>;
   addWalletWithSignature(
@@ -13,6 +14,11 @@ interface IWalletManager {
     signature: EvmSignatureData | StarknetSignatureData,
   ): Promise<CurvyWallet>;
 
+  registerWalletWithPrivateKeys(
+    s: string, 
+    v: string, 
+    handle: CurvyHandle, 
+    ownerAddress: HexString): Promise<CurvyWallet>;
   registerWalletWithSignature(
     handle: CurvyHandle,
     flavour: NETWORK_FLAVOUR["EVM"],
@@ -35,7 +41,7 @@ interface IWalletManager {
 
   getWalletById(id: string): Readonly<CurvyWallet | undefined>;
 
-  addWallet(wallet: CurvyWallet): Promise<void>;
+  addWallet(wallet: CurvyWallet, skipBearerTokenUpdate?: boolean, skipScan?: boolean): Promise<void>;
   removeWallet(walletId: string): Promise<void>;
 
   scanWallet(wallet: CurvyWallet): Promise<void>;

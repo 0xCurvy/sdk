@@ -165,6 +165,18 @@ class WalletManager implements IWalletManager {
     }
   }
 
+  async addWalletWithPrivateKeys(s: string, v: string, requestingAddress: HexString) {
+    const keyPairs = this.#core.getCurvyKeys(s, v);
+
+    await this.#updateBearerToken(keyPairs.s);
+
+    const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
+    const wallet = new CurvyWallet(walletId, +dayjs(), "operator.curvy.name", requestingAddress, keyPairs);
+    await this.addWallet(wallet, true, true);
+
+    return wallet;
+  }
+
   async addWalletWithSignature(flavour: NETWORK_FLAVOUR_VALUES, signature: EvmSignatureData | StarknetSignatureData) {
     const [r_string, s_string] = await this.#verifySignature(flavour, signature);
     const { s, v } = computePrivateKeys(r_string, s_string);
@@ -209,6 +221,45 @@ class WalletManager implements IWalletManager {
     const wallet = new CurvyWallet(walletId, +dayjs(createdAt), curvyHandle, signature.signingAddress, keyPairs);
     await this.addWallet(wallet, true);
 
+    return wallet;
+  }
+
+  async registerWalletWithPrivateKeys(s: string, v: string, handle: CurvyHandle, ownerAddress: HexString) {
+    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(ownerAddress);
+    if (curvyHandle) {
+      throw new Error(`Handle ${curvyHandle} already registered, for owner address: ${ownerAddress}`);
+    }
+  
+    if (!CURVY_HANDLE_REGEX.test(handle))
+      throw new Error(
+        `Invalid handle format: ${handle}. Curvy handles can only include letters, numbers, and dashes, with a minimum of 3 and maximum length of 20 characters.`,
+      );
+  
+    const { data: ownerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
+    if (ownerDetails) throw new Error(`Handle ${handle} already registered.`);
+  
+    const keyPairs = this.#core.getCurvyKeys(s, v);
+  
+    await this.#apiClient.user.RegisterCurvyHandle({
+      handle,
+      ownerAddress,
+      publicKeys: {
+        viewingKey: keyPairs.V,
+        spendingKey: keyPairs.S,
+        babyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+      },
+    });
+  
+    const { data: registerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
+    if (!registerDetails)
+      throw new Error(`Registration validation failed for handle ${handle}. Please try adding the wallet manually.`);
+  
+    await this.#updateBearerToken(keyPairs.s);
+  
+    const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
+    const wallet = new CurvyWallet(walletId, +dayjs(registerDetails.createdAt), handle, ownerAddress, keyPairs);
+    await this.addWallet(wallet, true);
+  
     return wallet;
   }
 
@@ -309,19 +360,21 @@ class WalletManager implements IWalletManager {
     );
   }
 
-  async addWallet(wallet: CurvyWallet, skipBearerTokenUpdate = false) {
+  async addWallet(wallet: CurvyWallet, skipBearerTokenUpdate = false, skipScan = false) {
     this.#wallets.set(wallet.id, wallet);
 
     await this.setActiveWallet(wallet, skipBearerTokenUpdate);
 
     await this.#storage.storeCurvyWallet(wallet);
 
-    if (!this.#scanInterval) {
+    if (!this.#scanInterval && !skipScan) {
       this.#startIntervalScan();
       return;
     }
 
-    await this.scanWallet(wallet);
+    if (!skipScan) {
+      await this.scanWallet(wallet);
+    }
   }
 
   async removeWallet(walletId: string) {
