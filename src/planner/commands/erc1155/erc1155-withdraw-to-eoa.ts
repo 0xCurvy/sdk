@@ -82,7 +82,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
       source: this.#intent.toAddress as HexString,
       networkSlug: this.input.networkSlug,
       environment: this.input.environment,
-      balance: this.#intent.amount - curvyFee - gas,
+      balance: effectiveAmount,
       symbol: this.input.symbol,
       decimals: this.input.decimals,
       currencyAddress,
