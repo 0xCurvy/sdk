@@ -1,5 +1,5 @@
 import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
-import { BALANCE_TYPE, type BalanceEntry } from "@/types";
+import { BALANCE_TYPE, type BalanceEntry, type CircuitConfig } from "@/types";
 import { isHexString } from "@/types/helper";
 
 const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
@@ -35,8 +35,6 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   return plan;
 };
 
-const MAX_INPUT_NOTES_PER_AGGREGATION = 10;
-
 const chunk = (array: Array<any>, chunkSize: number) => {
   const chunks: Array<Array<any>> = [];
   for (let i = 0; i < array.length; i += chunkSize) {
@@ -46,8 +44,12 @@ const chunk = (array: Array<any>, chunkSize: number) => {
   return chunks;
 };
 
-const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): CurvyPlanFlowControl => {
-  if (items.length <= MAX_INPUT_NOTES_PER_AGGREGATION) {
+const generateAggregationPlan = (
+  intendedAmount: bigint,
+  items: CurvyPlan[],
+  aggregationCircuitConfig: CircuitConfig,
+): CurvyPlanFlowControl => {
+  if (items.length <= aggregationCircuitConfig.maxInputs) {
     return {
       type: "serial",
       items: [
@@ -63,13 +65,13 @@ const generateAggregationPlan = (intendedAmount: bigint, items: CurvyPlan[]): Cu
     };
   }
 
-  const chunks = chunk(items, MAX_INPUT_NOTES_PER_AGGREGATION);
+  const chunks = chunk(items, aggregationCircuitConfig.maxInputs);
   return {
     type: "serial",
     items: [
       {
         type: "parallel",
-        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item)),
+        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item, aggregationCircuitConfig)),
       },
       {
         type: "command",
@@ -123,7 +125,12 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
 
   // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
   // into aggregator supported batch sizes
-  const aggregationPlan = generateAggregationPlan(intent.amount, plansToUpgradeNecessaryAddressesToNotes);
+
+  const aggregationPlan = generateAggregationPlan(
+    intent.amount,
+    plansToUpgradeNecessaryAddressesToNotes,
+    intent.network.aggregationCircuitConfig!,
+  );
 
   // We pass the intent to the last aggregation.
   // The aggregator-aggregate will use the intent's amount as a signal for how much to keep as change
