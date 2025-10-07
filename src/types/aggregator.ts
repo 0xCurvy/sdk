@@ -1,3 +1,4 @@
+import type { ExtractValues } from "@/types/helper";
 import type { Signature } from "./core";
 import type { AggregationInputNote, AggregationOutputNote, DepositNote, Note, WithdrawalNote } from "./note";
 
@@ -45,3 +46,14 @@ export type {
   WithdrawRequestParams,
   WithdrawRequest,
 };
+
+const AGGREGATOR_ACTIONS = {
+  DEPOSIT: "deposit",
+  AGGREGATION: "aggregation",
+  WITHDRAWAL: "withdrawal",
+} as const;
+type AGGREGATOR_ACTIONS = typeof AGGREGATOR_ACTIONS;
+export { AGGREGATOR_ACTIONS };
+export type AggregatorAction = ExtractValues<AGGREGATOR_ACTIONS>;
+
+export type AggregatorRequestStatus = "pending" | "success";

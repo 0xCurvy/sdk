@@ -7,6 +7,7 @@
 //////////////////////////////////////////////////////////////////////////////
 
 import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
+import type { AggregatorRequestStatus } from "@/types/aggregator";
 import type { CircuitConfig } from "@/types/core";
 import type { HexString } from "@/types/helper";
 import type { MetaTransactionType } from "@/types/meta-transaction";
@@ -209,10 +210,9 @@ type SubmitNoteOwnershipProofReturnType = {
     balance: { token: HexString; amount: string };
   }[];
 };
-type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed" | "success";
 type GetAggregatorRequestStatusReturnType = {
   requestId: string;
-  status: AggregatorRequestStatusValuesType;
+  status: AggregatorRequestStatus;
 };
 
 export type {
@@ -260,7 +260,6 @@ export type {
   Network,
   Currency,
   NetworksWithCurrenciesResponse,
-  AggregatorRequestStatusValuesType,
   GetNetworksReturnType,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
