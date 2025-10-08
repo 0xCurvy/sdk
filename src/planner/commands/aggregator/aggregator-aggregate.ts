@@ -29,9 +29,6 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
 
   // TODO: Check how will token symbol and those things be affected with multi asset notes?
   async execute(): Promise<CurvyCommandData | undefined> {
-    // Now we create the 2nd outut note that we will output as a result of this command
-    // that will either aggregate the funds to our Curvy handle
-    // or the Curvy handle of the intent's toAddress recipient
     if (!this.estimateData) {
       this.estimateData = await this.estimate();
     }
@@ -93,13 +90,15 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     // then we calculate the change for passing it as the second output note, instead of the dummy one
     if (this.#intent.amount < this.inputNotesSum) {
       // This means we should address the note to another recipient right now
-      if (isValidCurvyHandle(this.#intent.toAddress)) {
-        toAddress = this.#intent.toAddress;
-      }
 
       // Change note
       const change = this.inputNotesSum - this.#intent.amount;
       changeOrDummyOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, change);
+
+      // We update the toAddress only after the change note is created, so that we don't get both notes
+      if (isValidCurvyHandle(this.#intent.toAddress)) {
+        toAddress = this.#intent.toAddress;
+      }
     } else {
       // If there is no change, then we create a dummy note
       changeOrDummyOutputNote = new Note({
