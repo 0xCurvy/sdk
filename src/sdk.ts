@@ -22,14 +22,7 @@ import type { Rpc } from "@/rpc/abstract";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type {
-  AggregationRequest,
-  AggregationRequestParams,
-  CurvyEventType,
-  Network,
-  WithdrawRequest,
-  WithdrawRequestParams,
-} from "@/types";
+import type { AggregationRequest, CurvyEventType, InputNote, Network, OutputNote, WithdrawRequest } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
@@ -488,12 +481,15 @@ class CurvySDK implements ICurvySDK {
       .sendToAddress(from, privateKey, recipientAddress, amount, currency, fee);
   }
 
-  createAggregationPayload(params: AggregationRequestParams, network: Network, privKey?: string): AggregationRequest {
+  createAggregationPayload(
+    inputNotes: InputNote[],
+    outputNotes: OutputNote[],
+    network: Network,
+    privKey?: string,
+  ): AggregationRequest {
     if (!network.aggregationCircuitConfig) {
       throw new Error("Network aggregation circuit config is not defined!");
     }
-
-    const { inputNotes, outputNotes } = params;
 
     let bjjPrivateKey: string;
 
@@ -525,11 +521,11 @@ class CurvySDK implements ICurvySDK {
             ),
             viewTag: "0x0",
           },
-        }).serializeAggregationOutputNote(),
+        }).serializeOutputNote(),
       );
     }
 
-    const msgHash = generateAggregationHash(outputNotes.map((note) => Note.deserializeAggregationOutputNote(note)));
+    const msgHash = generateAggregationHash(outputNotes.map((note) => Note.deserializeOutputNote(note)));
     const signature = this.#core.signWithBabyJubjubPrivateKey(msgHash, bjjPrivateKey);
     const signatures = Array.from({ length: network.aggregationCircuitConfig.maxInputs }).map(() => ({
       S: BigInt(signature.S),
@@ -543,12 +539,15 @@ class CurvySDK implements ICurvySDK {
     };
   }
 
-  createWithdrawPayload(params: WithdrawRequestParams, network: Network, privKey?: string): WithdrawRequest {
+  createWithdrawPayload(
+    inputNotes: Note[],
+    destinationAddress: HexString,
+    network: Network,
+    privKey?: string,
+  ): WithdrawRequest {
     if (!network.withdrawCircuitConfig) {
       throw new Error("Network withdraw circuit config is not defined!");
     }
-
-    const { inputNotes, destinationAddress } = params;
 
     if (!inputNotes || !destinationAddress) {
       throw new Error("Invalid withdraw payload parameters");
@@ -595,7 +594,7 @@ class CurvySDK implements ICurvySDK {
     }));
 
     return {
-      inputNotes: sortedInputNotes.map((note) => note.serializeWithdrawalNote()),
+      inputNotes: sortedInputNotes.map((note) => note.serializeInputNote()),
       signatures,
       destinationAddress,
     };

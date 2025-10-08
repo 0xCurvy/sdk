@@ -1,51 +1,25 @@
 import type { ExtractValues } from "@/types/helper";
 import type { Signature } from "./core";
-import type { AggregationInputNote, AggregationOutputNote, DepositNote, Note, WithdrawalNote } from "./note";
-
-type DepositRequestParams = {
-  recipient: {
-    S: string;
-    V: string;
-  };
-  notes: DepositNote[];
-  csucTransferAllowanceSignature: string;
-};
+import type { InputNote, OutputNote } from "./note";
 
 type DepositRequest = {
-  outputNotes: DepositNote[];
+  outputNotes: OutputNote[];
   fromAddress: string;
 };
 
-type AggregationRequestParams = {
-  inputNotes: AggregationInputNote[];
-  outputNotes: AggregationOutputNote[];
-};
-
 type AggregationRequest = {
-  inputNotes: AggregationInputNote[];
-  outputNotes: AggregationOutputNote[];
+  inputNotes: InputNote[];
+  outputNotes: OutputNote[];
   signatures: Signature[];
-};
-
-type WithdrawRequestParams = {
-  inputNotes: Note[]; // TODO: Add type as WithdrawalNote
-  destinationAddress: string;
 };
 
 type WithdrawRequest = {
-  inputNotes: WithdrawalNote[];
+  inputNotes: InputNote[];
   signatures: Signature[];
   destinationAddress: string;
 };
 
-export type {
-  DepositRequestParams,
-  DepositRequest,
-  AggregationRequestParams,
-  AggregationRequest,
-  WithdrawRequestParams,
-  WithdrawRequest,
-};
+export type { DepositRequest, AggregationRequest, WithdrawRequest };
 
 const AGGREGATOR_ACTIONS = {
   DEPOSIT: "deposit",

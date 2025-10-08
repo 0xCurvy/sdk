@@ -1,4 +1,4 @@
-import { type AggregationRequestParams, bigIntToDecimalString, type HexString, isValidCurvyHandle } from "@/exports";
+import { bigIntToDecimalString, type HexString, isValidCurvyHandle } from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
@@ -57,7 +57,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
           ephemeralKey: bigIntToDecimalString(
             BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
           ),
-          viewTag: "0",
+          viewTag: "0x0",
         },
       });
     }
@@ -68,21 +68,16 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     const { curvyFee } = await this.estimate();
     const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.#intent.amount - curvyFee);
 
-    const prepareInputs: AggregationRequestParams = {
-      inputNotes: this.inputNotes.map((note) => note.serializeAggregationInputNote()),
-      outputNotes: [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeAggregationOutputNote()),
-    };
+    const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
+    const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
 
-    const payload = this.sdk.createAggregationPayload(prepareInputs, this.network);
+    const payload = this.sdk.createAggregationPayload(inputNotes, outputNotes, this.network);
 
     const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(payload);
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
       (res) => {
-        if (res.status === "failed") {
-          throw new Error(`[AggregatorAggregateCommand]Aggregator aggregate failed!`);
-        }
         return res.status === "success";
       },
     );

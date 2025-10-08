@@ -128,8 +128,8 @@ describe("Integration test", async () => {
     );
 
     const aggregationParams: AggregationRequestParams = {
-      inputNotes: aggregationInputNotes.map((note) => note.serializeAggregationInputNote()),
-      outputNotes: aggregationOutputNotes.map((note) => note.serializeAggregationOutputNote()),
+      inputNotes: aggregationInputNotes.map((note) => note.serializeInputNote()),
+      outputNotes: aggregationOutputNotes.map((note) => note.serializeOutputNote()),
     };
 
     const aggregationPayload = sdk.createAggregationPayload(aggregationParams, network, keyPairs.s);

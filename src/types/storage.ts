@@ -70,7 +70,7 @@ type NoteBalanceEntry = BalanceEntryBase & {
     };
     sharedSecret: string;
   };
-  deliveryTag: { ephemeralKey: string; viewTag: string };
+  deliveryTag: { ephemeralKey: string; viewTag: HexString };
 };
 const isNoteBalanceEntry = (entry: BalanceEntry): entry is NoteBalanceEntry => {
   return entry.type === BALANCE_TYPE.NOTE;

@@ -3,14 +3,9 @@ import type { IApiClient } from "@/interfaces/api";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type { ExtendedAnnouncement, Note } from "@/types";
+import type { ExtendedAnnouncement, InputNote, Note, OutputNote } from "@/types";
 import type { CurvyAddress } from "@/types/address";
-import type {
-  AggregationRequest,
-  AggregationRequestParams,
-  WithdrawRequest,
-  WithdrawRequestParams,
-} from "@/types/aggregator";
+import type { AggregationRequest, WithdrawRequest } from "@/types/aggregator";
 import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { CurvyFeeEstimate, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
@@ -75,8 +70,19 @@ interface ICurvySDK {
     message?: string,
   ): Promise<RpcCallReturnType>;
 
-  createAggregationPayload(params: AggregationRequestParams, network: Network, privKey?: string): AggregationRequest;
-  createWithdrawPayload(params: WithdrawRequestParams, network: Network, privKey?: string): WithdrawRequest;
+  createAggregationPayload(
+    inputNotes: InputNote[],
+    outputNotes: OutputNote[],
+    network: Network,
+    privKey?: string,
+  ): AggregationRequest;
+
+  createWithdrawPayload(
+    inputNotes: Note[], // TODO: This is a bit misleading to call it inputNote when it is note
+    destinationAddress: HexString,
+    network: Network,
+    privKey?: string,
+  ): WithdrawRequest;
 
   /**
    *  * Polls a function until the criteria is met or max retries is reached.

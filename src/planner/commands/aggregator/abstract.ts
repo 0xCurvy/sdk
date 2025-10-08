@@ -24,7 +24,24 @@ export abstract class AggregatorCommand extends CurvyCommand {
     this.network = sdk.getNetwork(balanceEntries[0].networkSlug);
     this.input = balanceEntries;
 
-    this.inputNotes = this.input.map((note) => Note.fromNoteBalanceEntry(note));
+    this.inputNotes = this.input.map(
+      ({ balance, owner, deliveryTag, erc1155TokenId }) =>
+        new Note({
+          balance: { amount: balance.toString(), token: erc1155TokenId!.toString() },
+          owner: {
+            babyJubjubPublicKey: {
+              x: owner.babyJubjubPublicKey.x,
+              y: owner.babyJubjubPublicKey.y,
+              serialized: "",
+            },
+            sharedSecret: owner.sharedSecret,
+          },
+          deliveryTag: {
+            ephemeralKey: deliveryTag.ephemeralKey,
+            viewTag: deliveryTag.viewTag,
+          },
+        }),
+    );
     this.inputNotesSum = this.inputNotes.reduce((acc, note) => acc + note.balance!.amount, 0n);
   }
 }
