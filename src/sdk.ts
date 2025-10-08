@@ -567,10 +567,8 @@ class CurvySDK implements ICurvySDK {
       inputNotes.push(
         new Note({
           owner: {
-            babyJubjubPublicKey: {
-              x: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-              y: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-            },
+            // OVO OBAVEZNO SA ALEKSOM PROVERITI
+            babyJubjubPublicKey: inputNotes[0].owner.babyJubjubPublicKey,
             sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
           },
           balance: {
@@ -586,15 +584,15 @@ class CurvySDK implements ICurvySDK {
     const inputNotesHash = poseidonHash(inputNotes.map((note) => note.id));
     const messageHash = poseidonHash([inputNotesHash, BigInt(destinationAddress)]);
 
-    const signature = this.#core.signWithBabyJubjubPrivateKey(messageHash, bjjPrivateKey);
-    const signatures = Array.from({ length: network.withdrawCircuitConfig.maxInputs }).map(() => ({
-      S: BigInt(signature.S),
-      R8: signature.R8.map((r) => BigInt(r)),
-    }));
+    const rawSignature = this.#core.signWithBabyJubjubPrivateKey(messageHash, bjjPrivateKey);
+    const signature = {
+      S: BigInt(rawSignature.S),
+      R8: rawSignature.R8.map((r) => BigInt(r)),
+    };
 
     return {
       inputNotes: sortedInputNotes,
-      signatures,
+      signature,
       destinationAddress,
     };
   }

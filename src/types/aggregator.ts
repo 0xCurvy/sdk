@@ -15,7 +15,7 @@ type AggregationRequest = {
 
 type WithdrawRequest = {
   inputNotes: InputNote[];
-  signatures: Signature[];
+  signature: Signature;
   destinationAddress: HexString;
 };
 
