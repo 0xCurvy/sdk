@@ -78,7 +78,7 @@ interface ICurvySDK {
   ): AggregationRequest;
 
   createWithdrawPayload(
-    inputNotes: Note[], // TODO: This is a bit misleading to call it inputNote when it is note
+    inputNotes: InputNote[],
     destinationAddress: HexString,
     network: Network,
     privKey?: string,

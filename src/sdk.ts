@@ -28,14 +28,14 @@ import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { Note } from "@/types/note";
 import type { StarknetFeeEstimate } from "@/types/rpc";
+import { bigIntToDecimalString } from "@/utils";
 import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
 import { deriveAddress } from "./utils/address";
-import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
-import { bigIntToDecimalString } from "./utils/decimal-conversions";
+import { generateAggregationHash } from "./utils/aggregator";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { poseidonHash } from "./utils/poseidon-hash";
 import { WalletManager } from "./wallet-manager";
@@ -525,22 +525,22 @@ class CurvySDK implements ICurvySDK {
       );
     }
 
-    const msgHash = generateAggregationHash(outputNotes.map((note) => Note.deserializeOutputNote(note)));
-    const signature = this.#core.signWithBabyJubjubPrivateKey(msgHash, bjjPrivateKey);
-    const signatures = Array.from({ length: network.aggregationCircuitConfig.maxInputs }).map(() => ({
-      S: BigInt(signature.S),
-      R8: signature.R8.map((r) => BigInt(r)),
-    }));
+    const msgHash = generateAggregationHash(outputNotes);
+    const rawSignature = this.#core.signWithBabyJubjubPrivateKey(msgHash, bjjPrivateKey);
+    const signature = {
+      S: BigInt(rawSignature.S),
+      R8: rawSignature.R8.map((r) => BigInt(r)),
+    };
 
     return {
       inputNotes,
       outputNotes,
-      signatures,
+      signature,
     };
   }
 
   createWithdrawPayload(
-    inputNotes: Note[],
+    inputNotes: InputNote[],
     destinationAddress: HexString,
     network: Network,
     privKey?: string,
@@ -577,24 +577,23 @@ class CurvySDK implements ICurvySDK {
             amount: "0",
             token: inputNotes[0].balance!.token.toString(),
           },
-        }),
+        }).serializeInputNote(),
       );
     }
 
     const sortedInputNotes = inputNotes.sort((a, b) => (a.id < b.id ? -1 : 1));
 
-    const msgHash = generateOutputsHash(sortedInputNotes);
+    const inputNotesHash = poseidonHash(inputNotes.map((note) => note.id));
+    const messageHash = poseidonHash([inputNotesHash, BigInt(destinationAddress)]);
 
-    const dstHash = poseidonHash([msgHash, BigInt(destinationAddress)]);
-
-    const signature = this.#core.signWithBabyJubjubPrivateKey(dstHash, bjjPrivateKey);
+    const signature = this.#core.signWithBabyJubjubPrivateKey(messageHash, bjjPrivateKey);
     const signatures = Array.from({ length: network.withdrawCircuitConfig.maxInputs }).map(() => ({
       S: BigInt(signature.S),
       R8: signature.R8.map((r) => BigInt(r)),
     }));
 
     return {
-      inputNotes: sortedInputNotes.map((note) => note.serializeInputNote()),
+      inputNotes: sortedInputNotes,
       signatures,
       destinationAddress,
     };

@@ -1,22 +1,22 @@
-import type { ExtractValues } from "@/types/helper";
+import type { ExtractValues, HexString } from "@/types/helper";
 import type { Signature } from "./core";
 import type { InputNote, OutputNote } from "./note";
 
 type DepositRequest = {
   outputNotes: OutputNote[];
-  fromAddress: string;
+  fromAddress: HexString;
 };
 
 type AggregationRequest = {
   inputNotes: InputNote[];
   outputNotes: OutputNote[];
-  signatures: Signature[];
+  signature: Signature;
 };
 
 type WithdrawRequest = {
   inputNotes: InputNote[];
   signatures: Signature[];
-  destinationAddress: string;
+  destinationAddress: HexString;
 };
 
 export type { DepositRequest, AggregationRequest, WithdrawRequest };

@@ -35,7 +35,7 @@ export {
   TotalBalance,
 } from "../types/storage";
 export * from "../utils";
-export { generateAggregationHash, generateOutputsHash } from "../utils/aggregator";
+export { generateAggregationHash, generateWithdrawalHash } from "../utils/aggregator";
 export { filterNetworks, findNetwork, type NetworkFilter } from "../utils/network";
 export * from "../utils/poseidon-hash";
 export type { CurvyWallet } from "../wallet";
