@@ -3,7 +3,7 @@ import type { IApiClient } from "@/interfaces/api";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type { ExtendedAnnouncement, Note } from "@/types";
+import type { ExtendedAnnouncement, GetStealthAddressReturnType, Note } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type {
   AggregationRequest,
@@ -32,7 +32,13 @@ interface ICurvySDK {
   getNetworks(networkFilter?: NetworkFilter): Network[];
   getNetworkBySlug(networkSlug: NETWORKS): Network | undefined;
 
-  getNewStealthAddressForUser(
+  getNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string): Promise<GetStealthAddressReturnType>;
+
+  registerStealthAddressForUser(
+    stealthAddressData: GetStealthAddressReturnType,
+  ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
+
+  createStealthAddressForUser(
     networkIdentifier: NetworkFilter,
     handle: string,
   ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;

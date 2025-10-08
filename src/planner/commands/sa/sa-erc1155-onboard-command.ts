@@ -7,13 +7,19 @@ import type { CurvyCommandData } from "@/planner/plan";
 import type { Rpc } from "@/rpc/abstract";
 import { BALANCE_TYPE, type Erc1155BalanceEntry, type HexString, META_TRANSACTION_TYPES } from "@/types";
 
+interface SaErc1155OnboardCommandEstimate extends CurvyCommandEstimate {
+  id: string | null;
+  data: Erc1155BalanceEntry;
+}
+
 // This command automatically sends all available balance from SA to CSUC address
 export class SaErc1155OnboardCommand extends SACommand {
   #rpc: Rpc;
   #provider: PublicClient;
+  protected declare estimateData: SaErc1155OnboardCommandEstimate | undefined;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData) {
-    super(sdk, input);
+  constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+    super(sdk, input, estimate);
     this.#rpc = this.sdk.rpcClient.Network(this.input.networkSlug);
     this.#provider = this.#rpc.provider;
   }
@@ -27,7 +33,12 @@ export class SaErc1155OnboardCommand extends SACommand {
     const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
 
-    const { gas, curvyFee, id } = await this.estimate();
+    if (!this.estimateData) {
+      this.estimateData = await this.estimate();
+    }
+
+    const { gas, curvyFee, id } = this.estimateData;
+
     const amount = this.input.balance - curvyFee - gas;
 
     if (isOnboardingNative) {
@@ -107,26 +118,51 @@ export class SaErc1155OnboardCommand extends SACommand {
     return erc1155BalanceEntry;
   }
 
-  async estimate(): Promise<CurvyCommandEstimate & { id: string | null }> {
-    const { native: isOnboardingNative } = await this.sdk.storage.getCurrencyMetadata(
+  async estimate(): Promise<SaErc1155OnboardCommandEstimate> {
+    const { native: isOnboardingNative, erc1155TokenId } = await this.sdk.storage.getCurrencyMetadata(
       this.input.currencyAddress,
       this.input.networkSlug,
     );
 
+    if (!erc1155TokenId) {
+      throw new Error(
+        `[SaErc1155OnboardCommand] erc1155TokenId is not defined for currency ${this.input.currencyAddress} on network ${this.input.networkSlug}`,
+      );
+    }
+
+    const { createdAt: _, ...inputData } = this.input;
+
+    const erc1155BalanceEntry = {
+      ...inputData,
+      erc1155TokenId: BigInt(erc1155TokenId),
+      balance: inputData.balance,
+      type: BALANCE_TYPE.ERC1155,
+    } satisfies Erc1155BalanceEntry;
+
     if (isOnboardingNative) {
       const gas = await this.#rpc.estimateOnboardNativeToErc1155(this.input.source as HexString, this.input.balance);
 
-      return { curvyFee: 0n, gas, id: null };
-    } else {
-      const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
-        amount: this.input.balance.toString(),
-        currencyAddress: this.input.currencyAddress,
-        fromAddress: this.input.source,
-        network: this.input.networkSlug,
-        type: META_TRANSACTION_TYPES.ERC1155_ONBOARD,
-        toAddress: this.input.source,
-      });
-      return { id, gas: BigInt(gasFeeInCurrency ?? "0"), curvyFee: BigInt(curvyFeeInCurrency ?? "0") };
+      erc1155BalanceEntry.balance -= gas;
+
+      return { curvyFee: 0n, gas, id: null, data: erc1155BalanceEntry };
     }
+
+    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
+      amount: this.input.balance.toString(),
+      currencyAddress: this.input.currencyAddress,
+      fromAddress: this.input.source,
+      network: this.input.networkSlug,
+      type: META_TRANSACTION_TYPES.ERC1155_ONBOARD,
+      toAddress: this.input.source,
+    });
+
+    erc1155BalanceEntry.balance -= BigInt(gasFeeInCurrency ?? "0") + BigInt(curvyFeeInCurrency ?? "0");
+
+    return {
+      id,
+      gas: BigInt(gasFeeInCurrency ?? "0"),
+      curvyFee: BigInt(curvyFeeInCurrency ?? "0"),
+      data: erc1155BalanceEntry,
+    };
   }
 }

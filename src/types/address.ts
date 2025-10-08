@@ -1,6 +1,6 @@
-import type { RawAnnouncement } from "@/types/api";
+import { NETWORK_ENVIRONMENT } from "@/constants/networks";
+import type { Network, RawAnnouncement } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import { NETWORK_ENVIRONMENT } from "../constants/networks";
 
 type ScannedAnnouncement = RawAnnouncement & {
   publicKey: string;
@@ -12,6 +12,14 @@ type AnnouncementBase = {
   ephemeralPublicKey: string;
   viewTag: string;
   recipientStealthPublicKey: string;
+};
+
+type GetStealthAddressReturnType = {
+  address: HexString;
+  recipientStealthPublicKey: string;
+  viewTag: string;
+  ephemeralPublicKey: string;
+  network: Network;
 };
 
 interface CurvyAddress extends ScannedAnnouncement {
@@ -32,4 +40,4 @@ const isValidAddressFormat = (recipient: string): recipient is HexString => {
 
 export { isValidAddressFormat };
 
-export type { AnnouncementBase, ScannedAnnouncement, CurvyAddress, MinifiedCurvyAddress };
+export type { AnnouncementBase, ScannedAnnouncement, CurvyAddress, MinifiedCurvyAddress, GetStealthAddressReturnType };

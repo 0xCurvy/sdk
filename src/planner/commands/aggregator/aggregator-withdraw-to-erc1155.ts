@@ -1,16 +1,33 @@
+import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { BALANCE_TYPE, type Erc1155BalanceEntry, type HexString } from "@/types";
+import { BALANCE_TYPE, type Erc1155BalanceEntry, type GetStealthAddressReturnType, type HexString } from "@/types";
+
+interface AggregatorWithdrawToErc1155CommandEstimate extends CurvyCommandEstimate {
+  data: Erc1155BalanceEntry;
+  stealthAddressData: GetStealthAddressReturnType;
+}
 
 export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
+  protected declare estimateData: AggregatorWithdrawToErc1155CommandEstimate | undefined;
+
+  // biome-ignore lint/complexity/noUselessConstructor: Abstract class constructor is protected
+  constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+    super(sdk, input, estimate);
+  }
+
   async execute(): Promise<CurvyCommandData> {
     const { networkSlug, environment, symbol, lastUpdated, currencyAddress, walletId } = this.input[0];
 
-    const { address: erc1155Address, announcementData } = await this.sdk.getNewStealthAddressForUser(
-      networkSlug,
-      this.senderCurvyHandle,
-    );
+    if (!this.estimateData) {
+      this.estimateData = await this.estimate();
+    }
+
+    const { stealthAddressData } = this.estimateData;
+
+    const { address: erc1155Address, announcementData } =
+      await this.sdk.registerStealthAddressForUser(stealthAddressData);
 
     await this.sdk.storage.storeCurvyAddress({
       ...announcementData,
@@ -72,10 +89,31 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
   // In the case of aggregator-withdraw-to-csuc command, both the circuit
   // and the aggregator SC have withdrawBPS set, circuits calculate what is the
   // feeAmount and pass it to CSUC so that CSUC can put it on th fee collector
-  async estimate(): Promise<CurvyCommandEstimate> {
+  async estimate(): Promise<AggregatorWithdrawToErc1155CommandEstimate> {
+    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, erc1155TokenId, decimals, walletId } =
+      this.input[0];
+
+    const curvyFee = this.inputNotesSum / 500n; // 0.2% = 1/500
+
+    const stealthAddressData = await this.sdk.getNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
+
     return {
-      curvyFee: this.inputNotesSum / 500n, // 0.2% = 1/500
+      curvyFee,
       gas: 0n,
+      stealthAddressData,
+      data: {
+        type: BALANCE_TYPE.ERC1155,
+        walletId,
+        source: stealthAddressData.address,
+        erc1155TokenId: erc1155TokenId,
+        networkSlug,
+        environment,
+        balance: this.inputNotesSum - curvyFee,
+        symbol,
+        decimals,
+        currencyAddress,
+        lastUpdated,
+      },
     };
   }
 }

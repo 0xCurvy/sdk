@@ -1,12 +1,30 @@
+import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { type HexString, META_TRANSACTION_TYPES, type Note } from "@/types";
+import { type HexString, META_TRANSACTION_TYPES, type Note, type NoteBalanceEntry } from "@/types";
+
+interface Erc1155DepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
+  id: string;
+  note: Note;
+  data: NoteBalanceEntry;
+}
 
 // This command automatically sends all available balance from ERC1155 to Aggregator
 export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
+  protected declare estimateData: Erc1155DepositToAggregatorCommandEstimate | undefined;
+
+  // biome-ignore lint/complexity/noUselessConstructor: Abstract class constructor is protected
+  constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+    super(sdk, input, estimate);
+  }
+
   async execute(): Promise<CurvyCommandData> {
-    const { /*id, */ gas, curvyFee, note } = await this.estimate();
+    if (!this.estimateData) {
+      this.estimateData = await this.estimate();
+    }
+
+    const { /*id,*/ gas, curvyFee, note } = this.estimateData;
 
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
@@ -53,7 +71,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     );
   }
 
-  async estimate(): Promise<CurvyCommandEstimate & { id: string; note: Note }> {
+  async estimate(): Promise<Erc1155DepositToAggregatorCommandEstimate> {
     const currencyAddress = this.input.currencyAddress;
 
     if (!this.input.erc1155TokenId) {
@@ -75,11 +93,22 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       ownerHash: note.ownerHash.toString(16),
     });
 
+    const gas = BigInt(gasFeeInCurrency ?? "0");
+    const curvyFee = BigInt(curvyFeeInCurrency ?? "0");
+
     return {
-      gas: BigInt(gasFeeInCurrency ?? "0"),
-      curvyFee: BigInt(curvyFeeInCurrency ?? "0"),
+      gas,
+      curvyFee,
       id,
       note,
+      data: note.toBalanceEntry(
+        this.input.symbol,
+        this.input.decimals,
+        this.input.walletId,
+        this.input.environment,
+        this.input.networkSlug,
+        this.input.currencyAddress as HexString,
+      ),
     };
   }
 }
