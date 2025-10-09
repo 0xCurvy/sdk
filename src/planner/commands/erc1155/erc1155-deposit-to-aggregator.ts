@@ -2,6 +2,7 @@ import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import { type HexString, META_TRANSACTION_TYPES, type Note } from "@/types";
+import { noteToBalanceEntry } from "@/utils";
 
 // This command automatically sends all available balance from ERC1155 to Aggregator
 export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
@@ -43,14 +44,14 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       },
     );
 
-    return note.toBalanceEntry(
-      this.input.symbol,
-      this.input.decimals,
-      this.input.walletId,
-      this.input.environment,
-      this.input.networkSlug,
-      this.input.currencyAddress as HexString,
-    );
+    return noteToBalanceEntry(note, {
+      symbol: this.input.symbol,
+      decimals: this.input.decimals,
+      walletId: this.input.walletId,
+      environment: this.input.environment,
+      networkSlug: this.input.networkSlug,
+      currencyAddress: this.input.currencyAddress as HexString,
+    });
   }
 
   async estimate(): Promise<CurvyCommandEstimate & { id: string; note: Note }> {
