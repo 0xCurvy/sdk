@@ -1,0 +1,68 @@
+{
+    "poseidonHash": {
+        "args": [
+            1,
+            2,
+            3
+        ]
+    },
+    "ownerHash": {
+        "babyJubPubKey": {
+            "x": "123456789",
+            "y": "234567890"
+        },
+        "sharedSecret": "1234567890"
+    },
+    "nullifier": {
+        "babyJubPubKey": {
+            "x": "123456789",
+            "y": "234567890"
+        },
+        "sharedSecret": "1234567890"
+    },
+    "verifySignature": {
+        "message": "1234567890",
+        "babyJubPubKey": {
+            "x": "123456789",
+            "y": "234567890"
+        },
+        "signature": {
+            "S": "1234567890",
+            "R8": [
+                "1234567890",
+                "234567890"
+            ]
+        }
+    },
+    "noteHash": {
+        "owner": {
+            "babyJubPubKey": {
+                "x": "123456789",
+                "y": "234567890"
+            },
+            "sharedSecret": "1234567890"
+        },
+        "amount": "1234567890",
+        "token": "1234567890"
+    },
+
+    "scanNote": {
+        "s": "1234567890",
+        "v": "1234567890",
+        "ephemeralKey": "1234567890.34534543534",
+        "viewTag": "2a"
+    },
+
+    "noteOwnershipData": {
+        "s": "1234567890",
+        "v": "1234567890",
+        "ownerbabyJubjubPublicKey": "1234567890",
+        "publicNote": {
+            "ownerHash": "1234567890",
+            "deliveryTag": {
+                "ephemeralKey": "1234567890.34534543534",
+                "viewTag": "2a"
+            }
+        }
+    }
+}
