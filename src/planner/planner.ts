@@ -1,5 +1,5 @@
 import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
-import { BALANCE_TYPE, type BalanceEntry, type CircuitConfig } from "@/types";
+import { BALANCE_TYPE, type BalanceEntry } from "@/types";
 import { isHexString } from "@/types/helper";
 
 const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
@@ -47,9 +47,9 @@ const chunk = (array: Array<any>, chunkSize: number) => {
 const generateAggregationPlan = (
   intendedAmount: bigint,
   items: CurvyPlan[],
-  aggregationCircuitConfig: CircuitConfig,
+  maxInputs: number,
 ): CurvyPlanFlowControl => {
-  if (items.length <= aggregationCircuitConfig.maxInputs) {
+  if (items.length <= maxInputs) {
     return {
       type: "serial",
       items: [
@@ -65,13 +65,13 @@ const generateAggregationPlan = (
     };
   }
 
-  const chunks = chunk(items, aggregationCircuitConfig.maxInputs);
+  const chunks = chunk(items, maxInputs);
   return {
     type: "serial",
     items: [
       {
         type: "parallel",
-        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item, aggregationCircuitConfig)),
+        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item, maxInputs)),
       },
       {
         type: "command",
@@ -129,7 +129,7 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
   const aggregationPlan = generateAggregationPlan(
     intent.amount,
     plansToUpgradeNecessaryAddressesToNotes,
-    intent.network.aggregationCircuitConfig!,
+    intent.network.aggregationCircuitConfig!.maxInputs,
   );
 
   // We pass the intent to the last aggregation.
