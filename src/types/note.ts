@@ -138,7 +138,7 @@ class Note {
       throw new Error("Missing owner");
     }
 
-    return poseidonHash([this.owner.babyJubjubPublicKey.x, this.owner.babyJubjubPublicKey.y, this.owner.sharedSecret]);
+    return poseidonHash([this.owner.sharedSecret, this.owner.babyJubjubPublicKey.x, this.owner.babyJubjubPublicKey.y]);
   }
 
   static generateOwnerHash(owner: Owner): bigint {
