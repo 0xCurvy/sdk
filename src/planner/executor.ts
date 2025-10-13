@@ -176,8 +176,6 @@ export class CommandExecutor {
       throw new Error("Estimation resulted in no estimate data.");
     }
 
-    console.dir(planEstimation, { depth: null });
-
     return {
       plan,
       gas: planEstimation.estimate.gas,

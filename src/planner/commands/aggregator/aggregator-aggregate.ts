@@ -4,8 +4,7 @@ import {
   type CurvyHandle,
   type HexString,
   isValidCurvyHandle,
-  type NoteBalanceEntry,
-    noteToBalanceEntry,
+  noteToBalanceEntry,
 } from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
@@ -66,12 +65,12 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
       const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 
       return noteToBalanceEntry(mainOutputNote, {
-          symbol,
-          decimals,
-          walletId,
-          environment,
-          networkSlug,
-          currencyAddress: currencyAddress as HexString,
+        symbol,
+        decimals,
+        walletId,
+        environment,
+        networkSlug,
+        currencyAddress: currencyAddress as HexString,
       });
     }
   }
@@ -130,20 +129,16 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
 
     const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.#intent.amount - curvyFee);
 
-    let data: NoteBalanceEntry | undefined;
+    const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 
-    if (toAddress === this.senderCurvyHandle) {
-      const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
-
-      data = noteToBalanceEntry(mainOutputNote, {
-          symbol,
-          decimals,
-          walletId,
-          environment,
-          networkSlug,
-          currencyAddress: currencyAddress as HexString,
-      });
-    }
+    const data = noteToBalanceEntry(mainOutputNote, {
+      symbol,
+      decimals,
+      walletId,
+      environment,
+      networkSlug,
+      currencyAddress: currencyAddress as HexString,
+    });
 
     return {
       curvyFee,
