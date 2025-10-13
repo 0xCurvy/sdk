@@ -15,6 +15,7 @@ export interface CurvyIntent {
 export type CurvyPlanCommand = {
   type: "command";
   name: string;
+  // Attached to command nodes in estimation phase and used in execute phase
   estimate?: CurvyCommandEstimate;
   // Some commands such as WithdrawFromCSUC and SendToEOA require an intent.
   // Intent is not passed in commands where the `to` address is a new CSUC/Note/SA of the current user, e.g. the OnboardToCSUCCommand.
@@ -54,6 +55,8 @@ export type CurvyPlanSuccessfulExecution = {
   success: true;
   data?: CurvyCommandData;
   items?: CurvyPlanExecution[];
+  // Available only in estimatePlan response
+  estimate?: CurvyCommandEstimate;
 };
 
 export type CurvyPlanUnsuccessfulExecution = {

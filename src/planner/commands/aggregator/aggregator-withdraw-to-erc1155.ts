@@ -21,13 +21,13 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     const { networkSlug, environment, symbol, lastUpdated, currencyAddress, walletId } = this.input[0];
 
     if (!this.estimateData) {
-      this.estimateData = await this.estimate();
+      throw new Error("[AggregatorWithdrawToERC1155Command] Command must be estimated before execution!");
     }
 
     const { stealthAddressData } = this.estimateData;
 
     const { address: erc1155Address, announcementData } =
-      await this.sdk.registerStealthAddressForUser(stealthAddressData);
+      await this.sdk.generateAndCreateNewStealthAddressForUser(stealthAddressData);
 
     await this.sdk.storage.storeCurvyAddress({
       ...announcementData,
@@ -95,7 +95,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
 
     const curvyFee = this.inputNotesSum / 500n; // 0.2% = 1/500
 
-    const stealthAddressData = await this.sdk.getNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
+    const stealthAddressData = await this.sdk.generateNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
 
     return {
       curvyFee,

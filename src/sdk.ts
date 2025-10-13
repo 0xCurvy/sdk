@@ -234,7 +234,7 @@ class CurvySDK implements ICurvySDK {
     return networks[0];
   }
 
-  async getNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string) {
+  async generateNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string) {
     const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
 
     if (!recipientDetails) {
@@ -258,7 +258,7 @@ class CurvySDK implements ICurvySDK {
     return { address, recipientStealthPublicKey, viewTag, ephemeralPublicKey, network };
   }
 
-  async registerStealthAddressForUser({
+  async generateAndCreateNewStealthAddressForUser({
     address,
     recipientStealthPublicKey,
     viewTag,
@@ -290,7 +290,7 @@ class CurvySDK implements ICurvySDK {
 
   async createStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string) {
     const { address, recipientStealthPublicKey, viewTag, ephemeralPublicKey, network } =
-      await this.getNewStealthAddressForUser(networkIdentifier, handle);
+      await this.generateNewStealthAddressForUser(networkIdentifier, handle);
 
     const response = await this.apiClient.announcement.CreateAnnouncement({
       recipientStealthAddress: address,

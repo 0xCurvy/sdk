@@ -30,7 +30,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
   // TODO: Check how will token symbol and those things be affected with multi asset notes?
   async execute(): Promise<CurvyCommandData | undefined> {
     if (!this.estimateData) {
-      this.estimateData = await this.estimate();
+      throw new Error("[AggregatorAggregateCommand] Command must be estimated before execution!");
     }
 
     const { mainOutputNote, changeOrDummyOutputNote, toAddress } = this.estimateData;

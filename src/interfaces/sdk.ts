@@ -32,9 +32,12 @@ interface ICurvySDK {
   getNetworks(networkFilter?: NetworkFilter): Network[];
   getNetworkBySlug(networkSlug: NETWORKS): Network | undefined;
 
-  getNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string): Promise<GetStealthAddressReturnType>;
+  generateNewStealthAddressForUser(
+    networkIdentifier: NetworkFilter,
+    handle: string,
+  ): Promise<GetStealthAddressReturnType>;
 
-  registerStealthAddressForUser(
+  generateAndCreateNewStealthAddressForUser(
     stealthAddressData: GetStealthAddressReturnType,
   ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
 

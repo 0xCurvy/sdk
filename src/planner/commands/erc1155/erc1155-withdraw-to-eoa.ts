@@ -32,7 +32,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
     const currencyAddress = this.input.currencyAddress;
 
     if (!this.estimateData) {
-      this.estimateData = await this.estimate();
+      throw new Error("[ERC1155WithdrawToEoaCommand] Command must be estimated before execution!");
     }
     const { id, gas, curvyFee } = this.estimateData;
 

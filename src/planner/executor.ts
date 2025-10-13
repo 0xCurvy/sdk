@@ -19,22 +19,10 @@ export class CommandExecutor {
     this.eventEmitter = eventEmitter;
   }
 
-  async executePlan(plan: CurvyPlan, onCommandStarted?: (command: string) => void): Promise<CurvyPlanExecution> {
-    this.eventEmitter.emitPlanExecutionStarted({ plan });
-    const result = await this.executeRecursively(plan, undefined, onCommandStarted);
-
-    if (result.success) {
-      this.eventEmitter.emitPlanExecutionComplete({ plan, result });
-    } else {
-      this.eventEmitter.emitPlanExecutionError({ plan, result });
-    }
-
-    return result;
-  }
-
-  private async executeRecursively(
+  async #walkRecursively(
     plan: CurvyPlan,
     input?: CurvyCommandData,
+    dryRun?: boolean,
     onCommandStarted?: (command: string) => void,
   ): Promise<CurvyPlanExecution> {
     // CurvyPlanFlowControl, parallel
@@ -42,7 +30,7 @@ export class CommandExecutor {
       // Parallel plans don't take any input,
       // because that would mean that each of its children is getting the same Address as input
       const result = await Promise.all(
-        plan.items.map((item) => this.executeRecursively(item, undefined, onCommandStarted)),
+        plan.items.map((item) => this.#walkRecursively(item, undefined, dryRun, onCommandStarted)),
       );
       const success = result.every((r) => r.success);
 
@@ -52,6 +40,14 @@ export class CommandExecutor {
         return {
           success: true,
           items: result,
+          estimate: result.reduce(
+            (res, { estimate }) => {
+              res.estimate.gas += estimate?.gas || 0n;
+              res.estimate.curvyFee += estimate?.curvyFee || 0n;
+              return res;
+            },
+            { estimate: { gas: 0n, curvyFee: 0n } },
+          ).estimate,
           data: result.filter((r) => r.success && r.data !== undefined).map((r) => r.data) as BalanceEntry[],
         };
       }
@@ -72,8 +68,9 @@ export class CommandExecutor {
       }
 
       let data = input;
+      const estimate = { gas: 0n, curvyFee: 0n };
       for (const item of plan.items) {
-        const result = await this.executeRecursively(item, data, onCommandStarted);
+        const result = await this.#walkRecursively(item, data, dryRun, onCommandStarted);
 
         results.push(result);
 
@@ -88,12 +85,15 @@ export class CommandExecutor {
 
         // Set the output of current as data of next step
         data = result.data;
+        estimate.gas += result.estimate?.gas || 0n;
+        estimate.curvyFee += result.estimate?.curvyFee || 0n;
       }
 
       // The output address of the successful serial flow is the last members address.
       return <CurvyPlanSuccessfulExecution>{
         success: true,
         data,
+        estimate,
         items: results, // TODO: I don't think this is needed
       };
     }
@@ -106,11 +106,21 @@ export class CommandExecutor {
 
       try {
         const command = this.commandFactory.createCommand(plan.name, input, plan.intent, plan.estimate);
-        onCommandStarted?.(plan.name);
-        const data = await command.execute();
+        let data: CurvyCommandData | undefined;
+        let estimate: CurvyCommandEstimate | undefined;
+
+        if (!dryRun) {
+          onCommandStarted?.(plan.name);
+          data = await command.execute();
+        } else {
+          const { data: estimateData, ...estimate } = await command.estimate();
+          data = estimateData;
+          plan.estimate = estimate;
+        }
 
         return <CurvyPlanSuccessfulExecution>{
           success: true,
+          estimate,
           data,
         };
       } catch (error) {
@@ -132,120 +142,25 @@ export class CommandExecutor {
     throw new Error(`Unrecognized type for plan node: ${plan.type}`);
   }
 
-  private async estimateRecursively(
-    plan: CurvyPlan,
-    input?: CurvyCommandData,
-    onCommandEstimate?: (estimation: CurvyCommandEstimate) => void,
-  ): Promise<CurvyPlanExecution> {
-    // CurvyPlanFlowControl, parallel
-    if (plan.type === "parallel") {
-      // Parallel plans don't take any input,
-      // because that would mean that each of its children is getting the same Address as input
-      const result = await Promise.all(
-        plan.items.map((item) => this.estimateRecursively(item, undefined, onCommandEstimate)),
-      );
-      const success = result.every((r) => r.success);
+  async executePlan(plan: CurvyPlan, onCommandStarted?: (command: string) => void): Promise<CurvyPlanExecution> {
+    this.eventEmitter.emitPlanExecutionStarted({ plan });
+    const result = await this.#walkRecursively(plan, undefined, false, onCommandStarted);
 
-      this.eventEmitter.emitPlanExecutionProgress({ plan, result: { success, items: result } as CurvyPlanExecution });
-
-      if (success) {
-        return {
-          success: true,
-          items: result,
-          data: result.filter((r) => r.success && r.data !== undefined).map((r) => r.data) as BalanceEntry[],
-        };
-      }
-
-      return {
-        success: false,
-        items: result,
-        error: result.filter((r) => !r.success).map((r) => r.error),
-      };
+    if (result.success) {
+      this.eventEmitter.emitPlanExecutionComplete({ plan, result });
+    } else {
+      this.eventEmitter.emitPlanExecutionError({ plan, result });
     }
 
-    // CurvyPlanFlowControl, serial
-    if (plan.type === "serial") {
-      const results: CurvyPlanExecution[] = [];
-
-      if (plan.items.length === 0) {
-        throw new Error("No items in serial node!");
-      }
-
-      let data = input;
-      for (const item of plan.items) {
-        const result = await this.estimateRecursively(item, data, onCommandEstimate);
-
-        results.push(result);
-
-        // If latest item is unsuccessful, fail entire serial flow node with that error.
-        if (!result.success) {
-          return <CurvyPlanUnsuccessfulExecution>{
-            success: false,
-            error: result.error,
-            items: results,
-          };
-        }
-
-        // Set the output of current as data of next step
-        data = result.data;
-      }
-
-      // The output address of the successful serial flow is the last members address.
-      return <CurvyPlanSuccessfulExecution>{
-        success: true,
-        data,
-        items: results, // TODO: I don't think this is needed
-      };
-    }
-
-    // CurvyPlanCommand
-    if (plan.type === "command") {
-      if (!input) {
-        throw new Error("Input is required for command node!");
-      }
-
-      try {
-        const command = this.commandFactory.createCommand(plan.name, input, plan.intent);
-        const { data, ...estimate } = await command.estimate();
-
-        plan.estimate = estimate; // Attach estimate to the plan command node for later reference
-
-        onCommandEstimate?.(estimate);
-
-        return <CurvyPlanSuccessfulExecution>{
-          success: true,
-          data,
-        };
-      } catch (error) {
-        return <CurvyPlanUnsuccessfulExecution>{
-          success: false,
-          error,
-        };
-      }
-    }
-
-    // CurvyPlanData
-    if (plan.type === "data") {
-      return <CurvyPlanSuccessfulExecution>{
-        success: true,
-        data: plan.data,
-      };
-    }
-
-    throw new Error(`Unrecognized type for plan node: ${plan.type}`);
+    return result;
   }
 
   async estimatePlan(
     _plan: CurvyPlan,
   ): Promise<{ plan: CurvyPlan; gas: bigint; curvyFee: bigint; effectiveAmount: bigint }> {
     const plan = structuredClone(_plan);
-    let curvyFee = 0n,
-      gas = 0n;
 
-    const planEstimation = await this.estimateRecursively(plan, undefined, (estimation) => {
-      curvyFee += estimation.curvyFee;
-      gas += estimation.gas;
-    });
+    const planEstimation = await this.#walkRecursively(plan);
 
     if (!planEstimation.success) {
       throw new Error(`Estimation failed: ${planEstimation.error}`);
@@ -259,6 +174,15 @@ export class CommandExecutor {
       throw new Error("Estimation resulted in multiple data entries, expected a single BalanceEntry.");
     }
 
-    return { plan, gas, curvyFee, effectiveAmount: planEstimation.data.balance };
+    if (!planEstimation.estimate) {
+      throw new Error("Estimation resulted in no estimate data.");
+    }
+
+    return {
+      plan,
+      gas: planEstimation.estimate.gas,
+      curvyFee: planEstimation.estimate.curvyFee,
+      effectiveAmount: planEstimation.data.balance,
+    };
   }
 }

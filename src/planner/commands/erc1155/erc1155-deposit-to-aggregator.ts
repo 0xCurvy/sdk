@@ -21,7 +21,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
 
   async execute(): Promise<CurvyCommandData> {
     if (!this.estimateData) {
-      this.estimateData = await this.estimate();
+      throw new Error("[Erc1155DepositToAggregatorCommand] Command must be estimated before execution!");
     }
 
     const { /*id,*/ gas, curvyFee, note } = this.estimateData;
