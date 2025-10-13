@@ -5,6 +5,7 @@ import {
   type HexString,
   isValidCurvyHandle,
   type NoteBalanceEntry,
+    noteToBalanceEntry,
 } from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
@@ -64,14 +65,14 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     if (toAddress === this.senderCurvyHandle) {
       const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 
-      return mainOutputNote.toBalanceEntry(
-        symbol,
-        decimals,
-        walletId,
-        environment,
-        networkSlug,
-        currencyAddress as HexString,
-      );
+      return noteToBalanceEntry(mainOutputNote, {
+          symbol,
+          decimals,
+          walletId,
+          environment,
+          networkSlug,
+          currencyAddress: currencyAddress as HexString,
+      });
     }
   }
 
@@ -134,14 +135,14 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     if (toAddress === this.senderCurvyHandle) {
       const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 
-      data = mainOutputNote.toBalanceEntry(
-        symbol,
-        decimals,
-        walletId,
-        environment,
-        networkSlug,
-        currencyAddress as HexString,
-      );
+      data = noteToBalanceEntry(mainOutputNote, {
+          symbol,
+          decimals,
+          walletId,
+          environment,
+          networkSlug,
+          currencyAddress: currencyAddress as HexString,
+      });
     }
 
     return {

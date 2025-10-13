@@ -1,10 +1,6 @@
-import dayjs from "dayjs";
-import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { HexString, StringifyBigInts } from "@/types/helper";
-import type { NoteBalanceEntry } from "@/types/storage";
+import type { StringifyBigInts } from "@/types/helper";
 import { bigIntToDecimalString, decimalStringToBigInt } from "@/utils/decimal-conversions";
 import { poseidonHash } from "@/utils/poseidon-hash";
-import { BALANCE_TYPE } from "./storage";
 
 type Balance = {
   amount: bigint;
@@ -462,58 +458,6 @@ class Note {
         viewTag: publicNote.deliveryTag.viewTag,
       },
     });
-  }
-
-  static fromNoteBalanceEntry({ balance, owner, deliveryTag, erc1155TokenId }: NoteBalanceEntry): Note {
-    return new Note({
-      balance: { amount: balance.toString(), token: erc1155TokenId!.toString() },
-      owner: {
-        babyJubjubPublicKey: {
-          x: owner.babyJubjubPublicKey.x,
-          y: owner.babyJubjubPublicKey.y,
-        },
-        sharedSecret: owner.sharedSecret,
-      },
-      deliveryTag: {
-        ephemeralKey: deliveryTag.ephemeralKey,
-        viewTag: deliveryTag.viewTag,
-      },
-    });
-  }
-
-  toBalanceEntry(
-    symbol: string,
-    decimals: number,
-    walletId: string,
-    environment: NETWORK_ENVIRONMENT_VALUES,
-    networkSlug: string,
-    currencyAddress: HexString,
-  ): NoteBalanceEntry {
-    if (!this.balance || !this.owner || !this.deliveryTag) {
-      throw new Error("Note is not fully initialized");
-    }
-    const {
-      balance: { token, amount },
-      ownerHash,
-    } = this;
-
-    const { owner, deliveryTag } = this.serializeFullNote();
-
-    return {
-      walletId,
-      source: `0x${ownerHash.toString(16)}`,
-      type: BALANCE_TYPE.NOTE,
-      networkSlug,
-      environment,
-      erc1155TokenId: token,
-      currencyAddress,
-      symbol,
-      balance: BigInt(amount),
-      decimals,
-      owner,
-      deliveryTag,
-      lastUpdated: +dayjs(), // TODO: @vanja remove
-    };
   }
 }
 
