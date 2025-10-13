@@ -5,7 +5,6 @@ import type { CurvyCommandData } from "@/planner/plan";
 import { type HexString, META_TRANSACTION_TYPES, type Note, type NoteBalanceEntry } from "@/types";
 import { noteToBalanceEntry } from "@/utils";
 
-
 interface Erc1155DepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
   id: string;
   note: Note;
@@ -64,12 +63,12 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     );
 
     return noteToBalanceEntry(note, {
-        symbol: this.input.symbol,
-        decimals: this.input.decimals,
-        walletId: this.input.walletId,
-        environment: this.input.environment,
-        networkSlug: this.input.networkSlug,
-        currencyAddress: this.input.currencyAddress as HexString,
+      symbol: this.input.symbol,
+      decimals: this.input.decimals,
+      walletId: this.input.walletId,
+      environment: this.input.environment,
+      networkSlug: this.input.networkSlug,
+      currencyAddress: this.input.currencyAddress as HexString,
     });
   }
 
@@ -104,13 +103,13 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       id,
       note,
       data: noteToBalanceEntry(note, {
-          symbol: this.input.symbol,
-          decimals: this.input.decimals,
-          walletId: this.input.walletId,
-          environment: this.input.environment,
-          networkSlug: this.input.networkSlug,
-          currencyAddress: this.input.currencyAddress as HexString,
-      });
+        symbol: this.input.symbol,
+        decimals: this.input.decimals,
+        walletId: this.input.walletId,
+        environment: this.input.environment,
+        networkSlug: this.input.networkSlug,
+        currencyAddress: this.input.currencyAddress as HexString,
+      }),
     };
   }
 }

@@ -1,5 +1,4 @@
 import type { ICurvyEventEmitter } from "@/interfaces/events";
-import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { ICommandFactory } from "@/planner/commands/factory";
 import type {
   CurvyCommandData,
@@ -107,7 +106,6 @@ export class CommandExecutor {
       try {
         const command = this.commandFactory.createCommand(plan.name, input, plan.intent, plan.estimate);
         let data: CurvyCommandData | undefined;
-        let estimate: CurvyCommandEstimate | undefined;
 
         if (!dryRun) {
           onCommandStarted?.(plan.name);
@@ -120,7 +118,7 @@ export class CommandExecutor {
 
         return <CurvyPlanSuccessfulExecution>{
           success: true,
-          estimate,
+          estimate: plan.estimate,
           data,
         };
       } catch (error) {
@@ -160,7 +158,7 @@ export class CommandExecutor {
   ): Promise<{ plan: CurvyPlan; gas: bigint; curvyFee: bigint; effectiveAmount: bigint }> {
     const plan = structuredClone(_plan);
 
-    const planEstimation = await this.#walkRecursively(plan);
+    const planEstimation = await this.#walkRecursively(plan, undefined, true);
 
     if (!planEstimation.success) {
       throw new Error(`Estimation failed: ${planEstimation.error}`);
@@ -177,6 +175,8 @@ export class CommandExecutor {
     if (!planEstimation.estimate) {
       throw new Error("Estimation resulted in no estimate data.");
     }
+
+    console.dir(planEstimation, { depth: null });
 
     return {
       plan,
