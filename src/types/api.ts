@@ -206,8 +206,8 @@ type SubmitAggregationReturnType = { requestId: string };
 type SubmitNoteOwnershipProofReturnType = {
   notes: {
     ownerHash: string;
-    deliveryTag: { viewTag: string; ephemeralKey: string };
-    balance: { token: HexString; amount: string };
+    deliveryTag: { viewTag: HexString; ephemeralKey: string };
+    balance: { token: string; amount: string };
   }[];
 };
 type GetAggregatorRequestStatusReturnType = {
