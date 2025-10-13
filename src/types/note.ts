@@ -34,7 +34,17 @@ type PublicNote = {
   };
 };
 
-type AuthenticatedNote = OutputNote;
+type AuthenticatedNote = {
+  ownerHash: string;
+  balance: {
+    amount: string;
+    token: string;
+  };
+  deliveryTag: {
+    ephemeralKey: string;
+    viewTag: HexString;
+  };
+};
 
 type InputNote = {
   id: bigint;

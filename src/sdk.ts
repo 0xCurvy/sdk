@@ -39,6 +39,8 @@ import { generateAggregationHash } from "./utils/aggregator";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { poseidonHash } from "./utils/poseidon-hash";
 import { WalletManager } from "./wallet-manager";
+import { aggregatorABI } from '@/contracts/evm/abi';
+import { ethers } from 'ethers';
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -640,6 +642,16 @@ class CurvySDK implements ICurvySDK {
       amount,
       token,
     });
+  }
+
+  async resetAggregator() {
+    const provider = new ethers.JsonRpcProvider("http://localhost:8545");
+    const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
+    const tx = await new ethers.Contract("0xa513E6E4b8f2a923D98304ec87F64353C4D5C853", aggregatorABI, signer).reset();
+
+    const receipt = await tx.wait();
+
+    if (receipt.status !== 1) throw new Error("Aggregator reset failed");
   }
 }
 
