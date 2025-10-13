@@ -1,7 +1,7 @@
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api";
 import { CurvySDK } from "@/sdk";
-import type { AggregationRequestParams, Note, WithdrawRequestParams } from "@/types";
+import type { HexString, OutputNote } from '@/types';
 
 const BEARER_TOKEN =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZXZlbnYwMDAwMDAwMDAwMDEubG9jYWwtY3VydnkubmFtZSIsImlhdCI6MTc1OTAwMzAwNywiZXhwIjoyMTE5MDAzMDA3fQ.UooAgQTvwZTZUqrAGzynr69Vul8ebA7tC-5-VXwiSws";
@@ -32,22 +32,22 @@ describe("Integration test", async () => {
   const keyPairs = core.generateKeyPairs();
 
   it("deposit, aggregation and withdraw, should create proofs and verify them on-chain", async () => {
-    // try {
-    //   await sdk.resetAggregator();
-    // } catch (error) {
-    //   console.log(error);
-    // }
+    try {
+      await sdk.resetAggregator();
+    } catch (error) {
+      console.log(error);
+    }
 
     console.log("✅ Aggregator reset");
 
-    const depositNotes: Note[] = [];
+    const depositNotes = [];
 
     depositNotes.push(
       core.sendNote(keyPairs.S, keyPairs.V, {
         ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
         amount: 3000n,
         token: BigInt(2),
-      }),
+      }).serializeOutputNote(),
     );
 
     depositNotes.push(
@@ -55,12 +55,12 @@ describe("Integration test", async () => {
         ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
         amount: 1000n,
         token: BigInt(2),
-      }),
+      }).serializeOutputNote(),
     );
 
     const depositPayload = {
-      outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
-      fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+      outputNotes: depositNotes,
+      fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" as HexString,
     };
 
     const depositResponse = await api.aggregator.SubmitDeposit(depositPayload);
@@ -117,22 +117,22 @@ describe("Integration test", async () => {
 
     const outputAmount = ((3000n + 1000n) * 999n) / 1000n;
 
-    const aggregationOutputNotes: Note[] = [];
+    const aggregationOutputNotes: OutputNote[] = [];
 
     aggregationOutputNotes.push(
       core.sendNote(keyPairs.S, keyPairs.V, {
         ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
         amount: outputAmount,
         token: BigInt(2),
-      }),
+      }).serializeOutputNote(),
     );
 
-    const aggregationParams: AggregationRequestParams = {
-      inputNotes: aggregationInputNotes.map((note) => note.serializeInputNote()),
-      outputNotes: aggregationOutputNotes.map((note) => note.serializeOutputNote()),
-    };
-
-    const aggregationPayload = sdk.createAggregationPayload(aggregationParams, network, keyPairs.s);
+    const aggregationPayload = sdk.createAggregationPayload(
+      aggregationInputNotes.map((note) => note.serializeInputNote()),
+      aggregationOutputNotes,
+      network,
+      keyPairs.s
+    );
 
     const aggregationResponse = await api.aggregator.SubmitAggregation(aggregationPayload);
     expect(aggregationResponse.requestId).toBeDefined();
@@ -179,12 +179,13 @@ describe("Integration test", async () => {
 
     expect(withdrawalNotes.length).toBe(1);
 
-    const withdrawalRequestParams: WithdrawRequestParams = {
-      inputNotes: withdrawalNotes,
-      destinationAddress: "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
-    };
-
-    const withdrawalPayload = sdk.createWithdrawPayload(withdrawalRequestParams, network, keyPairs.s);
+    const destinationAddress: HexString = "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc";
+    const withdrawalPayload = sdk.createWithdrawPayload(
+      withdrawalNotes.map((note) => note.serializeInputNote()),
+      destinationAddress,
+      network,
+      keyPairs.s
+    );
 
     const withdrawalResponse = await api.aggregator.SubmitWithdraw(withdrawalPayload);
     expect(withdrawalResponse.requestId).toBeDefined();
