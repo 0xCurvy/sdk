@@ -63,34 +63,34 @@ describe("Integration test", async () => {
 
     console.log("Deposit 1 API response:", depositResponse1.requestId);
 
-    // const depositNotes2 = [];
-    //
-    // depositNotes2.push(
-    //   core.sendNote(keyPairs.S, keyPairs.V, {
-    //     ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
-    //     amount: 1000n,
-    //     token: BigInt(2),
-    //   }).serializeOutputNote(),
-    // );
-    //
-    // const depositPayload2 = {
-    //   outputNotes: depositNotes2,
-    //   fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" as HexString,
-    // };
-    //
-    // const depositResponse2 = await api.aggregator.SubmitDeposit(depositPayload2);
-    // if (depositResponse2.error) {
-    //   console.log(depositResponse2.error);
-    // }
-    // expect(depositResponse2.requestId).toBeDefined();
+    const depositNotes2 = [];
 
-    // console.log("Deposit 2 API response:", depositResponse2.requestId);
+    depositNotes2.push(
+      core.sendNote(keyPairs.S, keyPairs.V, {
+        ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+        amount: 1000n,
+        token: BigInt(2),
+      }).serializeOutputNote(),
+    );
+
+    const depositPayload2 = {
+      outputNotes: depositNotes2,
+      fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" as HexString,
+    };
+
+    const depositResponse2 = await api.aggregator.SubmitDeposit(depositPayload2);
+    if (depositResponse2.error) {
+      console.log(depositResponse2.error);
+    }
+    expect(depositResponse2.requestId).toBeDefined();
+
+    console.log("Deposit 2 API response:", depositResponse2.requestId);
 
     const depositStatus1 = await waitForRequest(depositResponse1.requestId, api);
     expect(depositStatus1).toBe("success");
 
-    // const depositStatus2 = await waitForRequest(depositResponse2.requestId, api);
-    // expect(depositStatus2).toBe("success");
+    const depositStatus2 = await waitForRequest(depositResponse2.requestId, api);
+    expect(depositStatus2).toBe("success");
 
     console.log("✅ Deposit reached success status");
 
