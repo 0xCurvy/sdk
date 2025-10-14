@@ -27,6 +27,7 @@ import {
 import { computePrivateKeys } from "@/utils/address";
 import { signMessage } from "@/utils/encryption";
 import { generateWalletId } from "@/utils/helpers";
+import { processPasskeyPrf } from "@/utils/passkeys";
 import { CurvyWallet } from "@/wallet";
 
 const JWT_REFRESH_INTERVAL = 14 * (60 * 10 ** 3);
@@ -264,6 +265,90 @@ class WalletManager implements IWalletManager {
       signature.signingAddress,
       keyPairs,
     );
+    await this.addWallet(wallet, true);
+
+    return wallet;
+  }
+
+  async addWalletWithPasskey(prfValue: BufferSource) {
+    const { prfAddress: ownerAddress, ...signature } = await processPasskeyPrf(prfValue);
+    const { s, v } = computePrivateKeys(signature.r.toString(), signature.s.toString());
+
+    const keyPairs = this.#core.getCurvyKeys(s, v);
+
+    await this.#updateBearerToken(keyPairs.s);
+
+    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(ownerAddress);
+    if (!curvyHandle) {
+      throw new Error(`No Curvy handle found for owner address: ${ownerAddress}`);
+    }
+
+    assertCurvyHandle(curvyHandle);
+
+    const { data: ownerDetails } = await this.#apiClient.user.ResolveCurvyHandle(curvyHandle);
+    if (!ownerDetails) throw new Error(`Handle ${curvyHandle} does not exist.`);
+
+    const { createdAt, publicKeys } = ownerDetails;
+
+    if (!publicKeys.babyJubjubPublicKey) {
+      const result = await this.#apiClient.user.SetBabyJubjubKey(curvyHandle, {
+        babyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+      });
+      if (!("data" in result) || result.data.message !== "Saved")
+        throw new Error(`Failed to set BabyJubjub key for handle ${curvyHandle}.`);
+    }
+
+    if (
+      !(publicKeys.viewingKey === keyPairs.V && publicKeys.spendingKey === keyPairs.S) ||
+      (publicKeys.babyJubjubPublicKey && publicKeys.babyJubjubPublicKey !== keyPairs.babyJubjubPublicKey)
+    ) {
+      throw new Error(`Wrong password for handle ${curvyHandle}.`);
+    }
+
+    const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
+    const wallet = new CurvyWallet(walletId, +dayjs(createdAt), curvyHandle, ownerAddress, keyPairs);
+    await this.addWallet(wallet, true);
+
+    return wallet;
+  }
+
+  async registerWalletWithPasskey(handle: CurvyHandle, prfValue: BufferSource) {
+    const { prfAddress: ownerAddress, ...signature } = await processPasskeyPrf(prfValue);
+    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(ownerAddress);
+    if (curvyHandle) {
+      throw new Error(`Handle ${curvyHandle} already registered, for owner address: ${ownerAddress}`);
+    }
+
+    if (!CURVY_HANDLE_REGEX.test(handle))
+      throw new Error(
+        `Invalid handle format: ${handle}. Curvy handles can only include letters, numbers, and dashes, with a minimum of 3 and maximum length of 20 characters.`,
+      );
+
+    const { data: ownerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
+    if (ownerDetails) throw new Error(`Handle ${handle} already registered.`);
+
+    const { s, v } = computePrivateKeys(signature.r.toString(), signature.s.toString());
+
+    const keyPairs = this.#core.getCurvyKeys(s, v);
+
+    await this.#apiClient.user.RegisterCurvyHandle({
+      handle,
+      ownerAddress,
+      publicKeys: {
+        viewingKey: keyPairs.V,
+        spendingKey: keyPairs.S,
+        babyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+      },
+    });
+
+    const { data: registerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
+    if (!registerDetails)
+      throw new Error(`Registration validation failed for handle ${handle}. Please try adding the wallet manually.`);
+
+    await this.#updateBearerToken(keyPairs.s);
+
+    const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
+    const wallet = new CurvyWallet(walletId, +dayjs(registerDetails.createdAt), handle, ownerAddress, keyPairs);
     await this.addWallet(wallet, true);
 
     return wallet;

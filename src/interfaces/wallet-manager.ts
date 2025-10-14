@@ -6,6 +6,9 @@ interface IWalletManager {
   get wallets(): Array<CurvyWallet>;
   get activeWallet(): Readonly<CurvyWallet>;
 
+  addWalletWithPasskey(prfValue: BufferSource): Promise<CurvyWallet>;
+  registerWalletWithPasskey(handle: CurvyHandle, prfValue: BufferSource): Promise<CurvyWallet>;
+
   addWalletWithSignature(flavour: NETWORK_FLAVOUR["EVM"], signature: EvmSignatureData): Promise<CurvyWallet>;
   addWalletWithSignature(flavour: NETWORK_FLAVOUR["STARKNET"], signature: StarknetSignatureData): Promise<CurvyWallet>;
   addWalletWithSignature(

@@ -144,4 +144,14 @@ const signMessage = (message: string, spendingPrivateKey: string): string => {
   return signature.serialized;
 };
 
-export { encryptData, decryptData, signMessage, encryptCurvyMessage, decryptCurvyMessage };
+const bufferSourceToBuffer = (input: BufferSource) => {
+  if (input instanceof ArrayBuffer) {
+    return Buffer.from(input);
+  } else if (ArrayBuffer.isView(input)) {
+    return Buffer.from(input.buffer, input.byteOffset, input.byteLength);
+  } else {
+    throw new Error("Argument is not a valid BufferSource");
+  }
+};
+
+export { encryptData, decryptData, signMessage, encryptCurvyMessage, decryptCurvyMessage, bufferSourceToBuffer };
