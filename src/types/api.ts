@@ -200,19 +200,21 @@ type SetBabyJubjubPublicKeyReturnType =
 type GetAllNotesReturnType = {
   notes: PublicNote[];
 };
-type SubmitDepositReturnType = { requestId: string };
-type SubmitWithdrawReturnType = { requestId: string };
-type SubmitAggregationReturnType = { requestId: string };
+type SubmitDepositReturnType = { requestId: string, error?: string };
+type SubmitWithdrawReturnType = { requestId: string, error?: string };
+type SubmitAggregationReturnType = { requestId: string, error?: string };
 type SubmitNoteOwnershipProofReturnType = {
   notes: {
     ownerHash: string;
     deliveryTag: { viewTag: HexString; ephemeralKey: string };
     balance: { token: string; amount: string };
   }[];
+  error?: string;
 };
 type GetAggregatorRequestStatusReturnType = {
   requestId: string;
   status: AggregatorRequestStatus;
+  error?: string;
 };
 
 export type {
