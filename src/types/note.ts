@@ -42,13 +42,13 @@ type AuthenticatedNote = {
   };
   deliveryTag: {
     ephemeralKey: string;
-    viewTag: HexString;
+    viewTag: string;
   };
 };
 
 type InputNote = {
-  id: bigint;
-  nullifier: bigint;
+  id: string;
+  nullifier: string;
   owner: {
     babyJubjubPublicKey: {
       x: string;
@@ -64,7 +64,7 @@ type InputNote = {
 };
 
 type OutputNote = {
-  id: bigint;
+  id: string;
   ownerHash: string;
   balance: {
     amount: string;
@@ -72,7 +72,7 @@ type OutputNote = {
   };
   deliveryTag: {
     ephemeralKey: string;
-    viewTag: HexString;
+    viewTag: string;
   };
 };
 
@@ -155,8 +155,8 @@ class Note {
     }
 
     return {
-      id: this.id,
-      nullifier: this.nullifier,
+      id: this.id.toString(),
+      nullifier: this.nullifier.toString(),
       owner: {
         babyJubjubPublicKey: {
           x: this.owner.babyJubjubPublicKey.x.toString(),
@@ -187,7 +187,7 @@ class Note {
     }
 
     return {
-      id: this.id,
+      id: this.id.toString(),
       ownerHash: this.ownerHash.toString(),
       balance: {
         amount: this.balance.amount.toString(),
@@ -195,7 +195,7 @@ class Note {
       },
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
-        viewTag: `0x${this.deliveryTag.viewTag.toString(16)}`,
+        viewTag: this.deliveryTag.viewTag.toString(16),
       },
     };
   }

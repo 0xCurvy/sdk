@@ -647,7 +647,7 @@ class CurvySDK implements ICurvySDK {
   async resetAggregator() {
     const provider = new ethers.JsonRpcProvider("http://localhost:8545");
     const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
-    const tx = await new ethers.Contract("0xa513E6E4b8f2a923D98304ec87F64353C4D5C853", aggregatorABI, signer).reset();
+    const tx = await new ethers.Contract("0x610178dA211FEF7D417bC0e6FeD39F05609AD788", aggregatorABI, signer).reset();
 
     const receipt = await tx.wait();
 
