@@ -1,5 +1,6 @@
 import { Buffer as BufferPolyfill } from "buffer";
 import { mul, toNumber } from "dnum";
+import { ethers } from "ethers";
 import { getAddress } from "viem";
 import { BalanceScanner } from "@/balance-scanner";
 import {
@@ -8,6 +9,7 @@ import {
   type NETWORK_FLAVOUR_VALUES,
   type NETWORKS,
 } from "@/constants/networks";
+import { aggregatorABI } from "@/contracts/evm/abi";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import type { IApiClient } from "@/interfaces/api";
@@ -39,8 +41,6 @@ import { generateAggregationHash } from "./utils/aggregator";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { poseidonHash } from "./utils/poseidon-hash";
 import { WalletManager } from "./wallet-manager";
-import { aggregatorABI } from '@/contracts/evm/abi';
-import { ethers } from 'ethers';
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -575,15 +575,15 @@ class CurvySDK implements ICurvySDK {
           },
           balance: {
             amount: "0",
-            token: inputNotes[0].balance!.token.toString(),
+            token: inputNotes[0].balance.token.toString(),
           },
         }).serializeInputNote(),
       );
     }
 
-    const sortedInputNotes = inputNotes.sort((a, b) => (a.id < b.id ? -1 : 1));
+    const sortedInputNotes = inputNotes.sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
 
-    const inputNotesHash = poseidonHash(inputNotes.map((note) => note.id));
+    const inputNotesHash = poseidonHash(inputNotes.map((note) => BigInt(note.id)));
     const messageHash = poseidonHash([inputNotesHash, BigInt(destinationAddress)]);
 
     const rawSignature = this.#core.signWithBabyJubjubPrivateKey(messageHash, bjjPrivateKey);
