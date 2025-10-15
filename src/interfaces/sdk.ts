@@ -3,9 +3,8 @@ import type { IApiClient } from "@/interfaces/api";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type { ExtendedAnnouncement, InputNote, Note, OutputNote } from "@/types";
+import type { ExtendedAnnouncement, Note, Signature, StringifyBigInts } from "@/types";
 import type { CurvyAddress } from "@/types/address";
-import type { AggregationRequest, WithdrawRequest } from "@/types/aggregator";
 import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { CurvyFeeEstimate, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
@@ -70,19 +69,7 @@ interface ICurvySDK {
     message?: string,
   ): Promise<RpcCallReturnType>;
 
-  createAggregationPayload(
-    inputNotes: InputNote[],
-    outputNotes: OutputNote[],
-    network: Network,
-    privKey?: string,
-  ): AggregationRequest;
-
-  createWithdrawPayload(
-    inputNotes: InputNote[],
-    destinationAddress: HexString,
-    network: Network,
-    privKey?: string,
-  ): WithdrawRequest;
+  signWithBabyJubjubPrivateKey(message: bigint, babyJubjubPrivateKey?: string): StringifyBigInts<Signature>;
 
   /**
    *  * Polls a function until the criteria is met or max retries is reached.
