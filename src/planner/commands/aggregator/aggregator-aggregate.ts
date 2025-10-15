@@ -22,7 +22,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     this.#intent = intent;
   }
 
-  #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[], privKey?: string): AggregationRequest {
+  #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[]): AggregationRequest {
     if (!this.network.aggregationCircuitConfig) {
       throw new Error("Network aggregation circuit config is not defined!");
     }
@@ -54,7 +54,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     }
 
     const msgHash = generateAggregationHash(outputNotes);
-    const rawSignature = this.sdk.signWithBabyJubjubPrivateKey(msgHash, privKey);
+    const rawSignature = this.sdk.signWithBabyJubjubPrivateKey(msgHash);
     const signature = {
       S: BigInt(rawSignature.S),
       R8: rawSignature.R8.map((r) => BigInt(r)),
@@ -125,9 +125,8 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
     const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
 
-    const payload = this.#createAggregationRequest(inputNotes, outputNotes);
-
-    const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(payload);
+    const aggregationRequest = this.#createAggregationRequest(inputNotes, outputNotes);
+    const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(aggregationRequest);
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),

@@ -12,7 +12,7 @@ import {
 import { poseidonHash } from "@/utils/poseidon-hash";
 
 export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
-  #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString, privKey?: string): WithdrawRequest {
+  #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): WithdrawRequest {
     if (!this.network.withdrawCircuitConfig) {
       throw new Error("Network withdraw circuit config is not defined!");
     }
@@ -21,21 +21,12 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
       throw new Error("Invalid withdraw payload parameters");
     }
 
-    let bjjPrivateKey: string;
-
-    if (privKey) {
-      bjjPrivateKey = privKey;
-    } else {
-      bjjPrivateKey = this.sdk.walletManager.activeWallet.keyPairs.s;
-    }
-
     const inputNotesLength = inputNotes.length;
 
     for (let i = inputNotesLength; i < this.network.withdrawCircuitConfig.maxInputs; i++) {
       inputNotes.push(
         new Note({
           owner: {
-            // OVO OBAVEZNO SA ALEKSOM PROVERITI
             babyJubjubPublicKey: inputNotes[0].owner.babyJubjubPublicKey,
             sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
           },
@@ -52,7 +43,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     const inputNotesHash = poseidonHash(inputNotes.map((note) => BigInt(note.id)));
     const messageHash = poseidonHash([inputNotesHash, BigInt(destinationAddress)]);
 
-    const rawSignature = this.sdk.signWithBabyJubjubPrivateKey(messageHash, bjjPrivateKey);
+    const rawSignature = this.sdk.signWithBabyJubjubPrivateKey(messageHash);
     const signature = {
       S: BigInt(rawSignature.S),
       R8: rawSignature.R8.map((r) => BigInt(r)),
@@ -81,16 +72,12 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     });
 
     // TODO: Fix this so that we dont have same return values as args
-    const { inputNotes, signature, destinationAddress } = this.#createWithdrawRequest(
+    const withdrawRequest = this.#createWithdrawRequest(
       this.inputNotes.map((note) => note.serializeInputNote()),
       erc1155Address,
     );
 
-    const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw({
-      inputNotes,
-      signature,
-      destinationAddress,
-    });
+    const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw(withdrawRequest);
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
@@ -99,9 +86,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
       },
     );
 
-    const { balances } = await this.sdk.rpcClient
-      .Network(this.input[0].networkSlug)
-      .getErc1155Balances(destinationAddress as HexString);
+    const { balances } = await this.sdk.rpcClient.Network(this.input[0].networkSlug).getErc1155Balances(erc1155Address);
     const erc1155Balance = balances.find((b) => b.currencyAddress === this.input[0].currencyAddress);
 
     if (!erc1155Balance) {
@@ -112,7 +97,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     return {
       type: BALANCE_TYPE.ERC1155,
       walletId: this.input[0].walletId,
-      source: destinationAddress as HexString,
+      source: erc1155Address,
       erc1155TokenId: erc1155Balance.erc1155TokenId,
       networkSlug,
       environment,
