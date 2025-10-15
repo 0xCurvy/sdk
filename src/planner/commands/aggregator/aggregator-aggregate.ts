@@ -1,4 +1,12 @@
-import { bigIntToDecimalString, type HexString, isValidCurvyHandle } from "@/exports";
+import {
+  type AggregationRequest,
+  bigIntToDecimalString,
+  generateAggregationHash,
+  type HexString,
+  type InputNote,
+  isValidCurvyHandle,
+  type OutputNote,
+} from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
@@ -11,6 +19,51 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
   constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {
     super(sdk, input);
     this.#intent = intent;
+  }
+
+  #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[], privKey?: string): AggregationRequest {
+    if (!this.network.aggregationCircuitConfig) {
+      throw new Error("Network aggregation circuit config is not defined!");
+    }
+
+    if (outputNotes.length < this.network.aggregationCircuitConfig.maxOutputs) {
+      outputNotes.push(
+        new Note({
+          owner: {
+            babyJubjubPublicKey: {
+              x: "0",
+              y: "0",
+            },
+            sharedSecret: BigInt(
+              `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+            ).toString(),
+          },
+          balance: {
+            amount: "0",
+            token: outputNotes[0].balance.token,
+          },
+          deliveryTag: {
+            ephemeralKey: bigIntToDecimalString(
+              BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+            ),
+            viewTag: "0x0",
+          },
+        }).serializeOutputNote(),
+      );
+    }
+
+    const msgHash = generateAggregationHash(outputNotes);
+    const rawSignature = this.sdk.signWithBabyJubjubPrivateKey(msgHash, privKey);
+    const signature = {
+      S: BigInt(rawSignature.S),
+      R8: rawSignature.R8.map((r) => BigInt(r)),
+    };
+
+    return {
+      inputNotes,
+      outputNotes,
+      signature,
+    };
   }
 
   // TODO: Check how will token symbol and those things be affected with multi asset notes?
@@ -71,7 +124,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
     const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
 
-    const payload = this.sdk.createAggregationPayload(inputNotes, outputNotes, this.network);
+    const payload = this.#createAggregationRequest(inputNotes, outputNotes);
 
     const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(payload);
 

@@ -1,9 +1,70 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { BALANCE_TYPE, type Erc1155BalanceEntry, type HexString } from "@/types";
+import {
+  BALANCE_TYPE,
+  type Erc1155BalanceEntry,
+  type HexString,
+  type InputNote,
+  Note,
+  type WithdrawRequest,
+} from "@/types";
+import { poseidonHash } from "@/utils/poseidon-hash";
 
 export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
+  #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString, privKey?: string): WithdrawRequest {
+    if (!this.network.withdrawCircuitConfig) {
+      throw new Error("Network withdraw circuit config is not defined!");
+    }
+
+    if (!inputNotes || !destinationAddress) {
+      throw new Error("Invalid withdraw payload parameters");
+    }
+
+    let bjjPrivateKey: string;
+
+    if (privKey) {
+      bjjPrivateKey = privKey;
+    } else {
+      bjjPrivateKey = this.sdk.walletManager.activeWallet.keyPairs.s;
+    }
+
+    const inputNotesLength = inputNotes.length;
+
+    for (let i = inputNotesLength; i < this.network.withdrawCircuitConfig.maxInputs; i++) {
+      inputNotes.push(
+        new Note({
+          owner: {
+            // OVO OBAVEZNO SA ALEKSOM PROVERITI
+            babyJubjubPublicKey: inputNotes[0].owner.babyJubjubPublicKey,
+            sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+          },
+          balance: {
+            amount: "0",
+            token: inputNotes[0].balance.token.toString(),
+          },
+        }).serializeInputNote(),
+      );
+    }
+
+    const sortedInputNotes = inputNotes.sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+
+    const inputNotesHash = poseidonHash(inputNotes.map((note) => BigInt(note.id)));
+    const messageHash = poseidonHash([inputNotesHash, BigInt(destinationAddress)]);
+
+    const rawSignature = this.sdk.signWithBabyJubjubPrivateKey(messageHash, bjjPrivateKey);
+    const signature = {
+      S: BigInt(rawSignature.S),
+      R8: rawSignature.R8.map((r) => BigInt(r)),
+    };
+
+    return {
+      inputNotes: sortedInputNotes,
+      signature,
+      destinationAddress,
+    };
+  }
+
   async execute(): Promise<CurvyCommandData> {
     const { networkSlug, environment, symbol, lastUpdated, currencyAddress, walletId } = this.input[0];
 
@@ -20,13 +81,10 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     });
 
     // TODO: Fix this so that we dont have same return values as args
-    const { inputNotes, signature, destinationAddress } = this.sdk.createWithdrawPayload(
+    const { inputNotes, signature, destinationAddress } = this.#createWithdrawRequest(
       this.inputNotes.map((note) => note.serializeInputNote()),
       erc1155Address,
-      this.network,
     );
-
-    console.log(inputNotes, signature);
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw({
       inputNotes,
