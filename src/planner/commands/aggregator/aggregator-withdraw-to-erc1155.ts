@@ -1,5 +1,5 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
+import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import {
   BALANCE_TYPE,
@@ -11,7 +11,7 @@ import {
 } from "@/types";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
-export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
+export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorCommand {
   #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): WithdrawRequest {
     if (!this.network.withdrawCircuitConfig) {
       throw new Error("Network withdraw circuit config is not defined!");
@@ -43,7 +43,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     const inputNotesHash = poseidonHash(inputNotes.map((note) => BigInt(note.id)));
     const messageHash = poseidonHash([inputNotesHash, BigInt(destinationAddress)]);
 
-    const rawSignature = this.sdk.signWithBabyJubjubPrivateKey(messageHash);
+    const rawSignature = this.sdk.walletManager.signMessageWithBabyJubjub(messageHash);
     const signature = {
       S: BigInt(rawSignature.S),
       R8: rawSignature.R8.map((r) => BigInt(r)),

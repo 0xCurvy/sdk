@@ -4,7 +4,7 @@ import type { CurvyCommandData } from "@/planner/plan";
 import type { Network, Note, NoteBalanceEntry } from "@/types";
 import { balanceEntryToNote } from "@/utils";
 
-export abstract class AggregatorCommand extends CurvyCommand {
+export abstract class AbstractAggregatorCommand extends CurvyCommand {
   protected declare input: NoteBalanceEntry[];
   protected readonly inputNotes: Note[];
   protected readonly inputNotesSum: bigint;

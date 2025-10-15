@@ -3,7 +3,7 @@ import type { IApiClient } from "@/interfaces/api";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type { ExtendedAnnouncement, Note, Signature, StringifyBigInts } from "@/types";
+import type { ExtendedAnnouncement, Note } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
@@ -68,8 +68,6 @@ interface ICurvySDK {
     fee: StarknetFeeEstimate | bigint,
     message?: string,
   ): Promise<RpcCallReturnType>;
-
-  signWithBabyJubjubPrivateKey(message: bigint, babyJubjubPrivateKey?: string): StringifyBigInts<Signature>;
 
   /**
    *  * Polls a function until the criteria is met or max retries is reached.

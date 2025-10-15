@@ -10,11 +10,11 @@ import {
 } from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
+import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { Note } from "@/types/note";
 
-export class AggregatorAggregateCommand extends AggregatorCommand {
+export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   readonly #intent: CurvyIntent;
 
   constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {
@@ -54,7 +54,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     }
 
     const msgHash = generateAggregationHash(outputNotes);
-    const rawSignature = this.sdk.signWithBabyJubjubPrivateKey(msgHash);
+    const rawSignature = this.sdk.walletManager.signMessageWithBabyJubjub(msgHash);
     const signature = {
       S: BigInt(rawSignature.S),
       R8: rawSignature.R8.map((r) => BigInt(r)),

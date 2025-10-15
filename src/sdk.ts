@@ -22,7 +22,7 @@ import type { Rpc } from "@/rpc/abstract";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type { CurvyEventType, Network, Signature, StringifyBigInts } from "@/types";
+import type { CurvyEventType, Network } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
@@ -122,8 +122,7 @@ class CurvySDK implements ICurvySDK {
 
     sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(
-      // TODO: Pogledati ovo
-      sdk.#rpcClient!,
+      sdk.rpcClient,
       sdk.apiClient,
       sdk.storage,
       sdk.#emitter,
@@ -475,12 +474,6 @@ class CurvySDK implements ICurvySDK {
     return this.rpcClient
       .Network(networkIdentifier)
       .sendToAddress(from, privateKey, recipientAddress, amount, currency, fee);
-  }
-
-  signWithBabyJubjubPrivateKey(message: bigint, babyJubjubPrivateKey?: string): StringifyBigInts<Signature> {
-    const privateKey = babyJubjubPrivateKey ?? this.walletManager.activeWallet.keyPairs.s;
-
-    return this.#core.signWithBabyJubjubPrivateKey(message, privateKey);
   }
 
   subscribeToEventType(eventType: CurvyEventType, listener: (event: any) => void) {
