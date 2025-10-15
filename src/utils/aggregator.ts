@@ -3,15 +3,17 @@ import { decimalStringToBigInt } from "@/utils/decimal-conversions";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
 const generateAggregationHash = (outputNotes: OutputNote[]) => {
-  const outputNotesHash = poseidonHash(outputNotes.map((note) => BigInt(note.id)));
+  const sortedOutputNotes = outputNotes.sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+  const outputNotesHash = poseidonHash(sortedOutputNotes.map((note) => BigInt(note.id)));
   const ephemeralKeyHash = poseidonHash(
-    outputNotes.map((note) => decimalStringToBigInt(note.deliveryTag.ephemeralKey)),
+    sortedOutputNotes.map((note) => decimalStringToBigInt(note.deliveryTag.ephemeralKey)),
   );
   return poseidonHash([outputNotesHash, ephemeralKeyHash]);
 };
 
 const generateWithdrawalHash = (inputNotes: InputNote[], destinationAddress: HexString) => {
-  const inputNotesHash = poseidonHash(inputNotes.map((note) => BigInt(note.id)));
+  const sortedInputNotes = inputNotes.sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+  const inputNotesHash = poseidonHash(sortedInputNotes.map((note) => BigInt(note.id)));
   return poseidonHash([inputNotesHash, BigInt(destinationAddress)]);
 };
 
