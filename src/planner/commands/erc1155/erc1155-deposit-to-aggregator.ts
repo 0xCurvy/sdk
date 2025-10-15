@@ -36,9 +36,6 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res) => {
-        // if (res.status === "failed") {
-        //   throw new Error(`[DepositToAggregatorCommand] Aggregator deposit failed!`);
-        // }
         return res.status === "success";
       },
     );

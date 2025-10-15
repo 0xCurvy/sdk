@@ -569,7 +569,6 @@ class CurvySDK implements ICurvySDK {
       inputNotes.push(
         new Note({
           owner: {
-            // OVO OBAVEZNO SA ALEKSOM PROVERITI
             babyJubjubPublicKey: inputNotes[0].owner.babyJubjubPublicKey,
             sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
           },
