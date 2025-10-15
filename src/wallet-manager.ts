@@ -25,7 +25,7 @@ import {
   type StarknetSignatureData,
 } from "@/types";
 import { computePrivateKeys } from "@/utils/address";
-import { signMessage } from "@/utils/encryption";
+import { computePasswordHash, signMessage } from "@/utils/encryption";
 import { generateWalletId } from "@/utils/helpers";
 import { processPasskeyPrf } from "@/utils/passkeys";
 import { CurvyWallet } from "@/wallet";
@@ -166,7 +166,11 @@ class WalletManager implements IWalletManager {
     }
   }
 
-  async addWalletWithSignature(flavour: NETWORK_FLAVOUR_VALUES, signature: EvmSignatureData | StarknetSignatureData) {
+  async addWalletWithSignature(
+    flavour: NETWORK_FLAVOUR_VALUES,
+    signature: EvmSignatureData | StarknetSignatureData,
+    password: string,
+  ) {
     const [r_string, s_string] = await this.#verifySignature(flavour, signature);
     const { s, v } = computePrivateKeys(r_string, s_string);
 
@@ -207,7 +211,14 @@ class WalletManager implements IWalletManager {
     }
 
     const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
-    const wallet = new CurvyWallet(walletId, +dayjs(createdAt), curvyHandle, signature.signingAddress, keyPairs);
+    const wallet = new CurvyWallet(
+      walletId,
+      +dayjs(createdAt),
+      curvyHandle,
+      signature.signingAddress,
+      keyPairs,
+      await computePasswordHash(password, walletId),
+    );
     await this.addWallet(wallet, true);
 
     return wallet;
@@ -217,6 +228,7 @@ class WalletManager implements IWalletManager {
     handle: CurvyHandle,
     flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
+    password: string,
   ) {
     const ownerAddress =
       flavour === NETWORK_FLAVOUR.STARKNET
@@ -264,13 +276,14 @@ class WalletManager implements IWalletManager {
       handle,
       signature.signingAddress,
       keyPairs,
+      await computePasswordHash(password, walletId),
     );
     await this.addWallet(wallet, true);
 
     return wallet;
   }
 
-  async addWalletWithPasskey(prfValue: BufferSource) {
+  async addWalletWithPasskey(prfValue: BufferSource, credId?: ArrayBuffer) {
     const { prfAddress: ownerAddress, ...signature } = await processPasskeyPrf(prfValue);
     const { s, v } = computePrivateKeys(signature.r.toString(), signature.s.toString());
 
@@ -306,13 +319,13 @@ class WalletManager implements IWalletManager {
     }
 
     const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
-    const wallet = new CurvyWallet(walletId, +dayjs(createdAt), curvyHandle, ownerAddress, keyPairs);
+    const wallet = new CurvyWallet(walletId, +dayjs(createdAt), curvyHandle, ownerAddress, keyPairs, undefined, credId);
     await this.addWallet(wallet, true);
 
     return wallet;
   }
 
-  async registerWalletWithPasskey(handle: CurvyHandle, prfValue: BufferSource) {
+  async registerWalletWithPasskey(handle: CurvyHandle, prfValue: BufferSource, credId?: ArrayBuffer) {
     const { prfAddress: ownerAddress, ...signature } = await processPasskeyPrf(prfValue);
     const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(ownerAddress);
     if (curvyHandle) {
@@ -348,7 +361,15 @@ class WalletManager implements IWalletManager {
     await this.#updateBearerToken(keyPairs.s);
 
     const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
-    const wallet = new CurvyWallet(walletId, +dayjs(registerDetails.createdAt), handle, ownerAddress, keyPairs);
+    const wallet = new CurvyWallet(
+      walletId,
+      +dayjs(registerDetails.createdAt),
+      handle,
+      ownerAddress,
+      keyPairs,
+      undefined,
+      credId,
+    );
     await this.addWallet(wallet, true);
 
     return wallet;

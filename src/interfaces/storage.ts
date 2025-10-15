@@ -6,14 +6,14 @@ import type {
   CurvyWalletData,
   PriceData,
   ScanInfo,
+  SerializedCurvyWallet,
 } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
-import type { CurvyWallet } from "@/wallet";
 
 export interface StorageInterface {
   clearStorage(): Promise<void>;
 
-  storeCurvyWallet(wallet: CurvyWallet): Promise<void>;
+  storeCurvyWallet(wallet: SerializedCurvyWallet): Promise<void>;
   updateCurvyWalletData(walletId: string, changes: Partial<CurvyWalletData>): Promise<void>;
   getCurvyWalletDataById(id: string): Promise<CurvyWalletData>;
   /**
