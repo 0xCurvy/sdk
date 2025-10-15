@@ -8,6 +8,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
   async execute(): Promise<CurvyCommandData> {
     const { /*id, */ gas, curvyFee, note } = await this.estimate();
 
+    // TODO: getNewNoteForUser should reutrn output note
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
     // TODO: Re-enable meta transaction submission for deposits
