@@ -3,7 +3,6 @@ import type { ICommandFactory } from "@/planner/commands/factory";
 import type {
   CurvyCommandData,
   CurvyPlan,
-  CurvyPlanEstimation,
   CurvyPlanExecution,
   CurvyPlanSuccessfulExecution,
   CurvyPlanUnsuccessfulExecution,
@@ -19,22 +18,10 @@ export class CommandExecutor {
     this.eventEmitter = eventEmitter;
   }
 
-  async executePlan(plan: CurvyPlan, onCommandStarted?: (command: string) => void): Promise<CurvyPlanExecution> {
-    this.eventEmitter.emitPlanExecutionStarted({ plan });
-    const result = await this.executeRecursively(plan, undefined, onCommandStarted);
-
-    if (result.success) {
-      this.eventEmitter.emitPlanExecutionComplete({ plan, result });
-    } else {
-      this.eventEmitter.emitPlanExecutionError({ plan, result });
-    }
-
-    return result;
-  }
-
-  private async executeRecursively(
+  async #walkRecursively(
     plan: CurvyPlan,
     input?: CurvyCommandData,
+    dryRun?: boolean,
     onCommandStarted?: (command: string) => void,
   ): Promise<CurvyPlanExecution> {
     // CurvyPlanFlowControl, parallel
@@ -42,7 +29,7 @@ export class CommandExecutor {
       // Parallel plans don't take any input,
       // because that would mean that each of its children is getting the same Address as input
       const result = await Promise.all(
-        plan.items.map((item) => this.executeRecursively(item, undefined, onCommandStarted)),
+        plan.items.map((item) => this.#walkRecursively(item, undefined, dryRun, onCommandStarted)),
       );
       const success = result.every((r) => r.success);
 
@@ -52,6 +39,14 @@ export class CommandExecutor {
         return {
           success: true,
           items: result,
+          estimate: result.reduce(
+            (res, { estimate }) => {
+              res.estimate.gas += estimate?.gas || 0n;
+              res.estimate.curvyFee += estimate?.curvyFee || 0n;
+              return res;
+            },
+            { estimate: { gas: 0n, curvyFee: 0n } },
+          ).estimate,
           data: result.filter((r) => r.success && r.data !== undefined).map((r) => r.data) as BalanceEntry[],
         };
       }
@@ -72,8 +67,9 @@ export class CommandExecutor {
       }
 
       let data = input;
+      const estimate = { gas: 0n, curvyFee: 0n };
       for (const item of plan.items) {
-        const result = await this.executeRecursively(item, data, onCommandStarted);
+        const result = await this.#walkRecursively(item, data, dryRun, onCommandStarted);
 
         results.push(result);
 
@@ -88,12 +84,15 @@ export class CommandExecutor {
 
         // Set the output of current as data of next step
         data = result.data;
+        estimate.gas += result.estimate?.gas || 0n;
+        estimate.curvyFee += result.estimate?.curvyFee || 0n;
       }
 
       // The output address of the successful serial flow is the last members address.
       return <CurvyPlanSuccessfulExecution>{
         success: true,
         data,
+        estimate,
         items: results, // TODO: I don't think this is needed
       };
     }
@@ -105,12 +104,21 @@ export class CommandExecutor {
       }
 
       try {
-        const command = this.commandFactory.createCommand(plan.name, input, plan.intent);
-        onCommandStarted?.(plan.name);
-        const data = await command.execute();
+        const command = this.commandFactory.createCommand(plan.name, input, plan.intent, plan.estimate);
+        let data: CurvyCommandData | undefined;
+
+        if (!dryRun) {
+          onCommandStarted?.(plan.name);
+          data = await command.execute();
+        } else {
+          const { data: estimateData, ...estimate } = await command.estimate();
+          data = estimateData;
+          plan.estimate = estimate;
+        }
 
         return <CurvyPlanSuccessfulExecution>{
           success: true,
+          estimate: plan.estimate,
           data,
         };
       } catch (error) {
@@ -132,9 +140,47 @@ export class CommandExecutor {
     throw new Error(`Unrecognized type for plan node: ${plan.type}`);
   }
 
-  // @ts-expect-error
-  // noinspection JSUnusedGlobalSymbols
-  async estimatePlan(_plan: CurvyPlan): Promise<CurvyPlanEstimation> {
-    // TODO: Implement
+  async executePlan(plan: CurvyPlan, onCommandStarted?: (command: string) => void): Promise<CurvyPlanExecution> {
+    this.eventEmitter.emitPlanExecutionStarted({ plan });
+    const result = await this.#walkRecursively(plan, undefined, false, onCommandStarted);
+
+    if (result.success) {
+      this.eventEmitter.emitPlanExecutionComplete({ plan, result });
+    } else {
+      this.eventEmitter.emitPlanExecutionError({ plan, result });
+    }
+
+    return result;
+  }
+
+  async estimatePlan(
+    _plan: CurvyPlan,
+  ): Promise<{ plan: CurvyPlan; gas: bigint; curvyFee: bigint; effectiveAmount: bigint }> {
+    const plan = structuredClone(_plan);
+
+    const planEstimation = await this.#walkRecursively(plan, undefined, true);
+
+    if (!planEstimation.success) {
+      throw new Error(`Estimation failed: ${planEstimation.error}`);
+    }
+
+    if (!planEstimation.data) {
+      throw new Error("Estimation resulted in no data, expected a single BalanceEntry.");
+    }
+
+    if (Array.isArray(planEstimation.data)) {
+      throw new Error("Estimation resulted in multiple data entries, expected a single BalanceEntry.");
+    }
+
+    if (!planEstimation.estimate) {
+      throw new Error("Estimation resulted in no estimate data.");
+    }
+
+    return {
+      plan,
+      gas: planEstimation.estimate.gas,
+      curvyFee: planEstimation.estimate.curvyFee,
+      effectiveAmount: planEstimation.data.balance,
+    };
   }
 }

@@ -83,6 +83,12 @@ export interface StorageInterface {
   updateBalancesAndTotals(walletId: string, entries: BalanceEntry[]): Promise<void>;
 
   /**
+   * Removes balance entries that have been spent from the storage.
+   * @param entries
+   */
+  removeSpentBalanceEntries(entries: BalanceEntry[]): Promise<void>;
+
+  /**
    * Gets the total balances grouped by currency and network for the specified wallet.
    * @param walletId The ID of the wallet to get total balances for.
    */
