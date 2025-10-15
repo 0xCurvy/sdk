@@ -1,7 +1,7 @@
 import {
   type AggregationRequest,
   bigIntToDecimalString,
-  generateAggregationHash,
+  type CurvyHandle,
   type HexString,
   type InputNote,
   isValidCurvyHandle,
@@ -14,11 +14,18 @@ import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstrac
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { Note } from "@/types/note";
 
+interface AggregatorAggregateCommandEstimate extends CurvyCommandEstimate {
+  mainOutputNote: Note;
+  changeOrDummyOutputNote: Note;
+  toAddress: CurvyHandle | HexString;
+}
+
 export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   readonly #intent: CurvyIntent;
+  protected declare estimateData: AggregatorAggregateCommandEstimate | undefined;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {
-    super(sdk, input);
+  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent, estimate?: CurvyCommandEstimate) {
+    super(sdk, input, estimate);
     this.#intent = intent;
   }
 
@@ -67,8 +74,46 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     };
   }
 
-  // TODO: Check how will token symbol and those things be affected with multi asset notes?
   async execute(): Promise<CurvyCommandData | undefined> {
+    if (!this.estimateData) {
+      throw new Error("[AggregatorAggregateCommand] Command must be estimated before execution!");
+    }
+
+    const { mainOutputNote, changeOrDummyOutputNote, toAddress } = this.estimateData;
+
+    const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
+    const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
+
+    const aggregationRequest = this.#createAggregationRequest(inputNotes, outputNotes);
+
+    const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(aggregationRequest);
+
+    await this.sdk.pollForCriteria(
+      () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
+      (res) => {
+        return res.status === "success";
+      },
+    );
+
+    await this.sdk.storage.removeSpentBalanceEntries(this.input);
+
+    // If we are aggregating the funds to our own address, that's the only case
+    // when we want to return the output note to the rest of the plan
+    if (toAddress === this.senderCurvyHandle) {
+      const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
+
+      return noteToBalanceEntry(mainOutputNote, {
+        symbol,
+        decimals,
+        walletId,
+        environment,
+        networkSlug,
+        currencyAddress: currencyAddress as HexString,
+      });
+    }
+  }
+
+  async estimate(): Promise<AggregatorAggregateCommandEstimate> {
     const token = this.input[0].erc1155TokenId;
 
     if (!token) {
@@ -83,13 +128,15 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     // then we calculate the change for passing it as the second output note, instead of the dummy one
     if (this.#intent.amount < this.inputNotesSum) {
       // This means we should address the note to another recipient right now
-      if (isValidCurvyHandle(this.#intent.toAddress)) {
-        toAddress = this.#intent.toAddress;
-      }
 
       // Change note
       const change = this.inputNotesSum - this.#intent.amount;
       changeOrDummyOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, change);
+
+      // We update the toAddress only after the change note is created, so that we don't get both notes
+      if (isValidCurvyHandle(this.#intent.toAddress)) {
+        toAddress = this.#intent.toAddress;
+      }
     } else {
       // If there is no change, then we create a dummy note
       changeOrDummyOutputNote = new Note({
@@ -119,47 +166,27 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     // Now we create the 2nd output note that we will output as a result of this command
     // that will either aggregate the funds to our Curvy handle
     // or the Curvy handle of the intent's toAddress recipient
-    const { curvyFee } = await this.estimate();
+    const curvyFee = this.inputNotesSum / BigInt(this.network.aggregationCircuitConfig.groupFee) / 1000n; // 0.1% = 1/1000
     const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.#intent.amount - curvyFee);
 
-    const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
-    const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
+    const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 
-    const aggregationRequest = this.#createAggregationRequest(inputNotes, outputNotes);
-    const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(aggregationRequest);
+    const data = noteToBalanceEntry(mainOutputNote, {
+      symbol,
+      decimals,
+      walletId,
+      environment,
+      networkSlug,
+      currencyAddress: currencyAddress as HexString,
+    });
 
-    await this.sdk.pollForCriteria(
-      () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
-      (res) => {
-        return res.status === "success";
-      },
-    );
-
-    await this.sdk.storage.updateBalancesAndTotals(
-      this.input[0].walletId,
-      this.input.map((i) => ({ ...i, balance: 0n })),
-    );
-
-    // If we are aggregating the funds to our own address, that's the only case
-    // when we want to return the output note to the rest of the plan
-    if (toAddress === this.senderCurvyHandle) {
-      const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
-
-      return noteToBalanceEntry(mainOutputNote, {
-        symbol,
-        decimals,
-        walletId,
-        environment,
-        networkSlug,
-        currencyAddress: currencyAddress as HexString,
-      });
-    }
-  }
-
-  async estimate(): Promise<CurvyCommandEstimate> {
     return {
-      curvyFee: this.inputNotesSum / 1000n, // 0.1% = 1/1000
+      curvyFee,
       gas: 0n,
+      mainOutputNote,
+      toAddress,
+      changeOrDummyOutputNote,
+      data,
     };
   }
 }

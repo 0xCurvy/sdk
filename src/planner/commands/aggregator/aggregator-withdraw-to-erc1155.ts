@@ -4,6 +4,7 @@ import type { CurvyCommandData } from "@/planner/plan";
 import {
   BALANCE_TYPE,
   type Erc1155BalanceEntry,
+  GetStealthAddressReturnType,
   type HexString,
   type InputNote,
   Note,
@@ -11,7 +12,14 @@ import {
 } from "@/types";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
+interface AggregatorWithdrawToErc1155CommandEstimate extends CurvyCommandEstimate {
+  data: Erc1155BalanceEntry;
+  stealthAddressData: GetStealthAddressReturnType;
+}
+
 export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorCommand {
+  protected declare estimateData: AggregatorWithdrawToErc1155CommandEstimate | undefined;
+
   #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): WithdrawRequest {
     if (!this.network.withdrawCircuitConfig) {
       throw new Error("Network withdraw circuit config is not defined!");
@@ -59,10 +67,14 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
   async execute(): Promise<CurvyCommandData> {
     const { networkSlug, environment, symbol, lastUpdated, currencyAddress, walletId } = this.input[0];
 
-    const { address: erc1155Address, announcementData } = await this.sdk.getNewStealthAddressForUser(
-      networkSlug,
-      this.senderCurvyHandle,
-    );
+    if (!this.estimateData) {
+      throw new Error("[AggregatorWithdrawToERC1155Command] Command must be estimated before execution!");
+    }
+
+    const { stealthAddressData } = this.estimateData;
+
+    const { address: erc1155Address, announcementData } =
+      await this.sdk.generateAndCreateNewStealthAddressForUser(stealthAddressData);
 
     await this.sdk.storage.storeCurvyAddress({
       ...announcementData,
@@ -112,10 +124,31 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
   // In the case of aggregator-withdraw-to-csuc command, both the circuit
   // and the aggregator SC have withdrawBPS set, circuits calculate what is the
   // feeAmount and pass it to CSUC so that CSUC can put it on th fee collector
-  async estimate(): Promise<CurvyCommandEstimate> {
+  async estimate(): Promise<AggregatorWithdrawToErc1155CommandEstimate> {
+    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, erc1155TokenId, decimals, walletId } =
+      this.input[0];
+
+    const curvyFee = this.inputNotesSum / 500n; // 0.2% = 1/500
+
+    const stealthAddressData = await this.sdk.generateNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
+
     return {
-      curvyFee: this.inputNotesSum / 500n, // 0.2% = 1/500
+      curvyFee,
       gas: 0n,
+      stealthAddressData,
+      data: {
+        type: BALANCE_TYPE.ERC1155,
+        walletId,
+        source: stealthAddressData.address,
+        erc1155TokenId: erc1155TokenId,
+        networkSlug,
+        environment,
+        balance: this.inputNotesSum - curvyFee,
+        symbol,
+        decimals,
+        currencyAddress,
+        lastUpdated,
+      },
     };
   }
 }

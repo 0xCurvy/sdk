@@ -1,45 +1,35 @@
-import dayjs from "dayjs";
 import { toBytes } from "viem";
 import { erc1155ABI } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
-import { BALANCE_TYPE, type HexString, isHexString, META_TRANSACTION_TYPES, type SaBalanceEntry } from "@/types";
+import { type HexString, isHexString, META_TRANSACTION_TYPES } from "@/types";
 import { getMetaTransactionEip712HashAndSignedData } from "@/utils/meta-transaction";
 
-interface ERC1155WithdrawToEOACommandEstimate extends CurvyCommandEstimate {
-  id: string;
-  data: SaBalanceEntry;
-}
-
 // This command automatically sends all available balance from CSUC to external address
-export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
+export class Erc1155ExplicitWithdrawToEOACommand extends AbstractErc1155Command {
   #intent: CurvyIntent;
-  protected declare estimateData: ERC1155WithdrawToEOACommandEstimate | undefined;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent, estimate?: CurvyCommandEstimate) {
-    super(sdk, input, estimate);
+  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {
+    super(sdk, input);
 
     if (!isHexString(intent.toAddress)) {
-      throw new Error("CSUCWithdrawFromCommand: toAddress MUST be a hex string address");
+      throw new Error("Erc1155ExplicitWithdrawToEOACommand: toAddress MUST be a hex string address");
+    }
+
+    if (!isHexString(intent.privateKey)) {
+      throw new Error("Erc1155ExplicitWithdrawToEOACommand: toAddress MUST be a hex string address");
     }
 
     this.#intent = intent;
   }
 
   async execute(): Promise<CurvyCommandData> {
-    const currencyAddress = this.input.currencyAddress;
-
-    if (!this.estimateData) {
-      throw new Error("[ERC1155WithdrawToEoaCommand] Command must be estimated before execution!");
-    }
-    const { id, gas, curvyFee } = this.estimateData;
-
+    const { id, gas, curvyFee } = await this.estimate();
     const rpc = this.sdk.rpcClient.Network(this.input.networkSlug);
 
-    const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-    const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
+    const privateKey = this.#intent.privateKey!;
 
     const nonce = await rpc.provider.readContract({
       abi: erc1155ABI,
@@ -81,27 +71,16 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
-        if (res === "failed") throw new Error(`[ERC1155WithdrawToEoaCommand] Meta-transaction execution failed!`);
+        if (res === "failed")
+          throw new Error(`[ERC1155ExplicitWithdrawToEoaCommand] Meta-transaction execution failed!`);
         return res === "completed";
       },
     );
 
-    return {
-      type: BALANCE_TYPE.SA,
-      walletId: "PLACEHOLDER", // TODO Remove
-      source: this.#intent.toAddress as HexString,
-      networkSlug: this.input.networkSlug,
-      environment: this.input.environment,
-      balance: effectiveAmount,
-      symbol: this.input.symbol,
-      decimals: this.input.decimals,
-      currencyAddress,
-      lastUpdated: +dayjs(), // TODO Remove
-      createdAt: "PLACEHOLDER", // TODO Remove
-    } satisfies SaBalanceEntry;
+    return {} as any;
   }
 
-  async estimate(): Promise<ERC1155WithdrawToEOACommandEstimate> {
+  async estimate(): Promise<CurvyCommandEstimate & { id: string }> {
     const currencyAddress = this.input.currencyAddress;
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
@@ -113,26 +92,10 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
       toAddress: this.#intent.toAddress,
     });
 
-    const gas = BigInt(gasFeeInCurrency ?? "0");
-    const curvyFee = BigInt(curvyFeeInCurrency ?? "0");
-
     return {
-      gas,
-      curvyFee,
+      gas: BigInt(gasFeeInCurrency ?? "0"),
+      curvyFee: BigInt(curvyFeeInCurrency ?? "0"),
       id,
-      data: {
-        type: BALANCE_TYPE.SA,
-        walletId: "PLACEHOLDER", // TODO Remove
-        source: this.#intent.toAddress as HexString,
-        networkSlug: this.input.networkSlug,
-        environment: this.input.environment,
-        balance: this.input.balance - curvyFee - gas,
-        symbol: this.input.symbol,
-        decimals: this.input.decimals,
-        currencyAddress,
-        lastUpdated: +dayjs(), // TODO Remove
-        createdAt: "PLACEHOLDER", // TODO Remove
-      },
     };
   }
 }

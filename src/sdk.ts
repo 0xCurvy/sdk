@@ -221,7 +221,7 @@ class CurvySDK implements ICurvySDK {
     return networks[0];
   }
 
-  async getNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string) {
+  async generateNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string) {
     const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
 
     if (!recipientDetails) {
@@ -241,6 +241,43 @@ class CurvySDK implements ICurvySDK {
     const address = deriveAddress(recipientStealthPublicKey, network.flavour);
 
     if (!address) throw new Error("Couldn't derive address!");
+
+    return { address, recipientStealthPublicKey, viewTag, ephemeralPublicKey, network };
+  }
+
+  async generateAndCreateNewStealthAddressForUser({
+    address,
+    recipientStealthPublicKey,
+    viewTag,
+    ephemeralPublicKey,
+    network,
+  }: GetStealthAddressReturnType) {
+    const response = await this.apiClient.announcement.CreateAnnouncement({
+      recipientStealthAddress: address,
+      recipientStealthPublicKey,
+      network_id: network.id,
+      ephemeralPublicKey,
+      viewTag: viewTag,
+    });
+
+    if (response.data?.message !== "Saved") throw new Error("Failed to register announcement");
+
+    return {
+      address,
+      announcementData: {
+        createdAt: new Date().toISOString(),
+        id: response.data.id,
+        networkFlavour: network.flavour,
+        viewTag,
+        ephemeralPublicKey,
+        publicKey: recipientStealthPublicKey,
+      },
+    };
+  }
+
+  async createStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string) {
+    const { address, recipientStealthPublicKey, viewTag, ephemeralPublicKey, network } =
+      await this.generateNewStealthAddressForUser(networkIdentifier, handle);
 
     const response = await this.apiClient.announcement.CreateAnnouncement({
       recipientStealthAddress: address,
@@ -426,7 +463,7 @@ class CurvySDK implements ICurvySDK {
     let recipientAddress: HexString;
 
     if (isValidCurvyHandle(to))
-      recipientAddress = (await this.getNewStealthAddressForUser(networkIdentifier, to)).address;
+      recipientAddress = (await this.createStealthAddressForUser(networkIdentifier, to)).address;
     else recipientAddress = to;
 
     const rpc = this.rpcClient.Network(networkIdentifier);
@@ -459,7 +496,7 @@ class CurvySDK implements ICurvySDK {
     let recipientAddress: HexString;
 
     if (isValidCurvyHandle(to)) {
-      const { address, announcementData } = await this.getNewStealthAddressForUser(networkIdentifier, to);
+      const { address, announcementData } = await this.createStealthAddressForUser(networkIdentifier, to);
 
       recipientAddress = address;
 
