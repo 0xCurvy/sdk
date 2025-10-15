@@ -7,6 +7,13 @@ import {
   isValidCurvyHandle,
   type OutputNote,
 } from "@/exports";
+import {
+  type AggregationRequestParams,
+  bigIntToDecimalString,
+  type HexString,
+  isValidCurvyHandle,
+  noteToBalanceEntry,
+} from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
@@ -145,14 +152,14 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
     if (toAddress === this.senderCurvyHandle) {
       const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 
-      return mainOutputNote.toBalanceEntry(
+      return noteToBalanceEntry(mainOutputNote, {
         symbol,
         decimals,
         walletId,
         environment,
         networkSlug,
-        currencyAddress as HexString,
-      );
+        currencyAddress: currencyAddress as HexString,
+      });
     }
   }
 
