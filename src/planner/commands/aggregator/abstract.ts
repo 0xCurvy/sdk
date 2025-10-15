@@ -10,7 +10,7 @@ export abstract class AbstractAggregatorCommand extends CurvyCommand {
   protected readonly inputNotesSum: bigint;
   protected network: Network;
 
-  protected constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+  constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(sdk, input, estimate);
 
     // Because all aggregator commands take array of notes as input,

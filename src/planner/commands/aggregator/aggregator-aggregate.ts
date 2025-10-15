@@ -2,6 +2,7 @@ import {
   type AggregationRequest,
   bigIntToDecimalString,
   type CurvyHandle,
+  generateAggregationHash,
   type HexString,
   type InputNote,
   isValidCurvyHandle,
@@ -166,6 +167,11 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     // Now we create the 2nd output note that we will output as a result of this command
     // that will either aggregate the funds to our Curvy handle
     // or the Curvy handle of the intent's toAddress recipient
+
+    if (!this.network.aggregationCircuitConfig) {
+      throw new Error(`Network aggregation circuit config is not defined for network ${this.network.name}!`);
+    }
+
     const curvyFee = this.inputNotesSum / BigInt(this.network.aggregationCircuitConfig.groupFee) / 1000n; // 0.1% = 1/1000
     const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.#intent.amount - curvyFee);
 
