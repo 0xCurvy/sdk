@@ -5,14 +5,8 @@ import {
   type HexString,
   type InputNote,
   isValidCurvyHandle,
-  type OutputNote,
-} from "@/exports";
-import {
-  type AggregationRequestParams,
-  bigIntToDecimalString,
-  type HexString,
-  isValidCurvyHandle,
   noteToBalanceEntry,
+  type OutputNote,
 } from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
@@ -122,7 +116,7 @@ export class AggregatorAggregateCommand extends AggregatorCommand {
       });
     }
 
-    // Now we create the 2nd outut note that we will output as a result of this command
+    // Now we create the 2nd output note that we will output as a result of this command
     // that will either aggregate the funds to our Curvy handle
     // or the Curvy handle of the intent's toAddress recipient
     const { curvyFee } = await this.estimate();

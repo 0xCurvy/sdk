@@ -1,4 +1,3 @@
-import type { StringifyBigInts } from "@/types/helper";
 import { bigIntToDecimalString, decimalStringToBigInt } from "@/utils/decimal-conversions";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
