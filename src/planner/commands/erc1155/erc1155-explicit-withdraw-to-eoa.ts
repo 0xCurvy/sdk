@@ -19,8 +19,8 @@ export class Erc1155ExplicitWithdrawToEOACommand extends AbstractErc1155Command 
     }
 
     if (!isHexString(intent.privateKey)) {
-        throw new Error("Erc1155ExplicitWithdrawToEOACommand: toAddress MUST be a hex string address");
-      }
+      throw new Error("Erc1155ExplicitWithdrawToEOACommand: toAddress MUST be a hex string address");
+    }
 
     this.#intent = intent;
   }
@@ -71,7 +71,8 @@ export class Erc1155ExplicitWithdrawToEOACommand extends AbstractErc1155Command 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
-        if (res === "failed") throw new Error(`[ERC1155WithdrawToEoaCommand] Meta-transaction execution failed!`);
+        if (res === "failed")
+          throw new Error(`[ERC1155ExplicitWithdrawToEoaCommand] Meta-transaction execution failed!`);
         return res === "completed";
       },
     );

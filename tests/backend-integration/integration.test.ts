@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api";
 import { CurvySDK } from "@/sdk";
