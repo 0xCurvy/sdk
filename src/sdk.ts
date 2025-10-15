@@ -1,6 +1,5 @@
 import { Buffer as BufferPolyfill } from "buffer";
 import { mul, toNumber } from "dnum";
-import { ethers } from "ethers";
 import { getAddress } from "viem";
 import { BalanceScanner } from "@/balance-scanner";
 import {
@@ -9,7 +8,6 @@ import {
   type NETWORK_FLAVOUR_VALUES,
   type NETWORKS,
 } from "@/constants/networks";
-import { aggregatorABI } from "@/contracts/evm/abi";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import type { IApiClient } from "@/interfaces/api";
@@ -642,16 +640,6 @@ class CurvySDK implements ICurvySDK {
       amount,
       token,
     });
-  }
-
-  async resetAggregator() {
-    const provider = new ethers.JsonRpcProvider("http://localhost:8545");
-    const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
-    const tx = await new ethers.Contract("0x610178dA211FEF7D417bC0e6FeD39F05609AD788", aggregatorABI, signer).reset();
-
-    const receipt = await tx.wait();
-
-    if (receipt.status !== 1) throw new Error("Aggregator reset failed");
   }
 }
 
