@@ -7,12 +7,13 @@ import type {
   PriceData,
   ScanInfo,
 } from "@/types";
-import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
+import type { BalanceEntry, CurrencyMetadata, NoteBalanceEntry, TotalBalance } from "@/types/storage";
 import type { CurvyWallet } from "@/wallet";
 
 export interface StorageInterface {
   clearStorage(): Promise<void>;
 
+  getNoteBalances(walletId: string, networkSlug?: string): Promise<NoteBalanceEntry[]>
   storeCurvyWallet(wallet: CurvyWallet): Promise<void>;
   updateCurvyWalletData(walletId: string, changes: Partial<CurvyWalletData>): Promise<void>;
   getCurvyWalletDataById(id: string): Promise<CurvyWalletData>;
