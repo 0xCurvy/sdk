@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api";
 import { CurvySDK } from "@/sdk";
@@ -32,11 +33,11 @@ describe("Integration test", async () => {
   const keyPairs = core.generateKeyPairs();
 
   it("deposit, aggregation and withdraw, should create proofs and verify them on-chain", async () => {
-    // try {
-    //   await sdk.resetAggregator();
-    // } catch (error) {
-    //   console.log(error);
-    // }
+    try {
+      await sdk.resetAggregator();
+    } catch (error) {
+      console.log(error);
+    }
 
     console.log("✅ Aggregator reset");
 
