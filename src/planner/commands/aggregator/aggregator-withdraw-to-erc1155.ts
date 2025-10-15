@@ -20,26 +20,23 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     });
 
     // TODO: Fix this so that we dont have same return values as args
-    const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload(
-      {
-        inputNotes: this.inputNotes,
-        destinationAddress: erc1155Address,
-      },
+    const { inputNotes, signature, destinationAddress } = this.sdk.createWithdrawPayload(
+      this.inputNotes.map((note) => note.serializeInputNote()),
+      erc1155Address,
       this.network,
     );
 
+    console.log(inputNotes, signature);
+
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw({
       inputNotes,
-      signatures,
+      signature,
       destinationAddress,
     });
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res) => {
-        if (res.status === "failed") {
-          throw new Error(`[AggregatorWithdrawToERC1155Command] Aggregator withdraw failed!`);
-        }
         return res.status === "success";
       },
     );

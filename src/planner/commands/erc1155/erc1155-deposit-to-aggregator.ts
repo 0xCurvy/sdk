@@ -28,7 +28,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     // }
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
-      outputNotes: [note.serializeDepositNote()],
+      outputNotes: [note.serializeOutputNote()],
       fromAddress: this.input.source,
       // TODO: Re-enable signature validation for deposits
     });
