@@ -22,7 +22,9 @@ import {
   type HexString,
   isHexString,
   isStarkentSignature,
+  type Signature,
   type StarknetSignatureData,
+  type StringifyBigInts,
 } from "@/types";
 import { computePrivateKeys } from "@/utils/address";
 import { signMessage } from "@/utils/encryption";
@@ -481,6 +483,10 @@ class WalletManager implements IWalletManager {
     } = this.#core.scan(s, v, [address]);
 
     return privateKey;
+  }
+
+  signMessageWithBabyJubjub(message: bigint): StringifyBigInts<Signature> {
+    return this.#core.signWithBabyJubjubPrivateKey(message, this.activeWallet.keyPairs.s);
   }
 }
 

@@ -2,12 +2,6 @@ import type { Groth16Proof } from "snarkjs";
 import type { PublicSignals } from "snarkjs/index";
 import type { HexString } from "@/types/helper";
 
-type PublicKey = {
-  spendingKey: string;
-  viewingKey: string;
-  babyJubjubPublicKey: string;
-};
-
 type Signature = {
   S: bigint;
   R8: bigint[];
@@ -84,7 +78,6 @@ type CircuitConfig = {
 };
 
 export type {
-  PublicKey,
   Signature,
   CurvyKeyPairs,
   CurvyPublicKeys,

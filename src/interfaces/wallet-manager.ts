@@ -1,5 +1,13 @@
 import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
-import type { CurvyAddress, CurvyHandle, EvmSignatureData, HexString, StarknetSignatureData } from "@/types";
+import type {
+  CurvyAddress,
+  CurvyHandle,
+  EvmSignatureData,
+  HexString,
+  Signature,
+  StarknetSignatureData,
+  StringifyBigInts,
+} from "@/types";
 import type { CurvyWallet } from "@/wallet";
 
 interface IWalletManager {
@@ -54,6 +62,8 @@ interface IWalletManager {
   rescanWallets(walletIds?: Array<string>): Promise<void>;
 
   getAddressPrivateKey(address: CurvyAddress | HexString): Promise<HexString>;
+
+  signMessageWithBabyJubjub(message: bigint): StringifyBigInts<Signature>;
 }
 
 export type { IWalletManager };

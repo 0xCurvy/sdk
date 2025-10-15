@@ -172,18 +172,18 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    SubmitWithdraw: async (data: WithdrawRequest) => {
-      return await this.request<SubmitWithdrawReturnType>({
-        method: "POST",
-        path: "/aggregator/withdraw",
-        body: data,
-      });
-    },
-
     SubmitAggregation: async (data: AggregationRequest) => {
       return await this.request<SubmitAggregationReturnType>({
         method: "POST",
         path: "/aggregator/aggregation",
+        body: data,
+      });
+    },
+
+    SubmitWithdraw: async (data: WithdrawRequest) => {
+      return await this.request<SubmitWithdrawReturnType>({
+        method: "POST",
+        path: "/aggregator/withdraw",
         body: data,
       });
     },

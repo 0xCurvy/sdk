@@ -22,19 +22,10 @@ import type { Rpc } from "@/rpc/abstract";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type {
-  AggregationRequest,
-  AggregationRequestParams,
-  CurvyEventType,
-  GetStealthAddressReturnType,
-  Network,
-  WithdrawRequest,
-  WithdrawRequestParams,
-} from "@/types";
+import type { CurvyEventType, GetStealthAddressReturnType, Network } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
-import { Note } from "@/types/note";
 import type { StarknetFeeEstimate } from "@/types/rpc";
 import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, toSlug } from "@/utils/helpers";
@@ -42,10 +33,7 @@ import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
 import { deriveAddress } from "./utils/address";
-import { generateAggregationHash, generateOutputsHash } from "./utils/aggregator";
-import { bigIntToDecimalString } from "./utils/decimal-conversions";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
-import { poseidonHash } from "./utils/poseidon-hash";
 import { WalletManager } from "./wallet-manager";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
@@ -134,8 +122,7 @@ class CurvySDK implements ICurvySDK {
 
     sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(
-      // TODO: Pogledati ovo
-      sdk.#rpcClient!,
+      sdk.rpcClient,
       sdk.apiClient,
       sdk.storage,
       sdk.#emitter,
@@ -524,119 +511,6 @@ class CurvySDK implements ICurvySDK {
     return this.rpcClient
       .Network(networkIdentifier)
       .sendToAddress(from, privateKey, recipientAddress, amount, currency, fee);
-  }
-
-  createAggregationPayload(params: AggregationRequestParams, network: Network, privKey?: string): AggregationRequest {
-    if (!network.aggregationCircuitConfig) {
-      throw new Error("Network aggregation circuit config is not defined!");
-    }
-
-    const { inputNotes, outputNotes } = params;
-
-    let bjjPrivateKey: string;
-
-    if (privKey) {
-      bjjPrivateKey = privKey;
-    } else {
-      bjjPrivateKey = this.walletManager.activeWallet.keyPairs.s;
-    }
-
-    if (outputNotes.length < network.aggregationCircuitConfig.maxOutputs) {
-      outputNotes.push(
-        new Note({
-          owner: {
-            babyJubjubPublicKey: {
-              x: "0",
-              y: "0",
-            },
-            sharedSecret: BigInt(
-              `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-            ).toString(),
-          },
-          balance: {
-            amount: "0",
-            token: outputNotes[0].balance.token,
-          },
-          deliveryTag: {
-            ephemeralKey: bigIntToDecimalString(
-              BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
-            ),
-            viewTag: "0x0",
-          },
-        }).serializeAggregationOutputNote(),
-      );
-    }
-
-    const msgHash = generateAggregationHash(outputNotes.map((note) => Note.deserializeAggregationOutputNote(note)));
-    const signature = this.#core.signWithBabyJubjubPrivateKey(msgHash, bjjPrivateKey);
-    const signatures = Array.from({ length: network.aggregationCircuitConfig.maxInputs }).map(() => ({
-      S: BigInt(signature.S),
-      R8: signature.R8.map((r) => BigInt(r)),
-    }));
-
-    return {
-      inputNotes,
-      outputNotes,
-      signatures,
-    };
-  }
-
-  createWithdrawPayload(params: WithdrawRequestParams, network: Network, privKey?: string): WithdrawRequest {
-    if (!network.withdrawCircuitConfig) {
-      throw new Error("Network withdraw circuit config is not defined!");
-    }
-
-    const { inputNotes, destinationAddress } = params;
-
-    if (!inputNotes || !destinationAddress) {
-      throw new Error("Invalid withdraw payload parameters");
-    }
-
-    let bjjPrivateKey: string;
-
-    if (privKey) {
-      bjjPrivateKey = privKey;
-    } else {
-      bjjPrivateKey = this.walletManager.activeWallet.keyPairs.s;
-    }
-
-    const inputNotesLength = inputNotes.length;
-
-    for (let i = inputNotesLength; i < network.withdrawCircuitConfig.maxInputs; i++) {
-      inputNotes.push(
-        new Note({
-          owner: {
-            babyJubjubPublicKey: {
-              x: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-              y: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-            },
-            sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
-          },
-          balance: {
-            amount: "0",
-            token: inputNotes[0].balance!.token.toString(),
-          },
-        }),
-      );
-    }
-
-    const sortedInputNotes = inputNotes.sort((a, b) => (a.id < b.id ? -1 : 1));
-
-    const msgHash = generateOutputsHash(sortedInputNotes);
-
-    const dstHash = poseidonHash([msgHash, BigInt(destinationAddress)]);
-
-    const signature = this.#core.signWithBabyJubjubPrivateKey(dstHash, bjjPrivateKey);
-    const signatures = Array.from({ length: network.withdrawCircuitConfig.maxInputs }).map(() => ({
-      S: BigInt(signature.S),
-      R8: signature.R8.map((r) => BigInt(r)),
-    }));
-
-    return {
-      inputNotes: sortedInputNotes.map((note) => note.serializeWithdrawalNote()),
-      signatures,
-      destinationAddress,
-    };
   }
 
   subscribeToEventType(eventType: CurvyEventType, listener: (event: any) => void) {

@@ -27,6 +27,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
 
     const { /*id,*/ gas, curvyFee, note } = this.estimateData;
 
+    // TODO: getNewNoteForUser should reutrn output note
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
     // TODO: Re-enable meta transaction submission for deposits
@@ -47,7 +48,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     // }
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
-      outputNotes: [note.serializeDepositNote()],
+      outputNotes: [note.serializeOutputNote()],
       fromAddress: this.input.source,
       // TODO: Re-enable signature validation for deposits
     });
@@ -55,9 +56,6 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res) => {
-        if (res.status === "failed") {
-          throw new Error(`[DepositToAggregatorCommand] Aggregator deposit failed!`);
-        }
         return res.status === "success";
       },
     );
