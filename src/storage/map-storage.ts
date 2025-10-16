@@ -12,7 +12,7 @@ import {
   type CurvyWalletData,
   type MinifiedCurvyAddress,
 } from "@/types";
-import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
+import type { BalanceEntry, CurrencyMetadata, NoteBalanceEntry, TotalBalance } from "@/types/storage";
 import { bytesToDecimalString, decimalStringToBytes } from "@/utils/decimal-conversions";
 import type { CurvyWallet } from "@/wallet";
 
@@ -132,16 +132,24 @@ export class MapStorage implements StorageInterface {
   }
 
   async getCurrencyMetadata(addressOrId: string | bigint, networkSlug: string) {
-    const currencyMetadata = this.#currencyMetadata.get(
-      this.#getCurrencyMetadataKey({ addressOrId: addressOrId.toString(), networkSlug }),
-    );
-
+    let currencyMetadata: CurrencyMetadata | undefined;
+  
+    if (typeof addressOrId === "bigint") {
+      currencyMetadata = Array.from(this.#currencyMetadata.values()).find(
+        (c) => c.erc1155TokenId === addressOrId.toString() && c.networkSlug === networkSlug,
+      );
+    } else {
+      currencyMetadata = this.#currencyMetadata.get(
+        this.#getCurrencyMetadataKey({ address: addressOrId, networkSlug }),
+      );
+    }
+  
     if (!currencyMetadata) {
       throw new StorageError(
         `Currency metadata for address / erc1155TokenId ${addressOrId} on network ${networkSlug} not found`,
       );
     }
-
+  
     return currencyMetadata;
   }
 
@@ -152,8 +160,14 @@ export class MapStorage implements StorageInterface {
   #getTotalBalanceKey(e: { walletId: string; currencyAddress: string; networkSlug: string }): string {
     return `${e.walletId}-${e.currencyAddress}-${e.networkSlug}`;
   }
-  #getCurrencyMetadataKey(e: { addressOrId: string; networkSlug: string }): string {
-    return `${e.addressOrId}-${e.networkSlug}`;
+  #getCurrencyMetadataKey(e: { address: string; networkSlug: string }): string {
+    return `${e.address}-${e.networkSlug}`;
+  }
+
+  async getNoteBalances(walletId: string, networkSlug?: string): Promise<NoteBalanceEntry[]> {
+    return Array.from(this.#balances.values()).filter(
+      (b) => b.walletId === walletId && b.type === BALANCE_TYPE.NOTE && (!networkSlug || b.networkSlug === networkSlug),
+    ) as NoteBalanceEntry[];
   }
 
   async storeCurvyWallet(wallet: CurvyWallet) {
@@ -254,18 +268,15 @@ export class MapStorage implements StorageInterface {
     this.#totalBalances.clear();
   }
 
-  async updateBalancesAndTotals(walletId: string, entries: BalanceEntry[]): Promise<void> {
-    // Update balance entries
-    for (const entry of entries) {
-      if (entry.walletId !== walletId) {
-        throw new StorageError(`Wallet ID mismatch: entry has walletId ${entry.walletId} but expected ${walletId}`);
-      }
+  async removeSpentBalanceEntries(balanceEntries: BalanceEntry[]) {
+    const entriesToDelete = balanceEntries.filter((e) => e.balance === 0n);
 
-      this.#balances.set(this.#getBalanceKey(entry), entry);
+    for (const entry of entriesToDelete) {
+      this.#balances.delete(this.#getBalanceKey(entry));
     }
+  }
 
-    // TODO remove notes that are spent / balances that went to zero
-
+  async updateBalancesAndTotals(walletId: string, entries: BalanceEntry[]): Promise<void> {
     const totalBalanceUpdates = entries.reduce(
       (acc, entry) => {
         const key = this.#getTotalBalanceKey(entry);
@@ -302,6 +313,18 @@ export class MapStorage implements StorageInterface {
         lastUpdated: Date.now(),
       });
     }
+
+    const nonZeroEntries = entries.filter((e) => e.balance !== 0n);
+    // Update balance entries
+    for (const entry of nonZeroEntries) {
+      if (entry.walletId !== walletId) {
+        throw new StorageError(`Wallet ID mismatch: entry has walletId ${entry.walletId} but expected ${walletId}`);
+      }
+
+      this.#balances.set(this.#getBalanceKey(entry), entry);
+    }
+
+    await this.removeSpentBalanceEntries(entries);
   }
 
   async getTotalsByCurrencyAndNetwork(walletId: string): Promise<TotalBalance[]> {

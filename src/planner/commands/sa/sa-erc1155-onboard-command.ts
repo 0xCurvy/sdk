@@ -34,7 +34,7 @@ export class SaErc1155OnboardCommand extends SACommand {
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
 
     if (!this.estimateData) {
-      this.estimateData = await this.estimate();
+      throw new Error("[SaErc1155OnboardCommand] Command must be estimated before execution!");
     }
 
     const { gas, curvyFee, id } = this.estimateData;

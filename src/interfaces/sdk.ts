@@ -5,12 +5,6 @@ import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
 import type { ExtendedAnnouncement, GetStealthAddressReturnType, Note } from "@/types";
 import type { CurvyAddress } from "@/types/address";
-import type {
-  AggregationRequest,
-  AggregationRequestParams,
-  WithdrawRequest,
-  WithdrawRequestParams,
-} from "@/types/aggregator";
 import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { CurvyFeeEstimate, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
@@ -32,9 +26,12 @@ interface ICurvySDK {
   getNetworks(networkFilter?: NetworkFilter): Network[];
   getNetworkBySlug(networkSlug: NETWORKS): Network | undefined;
 
-  getNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string): Promise<GetStealthAddressReturnType>;
+  generateNewStealthAddressForUser(
+    networkIdentifier: NetworkFilter,
+    handle: string,
+  ): Promise<GetStealthAddressReturnType>;
 
-  registerStealthAddressForUser(
+  generateAndCreateNewStealthAddressForUser(
     stealthAddressData: GetStealthAddressReturnType,
   ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
 
@@ -80,9 +77,6 @@ interface ICurvySDK {
     fee: StarknetFeeEstimate | bigint,
     message?: string,
   ): Promise<RpcCallReturnType>;
-
-  createAggregationPayload(params: AggregationRequestParams, network: Network, privKey?: string): AggregationRequest;
-  createWithdrawPayload(params: WithdrawRequestParams, network: Network, privKey?: string): WithdrawRequest;
 
   /**
    *  * Polls a function until the criteria is met or max retries is reached.

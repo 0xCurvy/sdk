@@ -3,6 +3,7 @@ import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import { type HexString, META_TRANSACTION_TYPES, type Note, type NoteBalanceEntry } from "@/types";
+import { noteToBalanceEntry } from "@/utils";
 
 interface Erc1155DepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
   id: string;
@@ -21,11 +22,12 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
 
   async execute(): Promise<CurvyCommandData> {
     if (!this.estimateData) {
-      this.estimateData = await this.estimate();
+      throw new Error("[Erc1155DepositToAggregatorCommand] Command must be estimated before execution!");
     }
 
     const { /*id,*/ gas, curvyFee, note } = this.estimateData;
 
+    // TODO: getNewNoteForUser should reutrn output note
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
     // TODO: Re-enable meta transaction submission for deposits
@@ -46,7 +48,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     // }
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
-      outputNotes: [note.serializeDepositNote()],
+      outputNotes: [note.serializeOutputNote()],
       fromAddress: this.input.source,
       // TODO: Re-enable signature validation for deposits
     });
@@ -54,21 +56,18 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res) => {
-        if (res.status === "failed") {
-          throw new Error(`[DepositToAggregatorCommand] Aggregator deposit failed!`);
-        }
         return res.status === "success";
       },
     );
 
-    return note.toBalanceEntry(
-      this.input.symbol,
-      this.input.decimals,
-      this.input.walletId,
-      this.input.environment,
-      this.input.networkSlug,
-      this.input.currencyAddress as HexString,
-    );
+    return noteToBalanceEntry(note, {
+      symbol: this.input.symbol,
+      decimals: this.input.decimals,
+      walletId: this.input.walletId,
+      environment: this.input.environment,
+      networkSlug: this.input.networkSlug,
+      currencyAddress: this.input.currencyAddress as HexString,
+    });
   }
 
   async estimate(): Promise<Erc1155DepositToAggregatorCommandEstimate> {
@@ -101,14 +100,14 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       curvyFee,
       id,
       note,
-      data: note.toBalanceEntry(
-        this.input.symbol,
-        this.input.decimals,
-        this.input.walletId,
-        this.input.environment,
-        this.input.networkSlug,
-        this.input.currencyAddress as HexString,
-      ),
+      data: noteToBalanceEntry(note, {
+        symbol: this.input.symbol,
+        decimals: this.input.decimals,
+        walletId: this.input.walletId,
+        environment: this.input.environment,
+        networkSlug: this.input.networkSlug,
+        currencyAddress: this.input.currencyAddress as HexString,
+      }),
     };
   }
 }
