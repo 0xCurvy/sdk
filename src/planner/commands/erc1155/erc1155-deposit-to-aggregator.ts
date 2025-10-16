@@ -4,6 +4,7 @@ import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import { type HexString, META_TRANSACTION_TYPES, type Note, type NoteBalanceEntry } from "@/types";
 import { noteToBalanceEntry } from "@/utils";
+import { toSlug } from "@/utils/helpers";
 
 interface Erc1155DepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
   id: string;
@@ -25,32 +26,25 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       throw new Error("[Erc1155DepositToAggregatorCommand] Command must be estimated before execution!");
     }
 
-    const { /*id,*/ gas, curvyFee, note } = this.estimateData;
+    const { id, gas, curvyFee, note } = this.estimateData;
 
-    // TODO: getNewNoteForUser should reutrn output note
+    // TODO: getNewNoteForUser should return output note
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
-    // TODO: Re-enable meta transaction submission for deposits
-    // ========================================================
-    // await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: "" });
+    // TODO: Re-enable signature validation for deposits
+    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: "0x0" });
 
-    // await this.sdk.pollForCriteria(
-    //   () => this.sdk.apiClient.metaTransaction.GetStatus(id),
-    //   (res) => {
-    //     return res === "completed";
-    //   },
-    // );
-
-    // const { erc1155ContractAddress } = this.network;
-
-    // if (!erc1155ContractAddress) {
-    //   throw new Error(`CSUC contract address not found for ${this.network.name} network.`);
-    // }
+    await this.sdk.pollForCriteria(
+      () => this.sdk.apiClient.metaTransaction.GetStatus(id),
+      (res) => {
+        return res === "completed";
+      },
+    );
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
+      networkSlug: toSlug(this.network.name),
       outputNotes: [note.serializeOutputNote()],
       fromAddress: this.input.source,
-      // TODO: Re-enable signature validation for deposits
     });
 
     await this.sdk.pollForCriteria(
