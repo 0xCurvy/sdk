@@ -4,13 +4,13 @@ import type { CurvyCommandData } from "@/planner/plan";
 import {
   BALANCE_TYPE,
   type Erc1155BalanceEntry,
-  GetStealthAddressReturnType,
+  type GetStealthAddressReturnType,
   type HexString,
   type InputNote,
   Note,
   type WithdrawRequest,
 } from "@/types";
-import { poseidonHash } from "@/utils/poseidon-hash";
+import { generateWithdrawalHash } from "@/utils/aggregator";
 
 interface AggregatorWithdrawToErc1155CommandEstimate extends CurvyCommandEstimate {
   data: Erc1155BalanceEntry;
@@ -46,11 +46,7 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
       );
     }
 
-    const sortedInputNotes = inputNotes.sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
-
-    const inputNotesHash = poseidonHash(inputNotes.map((note) => BigInt(note.id)));
-    const messageHash = poseidonHash([inputNotesHash, BigInt(destinationAddress)]);
-
+    const messageHash = generateWithdrawalHash(inputNotes, destinationAddress);
     const rawSignature = this.sdk.walletManager.signMessageWithBabyJubjub(messageHash);
     const signature = {
       S: BigInt(rawSignature.S),
@@ -58,7 +54,7 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
     };
 
     return {
-      inputNotes: sortedInputNotes,
+      inputNotes,
       signature,
       destinationAddress,
     };
