@@ -12,7 +12,7 @@ export class Erc1155ExplicitWithdrawToEOACommand extends AbstractErc1155Command 
   #intent: CurvyIntent;
 
   constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {
-    super(sdk, input);
+    super("explicit-withdraw", sdk, input);
 
     if (!isHexString(intent.toAddress)) {
       throw new Error("Erc1155ExplicitWithdrawToEOACommand: toAddress MUST be a hex string address");

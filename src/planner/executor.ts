@@ -104,7 +104,7 @@ export class CommandExecutor {
       }
 
       try {
-        const command = this.commandFactory.createCommand(plan.name, input, plan.intent, plan.estimate);
+        const command = this.commandFactory.createCommand(plan.id, plan.name, input, plan.intent, plan.estimate);
         let data: CurvyCommandData | undefined;
 
         if (!dryRun) {

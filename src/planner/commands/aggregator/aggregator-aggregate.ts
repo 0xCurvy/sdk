@@ -22,11 +22,19 @@ interface AggregatorAggregateCommandEstimate extends CurvyCommandEstimate {
 }
 
 export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
-  readonly #intent: CurvyIntent;
+  // If intent is not provided, it means that we are aggregating funds from multiple notes
+  // to meet the requirements of main aggregation
+  readonly #intent: CurvyIntent | undefined;
   protected declare estimateData: AggregatorAggregateCommandEstimate | undefined;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent, estimate?: CurvyCommandEstimate) {
-    super(sdk, input, estimate);
+  constructor(
+    id: string,
+    sdk: ICurvySDK,
+    input: CurvyCommandData,
+    intent?: CurvyIntent,
+    estimate?: CurvyCommandEstimate,
+  ) {
+    super(id, sdk, input, estimate);
     this.#intent = intent;
   }
 
@@ -127,7 +135,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
 
     // If we have the intent passed, and it's amount is less than the sum of input notes
     // then we calculate the change for passing it as the second output note, instead of the dummy one
-    if (this.#intent.amount < this.inputNotesSum) {
+    if (this.#intent && this.#intent.amount < this.inputNotesSum) {
       // This means we should address the note to another recipient right now
 
       // Change note
@@ -173,7 +181,9 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     }
 
     const curvyFee = this.inputNotesSum / BigInt(this.network.aggregationCircuitConfig.groupFee) / 1000n; // 0.1% = 1/1000
-    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.#intent.amount - curvyFee);
+
+    const effectiveAmount = (this.#intent ? this.#intent.amount : this.inputNotesSum) - curvyFee;
+    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, effectiveAmount);
 
     const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 

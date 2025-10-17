@@ -16,12 +16,14 @@ export abstract class CurvyCommand {
   protected input: CurvyCommandData;
   protected readonly senderCurvyHandle: CurvyHandle;
   protected readonly estimateData: CurvyCommandEstimate | undefined;
+  readonly id: string;
 
-  protected constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+  protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     this.sdk = sdk;
     this.input = input;
     this.estimateData = estimate;
     this.senderCurvyHandle = sdk.walletManager.activeWallet.curvyHandle;
+    this.id = id;
   }
 
   abstract execute(): Promise<CurvyCommandData | undefined>;

@@ -9,8 +9,8 @@ export abstract class SACommand extends CurvyCommand {
 
   protected network: Network;
 
-  protected constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(sdk, input, estimate);
+  protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+    super(id, sdk, input, estimate);
 
     if (Array.isArray(input)) {
       throw new Error("Invalid input for command, SA commands only accept one data as input.");

@@ -18,8 +18,14 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
   #intent: CurvyIntent;
   protected declare estimateData: ERC1155WithdrawToEOACommandEstimate | undefined;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent, estimate?: CurvyCommandEstimate) {
-    super(sdk, input, estimate);
+  constructor(
+    id: string,
+    sdk: ICurvySDK,
+    input: CurvyCommandData,
+    intent: CurvyIntent,
+    estimate?: CurvyCommandEstimate,
+  ) {
+    super(id, sdk, input, estimate);
 
     if (!isHexString(intent.toAddress)) {
       throw new Error("CSUCWithdrawFromCommand: toAddress MUST be a hex string address");
