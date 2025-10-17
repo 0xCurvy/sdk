@@ -96,7 +96,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,
       network: this.input.networkSlug,
-      ownerHash: note.ownerHash.toString(),
+      ownerHash: note.ownerHash.toString(16),
     });
 
     const gas = BigInt(gasFeeInCurrency ?? "0");
