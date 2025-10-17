@@ -85,7 +85,7 @@ const networksToCurrencyMetadata = (networks: Network[]) => {
       contractAddress: address,
       ...rest
     } of network.currencies) {
-      const currencyMetadataKey = `$address-$toSlug(network.name)`;
+      const currencyMetadataKey = `${address}-${toSlug(network.name)}`;
       if (res.has(currencyMetadataKey)) continue;
 
       res.set(currencyMetadataKey, {

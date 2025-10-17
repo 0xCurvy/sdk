@@ -20,6 +20,7 @@ export const CURVY_EVENT_TYPES = {
   BALANCE_REFRESH_COMPLETE: "balance-refresh-complete",
 
   PLAN_EXECUTION_STARTED: "plan-execution-started",
+  PLAN_COMMAND_EXECUTION_PROGRESS: "plan-command-execution-progress",
   PLAN_EXECUTION_PROGRESS: "plan-execution-progress",
   PLAN_EXECUTION_COMPLETE: "plan-execution-complete",
   PLAN_EXECUTION_ERROR: "plan-execution-error",
@@ -110,11 +111,16 @@ type PlanExecutionProgressEvent = {
   result: CurvyPlanExecution;
 };
 
+type PlanCommandExecutionProgressEvent = {
+  commandId: string;
+};
+
 type PlanExecutionCompleteEvent = PlanExecutionProgressEvent;
 
 type PlanExecutionErrorEvent = PlanExecutionProgressEvent;
 
 export type {
+  PlanCommandExecutionProgressEvent,
   PlanExecutionStartedEvent,
   PlanExecutionProgressEvent,
   PlanExecutionCompleteEvent,

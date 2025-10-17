@@ -5,6 +5,7 @@ import {
   type BalanceRefreshProgressEvent,
   type BalanceRefreshStartedEvent,
   CURVY_EVENT_TYPES,
+  type PlanCommandExecutionProgressEvent,
   type PlanExecutionCompleteEvent,
   type PlanExecutionErrorEvent,
   type PlanExecutionProgressEvent,
@@ -66,6 +67,10 @@ export class CurvyEventEmitter extends EventEmitter implements ICurvyEventEmitte
 
   emitPlanExecutionStarted(event: PlanExecutionStartedEvent) {
     this.emit(CURVY_EVENT_TYPES.PLAN_EXECUTION_STARTED, event);
+  }
+
+  emitPlanCommandExecutionProgress(event: PlanCommandExecutionProgressEvent) {
+    this.emit(CURVY_EVENT_TYPES.PLAN_COMMAND_EXECUTION_PROGRESS, event);
   }
 
   emitPlanExecutionProgress(event: PlanExecutionProgressEvent) {

@@ -110,6 +110,7 @@ export class CommandExecutor {
         if (!dryRun) {
           onCommandStarted?.(plan.name);
           data = await command.execute();
+          this.eventEmitter.emitPlanCommandExecutionProgress({ commandId: plan.id });
         } else {
           const { data: estimateData, ...estimate } = await command.estimate();
           data = estimateData;
