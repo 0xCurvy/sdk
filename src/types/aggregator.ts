@@ -3,6 +3,7 @@ import type { Signature } from "./core";
 import type { InputNote, OutputNote } from "./note";
 
 type DepositRequest = {
+  networkSlug: string;
   outputNotes: OutputNote[];
   fromAddress: HexString;
 };

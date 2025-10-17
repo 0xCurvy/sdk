@@ -15,6 +15,7 @@ import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTran
 import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
+import { aggregatorABI } from "@/contracts/evm/abi";
 import { erc1155ABI } from "@/contracts/evm/abi/erc1155";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { Rpc } from "@/rpc/abstract";
@@ -302,7 +303,7 @@ class EvmRpc extends Rpc {
       to: this.network.erc1155ContractAddress as Address,
     });
 
-    return (maxFeePerGas * gasLimit * 120n)/100n;
+    return (maxFeePerGas * gasLimit * 120n) / 100n;
   }
 
   async onboardNativeToErc1155(amount: bigint, privateKey: HexString) {
@@ -342,6 +343,19 @@ class EvmRpc extends Rpc {
     return this.#walletClient.signMessage({
       account: privateKeyToAccount(privateKey),
       ...params,
+    });
+  }
+
+  async isNoteDeposited(noteId: bigint): Promise<boolean> {
+    if (!this.network.aggregatorContractAddress) {
+      throw new Error("Aggregator not supported on this network");
+    }
+
+    return this.provider.readContract({
+      abi: aggregatorABI,
+      address: this.network.aggregatorContractAddress as HexString,
+      functionName: "pendingIdsQueue",
+      args: [noteId],
     });
   }
 }
