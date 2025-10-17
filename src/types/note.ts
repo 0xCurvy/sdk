@@ -213,7 +213,7 @@ class Note {
   // Used when receiving notes from the trees repository to scan notes for ownership
   serializePublicNote(): PublicNote {
     if (!this.ownerHash) {
-      throw new Error("Owner hash is not set");
+      throw new Error("Owner hash is not set or 0");
     }
 
     if (!this.deliveryTag) {

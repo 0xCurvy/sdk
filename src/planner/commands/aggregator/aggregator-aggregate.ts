@@ -158,7 +158,6 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
             `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
           ).toString(),
         },
-        ownerHash: "0",
         balance: {
           amount: "0",
           token: token.toString(),
@@ -182,7 +181,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
 
     const curvyFee = this.inputNotesSum / BigInt(this.network.aggregationCircuitConfig.groupFee) / 1000n; // 0.1% = 1/1000
 
-    const effectiveAmount = (this.#intent ? this.#intent.amount : this.inputNotesSum) - curvyFee;
+    const effectiveAmount = this.inputNotesSum - changeOrDummyOutputNote.balance!.amount - curvyFee;
     const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, effectiveAmount);
 
     const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
@@ -195,6 +194,8 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       networkSlug,
       currencyAddress: currencyAddress as HexString,
     });
+
+    console.log("AAA", this.input, data, this.inputNotesSum, effectiveAmount, curvyFee, this.#intent);
 
     return {
       curvyFee,
