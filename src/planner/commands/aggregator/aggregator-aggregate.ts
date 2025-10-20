@@ -195,8 +195,6 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       currencyAddress: currencyAddress as HexString,
     });
 
-    console.log("AAA", this.input, data, this.inputNotesSum, effectiveAmount, curvyFee, this.#intent);
-
     return {
       curvyFee,
       gas: 0n,

@@ -46,11 +46,6 @@ export class CurvyCommandFactory implements ICommandFactory {
         return new Erc1155WithdrawToEOACommand(id, this.#sdk, input, intent, estimate);
       }
       case "aggregator-aggregate": {
-        // console.log(id, name, input, intent, estimate);
-        // if (!intent) {
-        //   throw new Error("Aggregator aggregate requires an intent");
-        // }
-
         return new AggregatorAggregateCommand(id, this.#sdk, input, intent, estimate);
       }
       case "aggregator-withdraw-to-erc1155":
