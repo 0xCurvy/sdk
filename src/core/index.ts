@@ -176,7 +176,11 @@ class Core implements ICore {
   }
 
   sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
-    const { R, viewTag, spendingPubKey } = this.send(S, V);
+    let { R, viewTag, spendingPubKey } = this.send(S, V);
+
+    if (!viewTag.startsWith("0x")) {
+      viewTag = `0x${viewTag}`;
+    }
 
     return new Note({
       owner: {
@@ -192,7 +196,7 @@ class Core implements ICore {
       },
       deliveryTag: {
         ephemeralKey: R,
-        viewTag: viewTag,
+        viewTag: viewTag as HexString,
       },
     });
   }

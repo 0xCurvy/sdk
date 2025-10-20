@@ -4,13 +4,13 @@ import type { CurvyCommandData } from "@/planner/plan";
 import type { Network, Note, NoteBalanceEntry } from "@/types";
 import { balanceEntryToNote } from "@/utils";
 
-export abstract class AggregatorCommand extends CurvyCommand {
+export abstract class AbstractAggregatorCommand extends CurvyCommand {
   protected declare input: NoteBalanceEntry[];
   protected readonly inputNotes: Note[];
   protected readonly inputNotesSum: bigint;
   protected network: Network;
 
-  protected constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+  constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(sdk, input, estimate);
 
     // Because all aggregator commands take array of notes as input,

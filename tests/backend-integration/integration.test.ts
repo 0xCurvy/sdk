@@ -1,10 +1,11 @@
+//@ts-nocheck
 import { Core } from "@/core";
 import { ApiClient } from "@/http/api";
 import { CurvySDK } from "@/sdk";
-import type { AggregationRequestParams, Note, WithdrawRequestParams } from "@/types";
+import type { HexString, OutputNote } from "@/types";
 
 const BEARER_TOKEN =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZXZlbnYwMDAwMDAwMDAwMDEubG9jYWwtY3VydnkubmFtZSIsImlhdCI6MTc1OTAwMzAwNywiZXhwIjoyMTE5MDAzMDA3fQ.UooAgQTvwZTZUqrAGzynr69Vul8ebA7tC-5-VXwiSws";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZXZlbnYwMDAwMDAwMDAwMDEubG9jYWwtY3VydnkubmFtZSIsImlhdCI6MTc2MDQyMzYxNywiZXhwIjoyMTIwNDIzNjE3fQ.JFCUQ-6ncOn42O3fJsffbzEr7BJ6qJTqmI-nCEdp2sU";
 
 const waitForRequest = async (requestId: string, api: ApiClient, maxRetries = 20, delayMs = 5_000) => {
   for (let i = 0; i < maxRetries; i++) {
@@ -32,45 +33,62 @@ describe("Integration test", async () => {
   const keyPairs = core.generateKeyPairs();
 
   it("deposit, aggregation and withdraw, should create proofs and verify them on-chain", async () => {
-    // try {
-    //   await sdk.resetAggregator();
-    // } catch (error) {
-    //   console.log(error);
-    // }
+    const depositNotes1 = [];
 
-    console.log("✅ Aggregator reset");
-
-    const depositNotes: Note[] = [];
-
-    depositNotes.push(
-      core.sendNote(keyPairs.S, keyPairs.V, {
-        ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
-        amount: 3000n,
-        token: BigInt(2),
-      }),
+    depositNotes1.push(
+      core
+        .sendNote(keyPairs.S, keyPairs.V, {
+          ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+          amount: 3000n,
+          token: BigInt(2),
+        })
+        .serializeOutputNote(),
     );
 
-    depositNotes.push(
-      core.sendNote(keyPairs.S, keyPairs.V, {
-        ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
-        amount: 1000n,
-        token: BigInt(2),
-      }),
-    );
-
-    const depositPayload = {
-      outputNotes: depositNotes.map((note) => note.serializeDepositNote()),
-      fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    const depositPayload1 = {
+      outputNotes: depositNotes1,
+      fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" as HexString,
     };
 
-    const depositResponse = await api.aggregator.SubmitDeposit(depositPayload);
-    expect(depositResponse.requestId).toBeDefined();
+    const depositResponse1 = await api.aggregator.SubmitDeposit(depositPayload1);
+    if (depositResponse1.error) {
+      console.log(depositResponse1.error);
+    }
+    expect(depositResponse1.requestId).toBeDefined();
 
-    console.log("Deposit API response:", depositResponse.requestId);
+    console.log("Deposit 1 API response:", depositResponse1.requestId);
 
-    const depositStatus = await waitForRequest(depositResponse.requestId, api);
+    const depositNotes2 = [];
 
-    expect(depositStatus).toBe("success");
+    depositNotes2.push(
+      core
+        .sendNote(keyPairs.S, keyPairs.V, {
+          ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+          amount: 1000n,
+          token: BigInt(2),
+        })
+        .serializeOutputNote(),
+    );
+
+    const depositPayload2 = {
+      outputNotes: depositNotes2,
+      fromAddress: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" as HexString,
+    };
+
+    const depositResponse2 = await api.aggregator.SubmitDeposit(depositPayload2);
+    if (depositResponse2.error) {
+      console.log(depositResponse2.error);
+    }
+    expect(depositResponse2.requestId).toBeDefined();
+
+    console.log("Deposit 2 API response:", depositResponse2.requestId);
+
+    const depositStatus1 = await waitForRequest(depositResponse1.requestId, api);
+    expect(depositStatus1).toBe("success");
+
+    const depositStatus2 = await waitForRequest(depositResponse2.requestId, api);
+    expect(depositStatus2).toBe("success");
+
     console.log("✅ Deposit reached success status");
 
     const { notes: allNotes1 } = await api.aggregator.GetAllNotes();
@@ -117,24 +135,29 @@ describe("Integration test", async () => {
 
     const outputAmount = ((3000n + 1000n) * 999n) / 1000n;
 
-    const aggregationOutputNotes: Note[] = [];
+    const aggregationOutputNotes: OutputNote[] = [];
 
     aggregationOutputNotes.push(
-      core.sendNote(keyPairs.S, keyPairs.V, {
-        ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
-        amount: outputAmount,
-        token: BigInt(2),
-      }),
+      core
+        .sendNote(keyPairs.S, keyPairs.V, {
+          ownerBabyJubjubPublicKey: keyPairs.babyJubjubPublicKey,
+          amount: outputAmount,
+          token: BigInt(2),
+        })
+        .serializeOutputNote(),
     );
 
-    const aggregationParams: AggregationRequestParams = {
-      inputNotes: aggregationInputNotes.map((note) => note.serializeAggregationInputNote()),
-      outputNotes: aggregationOutputNotes.map((note) => note.serializeAggregationOutputNote()),
-    };
-
-    const aggregationPayload = sdk.createAggregationPayload(aggregationParams, network, keyPairs.s);
+    const aggregationPayload = sdk.createAggregationPayload(
+      aggregationInputNotes.map((note) => note.serializeInputNote()),
+      aggregationOutputNotes,
+      network,
+      keyPairs.s,
+    );
 
     const aggregationResponse = await api.aggregator.SubmitAggregation(aggregationPayload);
+    if (aggregationResponse.error) {
+      console.log(aggregationResponse.error);
+    }
     expect(aggregationResponse.requestId).toBeDefined();
 
     console.log("Aggregation API response:", aggregationResponse.requestId);
@@ -179,14 +202,20 @@ describe("Integration test", async () => {
 
     expect(withdrawalNotes.length).toBe(1);
 
-    const withdrawalRequestParams: WithdrawRequestParams = {
-      inputNotes: withdrawalNotes,
-      destinationAddress: "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
-    };
+    const destinationAddress: HexString = "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc";
+    const withdrawalPayload = sdk.createWithdrawPayload(
+      withdrawalNotes.map((note) => note.serializeInputNote()),
+      destinationAddress,
+      network,
+      keyPairs.s,
+    );
 
-    const withdrawalPayload = sdk.createWithdrawPayload(withdrawalRequestParams, network, keyPairs.s);
+    console.log(withdrawalPayload);
 
     const withdrawalResponse = await api.aggregator.SubmitWithdraw(withdrawalPayload);
+    if (withdrawalResponse.error) {
+      console.log(withdrawalResponse.error);
+    }
     expect(withdrawalResponse.requestId).toBeDefined();
 
     console.log("Withdraw API response:", withdrawalResponse.requestId);

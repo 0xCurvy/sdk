@@ -1,20 +1,63 @@
-import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AggregatorCommand } from "@/planner/commands/aggregator/abstract";
+import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { BALANCE_TYPE, type Erc1155BalanceEntry, type GetStealthAddressReturnType, type HexString } from "@/types";
+import {
+  BALANCE_TYPE,
+  type Erc1155BalanceEntry,
+  type GetStealthAddressReturnType,
+  type HexString,
+  type InputNote,
+  Note,
+  type WithdrawRequest,
+} from "@/types";
+import { generateWithdrawalHash } from "@/utils/aggregator";
 
 interface AggregatorWithdrawToErc1155CommandEstimate extends CurvyCommandEstimate {
   data: Erc1155BalanceEntry;
   stealthAddressData: GetStealthAddressReturnType;
 }
 
-export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
+export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorCommand {
   protected declare estimateData: AggregatorWithdrawToErc1155CommandEstimate | undefined;
 
-  // biome-ignore lint/complexity/noUselessConstructor: Abstract class constructor is protected
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(sdk, input, estimate);
+  #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): WithdrawRequest {
+    if (!this.network.withdrawCircuitConfig) {
+      throw new Error("Network withdraw circuit config is not defined!");
+    }
+
+    if (!inputNotes || !destinationAddress) {
+      throw new Error("Invalid withdraw payload parameters");
+    }
+
+    const inputNotesLength = inputNotes.length;
+
+    for (let i = inputNotesLength; i < this.network.withdrawCircuitConfig.maxInputs; i++) {
+      inputNotes.push(
+        new Note({
+          owner: {
+            babyJubjubPublicKey: inputNotes[0].owner.babyJubjubPublicKey,
+            sharedSecret: `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`,
+          },
+          balance: {
+            amount: "0",
+            token: inputNotes[0].balance.token.toString(),
+          },
+        }).serializeInputNote(),
+      );
+    }
+
+    const messageHash = generateWithdrawalHash(inputNotes, destinationAddress);
+    const rawSignature = this.sdk.walletManager.signMessageWithBabyJubjub(messageHash);
+    const signature = {
+      S: BigInt(rawSignature.S),
+      R8: rawSignature.R8.map((r) => BigInt(r)),
+    };
+
+    return {
+      inputNotes,
+      signature,
+      destinationAddress,
+    };
   }
 
   async execute(): Promise<CurvyCommandData> {
@@ -37,33 +80,21 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     });
 
     // TODO: Fix this so that we dont have same return values as args
-    const { inputNotes, signatures, destinationAddress } = this.sdk.createWithdrawPayload(
-      {
-        inputNotes: this.inputNotes,
-        destinationAddress: erc1155Address,
-      },
-      this.network,
+    const withdrawRequest = this.#createWithdrawRequest(
+      this.inputNotes.map((note) => note.serializeInputNote()),
+      erc1155Address,
     );
 
-    const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw({
-      inputNotes,
-      signatures,
-      destinationAddress,
-    });
+    const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw(withdrawRequest);
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res) => {
-        if (res.status === "failed") {
-          throw new Error(`[AggregatorWithdrawToERC1155Command] Aggregator withdraw failed!`);
-        }
         return res.status === "success";
       },
     );
 
-    const { balances } = await this.sdk.rpcClient
-      .Network(this.input[0].networkSlug)
-      .getErc1155Balances(destinationAddress as HexString);
+    const { balances } = await this.sdk.rpcClient.Network(this.input[0].networkSlug).getErc1155Balances(erc1155Address);
     const erc1155Balance = balances.find((b) => b.currencyAddress === this.input[0].currencyAddress);
 
     if (!erc1155Balance) {
@@ -74,7 +105,7 @@ export class AggregatorWithdrawToErc1155Command extends AggregatorCommand {
     return {
       type: BALANCE_TYPE.ERC1155,
       walletId: this.input[0].walletId,
-      source: destinationAddress as HexString,
+      source: erc1155Address,
       erc1155TokenId: erc1155Balance.erc1155TokenId,
       networkSlug,
       environment,

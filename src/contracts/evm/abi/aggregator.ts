@@ -67,12 +67,12 @@ export const aggregatorABI = [
         type: "uint256[2]",
       },
       {
-        internalType: "uint256[46]",
+        internalType: "uint256[14]",
         name: "publicInputs",
-        type: "uint256[46]",
+        type: "uint256[14]",
       },
     ],
-    name: "commitAggregation",
+    name: "commitAggregationBatch",
     outputs: [
       {
         internalType: "bool",
@@ -85,11 +85,6 @@ export const aggregatorABI = [
   },
   {
     inputs: [
-      {
-        internalType: "uint256[]",
-        name: "depositedNoteIds",
-        type: "uint256[]",
-      },
       {
         internalType: "uint256[2]",
         name: "proof_a",
@@ -106,12 +101,46 @@ export const aggregatorABI = [
         type: "uint256[2]",
       },
       {
-        internalType: "uint256[152]",
+        internalType: "uint256[4]",
         name: "publicInputs",
-        type: "uint256[152]",
+        type: "uint256[4]",
       },
     ],
     name: "commitDepositBatch",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "success",
+        type: "bool",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256[2]",
+        name: "proof_a",
+        type: "uint256[2]",
+      },
+      {
+        internalType: "uint256[2][2]",
+        name: "proof_b",
+        type: "uint256[2][2]",
+      },
+      {
+        internalType: "uint256[2]",
+        name: "proof_c",
+        type: "uint256[2]",
+      },
+      {
+        internalType: "uint256[10]",
+        name: "publicInputs",
+        type: "uint256[10]",
+      },
+    ],
+    name: "commitWithdrawalBatch",
     outputs: [
       {
         internalType: "bool",
@@ -155,6 +184,19 @@ export const aggregatorABI = [
     name: "depositNote",
     outputs: [],
     stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "feeCollector",
+    outputs: [
+      {
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
     type: "function",
   },
   {
@@ -314,6 +356,19 @@ export const aggregatorABI = [
     type: "function",
   },
   {
+    inputs: [],
+    name: "tokenWrapper",
+    outputs: [
+      {
+        internalType: "contract MetaERC20Wrapper",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [
       {
         components: [
@@ -342,16 +397,6 @@ export const aggregatorABI = [
             name: "feeCollector",
             type: "address",
           },
-          {
-            internalType: "uint256",
-            name: "withdrawBps",
-            type: "uint256",
-          },
-          {
-            internalType: "address",
-            name: "csuc",
-            type: "address",
-          },
         ],
         internalType: "struct CurvyAggregator_Types.ConfigurationUpdate",
         name: "_update",
@@ -367,19 +412,6 @@ export const aggregatorABI = [
       },
     ],
     stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "withdrawBps",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
     type: "function",
   },
   {

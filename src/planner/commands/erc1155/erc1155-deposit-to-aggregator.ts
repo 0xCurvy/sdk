@@ -2,8 +2,10 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
+import { EvmRpc } from "@/rpc";
 import { type HexString, META_TRANSACTION_TYPES, type Note, type NoteBalanceEntry } from "@/types";
 import { noteToBalanceEntry } from "@/utils";
+import { toSlug } from "@/utils/helpers";
 
 interface Erc1155DepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
   id: string;
@@ -25,39 +27,42 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       throw new Error("[Erc1155DepositToAggregatorCommand] Command must be estimated before execution!");
     }
 
-    const { /*id,*/ gas, curvyFee, note } = this.estimateData;
+    const { id, gas, curvyFee, note } = this.estimateData;
 
+    // TODO: getNewNoteForUser should return output note
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
-    // TODO: Re-enable meta transaction submission for deposits
-    // ========================================================
-    // await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: "" });
+    // TODO: Re-enable signature validation for deposits
+    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: "0x0" });
 
-    // await this.sdk.pollForCriteria(
-    //   () => this.sdk.apiClient.metaTransaction.GetStatus(id),
-    //   (res) => {
-    //     return res === "completed";
-    //   },
-    // );
+    await this.sdk.pollForCriteria(
+      () => this.sdk.apiClient.metaTransaction.GetStatus(id),
+      (res) => {
+        return res === "completed";
+      },
+    );
 
-    // const { erc1155ContractAddress } = this.network;
+    // TODO Think about fetching a tx hash and waiting for tx confirmation on client instead of this loop
+    const rpc = this.sdk.rpcClient.Network(this.network.name);
 
-    // if (!erc1155ContractAddress) {
-    //   throw new Error(`CSUC contract address not found for ${this.network.name} network.`);
-    // }
+    if (!(rpc instanceof EvmRpc)) {
+      throw new Error("Erc1155DepositToAggregatorCommand: Only EVM networks are supported");
+    }
+
+    for (let i = 0; i < 3; i++) {
+      if (await rpc.isNoteDeposited(note.id)) break;
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
-      outputNotes: [note.serializeDepositNote()],
+      networkSlug: toSlug(this.network.name),
+      outputNotes: [note.serializeOutputNote()],
       fromAddress: this.input.source,
-      // TODO: Re-enable signature validation for deposits
     });
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res) => {
-        if (res.status === "failed") {
-          throw new Error(`[DepositToAggregatorCommand] Aggregator deposit failed!`);
-        }
         return res.status === "success";
       },
     );

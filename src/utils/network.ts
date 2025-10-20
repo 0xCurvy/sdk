@@ -19,6 +19,7 @@ export type NetworkFilter =
   | boolean
   | undefined;
 
+// TODO: We are not exporting this first into utils, but directly into main index.ts barrel fail - make it consistent
 export function filterNetworks(networks: Network[], networkFilter: NetworkFilter): Network[] {
   if (networkFilter === undefined) {
     return networks;
@@ -50,6 +51,15 @@ export function filterNetworks(networks: Network[], networkFilter: NetworkFilter
       return toSlug(networkFilter) === toSlug(network.name);
     }
   });
+}
+
+export function findNetwork(networks: Network[], networkFilter: NetworkFilter): Network | undefined {
+  const filteredNetworks = filterNetworks(networks, networkFilter);
+
+  if (filteredNetworks.length === 0) return undefined;
+  if (filteredNetworks.length > 1) throw new Error(`More than one network found for filter: ${networkFilter}`);
+
+  return filteredNetworks[0];
 }
 
 const networksToPriceData = (networks: Network[]) => {

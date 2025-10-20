@@ -7,7 +7,9 @@
 //////////////////////////////////////////////////////////////////////////////
 
 import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
+import type { AggregatorRequestStatus } from "@/types/aggregator";
 import type { CircuitConfig } from "@/types/core";
+import type { CurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import type { MetaTransactionType } from "@/types/meta-transaction";
 import type { PublicNote } from "@/types/note";
@@ -175,7 +177,7 @@ type GetCurvyHandleByOwnerAddressResponse = {
   } | null;
   error?: string | null;
 };
-type GetCurvyHandleByOwnerAddressReturnType = string | null;
+type GetCurvyHandleByOwnerAddressReturnType = CurvyHandle | null;
 
 type SetBabyJubjubPublicKeyRequestBody = {
   babyJubjubPublicKey: string;
@@ -199,20 +201,21 @@ type SetBabyJubjubPublicKeyReturnType =
 type GetAllNotesReturnType = {
   notes: PublicNote[];
 };
-type SubmitDepositReturnType = { requestId: string };
-type SubmitWithdrawReturnType = { requestId: string };
-type SubmitAggregationReturnType = { requestId: string };
+type SubmitDepositReturnType = { requestId: string; error?: string };
+type SubmitWithdrawReturnType = { requestId: string; error?: string };
+type SubmitAggregationReturnType = { requestId: string; error?: string };
 type SubmitNoteOwnershipProofReturnType = {
   notes: {
     ownerHash: string;
-    deliveryTag: { viewTag: string; ephemeralKey: string };
-    balance: { token: HexString; amount: string };
+    deliveryTag: { viewTag: HexString; ephemeralKey: string };
+    balance: { token: string; amount: string };
   }[];
+  error?: string;
 };
-type AggregatorRequestStatusValuesType = "pending" | "processing" | "completed" | "failed" | "success";
 type GetAggregatorRequestStatusReturnType = {
   requestId: string;
-  status: AggregatorRequestStatusValuesType;
+  status: AggregatorRequestStatus;
+  error?: string;
 };
 
 export type {
@@ -260,7 +263,6 @@ export type {
   Network,
   Currency,
   NetworksWithCurrenciesResponse,
-  AggregatorRequestStatusValuesType,
   GetNetworksReturnType,
   RegisterCurvyHandleRequestBody,
   RegisterCurvyHandleReturnType,
