@@ -133,7 +133,7 @@ export class MapStorage implements StorageInterface {
 
   async getCurrencyMetadata(addressOrId: string | bigint, networkSlug: string) {
     let currencyMetadata: CurrencyMetadata | undefined;
-  
+
     if (typeof addressOrId === "bigint") {
       currencyMetadata = Array.from(this.#currencyMetadata.values()).find(
         (c) => c.erc1155TokenId === addressOrId.toString() && c.networkSlug === networkSlug,
@@ -143,13 +143,13 @@ export class MapStorage implements StorageInterface {
         this.#getCurrencyMetadataKey({ address: addressOrId, networkSlug }),
       );
     }
-  
+
     if (!currencyMetadata) {
       throw new StorageError(
         `Currency metadata for address / erc1155TokenId ${addressOrId} on network ${networkSlug} not found`,
       );
     }
-  
+
     return currencyMetadata;
   }
 
@@ -347,7 +347,7 @@ export class MapStorage implements StorageInterface {
         [BALANCE_TYPE.ERC1155]: 2,
         [BALANCE_TYPE.SA]: 3,
       },
-      sortByBalance: "asc",
+      sortByBalance: "desc",
     },
   ): Promise<BalanceEntry[]> {
     const balances = Array.from(this.#balances.values()).filter(
