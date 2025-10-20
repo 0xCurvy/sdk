@@ -35,50 +35,31 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   return plan;
 };
 
-const chunk = (array: Array<any>, chunkSize: number) => {
-  const chunks: Array<Array<any>> = [];
-  for (let i = 0; i < array.length; i += chunkSize) {
-    chunks.push(array.slice(i, i + chunkSize));
+const generateAggregationPlan = (items: CurvyPlan[], maxInputs: number): CurvyPlanFlowControl => {
+  while (items.length > 1) {
+    const nextLevel = [];
+
+    for (let i = 0; i < items.length; i += maxInputs) {
+      const children = items.slice(i, i + maxInputs);
+      nextLevel.push({
+        type: "serial",
+        items: [
+          {
+            type: "parallel",
+            items: children,
+          },
+          {
+            type: "command",
+            name: "aggregator-aggregate",
+          },
+        ],
+      });
+    }
+
+    items = nextLevel as CurvyPlan[]; // Move up one level
   }
 
-  return chunks;
-};
-
-const generateAggregationPlan = (
-  intendedAmount: bigint,
-  items: CurvyPlan[],
-  maxInputs: number,
-): CurvyPlanFlowControl => {
-  if (items.length <= maxInputs) {
-    return {
-      type: "serial",
-      items: [
-        {
-          type: "parallel",
-          items,
-        },
-        {
-          type: "command",
-          name: "aggregator-aggregate",
-        },
-      ],
-    };
-  }
-
-  const chunks = chunk(items, maxInputs);
-  return {
-    type: "serial",
-    items: [
-      {
-        type: "parallel",
-        items: chunks.map((item) => generateAggregationPlan(intendedAmount, item, maxInputs)),
-      },
-      {
-        type: "command",
-        name: "aggregator-aggregate",
-      },
-    ],
-  };
+  return items[0] as CurvyPlanFlowControl; // Return the root node
 };
 
 export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): CurvyPlanFlowControl => {
@@ -127,7 +108,6 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
   // into aggregator supported batch sizes
 
   const aggregationPlan = generateAggregationPlan(
-    intent.amount,
     plansToUpgradeNecessaryAddressesToNotes,
     intent.network.aggregationCircuitConfig!.maxInputs,
   );
