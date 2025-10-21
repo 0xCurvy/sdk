@@ -92,6 +92,12 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
       },
     );
 
+    await this.sdk.storage.removeSpentBalanceEntries([this.input]);
+
+    await new Promise((res) => setTimeout(res, 3000)); // Wait for balances to be updated properly
+
+    await this.sdk.refreshAddressBalances(curvyAddress);
+
     return {
       type: BALANCE_TYPE.SA,
       walletId: "PLACEHOLDER", // TODO Remove

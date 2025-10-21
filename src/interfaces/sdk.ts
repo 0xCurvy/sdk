@@ -31,13 +31,13 @@ interface ICurvySDK {
     handle: string,
   ): Promise<GetStealthAddressReturnType>;
 
-  generateAndCreateNewStealthAddressForUser(
-    stealthAddressData: GetStealthAddressReturnType,
-  ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
-
-  createStealthAddressForUser(
+  generateAndRegisterNewStealthAddressForUser(
     networkIdentifier: NetworkFilter,
     handle: string,
+  ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
+
+  registerStealthAddressForUser(
+    stealthAddressData: GetStealthAddressReturnType,
   ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
 
   getAddressEncryptedMessage(address: CurvyAddress): Promise<string>;

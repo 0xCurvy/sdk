@@ -268,12 +268,22 @@ export class MapStorage implements StorageInterface {
     this.#totalBalances.clear();
   }
 
-  async removeSpentBalanceEntries(balanceEntries: BalanceEntry[]) {
-    const entriesToDelete = balanceEntries.filter((e) => e.balance === 0n);
-
-    for (const entry of entriesToDelete) {
+  async deleteBalanceEntries(balanceEntries: Array<BalanceEntry>) {
+    for (const entry of balanceEntries) {
       this.#balances.delete(this.#getBalanceKey(entry));
     }
+  }
+
+  async removeSpentBalanceEntries(balanceEntries: BalanceEntry[]): Promise<void> {
+    const uniqueWalletId = new Set(balanceEntries.map((b) => b.walletId));
+    if (uniqueWalletId.size > 1) {
+      throw new Error("Tried to remove spent balance entries for multiple wallets at once");
+    }
+
+    await this.updateBalancesAndTotals(
+      balanceEntries[0].walletId,
+      balanceEntries.map((b) => ({ ...b, balance: 0n })),
+    );
   }
 
   async updateBalancesAndTotals(walletId: string, entries: BalanceEntry[]): Promise<void> {
@@ -324,7 +334,8 @@ export class MapStorage implements StorageInterface {
       this.#balances.set(this.#getBalanceKey(entry), entry);
     }
 
-    await this.removeSpentBalanceEntries(entries);
+    const zeroBalanceEntries = entries.filter((e) => e.balance === 0n);
+    await this.deleteBalanceEntries(zeroBalanceEntries);
   }
 
   async getTotalsByCurrencyAndNetwork(walletId: string): Promise<TotalBalance[]> {
