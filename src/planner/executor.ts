@@ -104,12 +104,13 @@ export class CommandExecutor {
       }
 
       try {
-        const command = this.commandFactory.createCommand(plan.name, input, plan.intent, plan.estimate);
+        const command = this.commandFactory.createCommand(plan.id, plan.name, input, plan.intent, plan.estimate);
         let data: CurvyCommandData | undefined;
 
         if (!dryRun) {
           onCommandStarted?.(plan.name);
           data = await command.execute();
+          this.eventEmitter.emitPlanCommandExecutionProgress({ commandId: plan.id });
         } else {
           const { data: estimateData, ...estimate } = await command.estimate();
           data = estimateData;

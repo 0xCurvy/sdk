@@ -156,7 +156,7 @@ test("should aggregate with one erc1155 balance", () => {
   const intent: CurvyIntent = generateMockIntent(1000000000000000000n, maxInputs);
   const balances = generateMockERC1155Balances(9999944316399554532n);
 
-  const plan = generatePlan(balances, intent) as any;
+  const { plan } = generatePlan(balances, intent);
   expect(plan).toBeDefined();
 
   // Expect entire plan to look like this

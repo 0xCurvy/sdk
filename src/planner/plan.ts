@@ -16,6 +16,7 @@ export interface CurvyIntent {
 export type CurvyPlanCommand = {
   type: "command";
   name: string;
+  id: string;
   // Attached to command nodes in estimation phase and used in execute phase
   estimate?: CurvyCommandEstimate;
   // Some commands such as WithdrawFromCSUC and SendToEOA require an intent.
@@ -28,6 +29,11 @@ export type CurvyCommandData = BalanceEntry | BalanceEntry[];
 export type CurvyPlanData = {
   type: "data";
   data: CurvyCommandData;
+};
+
+export type GeneratePlanReturnType = {
+  plan: CurvyPlanFlowControl;
+  usedBalances: BalanceEntry[];
 };
 
 export type CurvyPlanFlowControl = {

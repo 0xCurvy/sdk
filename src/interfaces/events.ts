@@ -3,6 +3,7 @@ import type {
   BalanceRefreshCompleteEvent,
   BalanceRefreshProgressEvent,
   BalanceRefreshStartedEvent,
+  PlanCommandExecutionProgressEvent,
   PlanExecutionCompleteEvent,
   PlanExecutionErrorEvent,
   PlanExecutionProgressEvent,
@@ -32,6 +33,7 @@ interface ICurvyEventEmitter extends EventEmitter {
   emitBalanceRefreshProgress(event: BalanceRefreshProgressEvent): void;
   emitBalanceRefreshComplete(event: BalanceRefreshCompleteEvent): void;
 
+  emitPlanCommandExecutionProgress(event: PlanCommandExecutionProgressEvent): void;
   emitPlanExecutionStarted(event: PlanExecutionStartedEvent): void;
   emitPlanExecutionProgress(event: PlanExecutionProgressEvent): void;
   emitPlanExecutionComplete(event: PlanExecutionCompleteEvent): void;

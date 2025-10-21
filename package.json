@@ -37,8 +37,8 @@
   },
   "devDependencies": {
     "@total-typescript/ts-reset": "^0.6.1",
-    "@types/lodash.merge": "^4.6.9",
     "@types/circomlibjs": "^0.1.6",
+    "@types/lodash.merge": "^4.6.9",
     "@types/snarkjs": "^0.7.9",
     "rimraf": "^6.0.1",
     "tsup": "8.5.0",
@@ -57,6 +57,7 @@
     "poseidon-lite": "^0.2.1",
     "snarkjs": "^0.7.5",
     "starknet": "^7.6.4",
+    "uuid": "^13.0.0",
     "viem": "^2.30.5"
   },
   "config": {

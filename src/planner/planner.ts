@@ -1,4 +1,10 @@
-import type { CurvyIntent, CurvyPlan, CurvyPlanFlowControl } from "@/planner/plan";
+import { v4 as uuidV4 } from "uuid";
+import type {
+  CurvyIntent,
+  CurvyPlan,
+  CurvyPlanFlowControl,
+  GeneratePlanReturnType,
+} from "@/planner/plan";
 import { BALANCE_TYPE, type BalanceEntry } from "@/types";
 import { isHexString } from "@/types/helper";
 
@@ -17,6 +23,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   if (balanceEntry.type === BALANCE_TYPE.SA) {
     plan.items.push({
       type: "command",
+      id: uuidV4(),
       name: "sa-erc1155-onboard", // This includes gas sponsorship as well.
     });
   }
@@ -25,6 +32,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.ERC1155) {
     plan.items.push({
       type: "command",
+      id: uuidV4(),
       name: "erc1155-deposit-to-aggregator",
     });
   }
@@ -46,6 +54,7 @@ const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): Curvy
         items[0],
         {
           type: "command",
+            id:uuidV4(),
           name: "aggregator-aggregate",
           intent,
         },
@@ -67,6 +76,7 @@ const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): Curvy
           },
           {
             type: "command",
+            id: uuidV4(),
             name: "aggregator-aggregate",
           },
         ],
@@ -94,12 +104,15 @@ const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): Curvy
   return aggregationPlan;
 };
 
-export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): CurvyPlanFlowControl => {
+export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): GeneratePlanReturnType => {
   const plansToUpgradeNecessaryAddressesToNotes: CurvyPlan[] = [];
 
   let remainingAmount = intent.amount;
 
-  for (const balanceEntry of balances) {
+  let i = 0;
+  for (; i < balances.length; i++) {
+    const balanceEntry = balances[i];
+
     if (remainingAmount <= 0n) {
       // Success! We are done with the plan
       break;
@@ -119,23 +132,6 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
   // FUTURE TODO: Skip unnecessary aggregation (if exact amount)
   // FUTURE TODO: Check if we have exact amount on CSUC/SA, and  skip the aggregator altogether
 
-  // FORCES WITHDRAW TO EOA AND SKIPS THE REST OF THE PLAN
-  // if (isHexString(intent.toAddress))
-  //   return {
-  //     type: "serial",
-  //     items: [
-  //       {
-  //         type: "data",
-  //         data: balances[0],
-  //       },
-  //       {
-  //         type: "command",
-  //         name: "erc1155-withdraw-to-eoa",
-  //         intent,
-  //       },
-  //     ],
-  //   };
-
   // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
   // into aggregator supported batch sizes
 
@@ -147,15 +143,17 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
     aggregationPlan.items.push(
       {
         type: "command",
+        id: uuidV4(),
         name: "aggregator-withdraw-to-erc1155",
       },
       {
         type: "command",
+        id: uuidV4(),
         name: "erc1155-withdraw-to-eoa",
         intent,
       },
     );
   }
 
-  return aggregationPlan;
+  return { plan: aggregationPlan, usedBalances: balances.slice(0, i) };
 };

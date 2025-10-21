@@ -27,8 +27,14 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   readonly #intent: CurvyIntent | undefined;
   protected declare estimateData: AggregatorAggregateCommandEstimate | undefined;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent?: CurvyIntent, estimate?: CurvyCommandEstimate) {
-    super(sdk, input, estimate);
+  constructor(
+    id: string,
+    sdk: ICurvySDK,
+    input: CurvyCommandData,
+    intent?: CurvyIntent,
+    estimate?: CurvyCommandEstimate,
+  ) {
+    super(id, sdk, input, estimate);
     this.#intent = intent;
   }
 
