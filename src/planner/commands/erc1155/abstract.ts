@@ -22,6 +22,10 @@ export abstract class AbstractErc1155Command extends CurvyCommand {
     }
 
     this.network = sdk.getNetwork(input.networkSlug);
+
+    if (!this.network.aggregatorContractAddress) {
+      throw new Error("Aggregator contract address not found for network.");
+    }
   }
 
   abstract execute(): Promise<CurvyCommandData | undefined>;
