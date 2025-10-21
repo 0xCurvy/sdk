@@ -111,13 +111,13 @@ const generateMockNoteBalances = (...balances: bigint[]): NoteBalanceEntry[] => 
   });
 };
 
-const generateMockIntent = (amount: bigint, maxInputs: number): CurvyIntent => {
+const generateMockIntent = (amount: bigint, maxInputs: number, sendToCurvyName = false): CurvyIntent => {
   const network = mockNetwork;
   network.aggregationCircuitConfig.maxInputs = maxInputs;
 
   return {
     amount,
-    toAddress: "0xwhat",
+    toAddress: sendToCurvyName ? "vitalik.curvy.name" : "0xafefe",
     currency: mockCurrency,
     network,
   };
@@ -128,8 +128,8 @@ test("test for more than N aggregations", () => {
   const intent: CurvyIntent = generateMockIntent(20n, maxInputs);
   const balances = generateMockNoteBalances(...Array(19).fill(1n), 2n);
 
-  const topLevelAggregation = generatePlan(balances, intent) as any;
-  expect(topLevelAggregation).toBeDefined();
+  const plan = generatePlan(balances, intent) as any;
+  expect(plan).toBeDefined();
 
   const checkRecursivelyForItemsLength = (obj) => {
     if (Array.isArray(obj.items)) {
@@ -141,5 +141,41 @@ test("test for more than N aggregations", () => {
     }
   };
 
-  checkRecursivelyForItemsLength(topLevelAggregation);
+  checkRecursivelyForItemsLength(plan.items[0]);
+
+  expect(plan.items.map((item) => planToString(item))).toEqual([
+    "parallel",
+    "aggregator-aggregate",
+    "aggregator-withdraw-to-erc1155",
+    "erc1155-withdraw-to-eoa",
+  ]);
 });
+
+test("should aggregate with one erc1155 balance", () => {
+  const maxInputs = 2;
+  const intent: CurvyIntent = generateMockIntent(1000000000000000000n, maxInputs);
+  const balances = generateMockERC1155Balances(9999944316399554532n);
+
+  const plan = generatePlan(balances, intent) as any;
+  expect(plan).toBeDefined();
+
+  // Expect entire plan to look like this
+  expect(plan.items.map((item) => planToString(item))).toEqual([
+    "serial",
+    "aggregator-aggregate",
+    "aggregator-withdraw-to-erc1155",
+    "erc1155-withdraw-to-eoa",
+  ]);
+
+  // Expect first serial to be aggregator onboard
+  expect(plan.items[0].type).toBe("serial");
+  expect(plan.items[0].items).toHaveLength(2);
+
+  // Expect aggregator onboard to look like this
+  expect(plan.items[0].items.map((item) => planToString(item))).toEqual(["data", "erc1155-deposit-to-aggregator"]);
+});
+
+function planToString(plan: CurvyPlan) {
+  if (plan.type === "command") return plan.name;
+  return plan.type;
+}

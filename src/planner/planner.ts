@@ -1,4 +1,4 @@
-import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
+import type { CurvyIntent, CurvyPlan, CurvyPlanFlowControl } from "@/planner/plan";
 import { BALANCE_TYPE, type BalanceEntry } from "@/types";
 import { isHexString } from "@/types/helper";
 
@@ -35,7 +35,24 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   return plan;
 };
 
-const generateAggregationPlan = (items: CurvyPlan[], maxInputs: number): CurvyPlanFlowControl => {
+const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): CurvyPlanFlowControl => {
+  const maxInputs = intent.network.aggregationCircuitConfig!.maxInputs;
+
+  // If we have just one sub plan, just aggregate it
+  if (items.length === 1) {
+    return {
+      type: "serial",
+      items: [
+        items[0],
+        {
+          type: "command",
+          name: "aggregator-aggregate",
+          intent,
+        },
+      ],
+    };
+  }
+
   while (items.length > 1) {
     const nextLevel = [];
 
@@ -59,7 +76,22 @@ const generateAggregationPlan = (items: CurvyPlan[], maxInputs: number): CurvyPl
     items = nextLevel as CurvyPlan[]; // Move up one level
   }
 
-  return items[0] as CurvyPlanFlowControl; // Return the root node
+  const aggregationPlan = items[0] as CurvyPlanFlowControl;
+
+  if (aggregationPlan.items.length !== 2) {
+    throw new Error("Unexpected number of items in aggregation plan");
+  }
+
+  if (aggregationPlan.items[1].type !== "command" || aggregationPlan.items[1].name !== "aggregator-aggregate") {
+    throw new Error("Last item in aggregation plan is not an aggregation command");
+  }
+
+  // We pass the intent to the last aggregation.
+  // The aggregator-aggregate will use the intent's amount as a signal for how much to keep as change
+  // And if the `intent.toAddress` is a Curvy handle, it will use it to derive recipients new Note.
+  aggregationPlan.items[1].intent = intent;
+
+  return aggregationPlan;
 };
 
 export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): CurvyPlanFlowControl => {
@@ -107,15 +139,7 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
   // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
   // into aggregator supported batch sizes
 
-  const aggregationPlan = generateAggregationPlan(
-    plansToUpgradeNecessaryAddressesToNotes,
-    intent.network.aggregationCircuitConfig!.maxInputs,
-  );
-
-  // We pass the intent to the last aggregation.
-  // The aggregator-aggregate will use the intent's amount as a signal for how much to keep as change
-  // And if the `intent.toAddress` is a Curvy handle, it will use it to derive recipients new Note.
-  (aggregationPlan.items![1] as CurvyPlanCommand).intent = intent;
+  const aggregationPlan = generateAggregationPlan(plansToUpgradeNecessaryAddressesToNotes, intent);
 
   // If we are sending to EOA, push two more commands
   // to move funds from Aggregator to CSUC to EOA
