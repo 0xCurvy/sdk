@@ -31,6 +31,11 @@ export type CurvyPlanData = {
   data: CurvyCommandData;
 };
 
+export type GeneratePlanReturnType = {
+  plan: CurvyPlanFlowControl;
+  usedBalances: BalanceEntry[];
+};
+
 export type CurvyPlanFlowControl = {
   type: "parallel" | "serial";
   items: CurvyPlan[];

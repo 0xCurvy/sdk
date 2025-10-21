@@ -1,5 +1,11 @@
 import { v4 as uuidV4 } from "uuid";
-import type { CurvyIntent, CurvyPlan, CurvyPlanCommand, CurvyPlanFlowControl } from "@/planner/plan";
+import type {
+  CurvyIntent,
+  CurvyPlan,
+  CurvyPlanCommand,
+  CurvyPlanFlowControl,
+  GeneratePlanReturnType,
+} from "@/planner/plan";
 import { BALANCE_TYPE, type BalanceEntry } from "@/types";
 import { isHexString } from "@/types/helper";
 
@@ -39,6 +45,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
 };
 
 const generateAggregationPlan = (items: CurvyPlan[], maxInputs: number): CurvyPlanFlowControl => {
+  console.log(items);
   while (items.length > 1) {
     const nextLevel = [];
 
@@ -53,7 +60,7 @@ const generateAggregationPlan = (items: CurvyPlan[], maxInputs: number): CurvyPl
           },
           {
             type: "command",
-              id: uuidV4(),
+            id: uuidV4(),
             name: "aggregator-aggregate",
           },
         ],
@@ -66,12 +73,15 @@ const generateAggregationPlan = (items: CurvyPlan[], maxInputs: number): CurvyPl
   return items[0] as CurvyPlanFlowControl; // Return the root node
 };
 
-export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): CurvyPlanFlowControl => {
+export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): GeneratePlanReturnType => {
   const plansToUpgradeNecessaryAddressesToNotes: CurvyPlan[] = [];
 
   let remainingAmount = intent.amount;
 
-  for (const balanceEntry of balances) {
+  let i = 0;
+  for (; i < balances.length; i++) {
+    const balanceEntry = balances[i];
+
     if (remainingAmount <= 0n) {
       // Success! We are done with the plan
       break;
@@ -122,5 +132,5 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Cur
     );
   }
 
-  return aggregationPlan;
+  return { plan: aggregationPlan, usedBalances: balances.slice(0, i) };
 };
