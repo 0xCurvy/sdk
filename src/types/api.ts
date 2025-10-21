@@ -222,7 +222,7 @@ export type {
 type MetaTransactionEstimationRequestBody = {
   type: MetaTransactionType;
   fromAddress: string;
-  toAddress?: string;
+  toAddress: string;
   amount: string;
   network: string;
   currencyAddress: string;

@@ -1,10 +1,12 @@
+import { toBytes } from "viem";
+import { erc1155ABI } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import { EvmRpc } from "@/rpc";
 import { type HexString, META_TRANSACTION_TYPES, type Note, type NoteBalanceEntry } from "@/types";
-import { noteToBalanceEntry } from "@/utils";
+import { getMetaTransactionEip712HashAndSignedData, noteToBalanceEntry } from "@/utils";
 import { toSlug } from "@/utils/helpers";
 
 interface Erc1155DepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
@@ -23,6 +25,8 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
   }
 
   async execute(): Promise<CurvyCommandData> {
+    const rpc = this.sdk.rpcClient.Network(this.network.name);
+
     if (!this.estimateData) {
       throw new Error("[Erc1155DepositToAggregatorCommand] Command must be estimated before execution!");
     }
@@ -32,8 +36,39 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     // TODO: getNewNoteForUser should return output note
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
-    // TODO: Re-enable signature validation for deposits
-    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: "0x0" });
+    const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
+    const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
+
+    const nonce = await rpc.provider.readContract({
+      abi: erc1155ABI,
+      address: this.network.erc1155ContractAddress as HexString,
+      functionName: "getNonce",
+      args: [this.input.source as HexString],
+    });
+
+    const tokenId = await rpc.provider.readContract({
+      abi: erc1155ABI,
+      address: this.network.erc1155ContractAddress as HexString,
+      functionName: "getTokenID",
+      args: [this.input.currencyAddress as HexString],
+    });
+
+    const [eip712Hash] = getMetaTransactionEip712HashAndSignedData(
+      this.input.source as HexString,
+      this.network.aggregatorContractAddress as HexString,
+      tokenId,
+      note.balance!.amount,
+      curvyFee + gas,
+      nonce,
+      this.network.erc1155ContractAddress as HexString,
+      this.network.feeCollectorAddress as HexString,
+    );
+
+    const signature = (await this.sdk.rpcClient
+      .Network(this.input.networkSlug)
+      .signMessage(privateKey, { message: { raw: toBytes(eip712Hash) } })) as HexString;
+
+    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
@@ -41,9 +76,6 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
         return res === "completed";
       },
     );
-
-    // TODO Think about fetching a tx hash and waiting for tx confirmation on client instead of this loop
-    const rpc = this.sdk.rpcClient.Network(this.network.name);
 
     if (!(rpc instanceof EvmRpc)) {
       throw new Error("Erc1155DepositToAggregatorCommand: Only EVM networks are supported");
@@ -95,8 +127,10 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,
+      // biome-ignore lint/style/noNonNullAssertion: it's checked for in the abstract class constructor
+      toAddress: this.network.aggregatorContractAddress!,
       network: this.input.networkSlug,
-      ownerHash: note.ownerHash.toString(16),
+      ownerHash: `0x${note.ownerHash.toString(16)}`,
     });
 
     const gas = BigInt(gasFeeInCurrency ?? "0");
