@@ -37,7 +37,7 @@ const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
 };
 
 async function setup() {
-  curvySDK = await CurvySDK.init("local", "localnet", "http://localhost:4001");
+  curvySDK = await CurvySDK.init("local", "localnet", "http://localhost:4000");
 
   const urlParams = new URLSearchParams(LocalnetGeneratedValues.urlsCurvyOS["user-1"]);
   const signature = urlParams.get("signature");
@@ -98,24 +98,24 @@ async function setup() {
 test("Inclusion proof bug", async () => {
   await setup();
   const to = "devenv1.local-curvy.name";
-  // const amount1 = parseDecimal("330", currency!);
-  //
-  // const intent1: CurvyIntent = {
-  //   toAddress: to,
-  //   amount: amount1,
-  //   currency: currency!,
-  //   network: network!,
-  // };
-  //
-  // const planResult1 = await doPlan(intent1);
-  // expect(planResult1).toBe(true);
-  //
-  // await setup();
-  //
-  // const planResult12 = await doPlan(intent1);
-  // expect(planResult12).toBe(true);
-  //
-  // await setup();
+  const amount1 = parseDecimal("330", currency!);
+
+  const intent1: CurvyIntent = {
+    toAddress: to,
+    amount: amount1,
+    currency: currency!,
+    network: network!,
+  };
+
+  const planResult1 = await doPlan(intent1);
+  expect(planResult1).toBe(true);
+
+  await setup();
+
+  const planResult12 = await doPlan(intent1);
+  expect(planResult12).toBe(true);
+
+  await setup();
 
   const amount2 = parseDecimal("700", currency!);
 
