@@ -376,10 +376,11 @@ class CurvySDK implements ICurvySDK {
    */
 
   switchNetworkEnvironment(environment: "mainnet" | "testnet") {
-    return this.setActiveNetworks(environment === "testnet");
+    this.setActiveNetworks(environment === "testnet");
+    this.refreshWalletBalances();
   }
 
-  async refreshNoteBalances(walletId: string) {
+  async refreshNoteBalances(walletId = this.walletManager.activeWallet.id) {
     if (!this.walletManager.hasWallet(walletId)) {
       throw new Error(`Wallet with ID ${walletId} not found!`);
     }
@@ -397,7 +398,7 @@ class CurvySDK implements ICurvySDK {
     return this.#balanceScanner.scanAddressBalances(address);
   }
 
-  async refreshWalletBalances(walletId: string, scanAll = false) {
+  async refreshWalletBalances(walletId = this.walletManager.activeWallet.id, scanAll = false) {
     if (!this.walletManager.hasWallet(walletId)) {
       throw new Error(`Wallet with ID ${walletId} not found!`);
     }
