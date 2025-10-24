@@ -112,7 +112,7 @@ export class BalanceScanner implements IBalanceScanner {
     }
     return entries;
   }
-  async #processCsucBalances(addresses: CurvyAddress[]): Promise<BalanceEntry[]> {
+  async #processERC1155Balances(addresses: CurvyAddress[]): Promise<BalanceEntry[]> {
     const arrLength = addresses.length;
 
     const entries: Erc1155BalanceEntry[] = [];
@@ -227,7 +227,7 @@ export class BalanceScanner implements IBalanceScanner {
   async #processAddressBatch(addressBatch: CurvyAddress[]): Promise<BalanceEntry[]> {
     const resultsForBatch = await Promise.all([
       this.#processSaBalances(addressBatch),
-      this.#processCsucBalances(addressBatch.filter((address) => address.networkFlavour === "evm")),
+      this.#processERC1155Balances(addressBatch.filter((address) => address.networkFlavour === "evm")),
     ]);
 
     return resultsForBatch.flat();
@@ -239,11 +239,15 @@ export class BalanceScanner implements IBalanceScanner {
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
       scanAll?: boolean;
+      signal?: AbortSignal;
     },
   ) {
     // TODO This process happens in memory, may be a problem with thousands of notes on mobile phones
 
     const onProgress = options?.onProgress;
+    const signal = options?.signal;
+
+    signal?.throwIfAborted();
 
     const networks = (await this.apiClient.network.GetNetworks()).filter(
       (network) => network.testnet === (environment === "testnet") && !!network.erc1155ContractAddress,
@@ -295,23 +299,34 @@ export class BalanceScanner implements IBalanceScanner {
             unpackedNotes.map((n) => n.serializeFullNote()),
             networks[0], // TODO Support multiple networks
           );
+
+          // Check and throw immediately after getting entries
+          // This effectively cancels processing of the current batch and skips corrupted updates
+          signal?.throwIfAborted();
+
           if (noteEntries.length > 0) {
             if (onProgress) onProgress(noteEntries);
             await this.#storage.updateBalancesAndTotals(walletId, noteEntries);
           }
         } catch (error) {
           console.error(`[BalanceScanner] Error while processing note batch ${batchNumber}:`, error);
+
+          // Rethrow abort error to outer catch
+          if (typeof error === "string") throw new Error(error, { cause: "abort" });
         } finally {
           this.#scanProgress.notes = (batchNumber + 1) / noteBatchCount;
           this.#emitter.emitBalanceRefreshProgress({
+            environment,
             walletId,
             progress: Math.round(this.totalScanProgress),
           });
         }
       }
     } catch (error) {
-      this.#scanProgress.notes = 1;
       console.error("[BalanceScanner] Error while fetching notes:", error);
+      // If abort error rethrow to outer catch to emit cancel event
+      if (error instanceof Error && error.cause === "abort") throw error;
+      else this.#scanProgress.notes = 1;
     }
   }
 
@@ -321,10 +336,14 @@ export class BalanceScanner implements IBalanceScanner {
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
       scanAll?: boolean;
+      signal?: AbortSignal;
     },
   ) {
     const onProgress = options?.onProgress;
     const scanAll = options?.scanAll ?? false;
+    const signal = options?.signal;
+
+    signal?.throwIfAborted();
 
     try {
       const addresses = await this.#storage.getScannableAddresses(walletId, environment, scanAll ? 0 : undefined);
@@ -341,6 +360,10 @@ export class BalanceScanner implements IBalanceScanner {
 
         try {
           const combinedEntries = await this.#processAddressBatch(addressBatch); // Assumes a helper for clarity
+          // Check and throw immediately after getting entries,
+          // because during switch some addresses will be checked on wrong environment
+          // This effectively cancels processing of the current batch and skips corrupted updates
+          signal?.throwIfAborted();
 
           if (combinedEntries.length > 0) {
             if (onProgress) onProgress(combinedEntries);
@@ -356,17 +379,24 @@ export class BalanceScanner implements IBalanceScanner {
           );
         } catch (error) {
           console.error(`[BalanceScanner] Error while processing address batch ${batchNumber}:`, error);
+
+          // Rethrow abort error to outer catch
+          if (typeof error === "string") throw new Error(error, { cause: "abort" });
         } finally {
           this.#scanProgress.addresses = (batchNumber + 1) / addressBatchCount;
           this.#emitter.emitBalanceRefreshProgress({
+            environment,
             walletId,
             progress: Math.round(this.totalScanProgress),
           });
         }
       }
     } catch (error) {
-      this.#scanProgress.addresses = 1;
       console.error("[BalanceScanner] Error while fetching addresses:", error);
+
+      // If abort error rethrow to outer catch to emit cancel event
+      if (error instanceof Error && error.cause === "abort") throw error;
+      else this.#scanProgress.addresses = 1;
     }
   }
 
@@ -382,16 +412,18 @@ export class BalanceScanner implements IBalanceScanner {
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
       scanAll?: boolean;
+      signal?: AbortSignal;
     },
   ): Promise<void> {
-    if (this.#semaphore[`refresh-balances-${walletId}`]) return;
+    if (this.#semaphore[`refresh-notes-${walletId}`]) return;
 
-    this.#semaphore[`refresh-balances-${walletId}`] = true;
+    this.#semaphore[`refresh-notes-${walletId}`] = true;
 
     this.#resetScanProgress();
 
     this.#emitter.emitBalanceRefreshStarted({
       walletId,
+      environment,
     });
 
     try {
@@ -399,14 +431,17 @@ export class BalanceScanner implements IBalanceScanner {
         this.#addressScan(walletId, environment, options),
         this.#noteScan(walletId, environment, options),
       ]);
-    } finally {
-      this.#semaphore[`refresh-balances-${walletId}`] = undefined;
-
-      // TODO add event emitter for error states
 
       this.#emitter.emitBalanceRefreshComplete({
         walletId,
+        environment,
       });
+    } catch (e) {
+      if (e instanceof Error && e.cause === "abort")
+        this.#emitter.emitBalanceRefreshCancelled({ reason: e.message, environment });
+      else console.error(e);
+    } finally {
+      this.#semaphore[`refresh-notes-${walletId}`] = false;
     }
   }
 
@@ -429,23 +464,23 @@ export class BalanceScanner implements IBalanceScanner {
 
         await this.#storage.updateBalancesAndTotals(address.walletId, combinedEntries);
       }
+
+      this.#emitter.emitBalanceRefreshComplete({
+        walletId: address.walletId,
+      });
     } catch (error) {
       console.error(`[BalanceScanner] Error while scanning address balances for address ${address.address}:`, error);
     } finally {
       this.#semaphore[`refresh-balance-${address.id}`] = undefined;
 
       // TODO add event emitter for error states
-
-      this.#emitter.emitBalanceRefreshComplete({
-        walletId: address.walletId,
-      });
     }
   }
 
   async scanNoteBalances(
     walletId: string,
     environment: NETWORK_ENVIRONMENT_VALUES,
-    options?: { onProgress?: (entries: BalanceEntry[]) => void; scanAll?: boolean },
+    options?: { onProgress?: (entries: BalanceEntry[]) => void; scanAll?: boolean; signal?: AbortSignal },
   ) {
     if (this.#semaphore[`refresh-notes-${walletId}`]) return;
 
@@ -453,20 +488,22 @@ export class BalanceScanner implements IBalanceScanner {
 
     this.#emitter.emitBalanceRefreshStarted({
       walletId,
+      environment,
     });
 
     try {
       await this.#noteScan(walletId, environment, options);
-    } catch (error) {
-      console.error(`[BalanceScanner] Error while scanning note balances:`, error);
+      this.#emitter.emitBalanceRefreshComplete({
+        walletId,
+        environment,
+      });
+    } catch (e) {
+      if (e instanceof Error && e.cause === "abort") this.#emitter.emitBalanceRefreshCancelled({ reason: e.message });
+      else console.error(e);
     } finally {
       this.#semaphore[`refresh-notes-${walletId}`] = undefined;
 
       // TODO add event emitter for error states
-
-      this.#emitter.emitBalanceRefreshComplete({
-        walletId,
-      });
     }
   }
 }
