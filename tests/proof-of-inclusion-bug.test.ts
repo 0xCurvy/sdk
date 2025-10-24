@@ -49,7 +49,7 @@ async function setup() {
   activeWalletId = curvySDK.walletManager.activeWallet.id;
 
   let syncComplete = false;
-  curvySDK.subscribeToEventType(CURVY_EVENT_TYPES.SYNC_COMPLETE, async (event) => {
+  curvySDK.on(CURVY_EVENT_TYPES.SYNC_COMPLETE, async (event) => {
     console.log(event);
     syncComplete = true;
   });
@@ -63,7 +63,7 @@ async function setup() {
   }
 
   let balanceRefreshComplete = false;
-  curvySDK.subscribeToEventType(CURVY_EVENT_TYPES.BALANCE_REFRESH_COMPLETE, async (event) => {
+  curvySDK.on(CURVY_EVENT_TYPES.BALANCE_REFRESH_COMPLETE, async (event) => {
     console.log(event);
     balanceRefreshComplete = true;
   });
