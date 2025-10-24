@@ -227,6 +227,8 @@ class WalletManager implements IWalletManager {
     keyPairs: CurvyKeyPairs,
     additionalData?: AdditionalWalletData,
   ) {
+    await this.#updateBearerToken(keyPairs.s);
+
     const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
     const wallet = new CurvyWallet(
       walletId,
