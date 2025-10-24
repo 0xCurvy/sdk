@@ -29,6 +29,7 @@ import type { CurvyHandle } from "@/types/curvy";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
+  get bearerToken(): string | undefined;
 
   announcement: {
     CreateAnnouncement(body: CreateAnnouncementRequestBody): Promise<CreateAnnouncementReturnType>;
