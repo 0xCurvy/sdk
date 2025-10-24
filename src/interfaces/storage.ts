@@ -6,15 +6,15 @@ import type {
   CurvyWalletData,
   PriceData,
   ScanInfo,
-  SerializedCurvyWallet,
 } from "@/types";
-import type { BalanceEntry, CurrencyMetadata, TotalBalance, NoteBalanceEntry } from "@/types/storage";
+import type { BalanceEntry, CurrencyMetadata, NoteBalanceEntry, TotalBalance } from "@/types/storage";
+import type { CurvyWallet } from "@/wallet";
 
 export interface StorageInterface {
   clearStorage(): Promise<void>;
 
-  storeCurvyWallet(wallet: SerializedCurvyWallet): Promise<void>;
-  getNoteBalances(walletId: string, networkSlug?: string): Promise<NoteBalanceEntry[]>
+  getNoteBalances(walletId: string, networkSlug?: string): Promise<NoteBalanceEntry[]>;
+  storeCurvyWallet(wallet: CurvyWallet): Promise<void>;
   updateCurvyWalletData(walletId: string, changes: Partial<CurvyWalletData>): Promise<void>;
   getCurvyWalletDataById(id: string): Promise<CurvyWalletData>;
   /**
@@ -79,8 +79,9 @@ export interface StorageInterface {
    * Updates the balances and total balances for a given wallet based on the provided balance entries.
    * @param walletId The ID of the wallet to update balances for.
    * @param entries The balance entries to update.
+   * @param clearNotes Whether to clear existing note balances before updating (default: true).
    */
-  updateBalancesAndTotals(walletId: string, entries: BalanceEntry[]): Promise<void>;
+  updateBalancesAndTotals(walletId: string, entries: BalanceEntry[], clearNotes?: boolean): Promise<void>;
 
   /**
    * Removes balance entries that have been spent from the storage.

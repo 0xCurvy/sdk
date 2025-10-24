@@ -27,8 +27,14 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   readonly #intent: CurvyIntent | undefined;
   protected declare estimateData: AggregatorAggregateCommandEstimate | undefined;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent?: CurvyIntent, estimate?: CurvyCommandEstimate) {
-    super(sdk, input, estimate);
+  constructor(
+    id: string,
+    sdk: ICurvySDK,
+    input: CurvyCommandData,
+    intent?: CurvyIntent,
+    estimate?: CurvyCommandEstimate,
+  ) {
+    super(id, sdk, input, estimate);
     this.#intent = intent;
   }
 
@@ -173,7 +179,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       throw new Error(`Network aggregation circuit config is not defined for network ${this.network.name}!`);
     }
 
-    const curvyFee = this.inputNotesSum / BigInt(this.network.aggregationCircuitConfig.groupFee) / 1000n; // 0.1% = 1/1000
+    const curvyFee = (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig.groupFee)) / 1000n;
 
     const effectiveAmount = this.inputNotesSum - changeOrDummyOutputNote.balance!.amount - curvyFee;
     const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, effectiveAmount);

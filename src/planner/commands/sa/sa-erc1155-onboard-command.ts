@@ -18,8 +18,8 @@ export class SaErc1155OnboardCommand extends SACommand {
   #provider: PublicClient;
   protected declare estimateData: SaErc1155OnboardCommandEstimate | undefined;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(sdk, input, estimate);
+  constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+    super(id, sdk, input, estimate);
     this.#rpc = this.sdk.rpcClient.Network(this.input.networkSlug);
     this.#provider = this.#rpc.provider;
   }

@@ -10,8 +10,8 @@ export abstract class AbstractErc1155Command extends CurvyCommand {
 
   protected network: Network;
 
-  protected constructor(sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(sdk, input, estimate);
+  protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+    super(id, sdk, input, estimate);
 
     if (Array.isArray(input)) {
       throw new Error("Invalid input for command, CSUC commands only accept one data as input.");
@@ -22,6 +22,10 @@ export abstract class AbstractErc1155Command extends CurvyCommand {
     }
 
     this.network = sdk.getNetwork(input.networkSlug);
+
+    if (!this.network.aggregatorContractAddress) {
+      throw new Error("Aggregator contract address not found for network.");
+    }
   }
 
   abstract execute(): Promise<CurvyCommandData | undefined>;

@@ -4,10 +4,10 @@ import { parseSignature, verifyTypedData } from "viem";
 import { AddressScanner } from "@/address-scanner";
 import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import { CURVY_HANDLE_REGEX } from "@/constants/regex";
-import type { CurvyEventEmitter } from "@/events";
 import type { IAddressScanner } from "@/interfaces/address-scanner";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
+import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { StarknetRpc } from "@/rpc";
@@ -53,7 +53,7 @@ class WalletManager implements IWalletManager {
   constructor(
     client: IApiClient,
     rpcClient: MultiRpc,
-    emitter: CurvyEventEmitter,
+    emitter: ICurvyEventEmitter,
     storage: StorageInterface,
     core: ICore,
   ) {

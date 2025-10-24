@@ -265,17 +265,14 @@ class EvmRpc extends Rpc {
       throw new Error("Erc1155 actions not supported on this network");
     }
 
-    const erc1155EnabledCurrencies = this.network.currencies.filter(({ erc1155Enabled }) => erc1155Enabled);
-
-    // MUST REPEAT OWNER ADDRESS FOR EACH TOKEN ID
-    const currencyIds = erc1155EnabledCurrencies.flatMap((c) => (c.erc1155Enabled ? c.erc1155TokenId : []));
-    const ownerArray = new Array(currencyIds.length).fill(address as Address);
+    const erc1155EnabledCurrencies = this.network.currencies.filter(({ erc1155TokenId }) => erc1155TokenId);
+    const currencyIds = erc1155EnabledCurrencies.map(({ erc1155TokenId }) => BigInt(erc1155TokenId!));
 
     const balances = await this.provider.readContract({
       abi: erc1155ABI,
       address: this.network.erc1155ContractAddress as Address,
       functionName: "balanceOfBatch",
-      args: [ownerArray, currencyIds],
+      args: [new Array(currencyIds.length).fill(address as Address), currencyIds],
     });
 
     return {

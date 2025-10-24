@@ -83,7 +83,7 @@ const networksToCurrencyMetadata = (networks: Network[]) => {
       nativeCurrency,
       symbol,
       contractAddress: address,
-      ...rest
+      erc1155TokenId,
     } of network.currencies) {
       const currencyMetadataKey = `${address}-${toSlug(network.name)}`;
       if (res.has(currencyMetadataKey)) continue;
@@ -94,9 +94,9 @@ const networksToCurrencyMetadata = (networks: Network[]) => {
         name,
         symbol,
         address,
+        erc1155TokenId: erc1155TokenId?.toString(),
         native: nativeCurrency,
         networkSlug: toSlug(network.name),
-        erc1155TokenId: rest.erc1155Enabled && rest.erc1155TokenId ? rest.erc1155TokenId.toString() : undefined,
         environment: network.testnet ? "testnet" : "mainnet",
       });
     }

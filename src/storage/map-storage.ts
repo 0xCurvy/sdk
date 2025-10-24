@@ -18,7 +18,7 @@ import type { CurvyWallet } from "@/wallet";
 
 dayjs.extend(duration);
 
-const ADDRESS_STALENESS_THRESHOLD_MS = dayjs.duration(3, "days").asMilliseconds();
+const ADDRESS_STALENESS_THRESHOLD_MS = dayjs.duration(5, "minutes").asMilliseconds();
 
 export class MapStorage implements StorageInterface {
   readonly #walletStorage = new Map<string, CurvyWalletData>();
@@ -133,7 +133,7 @@ export class MapStorage implements StorageInterface {
 
   async getCurrencyMetadata(addressOrId: string | bigint, networkSlug: string) {
     let currencyMetadata: CurrencyMetadata | undefined;
-  
+
     if (typeof addressOrId === "bigint") {
       currencyMetadata = Array.from(this.#currencyMetadata.values()).find(
         (c) => c.erc1155TokenId === addressOrId.toString() && c.networkSlug === networkSlug,
@@ -143,13 +143,13 @@ export class MapStorage implements StorageInterface {
         this.#getCurrencyMetadataKey({ address: addressOrId, networkSlug }),
       );
     }
-  
+
     if (!currencyMetadata) {
       throw new StorageError(
         `Currency metadata for address / erc1155TokenId ${addressOrId} on network ${networkSlug} not found`,
       );
     }
-  
+
     return currencyMetadata;
   }
 
@@ -268,15 +268,26 @@ export class MapStorage implements StorageInterface {
     this.#totalBalances.clear();
   }
 
-  async removeSpentBalanceEntries(balanceEntries: BalanceEntry[]) {
-    const entriesToDelete = balanceEntries.filter((e) => e.balance === 0n);
-
-    for (const entry of entriesToDelete) {
+  async deleteBalanceEntries(balanceEntries: Array<BalanceEntry>) {
+    for (const entry of balanceEntries) {
       this.#balances.delete(this.#getBalanceKey(entry));
     }
   }
 
-  async updateBalancesAndTotals(walletId: string, entries: BalanceEntry[]): Promise<void> {
+  async removeSpentBalanceEntries(balanceEntries: BalanceEntry[]): Promise<void> {
+    const uniqueWalletId = new Set(balanceEntries.map((b) => b.walletId));
+    if (uniqueWalletId.size > 1) {
+      throw new Error("Tried to remove spent balance entries for multiple wallets at once");
+    }
+
+    await this.updateBalancesAndTotals(
+      balanceEntries[0].walletId,
+      balanceEntries.map((b) => ({ ...b, balance: 0n })),
+      false,
+    );
+  }
+
+  async updateBalancesAndTotals(walletId: string, entries: BalanceEntry[], clearNotes = true): Promise<void> {
     const totalBalanceUpdates = entries.reduce(
       (acc, entry) => {
         const key = this.#getTotalBalanceKey(entry);
@@ -287,21 +298,42 @@ export class MapStorage implements StorageInterface {
       {} as Record<string, BalanceEntry[]>,
     );
 
+    // If there are no entries to add, and clearNotes is true, remove all existing note balances for the wallet
+    if (entries.length === 0 && clearNotes) {
+      const oldNotes = Array.from(this.#balances.values()).filter((entry) => entry.type === BALANCE_TYPE.NOTE);
+      await this.deleteBalanceEntries(oldNotes);
+    }
+
     for (const key in totalBalanceUpdates) {
       // Extract necessary details from one of the entries
-      const { currencyAddress, networkSlug, environment, symbol } = totalBalanceUpdates[key][0];
-      let newTotal = 0n;
+      const group = totalBalanceUpdates[key];
 
-      // Calculate new total balance
-      for (const balance of this.#balances.values()) {
-        if (
-          balance.walletId === walletId &&
-          balance.currencyAddress === currencyAddress &&
-          balance.networkSlug === networkSlug
-        ) {
-          newTotal += BigInt(balance.balance);
-        }
-      }
+      const areNotesInGroup = group.some((e) => e.type === BALANCE_TYPE.NOTE);
+
+      const { currencyAddress, networkSlug, environment, symbol } = group[0];
+
+      const oldEntries = Array.from(this.#balances.values()).filter(
+        (entry) =>
+          entry.walletId === walletId && entry.currencyAddress === currencyAddress && entry.networkSlug === networkSlug,
+      );
+
+      const oldNonNoteEntries: BalanceEntry[] = oldEntries.filter((entry) => entry.type !== BALANCE_TYPE.NOTE);
+
+      const oldNoteEntries: BalanceEntry[] = areNotesInGroup
+        ? oldEntries.filter((entry) => entry.type === BALANCE_TYPE.NOTE)
+        : [];
+
+      const oldSum = oldNonNoteEntries.concat(oldNoteEntries).reduce((sum, b) => sum + BigInt(b.balance), 0n);
+      const newSum = group.reduce((sum, e) => sum + BigInt(e.balance), 0n);
+      const delta = newSum - oldSum;
+
+      if (delta === 0n) continue;
+
+      const currentTotal = Array.from(this.#totalBalances.values()).find(
+        (tb) => tb.walletId === walletId && tb.currencyAddress === currencyAddress && tb.networkSlug === networkSlug,
+      );
+      const oldTotalValue = BigInt(currentTotal?.totalBalance || "0");
+      const newTotalValue = oldTotalValue + delta;
 
       this.#totalBalances.set(key, {
         walletId,
@@ -309,9 +341,13 @@ export class MapStorage implements StorageInterface {
         networkSlug,
         environment,
         symbol,
-        totalBalance: newTotal.toString(),
+        totalBalance: newTotalValue.toString(),
         lastUpdated: Date.now(),
       });
+
+      if (clearNotes && areNotesInGroup) {
+        await this.deleteBalanceEntries(oldNoteEntries);
+      }
     }
 
     const nonZeroEntries = entries.filter((e) => e.balance !== 0n);
@@ -324,7 +360,8 @@ export class MapStorage implements StorageInterface {
       this.#balances.set(this.#getBalanceKey(entry), entry);
     }
 
-    await this.removeSpentBalanceEntries(entries);
+    const zeroBalanceEntries = entries.filter((e) => e.balance === 0n);
+    await this.deleteBalanceEntries(zeroBalanceEntries);
   }
 
   async getTotalsByCurrencyAndNetwork(walletId: string): Promise<TotalBalance[]> {
@@ -347,7 +384,7 @@ export class MapStorage implements StorageInterface {
         [BALANCE_TYPE.ERC1155]: 2,
         [BALANCE_TYPE.SA]: 3,
       },
-      sortByBalance: "asc",
+      sortByBalance: "desc",
     },
   ): Promise<BalanceEntry[]> {
     const balances = Array.from(this.#balances.values()).filter(

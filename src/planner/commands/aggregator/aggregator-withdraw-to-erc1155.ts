@@ -70,7 +70,7 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
     const { stealthAddressData } = this.estimateData;
 
     const { address: erc1155Address, announcementData } =
-      await this.sdk.generateAndCreateNewStealthAddressForUser(stealthAddressData);
+      await this.sdk.registerStealthAddressForUser(stealthAddressData);
 
     await this.sdk.storage.storeCurvyAddress({
       ...announcementData,
@@ -93,6 +93,8 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
         return res.status === "success";
       },
     );
+
+    await this.sdk.storage.removeSpentBalanceEntries(this.input);
 
     const { balances } = await this.sdk.rpcClient.Network(this.input[0].networkSlug).getErc1155Balances(erc1155Address);
     const erc1155Balance = balances.find((b) => b.currencyAddress === this.input[0].currencyAddress);

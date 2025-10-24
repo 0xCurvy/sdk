@@ -70,6 +70,10 @@ class HttpClient {
 
       clearTimeout(timeoutId);
 
+      if (response.status < 200 || response.status >= 300) {
+        throw new APIError(response.statusText, response.status, await response.text());
+      }
+
       let responseBody: T;
       try {
         responseBody = (await response.json()) as T;

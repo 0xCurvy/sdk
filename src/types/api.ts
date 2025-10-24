@@ -29,7 +29,7 @@ type ExtendedAnnouncement = RawAnnouncement & {
   publicKey: string;
 };
 
-type _Currency = {
+type Currency = {
   id: number;
   name: string;
   symbol: string;
@@ -40,18 +40,8 @@ type _Currency = {
   decimals: number;
   contractAddress: string;
   nativeCurrency: boolean;
+  erc1155TokenId: number | null;
 };
-
-type Currency = _Currency &
-  (
-    | {
-        erc1155Enabled: false;
-      }
-    | {
-        erc1155Enabled: true;
-        erc1155TokenId: bigint;
-      }
-  );
 
 type Network = {
   id: number;
@@ -233,7 +223,7 @@ export type {
 type MetaTransactionEstimationRequestBody = {
   type: MetaTransactionType;
   fromAddress: string;
-  toAddress?: string;
+  toAddress: string;
   amount: string;
   network: string;
   currencyAddress: string;

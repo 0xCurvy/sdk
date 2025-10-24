@@ -29,5 +29,9 @@ type StringifyBigInts<T> = Prettify<
 
 type NotNullable<T> = { [K in keyof T]-?: NonNullable<T[K]> };
 
-export type { ExtractKeys, ExtractValues, HexString, Prettify, StringifyBigInts, NotNullable };
+type AbortOptions = {
+  signal?: AbortSignal;
+};
+
+export type { ExtractKeys, ExtractValues, HexString, Prettify, StringifyBigInts, NotNullable, AbortOptions };
 export { isHexString, isStringArray, isStarkentSignature };

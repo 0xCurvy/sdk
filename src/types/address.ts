@@ -1,4 +1,4 @@
-import { NETWORK_ENVIRONMENT } from "@/constants/networks";
+import { NETWORK_ENVIRONMENT, NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import type { Network, RawAnnouncement } from "@/types/api";
 import type { HexString } from "@/types/helper";
 
@@ -34,8 +34,23 @@ interface MinifiedCurvyAddress extends Omit<CurvyAddress, "ephemeralPublicKey" |
   publicKey: Uint8Array;
 }
 
-const isValidAddressFormat = (recipient: string): recipient is HexString => {
-  return /^0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/.test(recipient);
+/**
+ * Checks if a given recipient string is a valid address format based on the specified network flavour.
+ *  * Supports EVM (40 hex characters) and StarkNet (64 hex characters) address formats.
+ *  * If no flavour is specified, it does a OR check against both formats.
+ */
+const isValidAddressFormat = (recipient: string, flavour?: NETWORK_FLAVOUR_VALUES): recipient is HexString => {
+  switch (flavour) {
+    case NETWORK_FLAVOUR.EVM: {
+      return /^0x[a-fA-F0-9]{40}$/.test(recipient);
+    }
+    case NETWORK_FLAVOUR.STARKNET: {
+      return /^0x[a-fA-F0-9]{64}$/.test(recipient);
+    }
+    default: {
+      return /^0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/.test(recipient);
+    }
+  }
 };
 
 export { isValidAddressFormat };

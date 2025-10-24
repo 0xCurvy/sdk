@@ -1,10 +1,13 @@
-import EventEmitter from "eventemitter3";
+import Emittery from "emittery";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import {
+  type BalanceRefreshCancelledEvent,
   type BalanceRefreshCompleteEvent,
   type BalanceRefreshProgressEvent,
   type BalanceRefreshStartedEvent,
   CURVY_EVENT_TYPES,
+  type CURVY_EVENTS,
+  type PlanCommandExecutionProgressEvent,
   type PlanExecutionCompleteEvent,
   type PlanExecutionErrorEvent,
   type PlanExecutionProgressEvent,
@@ -19,7 +22,7 @@ import {
   type SyncStartedEvent,
 } from "@/types/events";
 
-export class CurvyEventEmitter extends EventEmitter implements ICurvyEventEmitter {
+export class CurvyEventEmitter extends Emittery<CURVY_EVENTS> implements ICurvyEventEmitter {
   emitSyncStarted(event: SyncStartedEvent) {
     this.emit(CURVY_EVENT_TYPES.SYNC_STARTED, event);
   }
@@ -64,8 +67,16 @@ export class CurvyEventEmitter extends EventEmitter implements ICurvyEventEmitte
     this.emit(CURVY_EVENT_TYPES.BALANCE_REFRESH_COMPLETE, event);
   }
 
+  emitBalanceRefreshCancelled(event: BalanceRefreshCancelledEvent) {
+    this.emit(CURVY_EVENT_TYPES.BALANCE_REFRESH_CANCELLED, event);
+  }
+
   emitPlanExecutionStarted(event: PlanExecutionStartedEvent) {
     this.emit(CURVY_EVENT_TYPES.PLAN_EXECUTION_STARTED, event);
+  }
+
+  emitPlanCommandExecutionProgress(event: PlanCommandExecutionProgressEvent) {
+    this.emit(CURVY_EVENT_TYPES.PLAN_COMMAND_EXECUTION_PROGRESS, event);
   }
 
   emitPlanExecutionProgress(event: PlanExecutionProgressEvent) {

@@ -18,8 +18,14 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
   #intent: CurvyIntent;
   protected declare estimateData: ERC1155WithdrawToEOACommandEstimate | undefined;
 
-  constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent, estimate?: CurvyCommandEstimate) {
-    super(sdk, input, estimate);
+  constructor(
+    id: string,
+    sdk: ICurvySDK,
+    input: CurvyCommandData,
+    intent: CurvyIntent,
+    estimate?: CurvyCommandEstimate,
+  ) {
+    super(id, sdk, input, estimate);
 
     if (!isHexString(intent.toAddress)) {
       throw new Error("CSUCWithdrawFromCommand: toAddress MUST be a hex string address");
@@ -85,6 +91,12 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
         return res === "completed";
       },
     );
+
+    await this.sdk.storage.removeSpentBalanceEntries([this.input]);
+
+    await new Promise((res) => setTimeout(res, 3000)); // Wait for balances to be updated properly
+
+    await this.sdk.refreshAddressBalances(curvyAddress);
 
     return {
       type: BALANCE_TYPE.SA,

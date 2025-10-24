@@ -5,7 +5,7 @@ import type { HexString } from "@/types";
 export function getMetaTransactionEip712HashAndSignedData(
   fromAddress: HexString,
   toAddress: HexString,
-  tokenId: bigint,
+  tokenId: number,
   effectiveAmount: bigint,
   totalFees: bigint,
   nonce: bigint,
@@ -17,7 +17,7 @@ export function getMetaTransactionEip712HashAndSignedData(
     META_TX_TYPEHASH,
     fromAddress,
     toAddress,
-    tokenId,
+    BigInt(tokenId),
     effectiveAmount,
     1n,
   ]);
@@ -25,7 +25,7 @@ export function getMetaTransactionEip712HashAndSignedData(
   // Now we do the gas receipt
   const encodedAddressAndId = encodeAbiParameters(
     [{ type: "address" }, { type: "uint256" }],
-    [erc1155ContractAddress, tokenId],
+    [erc1155ContractAddress, BigInt(tokenId)],
   );
 
   const feeTokenData = encodePacked(["bytes", "uint8"], [encodedAddressAndId, 0]); // 0 for ERC1155
