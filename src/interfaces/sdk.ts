@@ -54,10 +54,10 @@ interface ICurvySDK {
 
   // Actions
 
-  refreshNoteBalances(walletId: string): Promise<void>;
+  refreshNoteBalances(walletId?: string): Promise<void>;
   refreshAddressBalances(address: CurvyAddress): Promise<void>;
-  refreshWalletBalances(walletId: string): Promise<void>;
-  refreshBalances(): Promise<void>;
+  refreshWalletBalances(walletId?: string, scanAll?: boolean): Promise<void>;
+  refreshBalances(scanAll?: boolean): Promise<void>;
 
   resetStorage(): Promise<void>;
 

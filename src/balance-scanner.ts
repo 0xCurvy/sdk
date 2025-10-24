@@ -1,23 +1,23 @@
 import dayjs from "dayjs";
-import type {IApiClient} from "@/interfaces/api";
-import type {IBalanceScanner} from "@/interfaces/balance-scanner";
-import type {ICore} from "@/interfaces/core";
-import type {ICurvyEventEmitter} from "@/interfaces/events";
-import type {StorageInterface} from "@/interfaces/storage";
-import type {IWalletManager} from "@/interfaces/wallet-manager";
-import type {MultiRpc} from "@/rpc/multi";
+import type { IApiClient } from "@/interfaces/api";
+import type { IBalanceScanner } from "@/interfaces/balance-scanner";
+import type { ICore } from "@/interfaces/core";
+import type { ICurvyEventEmitter } from "@/interfaces/events";
+import type { StorageInterface } from "@/interfaces/storage";
+import type { IWalletManager } from "@/interfaces/wallet-manager";
+import type { MultiRpc } from "@/rpc/multi";
 import {
-    BALANCE_TYPE,
-    type CurvyAddress,
-    type Erc1155BalanceEntry,
-    type Network,
-    type NoteBalanceEntry,
-    type SaBalanceEntry,
+  BALANCE_TYPE,
+  type CurvyAddress,
+  type Erc1155BalanceEntry,
+  type Network,
+  type NoteBalanceEntry,
+  type SaBalanceEntry,
 } from "@/types";
-import type {FullNoteData} from "@/types/note";
-import type {BalanceEntry} from "@/types/storage";
-import {toSlug} from "@/utils/helpers";
-import type {NETWORK_ENVIRONMENT_VALUES} from "./constants/networks";
+import type { FullNoteData } from "@/types/note";
+import type { BalanceEntry } from "@/types/storage";
+import { toSlug } from "@/utils/helpers";
+import type { NETWORK_ENVIRONMENT_VALUES } from "./constants/networks";
 
 export class BalanceScanner implements IBalanceScanner {
   readonly #NOTE_BATCH_SIZE = 10;
@@ -169,6 +169,7 @@ export class BalanceScanner implements IBalanceScanner {
         ownerHash,
         owner,
         deliveryTag,
+        id,
       } = notes[i];
 
       if (amount === "0") continue; // Skip zero balance notes
@@ -186,6 +187,7 @@ export class BalanceScanner implements IBalanceScanner {
         walletId: this.#walletManager.activeWallet.id,
         source: ownerHash,
         type: BALANCE_TYPE.NOTE,
+        id,
 
         networkSlug,
         environment,
@@ -269,6 +271,11 @@ export class BalanceScanner implements IBalanceScanner {
       const noteOwnershipData = this.#core.getNoteOwnershipData(publicNotes, s, v);
 
       const noteBatchCount = Math.ceil(noteOwnershipData.length / this.#NOTE_BATCH_SIZE);
+
+      if (noteBatchCount === 0) {
+        await this.#storage.updateBalancesAndTotals(walletId, []);
+      }
+
       for (let batchNumber = 0; batchNumber < noteBatchCount; batchNumber += 1) {
         const { proof, publicSignals: ownerHashes } = await this.#core.generateNoteOwnershipProof(
           noteOwnershipData.slice(batchNumber * this.#NOTE_BATCH_SIZE, (batchNumber + 1) * this.#NOTE_BATCH_SIZE),
@@ -338,7 +345,7 @@ export class BalanceScanner implements IBalanceScanner {
           if (combinedEntries.length > 0) {
             if (onProgress) onProgress(combinedEntries);
 
-            await this.#storage.updateBalancesAndTotals(walletId, combinedEntries);
+            await this.#storage.updateBalancesAndTotals(walletId, combinedEntries, false);
           }
 
           await this.#storage.storeManyCurvyAddresses(
