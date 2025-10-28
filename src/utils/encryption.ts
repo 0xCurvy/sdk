@@ -28,6 +28,27 @@ const derivePasswordBits = async (password: string, salt: Buffer<ArrayBuffer>) =
   );
 };
 
+const computePasswordHash = async (password: string, salt: string) => {
+  const key = await crypto.subtle.importKey("raw", encode(password), { name: "PBKDF2", hash: "SHA-256" }, false, [
+    "deriveBits",
+  ]);
+
+  const saltBuffer = Buffer.from(salt, "hex");
+
+  return Buffer.from(
+    await crypto.subtle.deriveBits(
+      {
+        name: "PBKDF2",
+        salt: saltBuffer,
+        iterations: 600_000,
+        hash: "SHA-256",
+      },
+      key,
+      256,
+    ),
+  ).toString("hex");
+};
+
 const convertBitsToCryptoKey = async (derivedBits: ArrayBuffer) => {
   return await crypto.subtle.importKey("raw", derivedBits, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 };
@@ -144,4 +165,22 @@ const signMessage = (message: string, spendingPrivateKey: string): string => {
   return signature.serialized;
 };
 
-export { encryptData, decryptData, signMessage, encryptCurvyMessage, decryptCurvyMessage };
+const bufferSourceToBuffer = (input: BufferSource) => {
+  if (input instanceof ArrayBuffer) {
+    return Buffer.from(input);
+  } else if (ArrayBuffer.isView(input)) {
+    return Buffer.from(input.buffer, input.byteOffset, input.byteLength);
+  } else {
+    throw new Error("Argument is not a valid BufferSource");
+  }
+};
+
+export {
+  encryptData,
+  decryptData,
+  signMessage,
+  encryptCurvyMessage,
+  decryptCurvyMessage,
+  bufferSourceToBuffer,
+  computePasswordHash,
+};

@@ -9,6 +9,9 @@ interface ICurvyWallet {
 
   get keyPairs(): Readonly<CurvyKeyPairs>;
 
+  authWithPassword(getPasswordHash: () => Promise<string>): Promise<boolean>;
+  authWithCredId(getCredential: (id: ArrayBuffer) => Promise<Credential | null>): Promise<boolean>;
+
   serialize(): SerializedCurvyWallet;
 }
 
