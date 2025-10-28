@@ -26,6 +26,10 @@ class HttpClient {
     this.#bearerToken = bearer;
   }
 
+  get bearerToken(): string | undefined {
+    return this.#bearerToken;
+  }
+
   private getHeaders(): Record<string, string> {
     const baseHeaders = {
       "Content-Type": "application/json",
