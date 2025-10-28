@@ -1,22 +1,22 @@
 import dayjs from "dayjs";
 import { toBytes } from "viem";
-import { erc1155ABI } from "@/contracts/evm/abi";
+import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
+import { AbstractVaultCommand } from "@/planner/commands/vault/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { BALANCE_TYPE, type HexString, isHexString, META_TRANSACTION_TYPES, type SaBalanceEntry } from "@/types";
 import { getMetaTransactionEip712HashAndSignedData } from "@/utils/meta-transaction";
 
-interface ERC1155WithdrawToEOACommandEstimate extends CurvyCommandEstimate {
+interface VaultWithdrawToEOACommandEstimate extends CurvyCommandEstimate {
   id: string;
   data: SaBalanceEntry;
 }
 
 // This command automatically sends all available balance from CSUC to external address
-export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
+export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
   #intent: CurvyIntent;
-  protected declare estimateData: ERC1155WithdrawToEOACommandEstimate | undefined;
+  protected declare estimateData: VaultWithdrawToEOACommandEstimate | undefined;
 
   constructor(
     id: string,
@@ -38,7 +38,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
     const currencyAddress = this.input.currencyAddress;
 
     if (!this.estimateData) {
-      throw new Error("[ERC1155WithdrawToEoaCommand] Command must be estimated before execution!");
+      throw new Error("[VaultWithdrawToEoaCommand] Command must be estimated before execution!");
     }
     const { id, gas, curvyFee } = this.estimateData;
 
@@ -48,15 +48,15 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
 
     const nonce = await rpc.provider.readContract({
-      abi: erc1155ABI,
-      address: this.network.erc1155ContractAddress as HexString,
+      abi: vaultV1Abi,
+      address: this.network.vaultContractAddress as HexString,
       functionName: "getNonce",
       args: [this.input.source as HexString],
     });
 
     const tokenId = await rpc.provider.readContract({
-      abi: erc1155ABI,
-      address: this.network.erc1155ContractAddress as HexString,
+      abi: vaultV1Abi,
+      address: this.network.vaultContractAddress as HexString,
       functionName: "getTokenID",
       args: [this.input.currencyAddress as HexString],
     });
@@ -74,7 +74,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
       effectiveAmount,
       totalFees,
       nonce,
-      this.network.erc1155ContractAddress as HexString,
+      this.network.vaultContractAddress as HexString,
       this.network.feeCollectorAddress as HexString,
     );
 
@@ -87,7 +87,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
-        if (res === "failed") throw new Error(`[ERC1155WithdrawToEoaCommand] Meta-transaction execution failed!`);
+        if (res === "failed") throw new Error(`[VaultWithdrawToEoaCommand] Meta-transaction execution failed!`);
         return res === "completed";
       },
     );
@@ -113,11 +113,11 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
     } satisfies SaBalanceEntry;
   }
 
-  async estimate(): Promise<ERC1155WithdrawToEOACommandEstimate> {
+  async estimate(): Promise<VaultWithdrawToEOACommandEstimate> {
     const currencyAddress = this.input.currencyAddress;
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
-      type: META_TRANSACTION_TYPES.ERC1155_WITHDRAW,
+      type: META_TRANSACTION_TYPES.vault_WITHDRAW,
       currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,

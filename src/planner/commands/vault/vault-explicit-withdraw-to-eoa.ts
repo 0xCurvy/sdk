@@ -1,25 +1,25 @@
 import { toBytes } from "viem";
-import { erc1155ABI } from "@/contracts/evm/abi";
+import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
+import { AbstractVaultCommand } from "@/planner/commands/vault/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { type HexString, isHexString, META_TRANSACTION_TYPES } from "@/types";
 import { getMetaTransactionEip712HashAndSignedData } from "@/utils/meta-transaction";
 
 // This command automatically sends all available balance from CSUC to external address
-export class Erc1155ExplicitWithdrawToEOACommand extends AbstractErc1155Command {
+export class VaultExplicitWithdrawToEOACommand extends AbstractVaultCommand {
   #intent: CurvyIntent;
 
   constructor(sdk: ICurvySDK, input: CurvyCommandData, intent: CurvyIntent) {
     super("explicit-withdraw", sdk, input);
 
     if (!isHexString(intent.toAddress)) {
-      throw new Error("Erc1155ExplicitWithdrawToEOACommand: toAddress MUST be a hex string address");
+      throw new Error("VaultExplicitWithdrawToEOACommand: toAddress MUST be a hex string address");
     }
 
     if (!isHexString(intent.privateKey)) {
-      throw new Error("Erc1155ExplicitWithdrawToEOACommand: toAddress MUST be a hex string address");
+      throw new Error("VaultExplicitWithdrawToEOACommand: toAddress MUST be a hex string address");
     }
 
     this.#intent = intent;
@@ -32,15 +32,15 @@ export class Erc1155ExplicitWithdrawToEOACommand extends AbstractErc1155Command 
     const privateKey = this.#intent.privateKey!;
 
     const nonce = await rpc.provider.readContract({
-      abi: erc1155ABI,
-      address: this.network.erc1155ContractAddress as HexString,
+      abi: vaultV1Abi,
+      address: this.network.vaultContractAddress as HexString,
       functionName: "getNonce",
       args: [this.input.source as HexString],
     });
 
     const tokenId = await rpc.provider.readContract({
-      abi: erc1155ABI,
-      address: this.network.erc1155ContractAddress as HexString,
+      abi: vaultV1Abi,
+      address: this.network.vaultContractAddress as HexString,
       functionName: "getTokenID",
       args: [this.input.currencyAddress as HexString],
     });
@@ -58,7 +58,7 @@ export class Erc1155ExplicitWithdrawToEOACommand extends AbstractErc1155Command 
       effectiveAmount,
       totalFees,
       nonce,
-      this.network.erc1155ContractAddress as HexString,
+      this.network.vaultContractAddress as HexString,
       this.network.feeCollectorAddress as HexString,
     );
 
@@ -72,7 +72,7 @@ export class Erc1155ExplicitWithdrawToEOACommand extends AbstractErc1155Command 
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
         if (res === "failed")
-          throw new Error(`[ERC1155ExplicitWithdrawToEoaCommand] Meta-transaction execution failed!`);
+          throw new Error(`[VaultExplicitWithdrawToEoaCommand] Meta-transaction execution failed!`);
         return res === "completed";
       },
     );
@@ -84,7 +84,7 @@ export class Erc1155ExplicitWithdrawToEOACommand extends AbstractErc1155Command 
     const currencyAddress = this.input.currencyAddress;
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
-      type: META_TRANSACTION_TYPES.ERC1155_WITHDRAW,
+      type: META_TRANSACTION_TYPES.vault_WITHDRAW,
       currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,

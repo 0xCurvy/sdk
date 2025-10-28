@@ -1,14 +1,88 @@
-export const aggregatorABI = [
+export const aggregatorAlphaV1Abi = [
+  {
+    inputs: [],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
   {
     inputs: [
       {
-        internalType: "address payable",
-        name: "tokenWrapperAddress",
+        internalType: "address",
+        name: "target",
         type: "address",
       },
     ],
-    stateMutability: "nonpayable",
-    type: "constructor",
+    name: "AddressEmptyCode",
+    type: "error",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "implementation",
+        type: "address",
+      },
+    ],
+    name: "ERC1967InvalidImplementation",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "ERC1967NonPayable",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "FailedCall",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidInitialization",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "NotInitializing",
+    type: "error",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "owner",
+        type: "address",
+      },
+    ],
+    name: "OwnableInvalidOwner",
+    type: "error",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "account",
+        type: "address",
+      },
+    ],
+    name: "OwnableUnauthorizedAccount",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "UUPSUnauthorizedCallContext",
+    type: "error",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bytes32",
+        name: "slot",
+        type: "bytes32",
+      },
+    ],
+    name: "UUPSUnsupportedProxiableUUID",
+    type: "error",
   },
   {
     anonymous: false,
@@ -28,13 +102,58 @@ export const aggregatorABI = [
     inputs: [
       {
         indexed: false,
-        internalType: "uint256",
-        name: "notesHash",
-        type: "uint256",
+        internalType: "uint64",
+        name: "version",
+        type: "uint64",
       },
     ],
-    name: "DepositedNotesHash",
+    name: "Initialized",
     type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "previousOwner",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "newOwner",
+        type: "address",
+      },
+    ],
+    name: "OwnershipTransferred",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "implementation",
+        type: "address",
+      },
+    ],
+    name: "Upgraded",
+    type: "event",
+  },
+  {
+    inputs: [],
+    name: "UPGRADE_INTERFACE_VERSION",
+    outputs: [
+      {
+        internalType: "string",
+        name: "",
+        type: "string",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
   },
   {
     inputs: [],
@@ -76,7 +195,7 @@ export const aggregatorABI = [
     outputs: [
       {
         internalType: "bool",
-        name: "success",
+        name: "",
         type: "bool",
       },
     ],
@@ -144,7 +263,7 @@ export const aggregatorABI = [
     outputs: [
       {
         internalType: "bool",
-        name: "success",
+        name: "",
         type: "bool",
       },
     ],
@@ -152,10 +271,23 @@ export const aggregatorABI = [
     type: "function",
   },
   {
+    inputs: [],
+    name: "curvyVault",
+    outputs: [
+      {
+        internalType: "contract ICurvyVault",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [
       {
         internalType: "address",
-        name: "fromAddress",
+        name: "from",
         type: "address",
       },
       {
@@ -176,9 +308,14 @@ export const aggregatorABI = [
             type: "uint256",
           },
         ],
-        internalType: "struct CurvyAggregator_Types.Note",
+        internalType: "struct CurvyTypes.Note",
         name: "note",
         type: "tuple",
+      },
+      {
+        internalType: "bytes",
+        name: "signature",
+        type: "bytes",
       },
     ],
     name: "depositNote",
@@ -188,15 +325,46 @@ export const aggregatorABI = [
   },
   {
     inputs: [],
-    name: "feeCollector",
+    name: "getNoteTreeRoot",
     outputs: [
       {
-        internalType: "address",
+        internalType: "uint256",
         name: "",
-        type: "address",
+        type: "uint256",
       },
     ],
     stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getNullifierTreeRoot",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "initialOwner",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "curvyVaultProxyAddress",
+        type: "address",
+      },
+    ],
+    name: "initialize",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
@@ -214,11 +382,11 @@ export const aggregatorABI = [
   },
   {
     inputs: [],
-    name: "noteTree",
+    name: "maxAggregations",
     outputs: [
       {
         internalType: "uint256",
-        name: "_root",
+        name: "",
         type: "uint256",
       },
     ],
@@ -227,103 +395,25 @@ export const aggregatorABI = [
   },
   {
     inputs: [],
-    name: "nullifierTree",
+    name: "maxDeposits",
     outputs: [
       {
         internalType: "uint256",
-        name: "_root",
+        name: "",
         type: "uint256",
       },
     ],
     stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "_operator",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "_from",
-        type: "address",
-      },
-      {
-        internalType: "uint256[]",
-        name: "_ids",
-        type: "uint256[]",
-      },
-      {
-        internalType: "uint256[]",
-        name: "_amounts",
-        type: "uint256[]",
-      },
-      {
-        internalType: "bytes",
-        name: "_data",
-        type: "bytes",
-      },
-    ],
-    name: "onERC1155BatchReceived",
-    outputs: [
-      {
-        internalType: "bytes4",
-        name: "",
-        type: "bytes4",
-      },
-    ],
-    stateMutability: "pure",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "_operator",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "_from",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "_id",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "_amount",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes",
-        name: "_data",
-        type: "bytes",
-      },
-    ],
-    name: "onERC1155Received",
-    outputs: [
-      {
-        internalType: "bytes4",
-        name: "",
-        type: "bytes4",
-      },
-    ],
-    stateMutability: "pure",
     type: "function",
   },
   {
     inputs: [],
-    name: "operator",
+    name: "maxWithdrawals",
     outputs: [
       {
-        internalType: "address",
+        internalType: "uint256",
         name: "",
-        type: "address",
+        type: "uint256",
       },
     ],
     stateMutability: "view",
@@ -333,11 +423,11 @@ export const aggregatorABI = [
     inputs: [
       {
         internalType: "uint256",
-        name: "",
+        name: "noteId",
         type: "uint256",
       },
     ],
-    name: "pendingIdsQueue",
+    name: "noteInQueue",
     outputs: [
       {
         internalType: "bool",
@@ -350,22 +440,66 @@ export const aggregatorABI = [
   },
   {
     inputs: [],
+    name: "owner",
+    outputs: [
+      {
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "proxiableUUID",
+    outputs: [
+      {
+        internalType: "bytes32",
+        name: "",
+        type: "bytes32",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "renounceOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "newNotesTreeRoot",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "newNullifiersTreeRoot",
+        type: "uint256",
+      },
+    ],
     name: "reset",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
   },
   {
-    inputs: [],
-    name: "tokenWrapper",
-    outputs: [
+    inputs: [
       {
-        internalType: "contract MetaERC20Wrapper",
-        name: "",
+        internalType: "address",
+        name: "newOwner",
         type: "address",
       },
     ],
-    stateMutability: "view",
+    name: "transferOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
@@ -389,16 +523,26 @@ export const aggregatorABI = [
           },
           {
             internalType: "address",
-            name: "operator",
+            name: "curvyVault",
             type: "address",
           },
           {
-            internalType: "address",
-            name: "feeCollector",
-            type: "address",
+            internalType: "uint256",
+            name: "maxDeposits",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "maxWithdrawals",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "maxAggregations",
+            type: "uint256",
           },
         ],
-        internalType: "struct CurvyAggregator_Types.ConfigurationUpdate",
+        internalType: "struct CurvyTypes.AggregatorConfigurationUpdate",
         name: "_update",
         type: "tuple",
       },
@@ -407,11 +551,29 @@ export const aggregatorABI = [
     outputs: [
       {
         internalType: "bool",
-        name: "_success",
+        name: "",
         type: "bool",
       },
     ],
     stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "newImplementation",
+        type: "address",
+      },
+      {
+        internalType: "bytes",
+        name: "data",
+        type: "bytes",
+      },
+    ],
+    name: "upgradeToAndCall",
+    outputs: [],
+    stateMutability: "payable",
     type: "function",
   },
   {
