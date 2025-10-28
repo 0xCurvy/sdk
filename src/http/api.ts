@@ -108,7 +108,7 @@ class ApiClient extends HttpClient implements IApiClient {
         path: `/user/check/${ownerAddress}`,
       });
 
-      return response.data?.handle || null;
+      return (response.data?.handle as CurvyHandle) || null;
     },
 
     SetBabyJubjubKey: async (handle: CurvyHandle, body: SetBabyJubjubPublicKeyRequestBody) => {
