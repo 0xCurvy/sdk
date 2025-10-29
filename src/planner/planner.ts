@@ -24,16 +24,16 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
     plan.items.push({
       type: "command",
       id: uuidV4(),
-      name: "sa-erc1155-onboard", // This includes gas sponsorship as well.
+      name: "sa-vault-onboard", // This includes gas sponsorship as well.
     });
   }
 
   // Then addresses can be deposited from CSUC to Aggregator
-  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.ERC1155) {
+  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.Vault) {
     plan.items.push({
       type: "command",
       id: uuidV4(),
-      name: "erc1155-deposit-to-aggregator",
+      name: "vault-deposit-to-aggregator",
     });
   }
 
@@ -144,12 +144,12 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
       {
         type: "command",
         id: uuidV4(),
-        name: "aggregator-withdraw-to-erc1155",
+        name: "aggregator-withdraw-to-vault",
       },
       {
         type: "command",
         id: uuidV4(),
-        name: "erc1155-withdraw-to-eoa",
+        name: "vault-withdraw-to-eoa",
         intent,
       },
     );

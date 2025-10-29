@@ -59,7 +59,7 @@ export interface StorageInterface {
   upsertCurrencyMetadata(metadata: Map<string, CurrencyMetadata>): Promise<void>;
   /**
    * Gets the metadata for a specific currency on a specific network.
-   * @param addressOrId The address / erc1155TokenId of the currency.
+   * @param addressOrId The address / vaultTokenId of the currency.
    * @param networkSlug The slug of the network.
    */
   getCurrencyMetadata(addressOrId: string | bigint, networkSlug: string): Promise<CurrencyMetadata>;

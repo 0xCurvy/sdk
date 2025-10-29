@@ -136,7 +136,7 @@ export class MapStorage implements StorageInterface {
 
     if (typeof addressOrId === "bigint") {
       currencyMetadata = Array.from(this.#currencyMetadata.values()).find(
-        (c) => c.erc1155TokenId === addressOrId.toString() && c.networkSlug === networkSlug,
+        (c) => c.vaultTokenId === addressOrId.toString() && c.networkSlug === networkSlug,
       );
     } else {
       currencyMetadata = this.#currencyMetadata.get(
@@ -146,7 +146,7 @@ export class MapStorage implements StorageInterface {
 
     if (!currencyMetadata) {
       throw new StorageError(
-        `Currency metadata for address / erc1155TokenId ${addressOrId} on network ${networkSlug} not found`,
+        `Currency metadata for address / vaultTokenId ${addressOrId} on network ${networkSlug} not found`,
       );
     }
 
@@ -355,7 +355,7 @@ export class MapStorage implements StorageInterface {
     options: BalanceSourcesOptions = {
       sortByTypeRanking: {
         [BALANCE_TYPE.NOTE]: 1,
-        [BALANCE_TYPE.ERC1155]: 2,
+        [BALANCE_TYPE.Vault]: 2,
         [BALANCE_TYPE.SA]: 3,
       },
       sortByBalance: "desc",

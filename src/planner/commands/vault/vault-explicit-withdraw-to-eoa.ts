@@ -84,7 +84,7 @@ export class VaultExplicitWithdrawToEOACommand extends AbstractVaultCommand {
     const currencyAddress = this.input.currencyAddress;
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
-      type: META_TRANSACTION_TYPES.vault_WITHDRAW,
+      type: META_TRANSACTION_TYPES.VAULT_WITHDRAW,
       currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,

@@ -152,7 +152,7 @@ export class SaVaultOnboardCommand extends SACommand {
       currencyAddress: this.input.currencyAddress,
       fromAddress: this.input.source,
       network: this.input.networkSlug,
-      type: META_TRANSACTION_TYPES.vault_ONBOARD,
+      type: META_TRANSACTION_TYPES.VAULT_ONBOARD,
       toAddress: this.input.source,
     });
 

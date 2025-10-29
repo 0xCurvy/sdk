@@ -3,7 +3,7 @@ import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTran
 import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import type { Erc1155Balance, RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
+import type { VaultBalance, RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
 
 abstract class Rpc {
   readonly #network: Network;
@@ -42,10 +42,10 @@ abstract class Rpc {
 
   abstract feeToAmount(feeEstimate: StarknetFeeEstimate | bigint): bigint;
 
-  abstract getErc1155Balances(address: HexString): Promise<Erc1155Balance>;
+  abstract getVaultBalances(address: HexString): Promise<VaultBalance>;
 
-  abstract estimateOnboardNativeToErc1155(from: HexString, amount: bigint): Promise<bigint>;
-  abstract onboardNativeToErc1155(amount: bigint, privateKey: HexString): Promise<RpcCallReturnType>;
+  abstract estimateOnboardNativeToVault(from: HexString, amount: bigint): Promise<bigint>;
+  abstract onboardNativeToVault(amount: bigint, privateKey: HexString): Promise<RpcCallReturnType>;
 
   abstract signRawTransaction(privateKey: HexString, txRequest: SignTransactionRequest): Promise<string>;
   abstract signMessage(privateKey: HexString, params: Omit<SignMessageParameters, "account">): Promise<string>;

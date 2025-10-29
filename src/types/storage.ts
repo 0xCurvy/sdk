@@ -3,7 +3,7 @@ import type { ExtractValues, HexString } from "@/types/helper";
 
 const BALANCE_TYPE = {
   SA: "sa",
-  ERC1155: "erc1155",
+  Vault: "vault",
   NOTE: "note",
 } as const;
 type BALANCE_TYPE = typeof BALANCE_TYPE;
@@ -16,7 +16,7 @@ type PriceData = {
 
 type CurrencyMetadata = {
   address: string;
-  erc1155TokenId?: string;
+  vaultTokenId?: string;
   symbol: string;
   name: string;
   native?: boolean;
@@ -49,20 +49,20 @@ const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
   return entry.type === BALANCE_TYPE.SA;
 };
 
-type Erc1155BalanceEntry = BalanceEntryBase & {
+type VaultBalanceEntry = BalanceEntryBase & {
   source: HexString;
-  erc1155TokenId: bigint;
-  type: BALANCE_TYPE["ERC1155"];
+  vaultTokenId: bigint;
+  type: BALANCE_TYPE["Vault"];
 };
-const isErc1155BalanceEntry = (entry: BalanceEntry): entry is Erc1155BalanceEntry => {
-  return entry.type === BALANCE_TYPE.ERC1155;
+const isVaultBalanceEntry = (entry: BalanceEntry): entry is VaultBalanceEntry => {
+  return entry.type === BALANCE_TYPE.Vault;
 };
 
 type NoteBalanceEntry = BalanceEntryBase & {
   source: string;
 
   type: BALANCE_TYPE["NOTE"];
-  erc1155TokenId: bigint;
+  vaultTokenId: bigint;
   owner: {
     babyJubjubPublicKey: {
       x: string;
@@ -76,7 +76,7 @@ const isNoteBalanceEntry = (entry: BalanceEntry): entry is NoteBalanceEntry => {
   return entry.type === BALANCE_TYPE.NOTE;
 };
 
-type BalanceEntry = SaBalanceEntry | Erc1155BalanceEntry | NoteBalanceEntry;
+type BalanceEntry = SaBalanceEntry | VaultBalanceEntry | NoteBalanceEntry;
 
 type TotalBalance = {
   walletId: string;
@@ -98,10 +98,10 @@ export type {
   PriceData,
   BalanceEntry,
   TotalBalance,
-  Erc1155BalanceEntry,
+  VaultBalanceEntry,
   SaBalanceEntry,
   NoteBalanceEntry,
   BALANCE_TYPE_VALUES,
   BalanceSourcesOptions,
 };
-export { isSaBalanceEntry, isErc1155BalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };
+export { isSaBalanceEntry, isVaultBalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };

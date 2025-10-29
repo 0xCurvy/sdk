@@ -2,7 +2,7 @@
 import { NETWORK_FLAVOUR, NETWORK_GROUP } from "@/constants/networks";
 import type { CurvyIntent } from "@/planner/plan";
 import { generatePlan } from "@/planner/planner";
-import type { Currency, Erc1155BalanceEntry, Network, NoteBalanceEntry, SaBalanceEntry } from "@/types";
+import type { Currency, VaultBalanceEntry, Network, NoteBalanceEntry, SaBalanceEntry } from "@/types";
 
 const mockCurrency: Currency = {
   id: 0,
@@ -15,7 +15,7 @@ const mockCurrency: Currency = {
   decimals: 18,
   contractAddress: "",
   nativeCurrency: false,
-  erc1155TokenId: 1,
+  vaultTokenId: 1,
 };
 const mockNetwork: Network = {
   id: 1,
@@ -25,7 +25,7 @@ const mockNetwork: Network = {
   slip0044: 1,
   flavour: NETWORK_FLAVOUR.EVM,
   multiCallContractAddress: "0x0000000000000000000000000000000000000000",
-  erc1155ContractAddress: "0x0000000000000000000000000000000000000001",
+  vaultContractAddress: "0x0000000000000000000000000000000000000001",
   aggregatorContractAddress: "0x0000000000000000000000000000000000000002",
   nativeCurrency: "MockToken",
   chainId: "0x1",
@@ -53,7 +53,7 @@ const generateMockSABalances = (...balances: bigint[]): SaBalanceEntry[] => {
       balance,
       environment: "testnet",
       decimals: 18,
-      erc1155TokenId: BigInt(1),
+      vaultTokenId: BigInt(1),
       createdAt: Date.now().toString(),
       walletId: "mock-wallet-id",
       lastUpdated: Date.now(),
@@ -61,16 +61,16 @@ const generateMockSABalances = (...balances: bigint[]): SaBalanceEntry[] => {
   });
 };
 
-const generateMockERC1155Balances = (...balances: bigint[]): Erc1155BalanceEntry[] => {
+const generateMockVaultBalances = (...balances: bigint[]): VaultBalanceEntry[] => {
   return balances.map((balance) => {
     return {
       source: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
       currencyAddress: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
       networkSlug: "ethereum-sepolia",
-      type: "erc1155",
+      type: "vault",
       symbol: "ETH",
       balance,
-      erc1155TokenId: BigInt(1),
+      vaultTokenId: BigInt(1),
       decimals: 18,
       nonce: 0n,
       environment: "testnet",
@@ -91,7 +91,7 @@ const generateMockNoteBalances = (...balances: bigint[]): NoteBalanceEntry[] => 
       symbol: "ETH",
       decimals: 18,
       balance,
-      erc1155TokenId: BigInt(1),
+      vaultTokenId: BigInt(1),
       environment: "testnet" as "testnet" | "mainnet",
       createdAt: Date.now().toString(),
       walletId: "mock-wallet-id",
@@ -146,15 +146,15 @@ test("test for more than N aggregations", () => {
   expect(plan.items.map((item) => planToString(item))).toEqual([
     "parallel",
     "aggregator-aggregate",
-    "aggregator-withdraw-to-erc1155",
-    "erc1155-withdraw-to-eoa",
+    "aggregator-withdraw-to-vault",
+    "vault-withdraw-to-eoa",
   ]);
 });
 
-test("should aggregate with one erc1155 balance", () => {
+test("should aggregate with one vault balance", () => {
   const maxInputs = 2;
   const intent: CurvyIntent = generateMockIntent(1000000000000000000n, maxInputs);
-  const balances = generateMockERC1155Balances(9999944316399554532n);
+  const balances = generateMockVaultBalances(9999944316399554532n);
 
   const { plan } = generatePlan(balances, intent);
   expect(plan).toBeDefined();
@@ -163,8 +163,8 @@ test("should aggregate with one erc1155 balance", () => {
   expect(plan.items.map((item) => planToString(item))).toEqual([
     "serial",
     "aggregator-aggregate",
-    "aggregator-withdraw-to-erc1155",
-    "erc1155-withdraw-to-eoa",
+    "aggregator-withdraw-to-vault",
+    "vault-withdraw-to-eoa",
   ]);
 
   // Expect first serial to be aggregator onboard
@@ -172,7 +172,7 @@ test("should aggregate with one erc1155 balance", () => {
   expect(plan.items[0].items).toHaveLength(2);
 
   // Expect aggregator onboard to look like this
-  expect(plan.items[0].items.map((item) => planToString(item))).toEqual(["data", "erc1155-deposit-to-aggregator"]);
+  expect(plan.items[0].items.map((item) => planToString(item))).toEqual(["data", "vault-deposit-to-aggregator"]);
 });
 
 function planToString(plan: CurvyPlan) {

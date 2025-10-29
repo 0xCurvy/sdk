@@ -30,7 +30,7 @@ export * from "../types";
 export {
   BalanceEntry,
   CurrencyMetadata,
-  isErc1155BalanceEntry,
+  isVaultBalanceEntry,
   isNoteBalanceEntry,
   isSaBalanceEntry,
   TotalBalance,

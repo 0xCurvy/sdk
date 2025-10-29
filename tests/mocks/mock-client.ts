@@ -147,7 +147,7 @@ export class MockAPIClient implements IApiClient {
               contractAddress: "0x123",
               updatedAt: "",
               nativeCurrency: false,
-              erc1155TokenId: null,
+              vaultTokenId: null,
             },
           ],
         },

@@ -123,10 +123,10 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   }
 
   async estimate(): Promise<AggregatorAggregateCommandEstimate> {
-    const token = this.input[0].erc1155TokenId;
+    const token = this.input[0].vaultTokenId;
 
     if (!token) {
-      throw new Error("[AggregatorAggregateCommand]: Could not find erc1155TokenId of the input note!");
+      throw new Error("[AggregatorAggregateCommand]: Could not find vaultTokenId of the input note!");
     }
 
     let toAddress = this.senderCurvyHandle;

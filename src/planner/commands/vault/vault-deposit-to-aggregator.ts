@@ -123,7 +123,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
     );
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
-      type: META_TRANSACTION_TYPES.vault_DEPOSIT_TO_AGGREGATOR,
+      type: META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR,
       currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,

@@ -9,7 +9,7 @@ export function getMetaTransactionEip712HashAndSignedData(
   effectiveAmount: bigint,
   totalFees: bigint,
   nonce: bigint,
-  erc1155ContractAddress: HexString,
+  vaultContractAddress: HexString,
   feeCollectorAddress: HexString,
 ): [eip712Hash: HexString, signedData: HexString] {
   const META_TX_TYPEHASH = "0xce0b514b3931bdbe4d5d44e4f035afe7113767b7db71949271f6a62d9c60f558";
@@ -25,10 +25,10 @@ export function getMetaTransactionEip712HashAndSignedData(
   // Now we do the gas receipt
   const encodedAddressAndId = encodeAbiParameters(
     [{ type: "address" }, { type: "uint256" }],
-    [erc1155ContractAddress, BigInt(tokenId)],
+    [vaultContractAddress, BigInt(tokenId)],
   );
 
-  const feeTokenData = encodePacked(["bytes", "uint8"], [encodedAddressAndId, 0]); // 0 for ERC1155
+  const feeTokenData = encodePacked(["bytes", "uint8"], [encodedAddressAndId, 0]); // 0 for Vault
 
   const gasReceipt = {
     gasFee: totalFees,
@@ -61,7 +61,7 @@ export function getMetaTransactionEip712HashAndSignedData(
   // TODO: PRODUCTION READY This domain separator probably doesn't apply to us. Use vanilla signedTypedData if we can
   const DOMAIN_SEPARATOR_TYPEHASH = "0x035aff83d86937d35b32e04f0ddc6ff469290eef2f1b692d8a815c89404d4749";
   const domainSeparator = keccak256(
-    encodeAbiParameters(parseAbiParameters("bytes32, address"), [DOMAIN_SEPARATOR_TYPEHASH, erc1155ContractAddress]),
+    encodeAbiParameters(parseAbiParameters("bytes32, address"), [DOMAIN_SEPARATOR_TYPEHASH, vaultContractAddress]),
   ) as HexString;
 
   const eip712Hash = keccak256(encodePacked(["bytes2", "bytes32", "bytes32"], ["0x1901", domainSeparator, structHash]));

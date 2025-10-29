@@ -1,5 +1,5 @@
 import { type NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR } from "@/constants/networks";
-import type { CurvyAddress, Erc1155Balance, RpcBalances } from "@/types";
+import type { CurvyAddress, VaultBalance, RpcBalances } from "@/types";
 import { toSlug } from "@/utils/helpers";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
 import type { Rpc } from "./abstract";
@@ -29,13 +29,13 @@ class MultiRpc {
     });
   }
 
-  async getErc1155Balances(curvyAddress: CurvyAddress): Promise<Erc1155Balance[]> {
+  async getVaultBalances(curvyAddress: CurvyAddress): Promise<VaultBalance[]> {
     if (curvyAddress.networkFlavour !== NETWORK_FLAVOUR.EVM) return Promise.resolve([]);
     const rpcs = this.#rpcArray.filter(
-      (rpc) => rpc.network.flavour === curvyAddress.networkFlavour && !!rpc.network.erc1155ContractAddress,
+      (rpc) => rpc.network.flavour === curvyAddress.networkFlavour && !!rpc.network.vaultContractAddress,
     );
 
-    return Promise.all(rpcs.map((rpc) => rpc.getErc1155Balances(curvyAddress.address))).then((results) => {
+    return Promise.all(rpcs.map((rpc) => rpc.getVaultBalances(curvyAddress.address))).then((results) => {
       return results;
     });
   }
