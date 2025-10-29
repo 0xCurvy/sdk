@@ -1,8 +1,8 @@
 import dayjs from "dayjs";
-import type { CurvyEventEmitter } from "@/events";
 import type { IAddressScanner } from "@/interfaces/address-scanner";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
+import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { CurvyAddress } from "@/types/address";
 import type { RawAnnouncement } from "@/types/api";
@@ -15,11 +15,11 @@ class AddressScanner implements IAddressScanner {
   #storage: StorageInterface;
   #client: IApiClient;
   #core: ICore;
-  #emitter: CurvyEventEmitter;
+  #emitter: ICurvyEventEmitter;
 
   isSyncing: boolean;
 
-  constructor(storage: StorageInterface, core: ICore, client: IApiClient, emitter: CurvyEventEmitter) {
+  constructor(storage: StorageInterface, core: ICore, client: IApiClient, emitter: ICurvyEventEmitter) {
     this.#storage = storage;
     this.#core = core;
     this.#client = client;

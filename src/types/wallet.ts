@@ -18,6 +18,11 @@ type CurvyWalletData = {
   scanCursors: ScanCursors;
 };
 
+type AdditionalWalletData = {
+  password?: string;
+  credId?: ArrayBuffer;
+};
+
 type SerializedCurvyWallet = {
   readonly id: string;
   readonly createdAt: number;
@@ -25,4 +30,4 @@ type SerializedCurvyWallet = {
   readonly curvyHandle: CurvyHandle;
 };
 
-export type { CurvyWalletData, ScanCursors, ScanInfo, SerializedCurvyWallet };
+export type { CurvyWalletData, ScanCursors, ScanInfo, SerializedCurvyWallet, AdditionalWalletData };

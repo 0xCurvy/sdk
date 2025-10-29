@@ -197,7 +197,7 @@ packages:
     engines: {node: '>=v18'}
 
   '@commitlint/read@19.8.1':
-    resolution: {integrity: sha512-03Jbjb1MqluaVXKHKRuGhcKWtSgh3Jizqy2lJCRbRrnWpcM06MYm8th59Xcns8EqBYvo0Xqb+2DoZFlga97uXQ==}
+    resolution: {integrity: sha512-03Jbjb1MqluaVXKHKRuGhcKWtSgh3Jizqy2lJCRbRrnWpcM06MYm8th59Xcns8EqBYvo0Xqb+2DoZlga97uXQ==}
     engines: {node: '>=v18'}
 
   '@commitlint/resolve-extends@19.8.1':

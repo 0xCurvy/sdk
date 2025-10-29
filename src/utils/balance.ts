@@ -36,12 +36,14 @@ function noteToBalanceEntry(
   const {
     balance: { token, amount },
     ownerHash,
+    id,
   } = note;
 
   const { owner, deliveryTag } = note.serializeFullNote();
 
   return {
     ...balanceEntryData,
+    id: id.toString(),
     source: `0x${ownerHash.toString(16)}`,
     type: BALANCE_TYPE.NOTE,
     vaultTokenId: token,

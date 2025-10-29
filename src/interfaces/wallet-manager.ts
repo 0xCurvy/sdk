@@ -17,36 +17,52 @@ interface IWalletManager {
   addWalletWithPrivateKeys(
     s: string,
     v: string,
-    requestingCurvyHandle: CurvyHandle,
     requestingAddress: HexString,
+    credId?: ArrayBuffer,
   ): Promise<CurvyWallet>;
-  addWalletWithSignature(flavour: NETWORK_FLAVOUR["EVM"], signature: EvmSignatureData): Promise<CurvyWallet>;
-  addWalletWithSignature(flavour: NETWORK_FLAVOUR["STARKNET"], signature: StarknetSignatureData): Promise<CurvyWallet>;
-  addWalletWithSignature(
-    flavour: NETWORK_FLAVOUR_VALUES,
-    signature: EvmSignatureData | StarknetSignatureData,
-  ): Promise<CurvyWallet>;
-
   registerWalletWithPrivateKeys(
     s: string,
     v: string,
     handle: CurvyHandle,
     ownerAddress: HexString,
   ): Promise<CurvyWallet>;
+
+  addWalletWithPasskey(prfValue: BufferSource, credId: ArrayBuffer): Promise<CurvyWallet>;
+  registerWalletWithPasskey(handle: CurvyHandle, prfValue: BufferSource, credId: ArrayBuffer): Promise<CurvyWallet>;
+
+  addWalletWithSignature(
+    flavour: NETWORK_FLAVOUR["EVM"],
+    signature: EvmSignatureData,
+    password: string,
+  ): Promise<CurvyWallet>;
+  addWalletWithSignature(
+    flavour: NETWORK_FLAVOUR["STARKNET"],
+    signature: StarknetSignatureData,
+    password: string,
+  ): Promise<CurvyWallet>;
+  addWalletWithSignature(
+    flavour: NETWORK_FLAVOUR_VALUES,
+    signature: EvmSignatureData | StarknetSignatureData,
+    password: string,
+  ): Promise<CurvyWallet>;
+
   registerWalletWithSignature(
     handle: CurvyHandle,
     flavour: NETWORK_FLAVOUR["EVM"],
     signature: EvmSignatureData,
+    password: string,
   ): Promise<CurvyWallet>;
   registerWalletWithSignature(
     handle: CurvyHandle,
     flavour: NETWORK_FLAVOUR["STARKNET"],
     signature: StarknetSignatureData,
+    password: string,
   ): Promise<CurvyWallet>;
   registerWalletWithSignature(
     handle: CurvyHandle,
     flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
+    password: string,
   ): Promise<CurvyWallet>;
 
   hasWallet(id: string): boolean;

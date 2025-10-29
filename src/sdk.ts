@@ -22,10 +22,10 @@ import type { Rpc } from "@/rpc/abstract";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type { CurvyEventType, GetStealthAddressReturnType, Network } from "@/types";
+import type { GetStealthAddressReturnType, Network } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
-import type { HexString } from "@/types/helper";
+import type { AbortOptions, HexString } from "@/types/helper";
 import type { StarknetFeeEstimate } from "@/types/rpc";
 import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, toSlug } from "@/utils/helpers";
@@ -62,6 +62,9 @@ class CurvySDK implements ICurvySDK {
   readonly apiClient: IApiClient;
   readonly storage: StorageInterface;
 
+  on: ICurvyEventEmitter["on"];
+  off: ICurvyEventEmitter["off"];
+
   private constructor(
     apiKey: string,
     core: Core,
@@ -79,6 +82,9 @@ class CurvySDK implements ICurvySDK {
       activeNetworks: [],
     };
     this.#commandExecutor = new CommandExecutor(commandFactory, this.#emitter);
+    // Must bind for correct this reference
+    this.on = this.#emitter.on.bind(this.#emitter);
+    this.off = this.#emitter.off.bind(this.#emitter);
   }
 
   get walletManager(): IWalletManager {
@@ -376,10 +382,10 @@ class CurvySDK implements ICurvySDK {
    */
 
   switchNetworkEnvironment(environment: "mainnet" | "testnet") {
-    return this.setActiveNetworks(environment === "testnet");
+    this.setActiveNetworks(environment === "testnet");
   }
 
-  async refreshNoteBalances(walletId: string) {
+  async refreshNoteBalances(walletId = this.walletManager.activeWallet.id) {
     if (!this.walletManager.hasWallet(walletId)) {
       throw new Error(`Wallet with ID ${walletId} not found!`);
     }
@@ -397,7 +403,11 @@ class CurvySDK implements ICurvySDK {
     return this.#balanceScanner.scanAddressBalances(address);
   }
 
-  async refreshWalletBalances(walletId: string, scanAll = false) {
+  async refreshWalletBalances(
+    walletId = this.walletManager.activeWallet.id,
+    scanAll = false,
+    { signal }: AbortOptions = {},
+  ) {
     if (!this.walletManager.hasWallet(walletId)) {
       throw new Error(`Wallet with ID ${walletId} not found!`);
     }
@@ -406,14 +416,14 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanWalletBalances(walletId, this.#state.environment, { scanAll });
+    return await this.#balanceScanner.scanWalletBalances(walletId, this.#state.environment, { scanAll, signal });
   }
 
-  async refreshBalances(scanAll = false) {
+  async refreshBalances(scanAll = false, { signal }: AbortOptions = {}) {
     if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
     for (const wallet of this.walletManager.wallets) {
-      await this.#balanceScanner.scanWalletBalances(wallet.id, this.#state.environment, { scanAll });
+      await this.#balanceScanner.scanWalletBalances(wallet.id, this.#state.environment, { scanAll, signal });
     }
   }
 
@@ -493,14 +503,6 @@ class CurvySDK implements ICurvySDK {
     return this.rpcClient
       .Network(networkIdentifier)
       .sendToAddress(from, privateKey, recipientAddress, amount, currency, fee);
-  }
-
-  subscribeToEventType(eventType: CurvyEventType, listener: (event: any) => void) {
-    this.#emitter.on(eventType, listener);
-  }
-
-  unsubscribeFromEventType(eventType: CurvyEventType, listener: (event: any) => void) {
-    this.#emitter.off(eventType, listener);
   }
 
   async pollForCriteria<T>(

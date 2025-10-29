@@ -1,5 +1,6 @@
 import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
+import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
@@ -20,6 +21,9 @@ interface ICurvySDK {
   get activeNetworks(): Network[];
   get activeEnvironment(): NETWORK_ENVIRONMENT_VALUES;
   get walletManager(): IWalletManager;
+
+  on: ICurvyEventEmitter["on"];
+  off: ICurvyEventEmitter["off"];
 
   getStealthAddressById(id: string): Promise<CurvyAddress>;
   getNetwork(networkFilter?: NetworkFilter): Network;
@@ -54,10 +58,10 @@ interface ICurvySDK {
 
   // Actions
 
-  refreshNoteBalances(walletId: string): Promise<void>;
+  refreshNoteBalances(walletId?: string): Promise<void>;
   refreshAddressBalances(address: CurvyAddress): Promise<void>;
-  refreshWalletBalances(walletId: string): Promise<void>;
-  refreshBalances(): Promise<void>;
+  refreshWalletBalances(walletId?: string, scanAll?: boolean): Promise<void>;
+  refreshBalances(scanAll?: boolean): Promise<void>;
 
   resetStorage(): Promise<void>;
 

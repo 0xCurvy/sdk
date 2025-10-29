@@ -1,5 +1,6 @@
 import { type NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR } from "@/constants/networks";
 import type { CurvyAddress, VaultBalance, RpcBalances } from "@/types";
+import type { AbortOptions } from "@/types/helper";
 import { toSlug } from "@/utils/helpers";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
 import type { Rpc } from "./abstract";
@@ -18,7 +19,11 @@ class MultiRpc {
     }
   }
 
-  async getBalances(stealthAddress: CurvyAddress, networks: string[]): Promise<RpcBalances> {
+  async getBalances(
+    stealthAddress: CurvyAddress,
+    networks: string[],
+    { signal }: AbortOptions = {},
+  ): Promise<RpcBalances> {
     const rpcs = this.#rpcArray.filter(
       (rpc) =>
         rpc.network.flavour === stealthAddress.networkFlavour &&

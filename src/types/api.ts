@@ -9,6 +9,7 @@
 import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
 import type { AggregatorRequestStatus } from "@/types/aggregator";
 import type { CircuitConfig } from "@/types/core";
+import type { CurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import type { MetaTransactionType } from "@/types/meta-transaction";
 import type { PublicNote } from "@/types/note";
@@ -166,7 +167,7 @@ type GetCurvyHandleByOwnerAddressResponse = {
   } | null;
   error?: string | null;
 };
-type GetCurvyHandleByOwnerAddressReturnType = string | null;
+type GetCurvyHandleByOwnerAddressReturnType = CurvyHandle | null;
 
 type SetBabyJubjubPublicKeyRequestBody = {
   babyJubjubPublicKey: string;
