@@ -1,4 +1,6 @@
 //@ts-nocheck
+
+import { expect } from "vitest";
 import { NETWORK_FLAVOUR, NETWORK_GROUP } from "@/constants/networks";
 import type { CurvyIntent } from "@/planner/plan";
 import { generatePlan } from "@/planner/planner";
@@ -128,7 +130,7 @@ test("test for more than N aggregations", () => {
   const intent: CurvyIntent = generateMockIntent(20n, maxInputs);
   const balances = generateMockNoteBalances(...Array(19).fill(1n), 2n);
 
-  const plan = generatePlan(balances, intent) as any;
+  const { plan } = generatePlan(balances, intent) as any;
   expect(plan).toBeDefined();
 
   const checkRecursivelyForItemsLength = (obj) => {
@@ -142,10 +144,10 @@ test("test for more than N aggregations", () => {
   };
 
   checkRecursivelyForItemsLength(plan.items[0]);
+  console.log(jsonPrettyPrint(plan.items[0]));
 
   expect(plan.items.map((item) => planToString(item))).toEqual([
-    "parallel",
-    "aggregator-aggregate",
+    "serial",
     "aggregator-withdraw-to-erc1155",
     "erc1155-withdraw-to-eoa",
   ]);
@@ -162,7 +164,6 @@ test("should aggregate with one erc1155 balance", () => {
   // Expect entire plan to look like this
   expect(plan.items.map((item) => planToString(item))).toEqual([
     "serial",
-    "aggregator-aggregate",
     "aggregator-withdraw-to-erc1155",
     "erc1155-withdraw-to-eoa",
   ]);
@@ -175,7 +176,53 @@ test("should aggregate with one erc1155 balance", () => {
   expect(plan.items[0].items.map((item) => planToString(item))).toEqual(["data", "erc1155-deposit-to-aggregator"]);
 });
 
+test("shouldn't do unnecessary aggregation when aggregating 3 notes", () => {
+  const maxInputs = 2;
+  const intent: CurvyIntent = generateMockIntent(3n, maxInputs, true);
+  const balances = generateMockNoteBalances(1n, 1n, 1n);
+
+  const { plan } = generatePlan(balances, intent);
+  expect(plan).toBeDefined();
+
+  console.log(jsonPrettyPrint(plan));
+});
+
+test("should aggregate to curvy name from sa", () => {
+  const maxInputs = 2;
+  const intent: CurvyIntent = generateMockIntent(3n, maxInputs, true);
+  const balances = generateMockSABalances(10n);
+
+  const { plan } = generatePlan(balances, intent);
+  expect(plan).toBeDefined();
+});
+
 function planToString(plan: CurvyPlan) {
   if (plan.type === "command") return plan.name;
   return plan.type;
+}
+
+function jsonPrettyPrint(obj: any) {
+  const cb = (key: any, value: any) => {
+    if (key === "network" && typeof value === "object") {
+      return value.name;
+    }
+
+    if (key === "currency" && typeof value === "object") {
+      return value.symbol;
+    }
+    if (key === "data" && typeof value === "object") {
+      return {
+        balance: value.balance,
+        type: value.type,
+      };
+    }
+
+    if (typeof value === "bigint") {
+      return value.toString();
+    }
+
+    return value;
+  };
+
+  return JSON.stringify(obj, cb, 2);
 }

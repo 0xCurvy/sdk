@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
 import type { MetaTransaction } from "@/types";

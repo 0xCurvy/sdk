@@ -32,7 +32,7 @@ export type CurvyPlanData = {
 };
 
 export type GeneratePlanReturnType = {
-  plan: CurvyPlanFlowControl;
+  plan: CurvyPlan;
   usedBalances: BalanceEntry[];
 };
 
