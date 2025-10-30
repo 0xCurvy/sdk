@@ -41,6 +41,10 @@ export class MockAPIClient implements IApiClient {
     this.generateMockAnnouncements(1000); // Generate 1000 mock announcements
   }
 
+  get bearerToken(): string {
+    return "";
+  }
+
   limitAnnouncements(limit: number): void {
     this.announcementLimit = limit;
   }
