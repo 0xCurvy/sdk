@@ -1,9 +1,8 @@
-import type { SignMessageParameters } from "viem";
 import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTransaction";
 import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import type { VaultBalance, RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
+import type { RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate, VaultBalance } from "@/types/rpc";
 
 abstract class Rpc {
   readonly #network: Network;
@@ -48,7 +47,7 @@ abstract class Rpc {
   abstract onboardNativeToVault(amount: bigint, privateKey: HexString): Promise<RpcCallReturnType>;
 
   abstract signRawTransaction(privateKey: HexString, txRequest: SignTransactionRequest): Promise<string>;
-  abstract signMessage(privateKey: HexString, params: Omit<SignMessageParameters, "account">): Promise<string>;
+  abstract signMessage(privateKey: HexString, typedData: any): Promise<string>;
 }
 
 export { Rpc };

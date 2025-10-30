@@ -2,21 +2,21 @@ import { encodeFunctionData, erc20Abi, type PublicClient } from "viem";
 import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { SACommand } from "@/planner/commands/sa/abstract";
+import { AbstractStealthAddressCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import type { Rpc } from "@/rpc/abstract";
-import { BALANCE_TYPE, type VaultBalanceEntry, type HexString, META_TRANSACTION_TYPES } from "@/types";
+import { BALANCE_TYPE, type HexString, META_TRANSACTION_TYPES, type VaultBalanceEntry } from "@/types";
 
-interface SaVaultOnboardCommandEstimate extends CurvyCommandEstimate {
+interface VaultOnboardCommandEstimate extends CurvyCommandEstimate {
   id: string | null;
   data: VaultBalanceEntry;
 }
 
-// This command automatically sends all available balance from SA to CSUC address
-export class SaVaultOnboardCommand extends SACommand {
+// This command automatically sends all available balance from a stealth addresss to vault
+export class VaultOnboardCommand extends AbstractStealthAddressCommand {
   #rpc: Rpc;
   #provider: PublicClient;
-  protected declare estimateData: SaVaultOnboardCommandEstimate | undefined;
+  protected declare estimateData: VaultOnboardCommandEstimate | undefined;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
@@ -118,7 +118,7 @@ export class SaVaultOnboardCommand extends SACommand {
     return vaultBalanceEntry;
   }
 
-  async estimate(): Promise<SaVaultOnboardCommandEstimate> {
+  async estimate(): Promise<VaultOnboardCommandEstimate> {
     const { native: isOnboardingNative, vaultTokenId } = await this.sdk.storage.getCurrencyMetadata(
       this.input.currencyAddress,
       this.input.networkSlug,

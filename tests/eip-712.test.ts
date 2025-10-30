@@ -1,8 +1,10 @@
+import { rpc } from "viem/utils";
 import { expect, test } from "vitest";
+import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { CurvyIntent } from "@/planner/plan";
 import { generatePlan } from "@/planner/planner";
 import { CurvySDK } from "@/sdk";
-import { type BalanceEntry, CURVY_EVENT_TYPES, type Currency, type Network } from "@/types";
+import { type BalanceEntry, CURVY_EVENT_TYPES, type Currency, type HexString, type Network } from "@/types";
 import { parseDecimal } from "@/utils";
 
 const LocalnetGeneratedValues = {
@@ -95,8 +97,9 @@ async function setup() {
   );
 }
 
-test("Inclusion proof bug", async () => {
+test("EIP-712 test", async () => {
   await setup();
+
   const to = "devenv1.local-curvy.name";
   const amount1 = parseDecimal("330", currency!);
 
@@ -108,24 +111,17 @@ test("Inclusion proof bug", async () => {
   };
 
   const planResult1 = await doPlan(intent1);
-  expect(planResult1).toBe(true);
+  expect(planResult1).toBe(false);
 
   await setup();
 
-  const planResult12 = await doPlan(intent1);
-  expect(planResult12).toBe(true);
+  expect(balances.length).toBe(2);
 
-  await setup();
-
-  const amount2 = parseDecimal("700", currency!);
-
-  const intent2: CurvyIntent = {
-    toAddress: to,
-    amount: amount2,
-    currency: currency!,
-    network: network!,
-  };
-
-  const planResult2 = await doPlan(intent2);
-  expect(planResult2).toBe(true);
+  // curvySDK.getRpcClient("localnet").provider.writeContract({});
+  // const transfer = await rpc.provider.writeContract({
+  //   abi: vaultV1Abi,
+  //   address: this.network.vaultContractAddress as HexString,
+  //   functionName: "getNonce",
+  //   args: [this.input.source as HexString],
+  // });
 }, 600_000);

@@ -1,12 +1,10 @@
-import { toBytes } from "viem";
-import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AbstractVaultCommand } from "@/planner/commands/vault/abstract";
+import { AbstractVaultCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import { EvmRpc } from "@/rpc";
 import { type HexString, META_TRANSACTION_TYPES, type Note, type NoteBalanceEntry } from "@/types";
-import { getMetaTransactionEip712HashAndSignedData, noteToBalanceEntry } from "@/utils";
+import { noteToBalanceEntry } from "@/utils";
 import { toSlug } from "@/utils/helpers";
 
 interface VaultDepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
@@ -36,43 +34,18 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
     // TODO: getNewNoteForUser should return output note
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
-    const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-    const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
-
-    const nonce = await rpc.provider.readContract({
-      abi: vaultV1Abi,
-      address: this.network.vaultContractAddress as HexString,
-      functionName: "getNonce",
-      args: [this.input.source as HexString],
-    });
-
-    const tokenId = await rpc.provider.readContract({
-      abi: vaultV1Abi,
-      address: this.network.vaultContractAddress as HexString,
-      functionName: "getTokenID",
-      args: [this.input.currencyAddress as HexString],
-    });
-
-    const [eip712Hash] = getMetaTransactionEip712HashAndSignedData(
-      this.input.source as HexString,
+    const signature = this.signMetaTransaction(
       this.network.aggregatorContractAddress as HexString,
-      tokenId,
       note.balance!.amount,
-      curvyFee + gas,
-      nonce,
-      this.network.vaultContractAddress as HexString,
-      this.network.feeCollectorAddress as HexString,
+      gas,
+      META_TRANSACTION_TYPES.VAULT_ONBOARD,
     );
-
-    const signature = (await this.sdk.rpcClient
-      .Network(this.input.networkSlug)
-      .signMessage(privateKey, { message: { raw: toBytes(eip712Hash) } })) as HexString;
-
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
+        if (res === "failed") throw new Error(`[VaultDepositToAggregatorCommand] Meta-transaction execution failed!`);
         return res === "completed";
       },
     );
@@ -116,11 +89,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
       throw new Error("VaultDepositToAggregatorCommand: vaultTokenId is required");
     }
 
-    const note = await this.sdk.getNewNoteForUser(
-      this.senderCurvyHandle,
-      this.input.vaultTokenId,
-      this.input.balance,
-    );
+    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
       type: META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR,

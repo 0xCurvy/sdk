@@ -2,9 +2,9 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand, CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
 import { AggregatorWithdrawToVaultCommand } from "@/planner/commands/aggregator/aggregator-withdraw-to-vault";
-import { VaultDepositToAggregatorCommand } from "@/planner/commands/vault/vault-deposit-to-aggregator";
-import { VaultWithdrawToEOACommand } from "@/planner/commands/vault/vault-withdraw-to-eoa";
-import { SaVaultOnboardCommand } from "@/planner/commands/sa/sa-vault-onboard-command";
+import { VaultDepositToAggregatorCommand } from "@/planner/commands/meta-transaction/vault-deposit-to-aggregator";
+import { VaultOnboardCommand } from "@/planner/commands/meta-transaction/vault-onboard-command";
+import { VaultWithdrawToEOACommand } from "@/planner/commands/meta-transaction/vault-withdraw-to-eoa";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 
 export interface ICommandFactory {
@@ -35,7 +35,7 @@ export class CurvyCommandFactory implements ICommandFactory {
   ): CurvyCommand {
     switch (name) {
       case "sa-vault-onboard": // This is with gas sponsorship as well
-        return new SaVaultOnboardCommand(id, this.#sdk, input, estimate);
+        return new VaultOnboardCommand(id, this.#sdk, input, estimate);
       case "vault-deposit-to-aggregator":
         return new VaultDepositToAggregatorCommand(id, this.#sdk, input, estimate);
       case "vault-withdraw-to-eoa": {

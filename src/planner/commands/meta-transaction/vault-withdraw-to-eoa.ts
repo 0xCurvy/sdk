@@ -1,12 +1,9 @@
 import dayjs from "dayjs";
-import { toBytes } from "viem";
-import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AbstractVaultCommand } from "@/planner/commands/vault/abstract";
+import { AbstractVaultCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { BALANCE_TYPE, type HexString, isHexString, META_TRANSACTION_TYPES, type SaBalanceEntry } from "@/types";
-import { getMetaTransactionEip712HashAndSignedData } from "@/utils/meta-transaction";
 
 interface VaultWithdrawToEOACommandEstimate extends CurvyCommandEstimate {
   id: string;
@@ -42,45 +39,18 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
     }
     const { id, gas, curvyFee } = this.estimateData;
 
-    const rpc = this.sdk.rpcClient.Network(this.input.networkSlug);
-
-    const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-    const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
-
-    const nonce = await rpc.provider.readContract({
-      abi: vaultV1Abi,
-      address: this.network.vaultContractAddress as HexString,
-      functionName: "getNonce",
-      args: [this.input.source as HexString],
-    });
-
-    const tokenId = await rpc.provider.readContract({
-      abi: vaultV1Abi,
-      address: this.network.vaultContractAddress as HexString,
-      functionName: "getTokenID",
-      args: [this.input.currencyAddress as HexString],
-    });
-
     const amount = this.input.balance;
 
     const totalFees = gas + curvyFee;
 
     const effectiveAmount = amount - totalFees;
 
-    const [eip712Hash] = getMetaTransactionEip712HashAndSignedData(
-      this.input.source as HexString,
+    const signature = await this.signMetaTransaction(
       this.#intent.toAddress as HexString,
-      tokenId,
       effectiveAmount,
-      totalFees,
-      nonce,
-      this.network.vaultContractAddress as HexString,
-      this.network.feeCollectorAddress as HexString,
+      gas,
+      META_TRANSACTION_TYPES.VAULT_WITHDRAW,
     );
-
-    const signature = (await this.sdk.rpcClient
-      .Network(this.input.networkSlug)
-      .signMessage(privateKey, { message: { raw: toBytes(eip712Hash) } })) as HexString;
 
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
@@ -96,6 +66,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
 
     await new Promise((res) => setTimeout(res, 3000)); // Wait for balances to be updated properly
 
+    const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
     await this.sdk.refreshAddressBalances(curvyAddress);
 
     return {

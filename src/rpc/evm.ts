@@ -8,7 +8,6 @@ import {
   getContract,
   http,
   type PublicClient,
-  type SignMessageParameters,
   type WalletClient,
 } from "viem";
 import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTransaction";
@@ -336,10 +335,10 @@ class EvmRpc extends Rpc {
     });
   }
 
-  async signMessage(privateKey: HexString, params: Omit<SignMessageParameters, "account">) {
-    return this.#walletClient.signMessage({
-      account: privateKeyToAccount(privateKey),
-      ...params,
+  async signMessage(privateKey: HexString, typedData: any) {
+    return this.#walletClient.signTypedData({
+      account: privateKeyToAccount,
+      ...typedData,
     });
   }
 

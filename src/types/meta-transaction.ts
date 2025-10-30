@@ -2,6 +2,7 @@ import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { Currency, Network } from "@/types/api";
 import type { ExtractValues, HexString } from "@/types/helper";
 
+// TODO: Refactor to Command handlers bla bla bla
 const META_TRANSACTION_TYPES = {
   VAULT_TRANSFER: "vault_transfer",
   VAULT_ONBOARD: "vault_onboard",
@@ -40,3 +41,10 @@ export type MetaTransaction = {
 
 // TODO: Think about this
 export type MetaTransactionEstimate = CurvyCommandEstimate;
+
+// This is from smart contracts
+export const META_TRANSACTION_TYPES_TO_UINT8 = [
+  META_TRANSACTION_TYPES.VAULT_ONBOARD, // TODO: Rename to deposit
+  META_TRANSACTION_TYPES.VAULT_TRANSFER,
+  META_TRANSACTION_TYPES.VAULT_WITHDRAW,
+];
