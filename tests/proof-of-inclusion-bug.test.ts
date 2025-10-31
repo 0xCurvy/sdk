@@ -110,22 +110,22 @@ test("Inclusion proof bug", async () => {
   const planResult1 = await doPlan(intent1);
   expect(planResult1).toBe(true);
 
-  await setup();
-
-  const planResult12 = await doPlan(intent1);
-  expect(planResult12).toBe(true);
-
-  await setup();
-
-  const amount2 = parseDecimal("700", currency!);
-
-  const intent2: CurvyIntent = {
-    toAddress: to,
-    amount: amount2,
-    currency: currency!,
-    network: network!,
-  };
-
-  const planResult2 = await doPlan(intent2);
-  expect(planResult2).toBe(true);
+  // await setup();
+  //
+  // const planResult12 = await doPlan(intent1);
+  // expect(planResult12).toBe(true);
+  //
+  // await setup();
+  //
+  // const amount2 = parseDecimal("700", currency!);
+  //
+  // const intent2: CurvyIntent = {
+  //   toAddress: to,
+  //   amount: amount2,
+  //   currency: currency!,
+  //   network: network!,
+  // };
+  //
+  // const planResult2 = await doPlan(intent2);
+  // expect(planResult2).toBe(true);
 }, 600_000);

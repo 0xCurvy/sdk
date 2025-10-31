@@ -63,9 +63,9 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
         chainId: BigInt(this.network.chainId),
         verifyingContract: this.network.vaultContractAddress as HexString,
       },
-      primaryType: "CurvyMetaTransactionType",
+      primaryType: "CurvyMetaTransaction",
       types: {
-        CurvyMetaTransactionType: [
+        CurvyMetaTransaction: [
           { name: "nonce", type: "uint256" },
           { name: "from", type: "address" },
           { name: "to", type: "address" },
