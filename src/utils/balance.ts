@@ -4,7 +4,7 @@ import { BALANCE_TYPE, type HexString, Note, type NoteBalanceEntry } from "@/typ
 
 function balanceEntryToNote({ balance, owner, deliveryTag, vaultTokenId, networkId }: NoteBalanceEntry): Note {
   return new Note({
-    balance: { amount: balance.toString(), token: vaultTokenId.toString(), networkId: networkId.toString() },
+    balance: { amount: balance.toString(), token: vaultTokenId.toString() },
     owner: {
       babyJubjubPublicKey: {
         x: owner.babyJubjubPublicKey.x,
@@ -28,13 +28,14 @@ function noteToBalanceEntry(
     environment: NETWORK_ENVIRONMENT_VALUES;
     networkSlug: string;
     currencyAddress: HexString;
+    networkId: number;
   },
 ): NoteBalanceEntry {
   if (!note.balance || !note.owner || !note.deliveryTag) {
     throw new Error("Note is not fully initialized");
   }
   const {
-    balance: { token, amount, networkId },
+    balance: { token, amount },
     ownerHash,
     id,
   } = note;
@@ -47,7 +48,6 @@ function noteToBalanceEntry(
     source: `0x${ownerHash.toString(16)}`,
     type: BALANCE_TYPE.NOTE,
     vaultTokenId: token,
-    networkId,
     balance: BigInt(amount),
     owner,
     deliveryTag,

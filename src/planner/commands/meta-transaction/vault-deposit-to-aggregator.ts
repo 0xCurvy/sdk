@@ -63,6 +63,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
       networkSlug: toSlug(this.network.name),
       outputNotes: [note.serializeOutputNote()],
       fromAddress: this.input.source,
+      networkId: this.network.id,
     });
 
     await this.sdk.pollForCriteria(
@@ -78,6 +79,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
       walletId: this.input.walletId,
       environment: this.input.environment,
       networkSlug: this.input.networkSlug,
+      networkId: this.network.id,
       currencyAddress: this.input.currencyAddress as HexString,
     });
   }
@@ -116,6 +118,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
         walletId: this.input.walletId,
         environment: this.input.environment,
         networkSlug: this.input.networkSlug,
+        networkId: this.network.id,
         currencyAddress: this.input.currencyAddress as HexString,
       }),
     };

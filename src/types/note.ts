@@ -4,7 +4,6 @@ import { poseidonHash } from "@/utils/poseidon-hash";
 type Balance = {
   amount: bigint;
   token: bigint;
-  networkId: bigint;
 };
 
 type BabyJubjubPublicKey = {
@@ -35,7 +34,6 @@ type AuthenticatedNote = {
   balance: {
     amount: string;
     token: string;
-    networkId: string;
   };
   deliveryTag: {
     ephemeralKey: string;
@@ -57,7 +55,6 @@ type InputNote = {
   balance: {
     amount: string;
     token: string;
-    networkId: string;
   };
 };
 
@@ -67,7 +64,6 @@ type OutputNote = {
   balance: {
     amount: string;
     token: string;
-    networkId: string;
   };
   deliveryTag: {
     ephemeralKey: string;
@@ -113,7 +109,6 @@ class Note {
       this.balance = {
         amount: BigInt(data.balance.amount),
         token: BigInt(data.balance.token),
-        networkId: BigInt(data.balance.networkId),
       };
 
     if (data.deliveryTag)
@@ -168,7 +163,6 @@ class Note {
       balance: {
         amount: this.balance.amount.toString(),
         token: this.balance.token.toString(),
-        networkId: this.balance.networkId.toString(),
       },
     };
   }
@@ -193,7 +187,6 @@ class Note {
       balance: {
         amount: this.balance.amount.toString(),
         token: this.balance.token.toString(),
-        networkId: this.balance.networkId.toString(),
       },
       deliveryTag: {
         ephemeralKey: bigIntToDecimalString(this.deliveryTag.ephemeralKey),
@@ -209,7 +202,6 @@ class Note {
       balance: {
         token: outputNote.balance.token,
         amount: outputNote.balance.amount,
-        networkId: outputNote.balance.networkId,
       },
       deliveryTag: {
         ephemeralKey: outputNote.deliveryTag.ephemeralKey,

@@ -38,7 +38,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     this.#intent = intent;
   }
 
-  #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[]): AggregationRequest {
+  #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[], networkId: number): AggregationRequest {
     if (!this.network.aggregationCircuitConfig) {
       throw new Error("Network aggregation circuit config is not defined!");
     }
@@ -80,6 +80,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       inputNotes,
       outputNotes,
       signature,
+      networkId,
     };
   }
 
@@ -93,7 +94,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
     const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
 
-    const aggregationRequest = this.#createAggregationRequest(inputNotes, outputNotes);
+    const aggregationRequest = this.#createAggregationRequest(inputNotes, outputNotes, this.input[0].networkId);
 
     const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(aggregationRequest);
 
@@ -109,7 +110,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     // If we are aggregating the funds to our own address, that's the only case
     // when we want to return the output note to the rest of the plan
     if (toAddress === this.senderCurvyHandle) {
-      const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
+      const { symbol, walletId, environment, networkSlug, decimals, currencyAddress, networkId } = this.input[0];
 
       return noteToBalanceEntry(mainOutputNote, {
         symbol,
@@ -117,6 +118,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
         walletId,
         environment,
         networkSlug,
+        networkId,
         currencyAddress: currencyAddress as HexString,
       });
     }
@@ -184,7 +186,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     const effectiveAmount = this.inputNotesSum - changeOrDummyOutputNote.balance!.amount - curvyFee;
     const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, effectiveAmount);
 
-    const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
+    const { symbol, walletId, environment, networkSlug, decimals, currencyAddress, networkId } = this.input[0];
 
     const data = noteToBalanceEntry(mainOutputNote, {
       symbol,
@@ -192,6 +194,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       walletId,
       environment,
       networkSlug,
+      networkId,
       currencyAddress: currencyAddress as HexString,
     });
 

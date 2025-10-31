@@ -197,7 +197,6 @@ class Core implements ICore {
       balance: {
         amount: noteData.amount.toString(),
         token: noteData.token.toString(),
-        networkId: noteData.networkId.toString(),
       },
       deliveryTag: {
         ephemeralKey: R,

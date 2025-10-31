@@ -175,6 +175,7 @@ export class BalanceScanner implements IBalanceScanner {
       if (amount === "0") continue; // Skip zero balance notes
 
       const networkSlug = toSlug(network.name);
+      const networkId = network.id;
 
       const vaultTokenId = BigInt(token);
 
@@ -190,6 +191,7 @@ export class BalanceScanner implements IBalanceScanner {
         id,
 
         networkSlug,
+        networkId,
         environment,
 
         currencyAddress: address,
@@ -262,7 +264,8 @@ export class BalanceScanner implements IBalanceScanner {
     // TODO Support multiple networks, currently taking only the first one
 
     try {
-      const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes();
+      // TODO: @vanja pls fix this to support multiple networks
+      const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes(networks[0].id.toString());
 
       const { s, v, babyJubjubPublicKey } = this.#walletManager.activeWallet.keyPairs;
 

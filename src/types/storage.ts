@@ -64,7 +64,7 @@ type NoteBalanceEntry = BalanceEntryBase & {
 
   type: BALANCE_TYPE["NOTE"];
   vaultTokenId: bigint;
-  networkId: bigint;
+  networkId: number;
   owner: {
     babyJubjubPublicKey: {
       x: string;
