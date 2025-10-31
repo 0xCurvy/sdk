@@ -381,7 +381,7 @@ export class MapStorage implements StorageInterface {
     options: BalanceSourcesOptions = {
       sortByTypeRanking: {
         [BALANCE_TYPE.NOTE]: 1,
-        [BALANCE_TYPE.Vault]: 2,
+        [BALANCE_TYPE.VAULT]: 2,
         [BALANCE_TYPE.SA]: 3,
       },
       sortByBalance: "desc",

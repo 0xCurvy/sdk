@@ -106,7 +106,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
 
     // TODO: Create utility methods for creating balance entries in commands
     return {
-      type: BALANCE_TYPE.Vault,
+      type: BALANCE_TYPE.VAULT,
       walletId: this.input[0].walletId,
       source: vaultAddress,
       vaultTokenId: vaultBalance.vaultTokenId,
@@ -136,7 +136,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
       gas: 0n,
       stealthAddressData,
       data: {
-        type: BALANCE_TYPE.Vault,
+        type: BALANCE_TYPE.VAULT,
         walletId,
         source: stealthAddressData.address,
         vaultTokenId: vaultTokenId,

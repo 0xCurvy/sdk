@@ -25,7 +25,7 @@ export const processPasskeyPrf = async (prfOut: BufferSource) => {
 
   const decimalPrf = BigInt(`0x${bufferSourceToBuffer(hashedPrf).toString("hex")}`);
 
-  const prfPrivateKey = (decimalPrf % CURVE.n).toString(16);
+  const prfPrivateKey = (decimalPrf % CURVE.n).toString(16).padStart(64, "0");
 
   const prfAddress = privateKeyToAddress(`0x${prfPrivateKey}`);
 

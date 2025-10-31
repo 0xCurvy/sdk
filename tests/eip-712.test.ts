@@ -26,9 +26,9 @@ test("Unit test for signatures", async () => {
       chainId,
       verifyingContract,
     },
-    primaryType: "CurvyMetaTransactionType" as const,
+    primaryType: "CurvyMetaTransaction" as const,
     types: {
-      CurvyMetaTransactionType: [
+      CurvyMetaTransaction: [
         { name: "nonce", type: "uint256" },
         { name: "from", type: "address" },
         { name: "to", type: "address" },
@@ -59,9 +59,9 @@ test("Unit test for signatures", async () => {
       chainId,
       verifyingContract,
     },
-    primaryType: "CurvyMetaTransactionType",
+    primaryType: "CurvyMetaTransaction",
     types: {
-      CurvyMetaTransactionType: [
+      CurvyMetaTransaction: [
         { name: "nonce", type: "uint256" },
         { name: "from", type: "address" },
         { name: "to", type: "address" },
@@ -92,9 +92,9 @@ test("Unit test for signatures", async () => {
       chainId,
       verifyingContract,
     },
-    primaryType: "CurvyMetaTransactionType",
+    primaryType: "CurvyMetaTransaction",
     types: {
-      CurvyMetaTransactionType: [
+      CurvyMetaTransaction: [
         { name: "nonce", type: "uint256" },
         { name: "from", type: "address" },
         { name: "to", type: "address" },

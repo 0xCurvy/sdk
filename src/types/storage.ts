@@ -3,7 +3,7 @@ import type { ExtractValues, HexString } from "@/types/helper";
 
 const BALANCE_TYPE = {
   SA: "sa",
-  Vault: "vault",
+  VAULT: "vault",
   NOTE: "note",
 } as const;
 type BALANCE_TYPE = typeof BALANCE_TYPE;
@@ -52,10 +52,10 @@ const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
 type VaultBalanceEntry = BalanceEntryBase & {
   source: HexString;
   vaultTokenId: bigint;
-  type: BALANCE_TYPE["Vault"];
+  type: BALANCE_TYPE["VAULT"];
 };
 const isVaultBalanceEntry = (entry: BalanceEntry): entry is VaultBalanceEntry => {
-  return entry.type === BALANCE_TYPE.Vault;
+  return entry.type === BALANCE_TYPE.VAULT;
 };
 
 type NoteBalanceEntry = BalanceEntryBase & {

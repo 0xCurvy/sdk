@@ -1,14 +1,17 @@
 import { v4 as uuidV4 } from "uuid";
-import type {
-  CurvyIntent,
-  CurvyPlan,
-  CurvyPlanFlowControl,
-  GeneratePlanReturnType,
-} from "@/planner/plan";
+import type { CurvyIntent, CurvyPlan, CurvyPlanFlowControl, GeneratePlanReturnType } from "@/planner/plan";
 import { BALANCE_TYPE, type BalanceEntry } from "@/types";
 import { isHexString } from "@/types/helper";
 
 const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
+  // If is note, just return it
+  if (balanceEntry.type === BALANCE_TYPE.NOTE) {
+    return {
+      type: "data",
+      data: balanceEntry,
+    };
+  }
+
   const plan: CurvyPlan = {
     type: "serial",
     items: [
@@ -29,7 +32,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   }
 
   // Then addresses can be deposited from CSUC to Aggregator
-  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.Vault) {
+  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.VAULT) {
     plan.items.push({
       type: "command",
       id: uuidV4(),
@@ -37,13 +40,10 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
     });
   }
 
-  // ...and if the address is already a note on the aggregator
-  // then it's already taken care of by including it in the plan variable
-  // at the top of this function.
   return plan;
 };
 
-const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): CurvyPlanFlowControl => {
+const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): CurvyPlan => {
   const maxInputs = intent.network.aggregationCircuitConfig!.maxInputs;
 
   // If we have just one sub plan, just aggregate it
@@ -54,7 +54,7 @@ const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): Curvy
         items[0],
         {
           type: "command",
-            id:uuidV4(),
+          id: uuidV4(),
           name: "aggregator-aggregate",
           intent,
         },
@@ -67,9 +67,13 @@ const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): Curvy
 
     for (let i = 0; i < items.length; i += maxInputs) {
       const children = items.slice(i, i + maxInputs);
-      nextLevel.push({
-        type: "serial",
-        items: [
+
+      const nextLevelItems: CurvyPlan[] = [];
+
+      if (children.length === 1) {
+        nextLevelItems.push(children[0]);
+      } else {
+        nextLevelItems.push(
           {
             type: "parallel",
             items: children,
@@ -79,7 +83,12 @@ const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): Curvy
             id: uuidV4(),
             name: "aggregator-aggregate",
           },
-        ],
+        );
+      }
+
+      nextLevel.push({
+        type: "serial",
+        items: nextLevelItems,
       });
     }
 
@@ -135,25 +144,32 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
   // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
   // into aggregator supported batch sizes
 
+  let plan: CurvyPlan;
   const aggregationPlan = generateAggregationPlan(plansToUpgradeNecessaryAddressesToNotes, intent);
 
   // If we are sending to EOA, push two more commands
   // to move funds from Aggregator to CSUC to EOA
   if (isHexString(intent.toAddress)) {
-    aggregationPlan.items.push(
-      {
-        type: "command",
-        id: uuidV4(),
-        name: "aggregator-withdraw-to-vault",
-      },
-      {
-        type: "command",
-        id: uuidV4(),
-        name: "vault-withdraw-to-eoa",
-        intent,
-      },
-    );
+    plan = {
+      type: "serial",
+      items: [
+        aggregationPlan,
+        {
+          type: "command",
+          id: uuidV4(),
+          name: "aggregator-withdraw-to-vault",
+        },
+        {
+          type: "command",
+          id: uuidV4(),
+          name: "vault-withdraw-to-eoa",
+          intent,
+        },
+      ],
+    };
+  } else {
+    plan = aggregationPlan;
   }
 
-  return { plan: aggregationPlan, usedBalances: balances.slice(0, i) };
+  return { plan, usedBalances: balances.slice(0, i) };
 };
