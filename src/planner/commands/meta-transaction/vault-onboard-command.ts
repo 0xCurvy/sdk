@@ -110,7 +110,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
       ...inputData,
       vaultTokenId: vaultBalance.vaultTokenId,
       balance: BigInt(vaultBalance.balance),
-      type: BALANCE_TYPE.Vault,
+      type: BALANCE_TYPE.VAULT,
     } satisfies VaultBalanceEntry;
 
     // await this.sdk.storage.updateBalancesAndTotals(inputData.walletId, [vaultBalanceEntry]); TODO this is buggy, needs a fix
@@ -136,7 +136,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
       ...inputData,
       vaultTokenId: BigInt(vaultTokenId),
       balance: inputData.balance,
-      type: BALANCE_TYPE.Vault,
+      type: BALANCE_TYPE.VAULT,
     } satisfies VaultBalanceEntry;
 
     if (isOnboardingNative) {

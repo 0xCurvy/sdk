@@ -7,12 +7,12 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
 import {
-    BALANCE_TYPE,
-    type CurvyAddress,
-    type VaultBalanceEntry,
-    type Network,
-    type NoteBalanceEntry,
-    type SaBalanceEntry,
+  BALANCE_TYPE,
+  type CurvyAddress,
+  type Network,
+  type NoteBalanceEntry,
+  type SaBalanceEntry,
+  type VaultBalanceEntry,
 } from "@/types";
 import type { FullNoteData } from "@/types/note";
 import type { BalanceEntry } from "@/types/storage";
@@ -141,7 +141,7 @@ export class BalanceScanner implements IBalanceScanner {
           entries.push({
             walletId: addresses[i].walletId,
             source: address,
-            type: BALANCE_TYPE.Vault,
+            type: BALANCE_TYPE.VAULT,
 
             networkSlug: toSlug(network),
             environment,

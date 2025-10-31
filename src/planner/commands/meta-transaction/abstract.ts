@@ -101,7 +101,7 @@ export abstract class AbstractVaultCommand extends AbstractMetaTransactionComman
       throw new Error("Invalid input for command, CSUC commands only accept one data as input.");
     }
 
-    if (input.type !== BALANCE_TYPE.Vault) {
+    if (input.type !== BALANCE_TYPE.VAULT) {
       throw new Error("Invalid input for command, CSUC commands only accept CSUC balance type as input.");
     }
 

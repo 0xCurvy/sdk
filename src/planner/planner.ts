@@ -32,8 +32,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
   }
 
   // Then addresses can be deposited from CSUC to Aggregator
-  // TODO: lowercase vault ne sme
-  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.Vault) {
+  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.VAULT) {
     plan.items.push({
       type: "command",
       id: uuidV4(),
