@@ -1,3 +1,4 @@
+import { privateKeyToAccount } from "viem/accounts";
 import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
@@ -39,23 +40,28 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       args: [this.input.currencyAddress as HexString],
     });
 
-    const indexOfType = [
-      META_TRANSACTION_TYPES.VAULT_ONBOARD,
-      META_TRANSACTION_TYPES.VAULT_TRANSFER,
-      META_TRANSACTION_TYPES.VAULT_WITHDRAW,
-    ].indexOf(metaTransactionType);
+    // TODO: Extract / do this better
+    const typeLookup = {
+      vault_onboard: 0,
+      vault_transfer: 1,
+      vault_deposit_to_aggregator: 1,
+      vault_withdraw: 2,
+    };
 
-    if (indexOfType === -1)
+    if (!(metaTransactionType in typeLookup)) {
       throw new Error(
-        `Meta transaction type ${metaTransactionType} is not supported. Supported types are: ${META_TRANSACTION_TYPES.VAULT_ONBOARD}, ${META_TRANSACTION_TYPES.VAULT_TRANSFER}, ${META_TRANSACTION_TYPES.VAULT_WITHDRAW}`,
+        `Meta transaction type ${metaTransactionType} is not supported. Supported types are: ${META_TRANSACTION_TYPES.VAULT_ONBOARD}, ${META_TRANSACTION_TYPES.VAULT_TRANSFER}, ${META_TRANSACTION_TYPES.VAULT_WITHDRAW}, ${META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR}`,
       );
+    }
 
-    return await this.sdk.rpcClient.Network(this.input.networkSlug).signMessage(privateKey, {
+    const account = privateKeyToAccount(privateKey);
+
+    return account.signTypedData({
       domain: {
         name: "Curvy Privacy Vault",
         version: this.network.vaultContractVersion,
-        chainId: this.network.chainId,
-        verifyingContract: this.network.vaultContractAddress,
+        chainId: BigInt(this.network.chainId),
+        verifyingContract: this.network.vaultContractAddress as HexString,
       },
       primaryType: "CurvyMetaTransactionType",
       types: {
@@ -76,7 +82,7 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
         tokenId: BigInt(tokenId),
         amount,
         gasFee,
-        metaTransactionType: indexOfType,
+        metaTransactionType: typeLookup[metaTransactionType],
       },
     });
   }

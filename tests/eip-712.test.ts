@@ -1,127 +1,151 @@
-import { rpc } from "viem/utils";
+import { verifyTypedData } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { expect, test } from "vitest";
-import { vaultV1Abi } from "@/contracts/evm/abi";
-import type { CurvyIntent } from "@/planner/plan";
-import { generatePlan } from "@/planner/planner";
-import { CurvySDK } from "@/sdk";
-import { type BalanceEntry, CURVY_EVENT_TYPES, type Currency, type HexString, type Network } from "@/types";
-import { parseDecimal } from "@/utils";
 
-const LocalnetGeneratedValues = {
-  urlsCurvyOS: {
-    "user-1":
-      "http://localhost:5174/?apiBaseUrl=http://localhost:4000&apiKey=local&network=localnet&signatureFlavour=evm&signature={%22signatureResult%22:%220xabe15e09bf9591c6ddb71175c02210e7cc707474a0c362dc486e9770d803e918663be4d3f39a529ac3c427d2cf9e78e231b53cf5bb4e5fbbc24d4ca3b6455d6c1b%22,%22signatureParams%22:{%22domain%22:{%22name%22:%22Curvy%20Protocol%22,%22version%22:%221.0.0%22,%22chainId%22:1},%22message%22:{%22title%22:%22Curvy%20Protocol%20says%20%27Zdravo%27!%22,%22content%22:%22Curvy%20Protocol%20requests%20signature:%201fa652f55d183ce5cdfaef646dead811e3d5d650e78d688711e74f7b7b4013ae2d279cb256a1d81378264b8db455cfa97d790e46545e793957dd66a97efa4915%22},%22primaryType%22:%22AuthMessage%22,%22types%22:{%22EIP712Domain%22:[{%22name%22:%22name%22,%22type%22:%22string%22},{%22name%22:%22version%22,%22type%22:%22string%22},{%22name%22:%22chainId%22,%22type%22:%22uint256%22}],%22AuthMessage%22:[{%22name%22:%22title%22,%22type%22:%22string%22},{%22name%22:%22content%22,%22type%22:%22string%22}]}},%22signingAddress%22:%220xf39fd6e51aad88f6f4ce6ab8827279cfffb92266%22}",
-    "user-2":
-      "http://localhost:5174/?apiBaseUrl=http://localhost:4000&apiKey=local&network=localnet&signatureFlavour=evm&signature={%22signatureResult%22:%220xa5cbb9e72859729dbb0f1382ac2bc5927bd40fbb87fabdb56947301dfa63d2a443fb071470760c0cd1e29ac881e357abdba02256440f5e32e4fb96d9d59d3e181c%22,%22signatureParams%22:{%22domain%22:{%22name%22:%22Curvy%20Protocol%22,%22version%22:%221.0.0%22,%22chainId%22:1},%22message%22:{%22title%22:%22Curvy%20Protocol%20says%20%27Zdravo%27!%22,%22content%22:%22Curvy%20Protocol%20requests%20signature:%201fa652f55d183ce5cdfaef646dead811e3d5d650e78d688711e74f7b7b4013ae2d279cb256a1d81378264b8db455cfa97d790e46545e793957dd66a97efa4915%22},%22primaryType%22:%22AuthMessage%22,%22types%22:{%22EIP712Domain%22:[{%22name%22:%22name%22,%22type%22:%22string%22},{%22name%22:%22version%22,%22type%22:%22string%22},{%22name%22:%22chainId%22,%22type%22:%22uint256%22}],%22AuthMessage%22:[{%22name%22:%22title%22,%22type%22:%22string%22},{%22name%22:%22content%22,%22type%22:%22string%22}]}},%22signingAddress%22:%220x70997970c51812dc3a010c7d01b50e0d17dc79c8%22}",
-    "user-3":
-      "http://localhost:5174/?apiBaseUrl=http://localhost:4000&apiKey=local&network=localnet&signatureFlavour=evm&signature={%22signatureResult%22:%220x5455b69e583ad2d18c560af191cb9f55a96f71aff35044bceefc8d624e13defb7564f15100eef076c96c388bfc2ef81806de8b9dc8a14e31c8f7b9c729c3ab7d1b%22,%22signatureParams%22:{%22domain%22:{%22name%22:%22Curvy%20Protocol%22,%22version%22:%221.0.0%22,%22chainId%22:1},%22message%22:{%22title%22:%22Curvy%20Protocol%20says%20%27Zdravo%27!%22,%22content%22:%22Curvy%20Protocol%20requests%20signature:%201fa652f55d183ce5cdfaef646dead811e3d5d650e78d688711e74f7b7b4013ae2d279cb256a1d81378264b8db455cfa97d790e46545e793957dd66a97efa4915%22},%22primaryType%22:%22AuthMessage%22,%22types%22:{%22EIP712Domain%22:[{%22name%22:%22name%22,%22type%22:%22string%22},{%22name%22:%22version%22,%22type%22:%22string%22},{%22name%22:%22chainId%22,%22type%22:%22uint256%22}],%22AuthMessage%22:[{%22name%22:%22title%22,%22type%22:%22string%22},{%22name%22:%22content%22,%22type%22:%22string%22}]}},%22signingAddress%22:%220x3c44cdddb6a900fa2b585dd299e03d12fa4293bc%22}",
-  },
-  initialUserLoggedInUrl:
-    "http://localhost:5174/?apiBaseUrl=http://localhost:4000&apiKey=local&network=localnet&signatureFlavour=evm&signature={%22signatureResult%22:%220xabe15e09bf9591c6ddb71175c02210e7cc707474a0c362dc486e9770d803e918663be4d3f39a529ac3c427d2cf9e78e231b53cf5bb4e5fbbc24d4ca3b6455d6c1b%22,%22signatureParams%22:{%22domain%22:{%22name%22:%22Curvy%20Protocol%22,%22version%22:%221.0.0%22,%22chainId%22:1},%22message%22:{%22title%22:%22Curvy%20Protocol%20says%20%27Zdravo%27!%22,%22content%22:%22Curvy%20Protocol%20requests%20signature:%201fa652f55d183ce5cdfaef646dead811e3d5d650e78d688711e74f7b7b4013ae2d279cb256a1d81378264b8db455cfa97d790e46545e793957dd66a97efa4915%22},%22primaryType%22:%22AuthMessage%22,%22types%22:{%22EIP712Domain%22:[{%22name%22:%22name%22,%22type%22:%22string%22},{%22name%22:%22version%22,%22type%22:%22string%22},{%22name%22:%22chainId%22,%22type%22:%22uint256%22}],%22AuthMessage%22:[{%22name%22:%22title%22,%22type%22:%22string%22},{%22name%22:%22content%22,%22type%22:%22string%22}]}},%22signingAddress%22:%220xf39fd6e51aad88f6f4ce6ab8827279cfffb92266%22}",
-};
+test("Unit test for signatures", async () => {
+  const privateKey = "0xe6bd304017a184efa0f577139772305c1a7b64c0e5f7b0a9b6aa6a255469157d";
+  const version = "1.0";
+  const chainId = 31337;
+  const verifyingContract = "0x9a676e781a523b5d0c0e43731313a708cb607508";
 
-let curvySDK: CurvySDK;
-let activeWalletId: string;
-let network: Network;
-let currency: Currency;
-let balances: BalanceEntry[];
+  const nonce = 0n;
+  const from = "0x67fcb5316956053214374f37c53515aE3441b8EE";
+  const to = "0x0b306bf915c4d645ff596e518faf3f9669b97016";
+  const tokenId = 1n;
+  const amount = 998999905426735528144n;
+  const gasFee = 0n;
+  const metaTransactionType = 1;
 
-const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
-  const { plan } = generatePlan(balances, intent);
+  const account = privateKeyToAccount(privateKey);
 
-  const executor = curvySDK.commandExecutor;
-
-  const estimation = await executor.estimatePlan(plan);
-
-  const result = await executor.executePlan(estimation.plan);
-
-  return result.success;
-};
-
-async function setup() {
-  curvySDK = await CurvySDK.init("local", "localnet", "http://localhost:4001");
-
-  const urlParams = new URLSearchParams(LocalnetGeneratedValues.urlsCurvyOS["user-1"]);
-  const signature = urlParams.get("signature");
-  //@ts-expect-error
-  await curvySDK.walletManager.addWalletWithSignature("evm", JSON.parse(decodeURIComponent(signature)));
-
-  expect(curvySDK.walletManager.wallets).toHaveLength(1);
-
-  activeWalletId = curvySDK.walletManager.activeWallet.id;
-
-  let syncComplete = false;
-  curvySDK.on(CURVY_EVENT_TYPES.SYNC_COMPLETE, async (event) => {
-    console.log(event);
-    syncComplete = true;
-  });
-
-  let retries = 0;
-
-  while (!syncComplete) {
-    retries += 1;
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    expect(retries).toBeLessThanOrEqual(100);
-  }
-
-  let balanceRefreshComplete = false;
-  curvySDK.on(CURVY_EVENT_TYPES.BALANCE_REFRESH_COMPLETE, async (event) => {
-    console.log(event);
-    balanceRefreshComplete = true;
-  });
-
-  await curvySDK.refreshBalances(true);
-
-  while (!balanceRefreshComplete) {
-    retries += 1;
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    expect(retries).toBeLessThanOrEqual(100);
-  }
-
-  expect(curvySDK.walletManager.activeWallet.ownerAddress).toBe("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266");
-
-  network = curvySDK.getNetwork("localnet");
-  if (!network) {
-    throw new Error("Network not found");
-  }
-
-  currency = network.currencies.find((c) => c.symbol === "ETH")!;
-  if (!currency) {
-    console.log("Currency not found");
-  }
-
-  balances = await curvySDK.storage.getBalanceSources(
-    activeWalletId,
-    currency!.contractAddress,
-    network!.name.replace(" ", "-").toLowerCase(),
-  );
-}
-
-test("EIP-712 test", async () => {
-  await setup();
-
-  const to = "devenv1.local-curvy.name";
-  const amount1 = parseDecimal("330", currency!);
-
-  const intent1: CurvyIntent = {
-    toAddress: to,
-    amount: amount1,
-    currency: currency!,
-    network: network!,
+  // TODO: Zasto je Typescript jezik u kome kada prosledim ovo direktno kao argument literal lepo razume, ali kao promenljivu buni se?
+  // @ts-expect-error
+  const _eip712Data = {
+    domain: {
+      name: "Curvy Privacy Vault",
+      version,
+      chainId,
+      verifyingContract,
+    },
+    primaryType: "CurvyMetaTransactionType",
+    types: {
+      CurvyMetaTransactionType: [
+        { name: "nonce", type: "uint256" },
+        { name: "from", type: "address" },
+        { name: "to", type: "address" },
+        { name: "tokenId", type: "uint256" },
+        { name: "amount", type: "uint256" },
+        { name: "gasFee", type: "uint256" },
+        { name: "metaTransactionType", type: "uint8" },
+      ],
+    },
+    message: {
+      nonce,
+      from,
+      to,
+      tokenId,
+      amount,
+      gasFee,
+      metaTransactionType,
+    },
   };
 
-  const planResult1 = await doPlan(intent1);
-  expect(planResult1).toBe(false);
+  const signature = await account.signTypedData({
+    domain: {
+      name: "Curvy Privacy Vault",
+      version,
+      chainId,
+      verifyingContract,
+    },
+    primaryType: "CurvyMetaTransactionType",
+    types: {
+      CurvyMetaTransactionType: [
+        { name: "nonce", type: "uint256" },
+        { name: "from", type: "address" },
+        { name: "to", type: "address" },
+        { name: "tokenId", type: "uint256" },
+        { name: "amount", type: "uint256" },
+        { name: "gasFee", type: "uint256" },
+        { name: "metaTransactionType", type: "uint8" },
+      ],
+    },
+    message: {
+      nonce,
+      from,
+      to,
+      tokenId,
+      amount,
+      gasFee,
+      metaTransactionType,
+    },
+  });
 
-  await setup();
+  const goodSignature = await verifyTypedData({
+    address: from,
+    domain: {
+      name: "Curvy Privacy Vault",
+      version,
+      chainId,
+      verifyingContract,
+    },
+    primaryType: "CurvyMetaTransactionType",
+    types: {
+      CurvyMetaTransactionType: [
+        { name: "nonce", type: "uint256" },
+        { name: "from", type: "address" },
+        { name: "to", type: "address" },
+        { name: "tokenId", type: "uint256" },
+        { name: "amount", type: "uint256" },
+        { name: "gasFee", type: "uint256" },
+        { name: "metaTransactionType", type: "uint8" },
+      ],
+    },
+    message: {
+      nonce,
+      from,
+      to,
+      tokenId,
+      amount,
+      gasFee,
+      metaTransactionType,
+    },
 
-  expect(balances.length).toBe(2);
+    signature,
+  });
 
-  // curvySDK.getRpcClient("localnet").provider.writeContract({});
-  // const transfer = await rpc.provider.writeContract({
-  //   abi: vaultV1Abi,
-  //   address: this.network.vaultContractAddress as HexString,
-  //   functionName: "getNonce",
-  //   args: [this.input.source as HexString],
-  // });
-}, 600_000);
+  const badSignature = await verifyTypedData({
+    address: to,
+    domain: {
+      name: "Curvy Privacy Vault",
+      version,
+      chainId,
+      verifyingContract,
+    },
+    primaryType: "CurvyMetaTransactionType",
+    types: {
+      CurvyMetaTransactionType: [
+        { name: "nonce", type: "uint256" },
+        { name: "from", type: "address" },
+        { name: "to", type: "address" },
+        { name: "tokenId", type: "uint256" },
+        { name: "amount", type: "uint256" },
+        { name: "gasFee", type: "uint256" },
+        { name: "metaTransactionType", type: "uint8" },
+      ],
+    },
+    message: {
+      nonce,
+      from,
+      to,
+      tokenId,
+      amount,
+      gasFee,
+      metaTransactionType,
+    },
+
+    signature,
+  });
+
+  expect(goodSignature).toBe(true);
+  expect(badSignature).toBe(false);
+});

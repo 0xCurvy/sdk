@@ -34,11 +34,11 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
     // TODO: getNewNoteForUser should return output note
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
-    const signature = this.signMetaTransaction(
+    const signature = await this.signMetaTransaction(
       this.network.aggregatorContractAddress as HexString,
       note.balance!.amount,
       gas,
-      META_TRANSACTION_TYPES.VAULT_ONBOARD,
+      META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR,
     );
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
