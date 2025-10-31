@@ -1,4 +1,4 @@
-import type { Network, RawAnnouncement } from "@/types/api";
+import type { RawAnnouncement } from "@/types/api";
 import type {
   CoreScanReturnType,
   CoreSendReturnType,
@@ -23,11 +23,7 @@ interface ICore {
   isValidSECP256k1Point(point: string): boolean;
 
   getNoteOwnershipData(publicNotes: PublicNote[], s: string, v: string): NoteOwnershipData[];
-  generateNoteOwnershipProof(
-    ownershipData: NoteOwnershipData[],
-    babyJubPublicKey: string,
-    network: Network,
-  ): Promise<NoteOwnershipProof>;
+  generateNoteOwnershipProof(ownershipData: NoteOwnershipData[], babyJubPublicKey: string): Promise<NoteOwnershipProof>;
   unpackAuthenticatedNotes(
     s: string,
     v: string,

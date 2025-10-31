@@ -92,7 +92,7 @@ type TotalBalance = {
 type BalanceSourcesOptions = {
   sortByTypeRanking: Record<BALANCE_TYPE_VALUES, number>;
   sortByBalance?: "asc" | "desc";
-  minimumBalance?: Partial<Record<BALANCE_TYPE_VALUES, bigint>>;
+  fiatBalanceThreshold?: Partial<Record<BALANCE_TYPE_VALUES, number>>;
 };
 
 export type {

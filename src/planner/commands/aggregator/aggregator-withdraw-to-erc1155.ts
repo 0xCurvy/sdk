@@ -94,7 +94,7 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
       },
     );
 
-    await this.sdk.storage.removeSpentBalanceEntries(this.input);
+    await this.sdk.storage.removeSpentBalanceEntries("note", this.input);
 
     const { balances } = await this.sdk.rpcClient.Network(this.input[0].networkSlug).getErc1155Balances(erc1155Address);
     const erc1155Balance = balances.find((b) => b.currencyAddress === this.input[0].currencyAddress);

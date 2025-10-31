@@ -92,7 +92,7 @@ export class Erc1155WithdrawToEOACommand extends AbstractErc1155Command {
       },
     );
 
-    await this.sdk.storage.removeSpentBalanceEntries([this.input]);
+    await this.sdk.storage.removeSpentBalanceEntries("address", [this.input]);
 
     await new Promise((res) => setTimeout(res, 3000)); // Wait for balances to be updated properly
 

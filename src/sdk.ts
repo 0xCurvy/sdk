@@ -57,7 +57,7 @@ class CurvySDK implements ICurvySDK {
   #rpcClient: MultiRpc | undefined;
   #state: SdkState;
 
-  #commandExecutor: CommandExecutor;
+  #commandExecutor: CommandExecutor | undefined;
 
   readonly apiClient: IApiClient;
   readonly storage: StorageInterface;
@@ -65,13 +65,7 @@ class CurvySDK implements ICurvySDK {
   on: ICurvyEventEmitter["on"];
   off: ICurvyEventEmitter["off"];
 
-  private constructor(
-    apiKey: string,
-    core: Core,
-    apiBaseUrl?: string,
-    storage: StorageInterface = new MapStorage(),
-    commandFactory: ICommandFactory = new CurvyCommandFactory(this),
-  ) {
+  private constructor(apiKey: string, core: Core, apiBaseUrl?: string, storage: StorageInterface = new MapStorage()) {
     this.#core = core;
     this.apiClient = new ApiClient(apiKey, apiBaseUrl);
     this.#emitter = new CurvyEventEmitter();
@@ -81,7 +75,6 @@ class CurvySDK implements ICurvySDK {
       environment: "mainnet",
       activeNetworks: [],
     };
-    this.#commandExecutor = new CommandExecutor(commandFactory, this.#emitter);
     // Must bind for correct this reference
     this.on = this.#emitter.on.bind(this.#emitter);
     this.off = this.#emitter.off.bind(this.#emitter);
@@ -109,6 +102,7 @@ class CurvySDK implements ICurvySDK {
     apiBaseUrl?: string,
     storage?: StorageInterface,
     wasmUrl?: string,
+    commandFactory?: ICommandFactory,
   ) {
     const core = await Core.init(wasmUrl);
 
@@ -135,6 +129,11 @@ class CurvySDK implements ICurvySDK {
       sdk.#core,
       sdk.#walletManager,
     );
+    sdk.#commandExecutor = new CommandExecutor(
+      commandFactory ?? new CurvyCommandFactory(sdk),
+      sdk.#emitter,
+      sdk.#balanceScanner,
+    );
 
     return sdk;
   }
@@ -146,6 +145,10 @@ class CurvySDK implements ICurvySDK {
 
   // TODO: Think about calling it just executor
   get commandExecutor() {
+    if (!this.#commandExecutor) {
+      throw new Error("Command executor is not initialized!");
+    }
+
     return this.#commandExecutor;
   }
 
