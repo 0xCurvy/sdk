@@ -175,7 +175,11 @@ class Core implements ICore {
     return JSON.parse(curvy.send(input)) as CoreSendReturnType;
   }
 
-  sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
+  sendNote(
+    S: string,
+    V: string,
+    noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint; networkId: bigint },
+  ): Note {
     let { R, viewTag, spendingPubKey } = this.send(S, V);
 
     if (!viewTag.startsWith("0x")) {
@@ -193,6 +197,7 @@ class Core implements ICore {
       balance: {
         amount: noteData.amount.toString(),
         token: noteData.token.toString(),
+        networkId: noteData.networkId.toString(),
       },
       deliveryTag: {
         ephemeralKey: R,

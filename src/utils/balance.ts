@@ -2,9 +2,9 @@ import dayjs from "dayjs";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import { BALANCE_TYPE, type HexString, Note, type NoteBalanceEntry } from "@/types";
 
-function balanceEntryToNote({ balance, owner, deliveryTag, vaultTokenId }: NoteBalanceEntry): Note {
+function balanceEntryToNote({ balance, owner, deliveryTag, vaultTokenId, networkId }: NoteBalanceEntry): Note {
   return new Note({
-    balance: { amount: balance.toString(), token: vaultTokenId.toString() },
+    balance: { amount: balance.toString(), token: vaultTokenId.toString(), networkId: networkId.toString() },
     owner: {
       babyJubjubPublicKey: {
         x: owner.babyJubjubPublicKey.x,
@@ -34,7 +34,7 @@ function noteToBalanceEntry(
     throw new Error("Note is not fully initialized");
   }
   const {
-    balance: { token, amount },
+    balance: { token, amount, networkId },
     ownerHash,
     id,
   } = note;
@@ -47,6 +47,7 @@ function noteToBalanceEntry(
     source: `0x${ownerHash.toString(16)}`,
     type: BALANCE_TYPE.NOTE,
     vaultTokenId: token,
+    networkId,
     balance: BigInt(amount),
     owner,
     deliveryTag,

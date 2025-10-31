@@ -3,11 +3,11 @@ import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstrac
 import type { CurvyCommandData } from "@/planner/plan";
 import {
   BALANCE_TYPE,
-  type VaultBalanceEntry,
   type GetStealthAddressReturnType,
   type HexString,
   type InputNote,
   Note,
+  type VaultBalanceEntry,
   type WithdrawRequest,
 } from "@/types";
 import { generateWithdrawalHash } from "@/utils/aggregator";
@@ -41,6 +41,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
           balance: {
             amount: "0",
             token: inputNotes[0].balance.token.toString(),
+            networkId: inputNotes[0].balance.networkId.toString(),
           },
         }).serializeInputNote(),
       );
