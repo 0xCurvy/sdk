@@ -1,5 +1,5 @@
-import { type NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR } from "@/constants/networks";
-import type { CurvyAddress, VaultBalance, RpcBalances } from "@/types";
+import { NETWORK_FLAVOUR } from "@/constants/networks";
+import type { CurvyAddress, RpcBalances, VaultBalance } from "@/types";
 import type { AbortOptions } from "@/types/helper";
 import { toSlug } from "@/utils/helpers";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
@@ -7,16 +7,9 @@ import type { Rpc } from "./abstract";
 
 class MultiRpc {
   readonly #rpcArray: Rpc[];
-  readonly #environment: NETWORK_ENVIRONMENT_VALUES;
 
   constructor(rpcs: Rpc[] = []) {
     this.#rpcArray = rpcs;
-    this.#environment = rpcs[0].network.testnet ? "testnet" : "mainnet";
-
-    const uniqueEnvironmentSet = new Set(rpcs.map((rpc) => rpc.network.testnet));
-    if (uniqueEnvironmentSet.size > 1) {
-      throw new Error("All RPCs must be either testnet or mainnet");
-    }
   }
 
   async getBalances(
@@ -59,10 +52,6 @@ class MultiRpc {
     }
 
     return rpc[0];
-  }
-
-  get environment() {
-    return this.#environment;
   }
 }
 

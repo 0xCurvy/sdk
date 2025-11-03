@@ -13,7 +13,6 @@ test("Decode note shared secret", async () => {
     ownerBabyJubjubPublicKey: babyJubjubPublicKey,
     amount: 1000000000000000000n,
     token: BigInt(1),
-    networkId: BigInt(1),
   });
 
   expect(recipientNoteData!.owner!.babyJubjubPublicKey.x).toBe(BigInt(babyJubjubPublicKey.split(".")[0]));
@@ -47,7 +46,6 @@ test("Scan notes", async () => {
       ownerBabyJubjubPublicKey: isOwnedNote ? ownerBabyJubjubPublicKey : otherBabyJubjubPublicKey,
       amount: 1000000000000000000n,
       token: BigInt(1),
-      networkId: BigInt(1),
     });
 
     notes.push(recipientNoteData);
@@ -99,7 +97,6 @@ test("Scan owned notes", async () => {
       ownerBabyJubjubPublicKey: isOwnedNote ? ownerBabyjubjubPublicKey : otherBabyjubjubPublicKey,
       amount: 1000000000000000000n,
       token: BigInt(1),
-      networkId: BigInt(1),
     });
 
     notes.push(recipientNoteData);
@@ -142,7 +139,6 @@ test("Generate note ownership proof", async () => {
       ownerBabyJubjubPublicKey: ownerBabyJubjubPublicKey,
       amount: 1000000000000000000n,
       token: BigInt(1),
-      networkId: BigInt(1),
     });
 
     notes.push(recipientNoteData);
