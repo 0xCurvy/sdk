@@ -10,7 +10,7 @@ import {
   type BalanceSourcesOptions,
   type CurvyAddress,
   type CurvyWalletData,
-  type Erc1155BalanceEntry,
+  type VaultBalanceEntry,
   type MinifiedCurvyAddress,
   type SaBalanceEntry,
 } from "@/types";
@@ -296,8 +296,8 @@ export class MapStorage implements StorageInterface {
         );
       }
       case "address": {
-        if (!balanceEntries.every((e) => e.type === BALANCE_TYPE.SA || e.type === BALANCE_TYPE.ERC1155)) {
-          throw new Error("All entries must be of type SA or ERC1155");
+        if (!balanceEntries.every((e) => e.type === BALANCE_TYPE.SA || e.type === BALANCE_TYPE.VAULT)) {
+          throw new Error("All entries must be of type SA or VAULT");
         }
 
         return this.updateAddressBalances(
@@ -342,7 +342,7 @@ export class MapStorage implements StorageInterface {
     }
   }
 
-  async updateAddressBalances(walletId: string, entries: (SaBalanceEntry | Erc1155BalanceEntry)[]): Promise<void> {
+  async updateAddressBalances(walletId: string, entries: (SaBalanceEntry | VaultBalanceEntry)[]): Promise<void> {
     const sources = [...new Set(entries.map((e) => e.source))];
 
     const oldBalanceEntriesOfSources: BalanceEntry[] = [];

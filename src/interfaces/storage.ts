@@ -4,7 +4,7 @@ import type {
   BalanceSourcesOptions,
   CurvyAddress,
   CurvyWalletData,
-  Erc1155BalanceEntry,
+  VaultBalanceEntry,
   PriceData,
   SaBalanceEntry,
   ScanInfo,
@@ -89,7 +89,7 @@ export interface StorageInterface {
    * @param walletId The ID of the wallet to update balances for.
    * @param entries The balance entries to update.
    */
-  updateAddressBalances(walletId: string, entries: (SaBalanceEntry | Erc1155BalanceEntry)[]): Promise<void>;
+  updateAddressBalances(walletId: string, entries: (SaBalanceEntry | VaultBalanceEntry)[]): Promise<void>;
 
   /**
    * Removes balance entries that have been spent from the storage.
@@ -97,7 +97,7 @@ export interface StorageInterface {
    * @param entries - The balance entries to remove.
    */
   removeSpentBalanceEntries(type: "note", entries: NoteBalanceEntry[]): Promise<void>;
-  removeSpentBalanceEntries(type: "address", entries: (SaBalanceEntry | Erc1155BalanceEntry)[]): Promise<void>;
+  removeSpentBalanceEntries(type: "address", entries: (SaBalanceEntry | VaultBalanceEntry)[]): Promise<void>;
 
   /**
    * Gets the total balances grouped by currency and network for the specified wallet.
