@@ -43,7 +43,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
     const { id, gas } = this.estimateData;
 
     if (isOnboardingNative) {
-      await this.#rpc.onboardNativeToVault(this.input.balance - gas, privateKey);
+      await this.#rpc.onboardNativeToVault(this.input.balance - gas, privateKey, gas);
     } else {
       if (id === null) {
         throw new Error("[SaVaultOnboardCommand] Meta transaction ID is null for non-native onboarding!");
@@ -72,7 +72,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
 
       const depositTransaction = await this.#provider.prepareTransactionRequest({
         to: this.network.vaultContractAddress as HexString,
-        gas: 100_000n,
+        gas: 125_000n,
         nonce: 1,
         data: encodeFunctionData({
           abi: vaultV1Abi,
@@ -140,11 +140,10 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
 
     if (isOnboardingNative) {
       const gas = await this.#rpc.estimateOnboardNativeToVault(this.input.source as HexString, this.input.balance);
-      const curvyFee = (this.input.balance * BigInt(DEPOSIT_TO_VAULT_FEE)) / 1000n;
+      const curvyFee = ((this.input.balance - gas) * BigInt(DEPOSIT_TO_VAULT_FEE)) / 1000n;
 
       // TODO: Move this out of the commands
-      vaultBalanceEntry.balance -= gas;
-      vaultBalanceEntry.balance -= curvyFee;
+      vaultBalanceEntry.balance -= gas + curvyFee;
 
       return { curvyFee, gas, id: null, data: vaultBalanceEntry };
     }
