@@ -79,7 +79,6 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
       walletId: this.input.walletId,
       environment: this.input.environment,
       networkSlug: this.input.networkSlug,
-      networkId: this.network.id,
       currencyAddress: this.input.currencyAddress as HexString,
     });
   }
@@ -118,7 +117,6 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
         walletId: this.input.walletId,
         environment: this.input.environment,
         networkSlug: this.input.networkSlug,
-        networkId: this.network.id,
         currencyAddress: this.input.currencyAddress as HexString,
       }),
     };

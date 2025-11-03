@@ -120,7 +120,7 @@ export class BalanceScanner implements IBalanceScanner {
     }
     return entries;
   }
-  async #processVaultBalances(addresses: CurvyAddress[]): Promise<BalanceEntry[]> {
+  async #processVaultBalances(addresses: CurvyAddress[]) {
     const arrLength = addresses.length;
 
     const entries: VaultBalanceEntry[] = [];
@@ -183,7 +183,6 @@ export class BalanceScanner implements IBalanceScanner {
       if (amount === "0") continue; // Skip zero balance notes
 
       const networkSlug = toSlug(network.name);
-      const networkId = network.id;
 
       const vaultTokenId = BigInt(token);
 
@@ -199,7 +198,6 @@ export class BalanceScanner implements IBalanceScanner {
         id,
 
         networkSlug,
-        networkId,
         environment,
 
         currencyAddress: address,

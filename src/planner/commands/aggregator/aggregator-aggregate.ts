@@ -118,7 +118,6 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
         walletId,
         environment,
         networkSlug,
-        networkId: this.network.id,
         currencyAddress: currencyAddress as HexString,
       });
     }
@@ -194,7 +193,6 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       walletId,
       environment,
       networkSlug,
-      networkId: this.network.id,
       currencyAddress: currencyAddress as HexString,
     });
 
