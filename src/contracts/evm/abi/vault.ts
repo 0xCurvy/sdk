@@ -339,6 +339,11 @@ export const vaultV1Abi = [
         name: "amount",
         type: "uint256",
       },
+      {
+        internalType: "uint256",
+        name: "gasFee",
+        type: "uint256",
+      },
     ],
     name: "deposit",
     outputs: [],

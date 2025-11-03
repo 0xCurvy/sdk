@@ -295,6 +295,7 @@ export class BalanceScanner implements IBalanceScanner {
           const { notes: authenticatedNotes } = await this.apiClient.aggregator.SubmitNotesOwnershipProof({
             proof,
             ownerHashes,
+            networkId: network.id,
           });
 
           const unpackedNotes = this.#core.unpackAuthenticatedNotes(s, v, authenticatedNotes, babyJubPublicKey);

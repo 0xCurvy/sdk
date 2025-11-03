@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { expect, test } from "vitest";
 import type { CurvyIntent } from "@/planner/plan";
 import { generatePlan } from "@/planner/planner";
@@ -5,31 +6,31 @@ import { CurvySDK } from "@/sdk";
 import { type BalanceEntry, CURVY_EVENT_TYPES, type Currency, type Network } from "@/types";
 import { parseDecimal } from "@/utils";
 
-// function jsonPrettyPrint(obj: any) {
-//   const cb = (key: any, value: any) => {
-//     if (key === "network" && typeof value === "object") {
-//       return value.name;
-//     }
-//
-//     if (key === "currency" && typeof value === "object") {
-//       return value.symbol;
-//     }
-//     if (key === "data" && typeof value === "object") {
-//       return {
-//         balance: value.balance,
-//         type: value.type,
-//       };
-//     }
-//
-//     if (typeof value === "bigint") {
-//       return value.toString();
-//     }
-//
-//     return value;
-//   };
-//
-//   return JSON.stringify(obj, cb, 2);
-// }
+function jsonPrettyPrint(obj: any) {
+  const cb = (key: any, value: any) => {
+    if (key === "network" && typeof value === "object") {
+      return value.name;
+    }
+
+    if (key === "currency" && typeof value === "object") {
+      return value.symbol;
+    }
+    if (key === "data" && typeof value === "object") {
+      return {
+        balance: value.balance,
+        type: value.type,
+      };
+    }
+
+    if (typeof value === "bigint") {
+      return value.toString();
+    }
+
+    return value;
+  };
+
+  return JSON.stringify(obj, cb, 2);
+}
 
 const LocalnetGeneratedValues = {
   urlsCurvyOS: {
@@ -57,13 +58,15 @@ const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
 
   const estimation = await executor.estimatePlan(plan);
 
+  writeFileSync("estimation.json", jsonPrettyPrint(estimation.plan));
+
   const result = await executor.executePlan(estimation.plan, curvySDK.walletManager.activeWallet.id);
 
   return result.success;
 };
 
 async function setup() {
-  curvySDK = await CurvySDK.init("local", "localnet", "http://localhost:4000");
+  curvySDK = await CurvySDK.init("local", "localnet", "http://localhost:4001");
 
   const urlParams = new URLSearchParams(LocalnetGeneratedValues.urlsCurvyOS["user-1"]);
   const signature = urlParams.get("signature");

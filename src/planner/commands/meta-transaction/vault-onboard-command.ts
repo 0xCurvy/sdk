@@ -12,6 +12,9 @@ interface VaultOnboardCommandEstimate extends CurvyCommandEstimate {
   data: VaultBalanceEntry;
 }
 
+// TODO: Move to config, even better read from RPC
+const DEPOSIT_TO_VAULT_FEE = 1;
+
 // This command automatically sends all available balance from a stealth addresss to vault
 export class VaultOnboardCommand extends AbstractStealthAddressCommand {
   #rpc: Rpc;
@@ -37,12 +40,10 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
       throw new Error("[SaVaultOnboardCommand] Command must be estimated before execution!");
     }
 
-    const { gas, curvyFee, id } = this.estimateData;
-
-    const amount = this.input.balance - curvyFee - gas;
+    const { id, gas } = this.estimateData;
 
     if (isOnboardingNative) {
-      await this.#rpc.onboardNativeToVault(amount, privateKey);
+      await this.#rpc.onboardNativeToVault(this.input.balance - gas, privateKey);
     } else {
       if (id === null) {
         throw new Error("[SaVaultOnboardCommand] Meta transaction ID is null for non-native onboarding!");
@@ -76,7 +77,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
         data: encodeFunctionData({
           abi: vaultV1Abi,
           functionName: "deposit",
-          args: [this.input.currencyAddress as HexString, this.input.source, this.input.balance],
+          args: [this.input.currencyAddress as HexString, this.input.source, this.input.balance, gas],
         }),
         chain: this.#provider.chain,
       });
@@ -113,8 +114,6 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
       type: BALANCE_TYPE.VAULT,
     } satisfies VaultBalanceEntry;
 
-    // await this.sdk.storage.updateBalancesAndTotals(inputData.walletId, [vaultBalanceEntry]); TODO this is buggy, needs a fix
-
     return vaultBalanceEntry;
   }
 
@@ -141,10 +140,13 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
 
     if (isOnboardingNative) {
       const gas = await this.#rpc.estimateOnboardNativeToVault(this.input.source as HexString, this.input.balance);
+      const curvyFee = (this.input.balance * BigInt(DEPOSIT_TO_VAULT_FEE)) / 1000n;
 
+      // TODO: Move this out of the commands
       vaultBalanceEntry.balance -= gas;
+      vaultBalanceEntry.balance -= curvyFee;
 
-      return { curvyFee: 0n, gas, id: null, data: vaultBalanceEntry };
+      return { curvyFee, gas, id: null, data: vaultBalanceEntry };
     }
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({

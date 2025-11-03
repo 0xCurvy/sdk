@@ -74,6 +74,7 @@ interface IApiClient {
     SubmitNotesOwnershipProof(data: {
       proof: Groth16Proof;
       ownerHashes: string[];
+      networkId: number;
     }): Promise<SubmitNoteOwnershipProofReturnType>;
     GetAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
   };

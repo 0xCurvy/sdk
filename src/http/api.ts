@@ -188,7 +188,7 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    SubmitNotesOwnershipProof: async (data: { proof: Groth16Proof; ownerHashes: string[] }) => {
+    SubmitNotesOwnershipProof: async (data: { proof: Groth16Proof; ownerHashes: string[]; networkId: number }) => {
       return await this.request<SubmitNoteOwnershipProofReturnType>({
         method: "POST",
         path: "/aggregator/verify-note-ownership-proof",

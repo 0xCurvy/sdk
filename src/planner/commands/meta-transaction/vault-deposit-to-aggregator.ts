@@ -31,7 +31,10 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
 
     const { id, gas, curvyFee, note } = this.estimateData;
 
-    // TODO: getNewNoteForUser should return output note
+    if (this.input.balance !== note.balance!.amount) {
+      throw new Error("[VaultDepositToAggregatorCommand] Mismatch between actual and estimated balance.");
+    }
+
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
     const signature = await this.signMetaTransaction(
