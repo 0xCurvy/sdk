@@ -10,6 +10,8 @@ import { BALANCE_TYPE, type HexString, META_TRANSACTION_TYPES, type VaultBalance
 interface VaultOnboardCommandEstimate extends CurvyCommandEstimate {
   id: string | null;
   data: VaultBalanceEntry;
+  maxFeePerGas?: bigint;
+  gasLimit?: bigint;
 }
 
 // TODO: Move to config, even better read from RPC
@@ -43,7 +45,12 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
     const { id, gas } = this.estimateData;
 
     if (isOnboardingNative) {
-      await this.#rpc.onboardNativeToVault(this.input.balance - gas, privateKey, gas);
+      await this.#rpc.onboardNativeToVault(
+        this.input.balance - gas,
+        privateKey,
+        this.estimateData.maxFeePerGas!,
+        this.estimateData.gasLimit!,
+      );
     } else {
       if (id === null) {
         throw new Error("[SaVaultOnboardCommand] Meta transaction ID is null for non-native onboarding!");
@@ -139,13 +146,18 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
     } satisfies VaultBalanceEntry;
 
     if (isOnboardingNative) {
-      const gas = await this.#rpc.estimateOnboardNativeToVault(this.input.source as HexString, this.input.balance);
-      const curvyFee = ((this.input.balance - gas) * BigInt(DEPOSIT_TO_VAULT_FEE)) / 1000n;
+      const { maxFeePerGas, gasLimit } = await this.#rpc.estimateOnboardNativeToVault(
+        this.input.source as HexString,
+        this.input.balance,
+      );
+      const gasUsage = (maxFeePerGas * gasLimit * 120n) / 100n;
+      const curvyFee = ((this.input.balance - gasUsage) * BigInt(DEPOSIT_TO_VAULT_FEE)) / 1000n;
 
       // TODO: Move this out of the commands
-      vaultBalanceEntry.balance -= gas + curvyFee;
+      vaultBalanceEntry.balance -= gasUsage;
+      vaultBalanceEntry.balance -= curvyFee;
 
-      return { curvyFee, gas, id: null, data: vaultBalanceEntry };
+      return { curvyFee, gas: gasUsage, id: null, data: vaultBalanceEntry, maxFeePerGas, gasLimit };
     }
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({

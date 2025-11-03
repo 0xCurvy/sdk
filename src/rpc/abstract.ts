@@ -43,8 +43,16 @@ abstract class Rpc {
 
   abstract getVaultBalances(address: HexString): Promise<VaultBalance>;
 
-  abstract estimateOnboardNativeToVault(from: HexString, amount: bigint): Promise<bigint>;
-  abstract onboardNativeToVault(amount: bigint, privateKey: HexString, gas: bigint): Promise<RpcCallReturnType>;
+  abstract estimateOnboardNativeToVault(
+    from: HexString,
+    amount: bigint,
+  ): Promise<{ maxFeePerGas: bigint; gasLimit: bigint }>;
+  abstract onboardNativeToVault(
+    amount: bigint,
+    privateKey: HexString,
+    maxFeePerGas: bigint,
+    gasLimit: bigint,
+  ): Promise<RpcCallReturnType>;
 
   abstract signRawTransaction(privateKey: HexString, txRequest: SignTransactionRequest): Promise<string>;
   abstract signMessage(privateKey: HexString, typedData: any): Promise<string>;

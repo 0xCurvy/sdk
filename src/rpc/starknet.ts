@@ -359,7 +359,10 @@ class StarknetRpc extends Rpc {
     throw new Error("Vault is not supported on Starknet");
   }
 
-  async estimateOnboardNativeToVault(_from: HexString, _amount: bigint): Promise<bigint> {
+  async estimateOnboardNativeToVault(
+    _from: HexString,
+    _amount: bigint,
+  ): Promise<{ maxFeePerGas: bigint; gasLimit: bigint }> {
     throw new Error("Vault is not supported on Starknet");
   }
 

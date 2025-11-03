@@ -299,10 +299,10 @@ class EvmRpc extends Rpc {
       to: this.network.vaultContractAddress as Address,
     });
 
-    return (maxFeePerGas * gasLimit * 120n) / 100n;
+    return { maxFeePerGas, gasLimit };
   }
 
-  async onboardNativeToVault(amount: bigint, privateKey: HexString, gas: bigint) {
+  async onboardNativeToVault(amount: bigint, privateKey: HexString, maxFeePerGas: bigint, gasLimit: bigint) {
     if (!this.network.vaultContractAddress) {
       throw new Error("Vault actions not supported on this network");
     }
@@ -310,7 +310,8 @@ class EvmRpc extends Rpc {
     const hash = await this.#walletClient.sendTransaction({
       chain: this.#walletClient.chain,
       account: privateKeyToAccount(privateKey),
-      gas,
+      maxFeePerGas,
+      gasLimit,
       to: this.network.vaultContractAddress as HexString,
       value: amount,
     });
