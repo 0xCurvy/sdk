@@ -67,7 +67,7 @@ interface IApiClient {
   };
 
   aggregator: {
-    GetAllNotes(networkId: string): Promise<GetAllNotesReturnType>;
+    GetAllNotes(networkId: number): Promise<GetAllNotesReturnType>;
     SubmitDeposit(data: DepositRequest): Promise<SubmitDepositReturnType>;
     SubmitWithdraw(data: WithdrawRequest): Promise<SubmitWithdrawReturnType>;
     SubmitAggregation(data: AggregationRequest): Promise<SubmitAggregationReturnType>;

@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import { BALANCE_TYPE, type HexString, Note, type NoteBalanceEntry } from "@/types";
 
-function balanceEntryToNote({ balance, owner, deliveryTag, vaultTokenId, networkId }: NoteBalanceEntry): Note {
+function balanceEntryToNote({ balance, owner, deliveryTag, vaultTokenId }: NoteBalanceEntry): Note {
   return new Note({
     balance: { amount: balance.toString(), token: vaultTokenId.toString() },
     owner: {
@@ -28,7 +28,7 @@ function noteToBalanceEntry(
     environment: NETWORK_ENVIRONMENT_VALUES;
     networkSlug: string;
     currencyAddress: HexString;
-    networkId: number;
+    networkId: number; // TODO: @vanja vidi jel treba ovo ili mozemo da se oslonimo sa mo na network slug
   },
 ): NoteBalanceEntry {
   if (!note.balance || !note.owner || !note.deliveryTag) {

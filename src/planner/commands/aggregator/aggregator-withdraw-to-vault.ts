@@ -20,7 +20,7 @@ interface AggregatorWithdrawToVaultCommandEstimate extends CurvyCommandEstimate 
 export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand {
   protected declare estimateData: AggregatorWithdrawToVaultCommandEstimate | undefined;
 
-  #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString, networkId: number): WithdrawRequest {
+  #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): WithdrawRequest {
     if (!this.network.withdrawCircuitConfig) {
       throw new Error("Network withdraw circuit config is not defined!");
     }
@@ -57,12 +57,12 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
       inputNotes,
       signature,
       destinationAddress,
-      networkId,
+      networkId: this.network.id,
     };
   }
 
   async execute(): Promise<CurvyCommandData> {
-    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, walletId, networkId } = this.input[0];
+    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, walletId } = this.input[0];
 
     if (!this.estimateData) {
       throw new Error("[AggregatorWithdrawToVaultCommand] Command must be estimated before execution!");
@@ -84,7 +84,6 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     const withdrawRequest = this.#createWithdrawRequest(
       this.inputNotes.map((note) => note.serializeInputNote()),
       vaultAddress,
-      networkId,
     );
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw(withdrawRequest);

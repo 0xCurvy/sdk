@@ -261,11 +261,9 @@ export class BalanceScanner implements IBalanceScanner {
       return;
     }
 
-    // TODO Support multiple networks, currently taking only the first one
-
     try {
       // TODO: @vanja pls fix this to support multiple networks
-      const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes(networks[0].id.toString());
+      const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes(networks[0].id);
 
       const { s, v, babyJubjubPublicKey } = this.#walletManager.activeWallet.keyPairs;
 
