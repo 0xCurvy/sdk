@@ -28,6 +28,7 @@ function noteToBalanceEntry(
     environment: NETWORK_ENVIRONMENT_VALUES;
     networkSlug: string;
     currencyAddress: HexString;
+    networkId: number; // TODO: @vanja vidi jel treba ovo ili mozemo da se oslonimo sa mo na network slug
   },
 ): NoteBalanceEntry {
   if (!note.balance || !note.owner || !note.deliveryTag) {

@@ -80,6 +80,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       inputNotes,
       outputNotes,
       signature,
+      networkId: this.network.id,
     };
   }
 
@@ -117,6 +118,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
         walletId,
         environment,
         networkSlug,
+        networkId: this.network.id,
         currencyAddress: currencyAddress as HexString,
       });
     }
@@ -192,6 +194,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       walletId,
       environment,
       networkSlug,
+      networkId: this.network.id,
       currencyAddress: currencyAddress as HexString,
     });
 

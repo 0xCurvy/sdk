@@ -12,7 +12,8 @@ test("Decode note shared secret", async () => {
   const recipientNoteData = core.sendNote(keyPairs.S, keyPairs.V, {
     ownerBabyJubjubPublicKey: babyJubjubPublicKey,
     amount: 1000000000000000000n,
-    token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
+    token: BigInt(1),
+    networkId: BigInt(1),
   });
 
   expect(recipientNoteData!.owner!.babyJubjubPublicKey.x).toBe(BigInt(babyJubjubPublicKey.split(".")[0]));
@@ -45,7 +46,8 @@ test("Scan notes", async () => {
     const recipientNoteData = core.sendNote(isOwnedNote ? ownerS : otherS, isOwnedNote ? ownerV : otherV, {
       ownerBabyJubjubPublicKey: isOwnedNote ? ownerBabyJubjubPublicKey : otherBabyJubjubPublicKey,
       amount: 1000000000000000000n,
-      token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
+      token: BigInt(1),
+      networkId: BigInt(1),
     });
 
     notes.push(recipientNoteData);
@@ -96,7 +98,8 @@ test("Scan owned notes", async () => {
     const recipientNoteData = core.sendNote(isOwnedNote ? ownerS : otherS, isOwnedNote ? ownerV : otherV, {
       ownerBabyJubjubPublicKey: isOwnedNote ? ownerBabyjubjubPublicKey : otherBabyjubjubPublicKey,
       amount: 1000000000000000000n,
-      token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
+      token: BigInt(1),
+      networkId: BigInt(1),
     });
 
     notes.push(recipientNoteData);
@@ -138,7 +141,8 @@ test("Generate note ownership proof", async () => {
     const recipientNoteData = core.sendNote(ownerS, ownerV, {
       ownerBabyJubjubPublicKey: ownerBabyJubjubPublicKey,
       amount: 1000000000000000000n,
-      token: BigInt("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
+      token: BigInt(1),
+      networkId: BigInt(1),
     });
 
     notes.push(recipientNoteData);

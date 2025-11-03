@@ -57,6 +57,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
       inputNotes,
       signature,
       destinationAddress,
+      networkId: this.network.id,
     };
   }
 
