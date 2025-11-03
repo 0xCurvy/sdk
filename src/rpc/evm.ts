@@ -8,18 +8,17 @@ import {
   getContract,
   http,
   type PublicClient,
-  type SignMessageParameters,
   type WalletClient,
 } from "viem";
 import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTransaction";
 import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
-import { aggregatorABI } from "@/contracts/evm/abi";
-import { erc1155ABI } from "@/contracts/evm/abi/erc1155";
+import { aggregatorAlphaV1Abi } from "@/contracts/evm/abi";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
+import { vaultV1Abi } from "@/contracts/evm/abi/vault";
 import { Rpc } from "@/rpc/abstract";
-import type { Erc1155Balance, RpcBalance, RpcBalances } from "@/types";
+import type { RpcBalance, RpcBalances, VaultBalance } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
@@ -260,17 +259,17 @@ class EvmRpc extends Rpc {
     return feeEstimate;
   }
 
-  async getErc1155Balances(address: HexString): Promise<Erc1155Balance> {
-    if (!this.network.erc1155ContractAddress) {
-      throw new Error("Erc1155 actions not supported on this network");
+  async getVaultBalances(address: HexString): Promise<VaultBalance> {
+    if (!this.network.vaultContractAddress) {
+      throw new Error("Vault actions not supported on this network");
     }
 
-    const erc1155EnabledCurrencies = this.network.currencies.filter(({ erc1155TokenId }) => erc1155TokenId);
-    const currencyIds = erc1155EnabledCurrencies.map(({ erc1155TokenId }) => BigInt(erc1155TokenId!));
+    const vaultEnabledCurrencies = this.network.currencies.filter(({ vaultTokenId }) => vaultTokenId);
+    const currencyIds = vaultEnabledCurrencies.map(({ vaultTokenId }) => BigInt(vaultTokenId!));
 
     const balances = await this.provider.readContract({
-      abi: erc1155ABI,
-      address: this.network.erc1155ContractAddress as Address,
+      abi: vaultV1Abi,
+      address: this.network.vaultContractAddress as Address,
       functionName: "balanceOfBatch",
       args: [new Array(currencyIds.length).fill(address as Address), currencyIds],
     });
@@ -281,37 +280,37 @@ class EvmRpc extends Rpc {
       balances: balances.map((balance, idx) => {
         return {
           balance,
-          currencyAddress: erc1155EnabledCurrencies[idx].contractAddress,
-          erc1155TokenId: currencyIds[idx],
+          currencyAddress: vaultEnabledCurrencies[idx].contractAddress,
+          vaultTokenId: currencyIds[idx],
         };
       }),
     };
   }
 
-  async estimateOnboardNativeToErc1155(from: HexString, amount: bigint) {
-    if (!this.network.erc1155ContractAddress) {
-      throw new Error("Erc1155 actions not supported on this network");
+  async estimateOnboardNativeToVault(from: HexString, amount: bigint) {
+    if (!this.network.vaultContractAddress) {
+      throw new Error("Vault actions not supported on this network");
     }
     const { maxFeePerGas } = await this.provider.estimateFeesPerGas();
 
     const gasLimit = await this.provider.estimateGas({
       account: from,
       value: amount,
-      to: this.network.erc1155ContractAddress as Address,
+      to: this.network.vaultContractAddress as Address,
     });
 
     return (maxFeePerGas * gasLimit * 120n) / 100n;
   }
 
-  async onboardNativeToErc1155(amount: bigint, privateKey: HexString) {
-    if (!this.network.erc1155ContractAddress) {
-      throw new Error("Erc1155 actions not supported on this network");
+  async onboardNativeToVault(amount: bigint, privateKey: HexString) {
+    if (!this.network.vaultContractAddress) {
+      throw new Error("Vault actions not supported on this network");
     }
 
     const hash = await this.#walletClient.sendTransaction({
       chain: this.#walletClient.chain,
       account: privateKeyToAccount(privateKey),
-      to: this.network.erc1155ContractAddress as HexString,
+      to: this.network.vaultContractAddress as HexString,
       value: amount,
     });
 
@@ -336,10 +335,10 @@ class EvmRpc extends Rpc {
     });
   }
 
-  async signMessage(privateKey: HexString, params: Omit<SignMessageParameters, "account">) {
-    return this.#walletClient.signMessage({
-      account: privateKeyToAccount(privateKey),
-      ...params,
+  async signMessage(privateKey: HexString, typedData: any) {
+    return this.#walletClient.signTypedData({
+      account: privateKeyToAccount,
+      ...typedData,
     });
   }
 
@@ -349,9 +348,9 @@ class EvmRpc extends Rpc {
     }
 
     return this.provider.readContract({
-      abi: aggregatorABI,
+      abi: aggregatorAlphaV1Abi,
       address: this.network.aggregatorContractAddress as HexString,
-      functionName: "pendingIdsQueue",
+      functionName: "noteInQueue",
       args: [noteId],
     });
   }

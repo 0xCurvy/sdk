@@ -6,18 +6,21 @@ type DepositRequest = {
   networkSlug: string;
   outputNotes: OutputNote[];
   fromAddress: HexString;
+  networkId: number;
 };
 
 type AggregationRequest = {
   inputNotes: InputNote[];
   outputNotes: OutputNote[];
   signature: Signature;
+  networkId: number;
 };
 
 type WithdrawRequest = {
   inputNotes: InputNote[];
   signature: Signature;
   destinationAddress: HexString;
+  networkId: number;
 };
 
 export type { DepositRequest, AggregationRequest, WithdrawRequest };

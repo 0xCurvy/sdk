@@ -40,7 +40,7 @@ type Currency = {
   decimals: number;
   contractAddress: string;
   nativeCurrency: boolean;
-  erc1155TokenId: number | null;
+  vaultTokenId: number | null;
 };
 
 type Network = {
@@ -51,7 +51,9 @@ type Network = {
   slip0044: number;
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
-  erc1155ContractAddress?: string;
+  vaultContractAddress?: string;
+  // TODO: Vrati ga iz network controllera
+  vaultContractVersion?: string; // TODO: Proveri da postoji ovo kad postoji i adresa?
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   nativeCurrency: string | null; // TODO: Why is this string?

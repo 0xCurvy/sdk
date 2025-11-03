@@ -1,23 +1,21 @@
-import { toBytes } from "viem";
-import { erc1155ABI } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AbstractErc1155Command } from "@/planner/commands/erc1155/abstract";
+import { AbstractVaultCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import { EvmRpc } from "@/rpc";
 import { type HexString, META_TRANSACTION_TYPES, type Note, type NoteBalanceEntry } from "@/types";
-import { getMetaTransactionEip712HashAndSignedData, noteToBalanceEntry } from "@/utils";
+import { noteToBalanceEntry } from "@/utils";
 import { toSlug } from "@/utils/helpers";
 
-interface Erc1155DepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
+interface VaultDepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
   id: string;
   note: Note;
   data: NoteBalanceEntry;
 }
 
-// This command automatically sends all available balance from ERC1155 to Aggregator
-export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
-  protected declare estimateData: Erc1155DepositToAggregatorCommandEstimate | undefined;
+// This command automatically sends all available balance from Vault to Aggregator
+export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
+  protected declare estimateData: VaultDepositToAggregatorCommandEstimate | undefined;
 
   // biome-ignore lint/complexity/noUselessConstructor: Abstract class constructor is protected
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
@@ -28,7 +26,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     const rpc = this.sdk.rpcClient.Network(this.network.name);
 
     if (!this.estimateData) {
-      throw new Error("[Erc1155DepositToAggregatorCommand] Command must be estimated before execution!");
+      throw new Error("[VaultDepositToAggregatorCommand] Command must be estimated before execution!");
     }
 
     const { id, gas, curvyFee, note } = this.estimateData;
@@ -36,49 +34,24 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     // TODO: getNewNoteForUser should return output note
     note.balance!.amount = this.input.balance - curvyFee - gas;
 
-    const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-    const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
-
-    const nonce = await rpc.provider.readContract({
-      abi: erc1155ABI,
-      address: this.network.erc1155ContractAddress as HexString,
-      functionName: "getNonce",
-      args: [this.input.source as HexString],
-    });
-
-    const tokenId = await rpc.provider.readContract({
-      abi: erc1155ABI,
-      address: this.network.erc1155ContractAddress as HexString,
-      functionName: "getTokenID",
-      args: [this.input.currencyAddress as HexString],
-    });
-
-    const [eip712Hash] = getMetaTransactionEip712HashAndSignedData(
-      this.input.source as HexString,
+    const signature = await this.signMetaTransaction(
       this.network.aggregatorContractAddress as HexString,
-      tokenId,
       note.balance!.amount,
-      curvyFee + gas,
-      nonce,
-      this.network.erc1155ContractAddress as HexString,
-      this.network.feeCollectorAddress as HexString,
+      gas,
+      META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR,
     );
-
-    const signature = (await this.sdk.rpcClient
-      .Network(this.input.networkSlug)
-      .signMessage(privateKey, { message: { raw: toBytes(eip712Hash) } })) as HexString;
-
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
     await this.sdk.pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
+        if (res === "failed") throw new Error(`[VaultDepositToAggregatorCommand] Meta-transaction execution failed!`);
         return res === "completed";
       },
     );
 
     if (!(rpc instanceof EvmRpc)) {
-      throw new Error("Erc1155DepositToAggregatorCommand: Only EVM networks are supported");
+      throw new Error("VaultDepositToAggregatorCommand: Only EVM networks are supported");
     }
 
     for (let i = 0; i < 3; i++) {
@@ -90,6 +63,7 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
       networkSlug: toSlug(this.network.name),
       outputNotes: [note.serializeOutputNote()],
       fromAddress: this.input.source,
+      networkId: this.network.id,
     });
 
     await this.sdk.pollForCriteria(
@@ -109,21 +83,17 @@ export class Erc1155DepositToAggregatorCommand extends AbstractErc1155Command {
     });
   }
 
-  async estimate(): Promise<Erc1155DepositToAggregatorCommandEstimate> {
+  async estimate(): Promise<VaultDepositToAggregatorCommandEstimate> {
     const currencyAddress = this.input.currencyAddress;
 
-    if (!this.input.erc1155TokenId) {
-      throw new Error("Erc1155DepositToAggregatorCommand: erc1155TokenId is required");
+    if (!this.input.vaultTokenId) {
+      throw new Error("VaultDepositToAggregatorCommand: vaultTokenId is required");
     }
 
-    const note = await this.sdk.getNewNoteForUser(
-      this.senderCurvyHandle,
-      this.input.erc1155TokenId,
-      this.input.balance,
-    );
+    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
 
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
-      type: META_TRANSACTION_TYPES.ERC1155_DEPOSIT_TO_AGGREGATOR,
+      type: META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR,
       currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,

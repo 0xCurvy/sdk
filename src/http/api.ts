@@ -157,10 +157,10 @@ class ApiClient extends HttpClient implements IApiClient {
   };
 
   aggregator = {
-    GetAllNotes: async () => {
+    GetAllNotes: async (networkId: number) => {
       return await this.request<GetAllNotesReturnType>({
         method: "GET",
-        path: "/aggregator/get-all-notes",
+        path: `/aggregator/get-all-notes/${networkId}`,
       });
     },
 

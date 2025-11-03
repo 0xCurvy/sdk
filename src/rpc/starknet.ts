@@ -24,7 +24,7 @@ import { starknetMulticallAbi } from "@/contracts/starknet/abi/multicall";
 import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import type { Erc1155Balance, RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
+import type { VaultBalance, RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
 import { parseDecimal } from "@/utils/currency";
 import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { toSlug } from "@/utils/helpers";
@@ -355,16 +355,16 @@ class StarknetRpc extends Rpc {
     }
   }
 
-  async getErc1155Balances(_address: HexString): Promise<Erc1155Balance> {
-    throw new Error("ERC1155 is not supported on Starknet");
+  async getVaultBalances(_address: HexString): Promise<VaultBalance> {
+    throw new Error("Vault is not supported on Starknet");
   }
 
-  async estimateOnboardNativeToErc1155(_from: HexString, _amount: bigint): Promise<bigint> {
-    throw new Error("ERC1155 is not supported on Starknet");
+  async estimateOnboardNativeToVault(_from: HexString, _amount: bigint): Promise<bigint> {
+    throw new Error("Vault is not supported on Starknet");
   }
 
-  async onboardNativeToErc1155(_amount: bigint, _privateKey: HexString): Promise<RpcCallReturnType> {
-    throw new Error("ERC1155 is not supported on Starknet");
+  async onboardNativeToVault(_amount: bigint, _privateKey: HexString): Promise<RpcCallReturnType> {
+    throw new Error("Vault is not supported on Starknet");
   }
 
   async signRawTransaction(_privateKey: HexString, _txRequest: unknown): Promise<string> {

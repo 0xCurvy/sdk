@@ -10,7 +10,7 @@ import {
   type BalanceSourcesOptions,
   type CurvyAddress,
   type CurvyWalletData,
-  type Erc1155BalanceEntry,
+  type VaultBalanceEntry,
   type MinifiedCurvyAddress,
   type SaBalanceEntry,
 } from "@/types";
@@ -138,7 +138,7 @@ export class MapStorage implements StorageInterface {
 
     if (typeof addressOrId === "bigint") {
       currencyMetadata = Array.from(this.#currencyMetadata.values()).find(
-        (c) => c.erc1155TokenId === addressOrId.toString() && c.networkSlug === networkSlug,
+        (c) => c.vaultTokenId === addressOrId.toString() && c.networkSlug === networkSlug,
       );
     } else {
       currencyMetadata = this.#currencyMetadata.get(
@@ -148,7 +148,7 @@ export class MapStorage implements StorageInterface {
 
     if (!currencyMetadata) {
       throw new StorageError(
-        `Currency metadata for address / erc1155TokenId ${addressOrId} on network ${networkSlug} not found`,
+        `Currency metadata for address / vaultTokenId ${addressOrId} on network ${networkSlug} not found`,
       );
     }
 
@@ -296,8 +296,8 @@ export class MapStorage implements StorageInterface {
         );
       }
       case "address": {
-        if (!balanceEntries.every((e) => e.type === BALANCE_TYPE.SA || e.type === BALANCE_TYPE.ERC1155)) {
-          throw new Error("All entries must be of type SA or ERC1155");
+        if (!balanceEntries.every((e) => e.type === BALANCE_TYPE.SA || e.type === BALANCE_TYPE.VAULT)) {
+          throw new Error("All entries must be of type SA or VAULT");
         }
 
         return this.updateAddressBalances(
@@ -342,7 +342,7 @@ export class MapStorage implements StorageInterface {
     }
   }
 
-  async updateAddressBalances(walletId: string, entries: (SaBalanceEntry | Erc1155BalanceEntry)[]): Promise<void> {
+  async updateAddressBalances(walletId: string, entries: (SaBalanceEntry | VaultBalanceEntry)[]): Promise<void> {
     const sources = [...new Set(entries.map((e) => e.source))];
 
     const oldBalanceEntriesOfSources: BalanceEntry[] = [];
@@ -464,7 +464,7 @@ export class MapStorage implements StorageInterface {
     options: BalanceSourcesOptions = {
       sortByTypeRanking: {
         [BALANCE_TYPE.NOTE]: 1,
-        [BALANCE_TYPE.ERC1155]: 2,
+        [BALANCE_TYPE.VAULT]: 2,
         [BALANCE_TYPE.SA]: 3,
       },
       sortByBalance: "desc",

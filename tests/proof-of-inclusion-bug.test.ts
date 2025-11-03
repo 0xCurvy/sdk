@@ -1,4 +1,3 @@
-import { writeFileSync } from "fs";
 import { expect, test } from "vitest";
 import type { CurvyIntent } from "@/planner/plan";
 import { generatePlan } from "@/planner/planner";
@@ -6,31 +5,31 @@ import { CurvySDK } from "@/sdk";
 import { type BalanceEntry, CURVY_EVENT_TYPES, type Currency, type Network } from "@/types";
 import { parseDecimal } from "@/utils";
 
-function jsonPrettyPrint(obj: any) {
-  const cb = (key: any, value: any) => {
-    if (key === "network" && typeof value === "object") {
-      return value.name;
-    }
-
-    if (key === "currency" && typeof value === "object") {
-      return value.symbol;
-    }
-    if (key === "data" && typeof value === "object") {
-      return {
-        balance: value.balance,
-        type: value.type,
-      };
-    }
-
-    if (typeof value === "bigint") {
-      return value.toString();
-    }
-
-    return value;
-  };
-
-  return JSON.stringify(obj, cb, 2);
-}
+// function jsonPrettyPrint(obj: any) {
+//   const cb = (key: any, value: any) => {
+//     if (key === "network" && typeof value === "object") {
+//       return value.name;
+//     }
+//
+//     if (key === "currency" && typeof value === "object") {
+//       return value.symbol;
+//     }
+//     if (key === "data" && typeof value === "object") {
+//       return {
+//         balance: value.balance,
+//         type: value.type,
+//       };
+//     }
+//
+//     if (typeof value === "bigint") {
+//       return value.toString();
+//     }
+//
+//     return value;
+//   };
+//
+//   return JSON.stringify(obj, cb, 2);
+// }
 
 const LocalnetGeneratedValues = {
   urlsCurvyOS: {
@@ -51,9 +50,8 @@ let network: Network;
 let currency: Currency;
 let balances: BalanceEntry[];
 
-const doPlan = async (intent: CurvyIntent, cnt: number): Promise<boolean> => {
+const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
   const { plan } = generatePlan(balances, intent);
-  writeFileSync(`plan-${cnt}.json`, jsonPrettyPrint(plan));
 
   const executor = curvySDK.commandExecutor;
 
@@ -135,12 +133,12 @@ test("Inclusion proof bug", async () => {
     network: network!,
   };
 
-  const planResult1 = await doPlan(intent1, 1);
+  const planResult1 = await doPlan(intent1);
   expect(planResult1).toBe(true);
 
   await setup();
 
-  const planResult12 = await doPlan(intent1, 2);
+  const planResult12 = await doPlan(intent1);
   expect(planResult12).toBe(true);
 
   await setup();
@@ -154,6 +152,6 @@ test("Inclusion proof bug", async () => {
     network: network!,
   };
 
-  const planResult2 = await doPlan(intent2, 3);
+  const planResult2 = await doPlan(intent2);
   expect(planResult2).toBe(true);
 }, 600_000);

@@ -3,22 +3,22 @@ import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstrac
 import type { CurvyCommandData } from "@/planner/plan";
 import {
   BALANCE_TYPE,
-  type Erc1155BalanceEntry,
   type GetStealthAddressReturnType,
   type HexString,
   type InputNote,
   Note,
+  type VaultBalanceEntry,
   type WithdrawRequest,
 } from "@/types";
 import { generateWithdrawalHash } from "@/utils/aggregator";
 
-interface AggregatorWithdrawToErc1155CommandEstimate extends CurvyCommandEstimate {
-  data: Erc1155BalanceEntry;
+interface AggregatorWithdrawToVaultCommandEstimate extends CurvyCommandEstimate {
+  data: VaultBalanceEntry;
   stealthAddressData: GetStealthAddressReturnType;
 }
 
-export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorCommand {
-  protected declare estimateData: AggregatorWithdrawToErc1155CommandEstimate | undefined;
+export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand {
+  protected declare estimateData: AggregatorWithdrawToVaultCommandEstimate | undefined;
 
   #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): WithdrawRequest {
     if (!this.network.withdrawCircuitConfig) {
@@ -57,6 +57,7 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
       inputNotes,
       signature,
       destinationAddress,
+      networkId: this.network.id,
     };
   }
 
@@ -64,17 +65,17 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
     const { networkSlug, environment, symbol, lastUpdated, currencyAddress, walletId } = this.input[0];
 
     if (!this.estimateData) {
-      throw new Error("[AggregatorWithdrawToERC1155Command] Command must be estimated before execution!");
+      throw new Error("[AggregatorWithdrawToVaultCommand] Command must be estimated before execution!");
     }
 
     const { stealthAddressData } = this.estimateData;
 
-    const { address: erc1155Address, announcementData } =
+    const { address: vaultAddress, announcementData } =
       await this.sdk.registerStealthAddressForUser(stealthAddressData);
 
     await this.sdk.storage.storeCurvyAddress({
       ...announcementData,
-      address: erc1155Address,
+      address: vaultAddress,
       walletId,
       lastScannedAt: { mainnet: 0, testnet: 0 },
     });
@@ -82,7 +83,7 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
     // TODO: Fix this so that we dont have same return values as args
     const withdrawRequest = this.#createWithdrawRequest(
       this.inputNotes.map((note) => note.serializeInputNote()),
-      erc1155Address,
+      vaultAddress,
     );
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw(withdrawRequest);
@@ -96,34 +97,34 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
 
     await this.sdk.storage.removeSpentBalanceEntries("note", this.input);
 
-    const { balances } = await this.sdk.rpcClient.Network(this.input[0].networkSlug).getErc1155Balances(erc1155Address);
-    const erc1155Balance = balances.find((b) => b.currencyAddress === this.input[0].currencyAddress);
+    const { balances } = await this.sdk.rpcClient.Network(this.input[0].networkSlug).getVaultBalances(vaultAddress);
+    const vaultBalance = balances.find((b) => b.currencyAddress === this.input[0].currencyAddress);
 
-    if (!erc1155Balance) {
-      throw new Error("Failed to retrieve ERC1155 balance after deposit!");
+    if (!vaultBalance) {
+      throw new Error("Failed to retrieve Vault balance after deposit!");
     }
 
     // TODO: Create utility methods for creating balance entries in commands
     return {
-      type: BALANCE_TYPE.ERC1155,
+      type: BALANCE_TYPE.VAULT,
       walletId: this.input[0].walletId,
-      source: erc1155Address,
-      erc1155TokenId: erc1155Balance.erc1155TokenId,
+      source: vaultAddress,
+      vaultTokenId: vaultBalance.vaultTokenId,
       networkSlug,
       environment,
-      balance: erc1155Balance.balance,
+      balance: vaultBalance.balance,
       symbol,
       decimals: this.input[0].decimals,
       currencyAddress,
       lastUpdated,
-    } satisfies Erc1155BalanceEntry;
+    } satisfies VaultBalanceEntry;
   }
 
   // In the case of aggregator-withdraw-to-csuc command, both the circuit
   // and the aggregator SC have withdrawBPS set, circuits calculate what is the
   // feeAmount and pass it to CSUC so that CSUC can put it on th fee collector
-  async estimate(): Promise<AggregatorWithdrawToErc1155CommandEstimate> {
-    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, erc1155TokenId, decimals, walletId } =
+  async estimate(): Promise<AggregatorWithdrawToVaultCommandEstimate> {
+    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, vaultTokenId, decimals, walletId } =
       this.input[0];
 
     const curvyFee = this.inputNotesSum / 500n; // 0.2% = 1/500
@@ -135,10 +136,10 @@ export class AggregatorWithdrawToErc1155Command extends AbstractAggregatorComman
       gas: 0n,
       stealthAddressData,
       data: {
-        type: BALANCE_TYPE.ERC1155,
+        type: BALANCE_TYPE.VAULT,
         walletId,
         source: stealthAddressData.address,
-        erc1155TokenId: erc1155TokenId,
+        vaultTokenId: vaultTokenId,
         networkSlug,
         environment,
         balance: this.inputNotesSum - curvyFee,

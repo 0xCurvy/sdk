@@ -9,10 +9,10 @@ import type { MultiRpc } from "@/rpc/multi";
 import {
   BALANCE_TYPE,
   type CurvyAddress,
-  type Erc1155BalanceEntry,
   type Network,
   type NoteBalanceEntry,
   type SaBalanceEntry,
+  type VaultBalanceEntry,
 } from "@/types";
 import type { FullNoteData } from "@/types/note";
 import type { BalanceEntry } from "@/types/storage";
@@ -120,42 +120,42 @@ export class BalanceScanner implements IBalanceScanner {
     }
     return entries;
   }
-  async #processERC1155Balances(addresses: CurvyAddress[]) {
+  async #processVaultBalances(addresses: CurvyAddress[]) {
     const arrLength = addresses.length;
 
-    const entries: Erc1155BalanceEntry[] = [];
+    const entries: VaultBalanceEntry[] = [];
 
     for (let i = 0; i < arrLength; i++) {
       const address = addresses[i];
 
-      const erc1155Data = await this.rpcClient.getErc1155Balances(address);
+      const vaultData = await this.rpcClient.getVaultBalances(address);
 
-      for (const { network, address, balances } of erc1155Data) {
+      for (const { network, address, balances } of vaultData) {
         const balancesLength = balances.length;
         for (let j = 0; j < balancesLength; j++) {
           const { currencyAddress, balance } = balances[j];
 
           if (balance === 0n) continue; // Skip zero balances
 
-          const { symbol, environment, decimals, erc1155TokenId } = await this.#storage.getCurrencyMetadata(
+          const { symbol, environment, decimals, vaultTokenId } = await this.#storage.getCurrencyMetadata(
             currencyAddress,
             toSlug(network),
           );
 
-          if (!erc1155TokenId) {
-            throw new Error(`ERC1155 token not found in currency metadata, for address ${currencyAddress}.`);
+          if (!vaultTokenId) {
+            throw new Error(`Vault token not found in currency metadata, for address ${currencyAddress}.`);
           }
 
           entries.push({
             walletId: addresses[i].walletId,
             source: address,
-            type: BALANCE_TYPE.ERC1155,
+            type: BALANCE_TYPE.VAULT,
 
             networkSlug: toSlug(network),
             environment,
             decimals,
 
-            erc1155TokenId: BigInt(erc1155TokenId),
+            vaultTokenId: BigInt(vaultTokenId),
             currencyAddress,
             balance,
             symbol,
@@ -184,10 +184,10 @@ export class BalanceScanner implements IBalanceScanner {
 
       const networkSlug = toSlug(network.name);
 
-      const erc1155TokenId = BigInt(token);
+      const vaultTokenId = BigInt(token);
 
       const { symbol, environment, address, decimals } = await this.#storage.getCurrencyMetadata(
-        erc1155TokenId,
+        vaultTokenId,
         networkSlug,
       );
 
@@ -201,7 +201,7 @@ export class BalanceScanner implements IBalanceScanner {
         environment,
 
         currencyAddress: address,
-        erc1155TokenId,
+        vaultTokenId,
         symbol,
         balance: BigInt(amount),
         decimals,
@@ -235,7 +235,7 @@ export class BalanceScanner implements IBalanceScanner {
   async #processAddressBatch(addressBatch: CurvyAddress[]) {
     const resultsForBatch = await Promise.all([
       this.#processSaBalances(addressBatch),
-      this.#processERC1155Balances(addressBatch.filter((address) => address.networkFlavour === "evm")),
+      this.#processVaultBalances(addressBatch.filter((address) => address.networkFlavour === "evm")),
     ]);
 
     return resultsForBatch.flat();
@@ -250,15 +250,13 @@ export class BalanceScanner implements IBalanceScanner {
       signal?: AbortSignal;
     },
   ) {
-    // TODO This process happens in memory, may be a problem with thousands of notes on mobile phones
-
     const onProgress = options?.onProgress;
     const signal = options?.signal;
 
     signal?.throwIfAborted();
 
     const networks = (await this.apiClient.network.GetNetworks()).filter(
-      (network) => network.testnet === (environment === "testnet") && !!network.erc1155ContractAddress,
+      (network) => network.testnet === (environment === "testnet") && !!network.vaultContractAddress,
     );
 
     if (networks.length === 0) {
@@ -282,7 +280,7 @@ export class BalanceScanner implements IBalanceScanner {
         const network = networks[i];
         const scannedNotes: NoteBalanceEntry[] = [];
 
-        const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes();
+        const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes(network.id);
 
         const noteOwnershipData = this.#core.getNoteOwnershipData(publicNotes, s, v);
 
@@ -512,8 +510,6 @@ export class BalanceScanner implements IBalanceScanner {
       else console.error(e);
     } finally {
       this.#semaphore[`refresh-notes-${walletId}`] = undefined;
-
-      // TODO add event emitter for error states
     }
   }
 }

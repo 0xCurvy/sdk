@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { Groth16Proof } from "snarkjs";
 import type { IApiClient } from "@/interfaces/api";
 import type { MetaTransaction } from "@/types";
@@ -42,8 +41,8 @@ export class MockAPIClient implements IApiClient {
     this.generateMockAnnouncements(1000); // Generate 1000 mock announcements
   }
 
-  get bearerToken(): string {
-    return "";
+  get bearerToken(): string | undefined {
+    throw new Error("Method not implemented.");
   }
 
   limitAnnouncements(limit: number): void {
@@ -152,7 +151,7 @@ export class MockAPIClient implements IApiClient {
               contractAddress: "0x123",
               updatedAt: "",
               nativeCurrency: false,
-              erc1155TokenId: null,
+              vaultTokenId: null,
             },
           ],
         },

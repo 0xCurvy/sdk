@@ -1,10 +1,10 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand, CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
-import { AggregatorWithdrawToErc1155Command } from "@/planner/commands/aggregator/aggregator-withdraw-to-erc1155";
-import { Erc1155DepositToAggregatorCommand } from "@/planner/commands/erc1155/erc1155-deposit-to-aggregator";
-import { Erc1155WithdrawToEOACommand } from "@/planner/commands/erc1155/erc1155-withdraw-to-eoa";
-import { SaErc1155OnboardCommand } from "@/planner/commands/sa/sa-erc1155-onboard-command";
+import { AggregatorWithdrawToVaultCommand } from "@/planner/commands/aggregator/aggregator-withdraw-to-vault";
+import { VaultDepositToAggregatorCommand } from "@/planner/commands/meta-transaction/vault-deposit-to-aggregator";
+import { VaultOnboardCommand } from "@/planner/commands/meta-transaction/vault-onboard-command";
+import { VaultWithdrawToEOACommand } from "@/planner/commands/meta-transaction/vault-withdraw-to-eoa";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 
 export interface ICommandFactory {
@@ -34,22 +34,22 @@ export class CurvyCommandFactory implements ICommandFactory {
     estimate?: CurvyCommandEstimate,
   ): CurvyCommand {
     switch (name) {
-      case "sa-erc1155-onboard": // This is with gas sponsorship as well
-        return new SaErc1155OnboardCommand(id, this.#sdk, input, estimate);
-      case "erc1155-deposit-to-aggregator":
-        return new Erc1155DepositToAggregatorCommand(id, this.#sdk, input, estimate);
-      case "erc1155-withdraw-to-eoa": {
+      case "sa-vault-onboard": // This is with gas sponsorship as well
+        return new VaultOnboardCommand(id, this.#sdk, input, estimate);
+      case "vault-deposit-to-aggregator":
+        return new VaultDepositToAggregatorCommand(id, this.#sdk, input, estimate);
+      case "vault-withdraw-to-eoa": {
         if (!intent) {
           throw new Error(`${name} requires an intent`);
         }
 
-        return new Erc1155WithdrawToEOACommand(id, this.#sdk, input, intent, estimate);
+        return new VaultWithdrawToEOACommand(id, this.#sdk, input, intent, estimate);
       }
       case "aggregator-aggregate": {
         return new AggregatorAggregateCommand(id, this.#sdk, input, intent, estimate);
       }
-      case "aggregator-withdraw-to-erc1155":
-        return new AggregatorWithdrawToErc1155Command(id, this.#sdk, input, estimate);
+      case "aggregator-withdraw-to-vault":
+        return new AggregatorWithdrawToVaultCommand(id, this.#sdk, input, estimate);
     }
 
     throw new Error(`Unknown command name: ${name}`);

@@ -56,10 +56,10 @@ type RpcBalances = Partial<
   >
 >;
 
-type Erc1155Balance = {
+type VaultBalance = {
   network: string;
   address: `0x${string}`;
-  balances: { balance: bigint; currencyAddress: string; erc1155TokenId: bigint }[];
+  balances: { balance: bigint; currencyAddress: string; vaultTokenId: bigint }[];
 };
 
 export type {
@@ -69,5 +69,5 @@ export type {
   RpcCallReturnType,
   RpcBalance,
   RpcBalances,
-  Erc1155Balance,
+  VaultBalance,
 };
