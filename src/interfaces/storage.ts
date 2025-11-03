@@ -4,7 +4,9 @@ import type {
   BalanceSourcesOptions,
   CurvyAddress,
   CurvyWalletData,
+  Erc1155BalanceEntry,
   PriceData,
+  SaBalanceEntry,
   ScanInfo,
 } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, NoteBalanceEntry, TotalBalance } from "@/types/storage";
@@ -79,15 +81,23 @@ export interface StorageInterface {
    * Updates the balances and total balances for a given wallet based on the provided balance entries.
    * @param walletId The ID of the wallet to update balances for.
    * @param entries The balance entries to update.
-   * @param clearNotes Whether to clear existing note balances before updating (default: true).
    */
-  updateBalancesAndTotals(walletId: string, entries: BalanceEntry[], clearNotes?: boolean): Promise<void>;
+  updateNoteBalances(walletId: string, networkSlug: string, entries: NoteBalanceEntry[]): Promise<void>;
+
+  /**
+   * Updates the balances and total balances for a given wallet based on the provided balance entries.
+   * @param walletId The ID of the wallet to update balances for.
+   * @param entries The balance entries to update.
+   */
+  updateAddressBalances(walletId: string, entries: (SaBalanceEntry | Erc1155BalanceEntry)[]): Promise<void>;
 
   /**
    * Removes balance entries that have been spent from the storage.
-   * @param entries
+   * @param type - The type of balance entries to remove ("note" or "address").
+   * @param entries - The balance entries to remove.
    */
-  removeSpentBalanceEntries(entries: BalanceEntry[]): Promise<void>;
+  removeSpentBalanceEntries(type: "note", entries: NoteBalanceEntry[]): Promise<void>;
+  removeSpentBalanceEntries(type: "address", entries: (SaBalanceEntry | Erc1155BalanceEntry)[]): Promise<void>;
 
   /**
    * Gets the total balances grouped by currency and network for the specified wallet.

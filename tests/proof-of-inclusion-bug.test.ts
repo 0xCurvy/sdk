@@ -57,7 +57,7 @@ const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
 
   const estimation = await executor.estimatePlan(plan);
 
-  const result = await executor.executePlan(estimation.plan);
+  const result = await executor.executePlan(estimation.plan, curvySDK.walletManager.activeWallet.id);
 
   return result.success;
 };

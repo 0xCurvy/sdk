@@ -95,7 +95,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
       },
     );
 
-    await this.sdk.storage.removeSpentBalanceEntries(this.input);
+    await this.sdk.storage.removeSpentBalanceEntries("note", this.input);
 
     const { balances } = await this.sdk.rpcClient.Network(this.input[0].networkSlug).getVaultBalances(vaultAddress);
     const vaultBalance = balances.find((b) => b.currencyAddress === this.input[0].currencyAddress);

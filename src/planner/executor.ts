@@ -1,3 +1,4 @@
+import type { IBalanceScanner } from "@/interfaces/balance-scanner";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { ICommandFactory } from "@/planner/commands/factory";
 import type {
@@ -12,10 +13,12 @@ import type { BalanceEntry } from "@/types";
 export class CommandExecutor {
   private commandFactory: ICommandFactory;
   private eventEmitter: ICurvyEventEmitter;
+  #balanceScanner: IBalanceScanner;
 
-  constructor(commandFactory: ICommandFactory, eventEmitter: ICurvyEventEmitter) {
+  constructor(commandFactory: ICommandFactory, eventEmitter: ICurvyEventEmitter, balanceScanner: IBalanceScanner) {
     this.commandFactory = commandFactory;
     this.eventEmitter = eventEmitter;
+    this.#balanceScanner = balanceScanner;
   }
 
   async #walkRecursively(
@@ -141,9 +144,18 @@ export class CommandExecutor {
     throw new Error(`Unrecognized type for plan node: ${plan.type}`);
   }
 
-  async executePlan(plan: CurvyPlan, onCommandStarted?: (command: string) => void): Promise<CurvyPlanExecution> {
+  async executePlan(
+    plan: CurvyPlan,
+    walletId: string,
+    onCommandStarted?: (command: string) => void,
+  ): Promise<CurvyPlanExecution> {
     this.eventEmitter.emitPlanExecutionStarted({ plan });
+
+    this.#balanceScanner.pauseBalanceRefreshForWallet(walletId);
+
     const result = await this.#walkRecursively(plan, undefined, false, onCommandStarted);
+
+    this.#balanceScanner.resumeBalanceRefreshForWallet(walletId);
 
     if (result.success) {
       this.eventEmitter.emitPlanExecutionComplete({ plan, result });

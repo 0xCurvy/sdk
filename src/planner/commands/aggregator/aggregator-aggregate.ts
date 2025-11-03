@@ -105,7 +105,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       },
     );
 
-    await this.sdk.storage.removeSpentBalanceEntries(this.input);
+    await this.sdk.storage.removeSpentBalanceEntries("note", this.input);
 
     // If we are aggregating the funds to our own address, that's the only case
     // when we want to return the output note to the rest of the plan
