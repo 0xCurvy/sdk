@@ -4,10 +4,10 @@ import type {
   BalanceSourcesOptions,
   CurvyAddress,
   CurvyWalletData,
-  VaultBalanceEntry,
   PriceData,
   SaBalanceEntry,
   ScanInfo,
+  VaultBalanceEntry,
 } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, NoteBalanceEntry, TotalBalance } from "@/types/storage";
 import type { CurvyWallet } from "@/wallet";
@@ -137,9 +137,9 @@ export interface StorageInterface {
    */
   getBalancesGroupedBySource(
     walletId: string,
-    environment?: NETWORK_ENVIRONMENT_VALUES,
-    networkSlug?: string,
     type?: BALANCE_TYPE_VALUES,
+    networkSlug?: string,
+    environment?: NETWORK_ENVIRONMENT_VALUES,
   ): Promise<Record<string, BalanceEntry[]>>;
 
   /**
