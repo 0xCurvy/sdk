@@ -10,6 +10,11 @@ type ScanInfo = {
   oldestCutoff: number;
 };
 
+type RefreshOptions = {
+  signal?: AbortSignal;
+  silent?: boolean;
+};
+
 type CurvyWalletData = {
   readonly id: string;
   readonly createdAt: number;
@@ -30,4 +35,4 @@ type SerializedCurvyWallet = {
   readonly curvyHandle: CurvyHandle;
 };
 
-export type { CurvyWalletData, ScanCursors, ScanInfo, SerializedCurvyWallet, AdditionalWalletData };
+export type { CurvyWalletData, ScanCursors, ScanInfo, SerializedCurvyWallet, AdditionalWalletData, RefreshOptions };
