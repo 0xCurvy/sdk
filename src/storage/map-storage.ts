@@ -10,9 +10,9 @@ import {
   type BalanceSourcesOptions,
   type CurvyAddress,
   type CurvyWalletData,
-  type VaultBalanceEntry,
   type MinifiedCurvyAddress,
   type SaBalanceEntry,
+  type VaultBalanceEntry,
 } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, NoteBalanceEntry, TotalBalance } from "@/types/storage";
 import { bytesToDecimalString, decimalStringToBytes } from "@/utils/decimal-conversions";
@@ -488,9 +488,9 @@ export class MapStorage implements StorageInterface {
 
   async getBalancesGroupedBySource(
     walletId: string,
-    environment?: NETWORK_ENVIRONMENT_VALUES,
-    networkSlug?: string,
     type?: BALANCE_TYPE_VALUES,
+    networkSlug?: string,
+    environment?: NETWORK_ENVIRONMENT_VALUES,
   ): Promise<Record<string, BalanceEntry[]>> {
     const grouped: Record<string, BalanceEntry[]> = {};
     const balances = this.#balances.values().filter((balanceEntry) => {
