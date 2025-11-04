@@ -22,10 +22,10 @@ import type { Rpc } from "@/rpc/abstract";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type { GetStealthAddressReturnType, Network } from "@/types";
+import type { GetStealthAddressReturnType, Network, RefreshOptions } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
-import type { AbortOptions, HexString } from "@/types/helper";
+import type { HexString } from "@/types/helper";
 import type { StarknetFeeEstimate } from "@/types/rpc";
 import { decryptCurvyMessage, encryptCurvyMessage } from "@/utils/encryption";
 import { arrayBufferToHex, toSlug } from "@/utils/helpers";
@@ -388,7 +388,7 @@ class CurvySDK implements ICurvySDK {
     this.setActiveNetworks(environment === "testnet");
   }
 
-  async refreshNoteBalances(walletId = this.walletManager.activeWallet.id) {
+  async refreshNoteBalances(walletId = this.walletManager.activeWallet.id, options: RefreshOptions = {}) {
     if (!this.walletManager.hasWallet(walletId)) {
       throw new Error(`Wallet with ID ${walletId} not found!`);
     }
@@ -397,7 +397,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanNoteBalances(walletId, this.#state.environment);
+    return await this.#balanceScanner.scanNoteBalances(walletId, this.#state.environment, options);
   }
 
   async refreshAddressBalances(address: CurvyAddress) {
@@ -409,7 +409,7 @@ class CurvySDK implements ICurvySDK {
   async refreshWalletBalances(
     walletId = this.walletManager.activeWallet.id,
     scanAll = false,
-    { signal }: AbortOptions = {},
+    options: RefreshOptions = {},
   ) {
     if (!this.walletManager.hasWallet(walletId)) {
       throw new Error(`Wallet with ID ${walletId} not found!`);
@@ -419,14 +419,14 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanWalletBalances(walletId, this.#state.environment, { scanAll, signal });
+    return await this.#balanceScanner.scanWalletBalances(walletId, this.#state.environment, { scanAll, ...options });
   }
 
-  async refreshBalances(scanAll = false, { signal }: AbortOptions = {}) {
+  async refreshBalances(scanAll = false, options: RefreshOptions = {}) {
     if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
     for (const wallet of this.walletManager.wallets) {
-      await this.#balanceScanner.scanWalletBalances(wallet.id, this.#state.environment, { scanAll, signal });
+      await this.#balanceScanner.scanWalletBalances(wallet.id, this.#state.environment, { scanAll, ...options });
     }
   }
 
