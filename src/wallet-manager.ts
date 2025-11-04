@@ -37,7 +37,7 @@ import { processPasskeyPrf } from "@/utils/passkeys";
 import { CurvyWallet } from "@/wallet";
 
 const JWT_REFRESH_INTERVAL = 14 * (60 * 10 ** 3);
-const SCAN_REFRESH_INTERVAL = 60 * 10 ** 3;
+const SCAN_REFRESH_INTERVAL = 15 * 10 ** 3;
 
 class WalletManager implements IWalletManager {
   readonly #apiClient: IApiClient;
