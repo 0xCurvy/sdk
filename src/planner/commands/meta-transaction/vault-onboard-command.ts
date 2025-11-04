@@ -79,7 +79,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
 
       const depositTransaction = await this.#provider.prepareTransactionRequest({
         to: this.network.vaultContractAddress as HexString,
-        gas: 125_000n,
+        gas: 150_000n,
         nonce: 1,
         data: encodeFunctionData({
           abi: vaultV1Abi,
