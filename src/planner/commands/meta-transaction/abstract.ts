@@ -42,10 +42,10 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
 
     // TODO: Extract / do this better
     const typeLookup = {
-      vault_onboard: 0,
+      vault_onboard: 2,
       vault_transfer: 1,
       vault_deposit_to_aggregator: 1,
-      vault_withdraw: 2,
+      vault_withdraw: 0,
     };
 
     if (!(metaTransactionType in typeLookup)) {
