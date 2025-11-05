@@ -5,9 +5,9 @@ import { Core } from "@/core";
 import { mockPopulateAnnouncement } from "./utils/announcement-filler";
 
 test("should generate new Curvy keypairs", async () => {
-  const core = await Core.init();
+  const core = new Core();
 
-  const keyPairs = core.generateKeyPairs();
+  const keyPairs = await core.generateKeyPairs();
 
   expect(keyPairs.s.length).toBe(64);
   expect(keyPairs.S.length).toBeGreaterThanOrEqual(152);
@@ -19,7 +19,7 @@ test("should generate new Curvy keypairs", async () => {
 });
 
 test("match announcements", async () => {
-  // const core = await Core.init();
+  // const core = new Core();
   //
   // const desiredRecipientKeyPairs = core.generateKeyPairs();
   // const decoyRecipientKeyPairs = core.generateKeyPairs();
@@ -60,11 +60,11 @@ test("match announcements", async () => {
 });
 
 test("simplest possible test", async () => {
-  const core = await Core.init();
+  const core = new Core();
 
-  const keyPairs = core.generateKeyPairs();
+  const keyPairs = await core.generateKeyPairs();
 
-  const { babyJubjubPublicKey } = core.getCurvyKeys(keyPairs.s, keyPairs.v);
+  const { babyJubjubPublicKey } = await core.getCurvyKeys(keyPairs.s, keyPairs.v);
   expect(babyJubjubPublicKey).not.toBeNull();
 
   const validV = core.isValidBN254Point(keyPairs.V);
@@ -76,12 +76,12 @@ test("simplest possible test", async () => {
     R: ephemeralPublicKey,
     viewTag,
     spendingPubKey: recipientStealthPublicKey,
-  } = core.send(keyPairs.S, keyPairs.V);
+  } = await core.send(keyPairs.S, keyPairs.V);
 
   const validR = core.isValidBN254Point(ephemeralPublicKey as string);
   expect(validR).toBe(true);
 
-  const scanResult = core.scan(keyPairs.s, keyPairs.v, [
+  const scanResult = await core.scan(keyPairs.s, keyPairs.v, [
     mockPopulateAnnouncement({ ephemeralPublicKey, viewTag, recipientStealthPublicKey }),
   ]);
 

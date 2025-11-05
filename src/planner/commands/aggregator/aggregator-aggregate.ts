@@ -38,7 +38,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     this.#intent = intent;
   }
 
-  #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[]): AggregationRequest {
+  async #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[]): Promise<AggregationRequest> {
     if (!this.network.aggregationCircuitConfig) {
       throw new Error("Network aggregation circuit config is not defined!");
     }
@@ -70,7 +70,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     }
 
     const msgHash = generateAggregationHash(outputNotes);
-    const rawSignature = this.sdk.walletManager.signMessageWithBabyJubjub(msgHash);
+    const rawSignature = await this.sdk.walletManager.signMessageWithBabyJubjub(msgHash);
     const signature = {
       S: BigInt(rawSignature.S),
       R8: rawSignature.R8.map((r) => BigInt(r)),
@@ -94,7 +94,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
     const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
 
-    const aggregationRequest = this.#createAggregationRequest(inputNotes, outputNotes);
+    const aggregationRequest = await this.#createAggregationRequest(inputNotes, outputNotes);
 
     const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(aggregationRequest);
 

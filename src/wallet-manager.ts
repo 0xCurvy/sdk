@@ -250,7 +250,7 @@ class WalletManager implements IWalletManager {
     ownerAddress: HexString,
     additionalData?: AdditionalWalletData,
   ) {
-    const keyPairs = this.#core.getCurvyKeys(s, v);
+    const keyPairs = await this.#core.getCurvyKeys(s, v);
 
     await this.#apiClient.user.RegisterCurvyHandle({
       handle,
@@ -270,7 +270,7 @@ class WalletManager implements IWalletManager {
   }
 
   async addWalletWithPrivateKeys(s: string, v: string, requestingAddress: HexString, credId?: ArrayBuffer) {
-    const keyPairs = this.#core.getCurvyKeys(s, v);
+    const keyPairs = await this.#core.getCurvyKeys(s, v);
 
     const { curvyHandle, createdAt } = await this.#preLoginChecks(
       { V: keyPairs.V, S: keyPairs.S, babyJubjubPublicKey: keyPairs.babyJubjubPublicKey },
@@ -293,7 +293,7 @@ class WalletManager implements IWalletManager {
   ) {
     const [r_string, s_string] = await this.#verifySignature(flavour, signature);
     const { s, v } = computePrivateKeys(r_string, s_string);
-    const keyPairs = this.#core.getCurvyKeys(s, v);
+    const keyPairs = await this.#core.getCurvyKeys(s, v);
 
     const ownerAddress =
       flavour === NETWORK_FLAVOUR.STARKNET
@@ -331,7 +331,7 @@ class WalletManager implements IWalletManager {
     const { prfAddress: ownerAddress, ...signature } = await processPasskeyPrf(prfValue);
 
     const { s, v } = computePrivateKeys(signature.r.toString(), signature.s.toString());
-    const keyPairs = this.#core.getCurvyKeys(s, v);
+    const keyPairs = await this.#core.getCurvyKeys(s, v);
 
     const { curvyHandle, createdAt } = await this.#preLoginChecks(
       { V: keyPairs.V, S: keyPairs.S, babyJubjubPublicKey: keyPairs.babyJubjubPublicKey },
@@ -482,12 +482,12 @@ class WalletManager implements IWalletManager {
 
     const {
       spendingPrivKeys: [privateKey],
-    } = this.#core.scan(s, v, [address]);
+    } = await this.#core.scan(s, v, [address]);
 
     return privateKey;
   }
 
-  signMessageWithBabyJubjub(message: bigint): StringifyBigInts<Signature> {
+  signMessageWithBabyJubjub(message: bigint): Promise<StringifyBigInts<Signature>> {
     return this.#core.signWithBabyJubjubPrivateKey(message, this.activeWallet.keyPairs.s);
   }
 }

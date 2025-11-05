@@ -24,8 +24,8 @@ const getNoteOwnershipData = async (
   v: string,
   ownerBabyJubjubPublicKey: string,
 ) => {
-  const core = await Core.init();
-  const scanResult = core.scanNotes(
+  const core = new Core();
+  const scanResult = await core.scanNotes(
     s,
     v,
     publicNotes.map(({ deliveryTag }) => deliveryTag),
@@ -189,7 +189,7 @@ test("verifySignature", async () => {
 });
 
 test("scanNote", async () => {
-  const core = await Core.init();
+  const core = new Core();
   const { s, v, ephemeralKey, viewTag } = inputData.scanNote;
 
   const note = await core.scanNotes(s, v, [{ ephemeralKey, viewTag }]);

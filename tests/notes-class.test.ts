@@ -2,9 +2,9 @@ import { expect, test } from "vitest";
 import { Core } from "@/core";
 
 test("should create new multinote object", async () => {
-  const core = await Core.init();
+  const core = new Core();
 
-  const keyPairs = core.generateKeyPairs();
+  const keyPairs = await core.generateKeyPairs();
 
   expect(keyPairs.s.length).toBe(64);
   expect(keyPairs.S.length).toBeGreaterThanOrEqual(152);
