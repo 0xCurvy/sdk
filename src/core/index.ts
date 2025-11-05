@@ -144,15 +144,6 @@ class Core implements ICore {
     this.#eddsa = await buildEddsa();
   }
 
-  // static async init(wasmUrl?: string): Promise<Core> {
-  //   await loadWasm(wasmUrl);
-  //
-  //   const core = new Core();
-  //
-  //   core.#eddsa = await buildEddsa();
-  //   return core;
-  // }
-
   async #getBabyJubjubPublicKey(keyPairs: CoreLegacyKeyPairs): Promise<string> {
     await this.loadEddsa();
 
