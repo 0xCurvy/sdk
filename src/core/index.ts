@@ -43,54 +43,110 @@ declare const curvy: {
   version: () => string;
 };
 
-async function loadWasm(wasmUrl?: string): Promise<void> {
-  const go = new Go();
-
-  go.importObject.gojs["runtime.wasmExit"] = (_sp: number) => {
-    console.warn("wasmExit called, ignoring");
-  };
-
-  if (isNode) {
-    const fs = await import("node:fs/promises");
-    const path = await import("node:path");
-    const { fileURLToPath } = await import("node:url");
-
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const wasmPath = path.resolve(__dirname, "./curvy-core-v1.0.2.wasm");
-
-    const buffer = await fs.readFile(wasmUrl ?? wasmPath);
-    const wasmBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
-
-    const instance = (await WebAssembly.instantiate(wasmBuffer, go.importObject)).instance;
-
-    go.run(instance);
-    return;
-  }
-
-  let instance: WebAssembly.Instance;
-  if (wasmUrl) {
-    instance = (await WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject)).instance;
-  } else {
-    const { default: init } = await import("./curvy-core-v1.0.2.wasm?init");
-    instance = await init(go.importObject);
-  }
-  go.run(instance);
-}
-
 class Core implements ICore {
-  #eddsa: Eddsa | null = null;
+  #wasmUrl: string | undefined;
+  #coreWasmInstance: WebAssembly.Instance | null;
 
-  static async init(wasmUrl?: string): Promise<Core> {
-    await loadWasm(wasmUrl);
+  // Node is Buffer, browser is string / Uint8Array
+  #noteProvingWasm: string | Buffer | null;
+  #noteProvingZkey: Uint8Array | Buffer | null;
 
-    const core = new Core();
+  #eddsa: Eddsa | null;
 
-    core.#eddsa = await buildEddsa();
-    return core;
+  constructor(wasmUrl?: string) {
+    this.#wasmUrl = wasmUrl;
+    this.#coreWasmInstance = null;
+    this.#eddsa = null;
+    this.#noteProvingWasm = null;
+    this.#noteProvingZkey = null;
   }
 
-  #getBabyJubjubPublicKey(keyPairs: CoreLegacyKeyPairs): string {
+  async loadNoteProvingUtils(): Promise<void> {
+    if (this.#noteProvingWasm && this.#noteProvingZkey) {
+      return;
+    }
+
+    if (isNode) {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const { fileURLToPath } = await import("node:url");
+
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      const wasmPath = path.resolve(
+        __dirname,
+        "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm",
+      );
+      const zkeyPath = path.resolve(
+        __dirname,
+        "../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey",
+      );
+
+      this.#noteProvingWasm = await fs.readFile(wasmPath);
+      this.#noteProvingZkey = await fs.readFile(zkeyPath);
+    } else {
+      this.#noteProvingWasm = (
+        await import(
+          "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm?url"
+        )
+      ).default;
+
+      this.#noteProvingZkey = (
+        await import("../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey?url")
+      ).default;
+    }
+  }
+
+  async loadWasm(): Promise<void> {
+    if (this.#coreWasmInstance) {
+      return;
+    }
+
+    const go = new Go();
+
+    go.importObject.gojs["runtime.wasmExit"] = (_sp: number) => {
+      console.warn("wasmExit called, ignoring");
+    };
+
+    if (isNode) {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const { fileURLToPath } = await import("node:url");
+
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      const wasmPath = path.resolve(__dirname, "./curvy-core-v1.0.2.wasm");
+
+      const buffer = await fs.readFile(this.#wasmUrl ?? wasmPath);
+      const wasmBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+
+      this.#coreWasmInstance = (await WebAssembly.instantiate(wasmBuffer, go.importObject)).instance;
+
+      go.run(this.#coreWasmInstance);
+      return;
+    }
+
+    if (this.#wasmUrl) {
+      this.#coreWasmInstance = (await WebAssembly.instantiateStreaming(fetch(this.#wasmUrl), go.importObject)).instance;
+    } else {
+      const { default: init } = await import("./curvy-core-v1.0.2.wasm?init");
+      this.#coreWasmInstance = await init(go.importObject);
+    }
+
+    go.run(this.#coreWasmInstance);
+  }
+
+  async loadEddsa(): Promise<void> {
+    if (this.#eddsa) {
+      return;
+    }
+
+    this.#eddsa = await buildEddsa();
+  }
+
+  async #getBabyJubjubPublicKey(keyPairs: CoreLegacyKeyPairs): Promise<string> {
+    await this.loadEddsa();
+
     // @ts-expect-error
     const babyJubjubPublicKey = this.#eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
 
@@ -140,10 +196,12 @@ class Core implements ICore {
     } satisfies CoreViewerScanArgs;
   }
 
-  generateKeyPairs(): CurvyKeyPairs {
+  async generateKeyPairs(): Promise<CurvyKeyPairs> {
+    await this.loadWasm();
+
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
-    const babyJubjubPublicKeyStringified = this.#getBabyJubjubPublicKey(keyPairs);
+    const babyJubjubPublicKeyStringified = await this.#getBabyJubjubPublicKey(keyPairs);
 
     return {
       s: keyPairs.k,
@@ -154,11 +212,13 @@ class Core implements ICore {
     };
   }
 
-  getCurvyKeys(s: string, v: string): CurvyKeyPairs {
+  async getCurvyKeys(s: string, v: string): Promise<CurvyKeyPairs> {
+    await this.loadWasm();
+
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const babyJubjubPublicKey = this.#getBabyJubjubPublicKey(result);
+    const babyJubjubPublicKey = await this.#getBabyJubjubPublicKey(result);
 
     return {
       s: result.k,
@@ -169,14 +229,20 @@ class Core implements ICore {
     } satisfies CurvyKeyPairs;
   }
 
-  send(S: string, V: string) {
+  async send(S: string, V: string) {
+    await this.loadWasm();
+
     const input = JSON.stringify({ K: S, V });
 
     return JSON.parse(curvy.send(input)) as CoreSendReturnType;
   }
 
-  sendNote(S: string, V: string, noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint }): Note {
-    let { R, viewTag, spendingPubKey } = this.send(S, V);
+  async sendNote(
+    S: string,
+    V: string,
+    noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint },
+  ): Promise<Note> {
+    let { R, viewTag, spendingPubKey } = await this.send(S, V);
 
     if (!viewTag.startsWith("0x")) {
       viewTag = `0x${viewTag}`;
@@ -201,8 +267,8 @@ class Core implements ICore {
     });
   }
 
-  getNoteOwnershipData(publicNotes: PublicNote[], s: string, v: string) {
-    const scanResult = this.scanNotes(
+  async getNoteOwnershipData(publicNotes: PublicNote[], s: string, v: string) {
+    const scanResult = await this.scanNotes(
       s,
       v,
       publicNotes.map(({ deliveryTag }) => deliveryTag),
@@ -212,7 +278,7 @@ class Core implements ICore {
       pubKey.length > 0 ? BigInt(pubKey.split(".")[0]) : null,
     );
 
-    const { babyJubjubPublicKey: ownerBabyJubjubPublicKey } = this.getCurvyKeys(s, v);
+    const { babyJubjubPublicKey: ownerBabyJubjubPublicKey } = await this.getCurvyKeys(s, v);
     const bjjKeyBigint = ownerBabyJubjubPublicKey.split(".").map(BigInt);
 
     const ownershipData: NoteOwnershipData[] = [];
@@ -243,42 +309,10 @@ class Core implements ICore {
   ) {
     const NUM_NOTES = 10;
 
-    // Node is Buffer, browser is string / Uint8Array
-    let wasm: string | Buffer;
-    let zkey: Uint8Array | Buffer;
+    await this.loadNoteProvingUtils();
 
-    if (isNode) {
-      const fs = await import("node:fs/promises");
-      const path = await import("node:path");
-      const { fileURLToPath } = await import("node:url");
-
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
-      const wasmPath = path.resolve(
-        __dirname,
-        "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm",
-      );
-      const zkeyPath = path.resolve(
-        __dirname,
-        "../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey",
-      );
-
-      wasm = await fs.readFile(wasmPath);
-      zkey = await fs.readFile(zkeyPath);
-    } else {
-      wasm = (
-        await import(
-          "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm?url"
-        )
-      ).default;
-
-      zkey = (
-        await import("../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey?url")
-      ).default;
-    }
-
-    if (!wasm || !zkey) {
-      throw new Error("Generete note ownership proof: could not load wasm or zkey!");
+    if (!this.#noteProvingWasm || !this.#noteProvingZkey) {
+      throw new Error("Generete note ownership proof: could not load note proving wasm or zkey!");
     }
 
     const paddedOwnedNotes = ownedNotes.concat(
@@ -297,8 +331,8 @@ class Core implements ICore {
         ]),
         ownerHashes: paddedOwnedNotes.map(({ ownerHash }) => ownerHash),
       },
-      wasm,
-      zkey,
+      this.#noteProvingWasm,
+      this.#noteProvingZkey,
     );
 
     return {
@@ -307,7 +341,9 @@ class Core implements ICore {
     };
   }
 
-  scan(s: string, v: string, announcements: RawAnnouncement[]) {
+  async scan(s: string, v: string, announcements: RawAnnouncement[]) {
+    await this.loadWasm();
+
     const input = JSON.stringify(this.#prepareScanArgs(s, v, announcements));
 
     const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
@@ -320,7 +356,9 @@ class Core implements ICore {
     };
   }
 
-  scanNotes(s: string, v: string, noteData: { ephemeralKey: string; viewTag: string }[]) {
+  async scanNotes(s: string, v: string, noteData: { ephemeralKey: string; viewTag: string }[]) {
+    await this.loadWasm();
+
     const input = JSON.stringify(this.#prepareScanNotesArgs(s, v, noteData));
 
     const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
@@ -333,7 +371,9 @@ class Core implements ICore {
     };
   }
 
-  viewerScan(v: string, S: string, announcements: RawAnnouncement[]) {
+  async viewerScan(v: string, S: string, announcements: RawAnnouncement[]) {
+    await this.loadWasm();
+
     const input = JSON.stringify(this.#prepareViewerScanArgs(v, S, announcements));
 
     const { spendingPubKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
@@ -343,13 +383,13 @@ class Core implements ICore {
     };
   }
 
-  unpackAuthenticatedNotes(
+  async unpackAuthenticatedNotes(
     s: string,
     v: string,
     notes: AuthenticatedNote[],
     babyJubjubPublicKey: [string, string],
-  ): Note[] {
-    const scanResult = this.scanNotes(
+  ): Promise<Note[]> {
+    const scanResult = await this.scanNotes(
       s,
       v,
       notes.map(({ deliveryTag }) => deliveryTag),
@@ -369,7 +409,12 @@ class Core implements ICore {
     });
   }
 
-  signWithBabyJubjubPrivateKey(message: bigint, babyJubjubPrivateKey: string): StringifyBigInts<Signature> {
+  async signWithBabyJubjubPrivateKey(
+    message: bigint,
+    babyJubjubPrivateKey: string,
+  ): Promise<StringifyBigInts<Signature>> {
+    await this.loadEddsa();
+
     const privateKey = `0x${Buffer.from(babyJubjubPrivateKey, "hex").toString("hex")}`;
 
     const privateKeyBuffer = Buffer.from(privateKey.slice(2), "hex");

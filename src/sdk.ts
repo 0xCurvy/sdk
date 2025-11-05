@@ -104,7 +104,7 @@ class CurvySDK implements ICurvySDK {
     wasmUrl?: string,
     commandFactory?: ICommandFactory,
   ) {
-    const core = await Core.init(wasmUrl);
+    const core = new Core(wasmUrl);
 
     const sdk = new CurvySDK(apiKey, core, apiBaseUrl, storage);
 
@@ -139,7 +139,7 @@ class CurvySDK implements ICurvySDK {
   }
 
   static async DANGER_DO_NOT_USE_init(): Promise<CurvySDK> {
-    const core = await Core.init();
+    const core = new Core();
     return new CurvySDK("", core);
   }
 
@@ -243,7 +243,7 @@ class CurvySDK implements ICurvySDK {
       spendingPubKey: recipientStealthPublicKey,
       R: ephemeralPublicKey,
       viewTag,
-    } = this.#core.send(spendingKey, viewingKey);
+    } = await this.#core.send(spendingKey, viewingKey);
 
     const network = this.getNetwork(networkIdentifier);
 
@@ -307,7 +307,7 @@ class CurvySDK implements ICurvySDK {
 
     const {
       spendingPrivKeys: [privateKey],
-    } = this.#core.scan(s, v, [address]);
+    } = await this.#core.scan(s, v, [address]);
 
     return decryptCurvyMessage(
       { data: encryptedMessage, senderSAPublicKey: encryptedMessageSenderPublicKey },

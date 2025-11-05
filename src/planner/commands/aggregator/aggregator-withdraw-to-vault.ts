@@ -20,7 +20,7 @@ interface AggregatorWithdrawToVaultCommandEstimate extends CurvyCommandEstimate 
 export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand {
   protected declare estimateData: AggregatorWithdrawToVaultCommandEstimate | undefined;
 
-  #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): WithdrawRequest {
+  async #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): Promise<WithdrawRequest> {
     if (!this.network.withdrawCircuitConfig) {
       throw new Error("Network withdraw circuit config is not defined!");
     }
@@ -47,7 +47,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     }
 
     const messageHash = generateWithdrawalHash(inputNotes, destinationAddress);
-    const rawSignature = this.sdk.walletManager.signMessageWithBabyJubjub(messageHash);
+    const rawSignature = await this.sdk.walletManager.signMessageWithBabyJubjub(messageHash);
     const signature = {
       S: BigInt(rawSignature.S),
       R8: rawSignature.R8.map((r) => BigInt(r)),
@@ -81,7 +81,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     });
 
     // TODO: Fix this so that we dont have same return values as args
-    const withdrawRequest = this.#createWithdrawRequest(
+    const withdrawRequest = await this.#createWithdrawRequest(
       this.inputNotes.map((note) => note.serializeInputNote()),
       vaultAddress,
     );

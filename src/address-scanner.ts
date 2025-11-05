@@ -32,7 +32,7 @@ class AddressScanner implements IAddressScanner {
     let matched = 0;
 
     const keyPairs = wallet.keyPairs;
-    const { spendingPubKeys } = this.#core.scan(keyPairs.s, keyPairs.v, announcements);
+    const { spendingPubKeys } = await this.#core.scan(keyPairs.s, keyPairs.v, announcements);
 
     const addresses = spendingPubKeys
       .map((publicKey, index) => {

@@ -282,7 +282,7 @@ export class BalanceScanner implements IBalanceScanner {
 
         const { notes: publicNotes } = await this.apiClient.aggregator.GetAllNotes(network.id);
 
-        const noteOwnershipData = this.#core.getNoteOwnershipData(publicNotes, s, v);
+        const noteOwnershipData = await this.#core.getNoteOwnershipData(publicNotes, s, v);
 
         const noteBatchCount = Math.ceil(noteOwnershipData.length / this.#NOTE_BATCH_SIZE);
 
@@ -298,7 +298,7 @@ export class BalanceScanner implements IBalanceScanner {
             networkId: network.id,
           });
 
-          const unpackedNotes = this.#core.unpackAuthenticatedNotes(s, v, authenticatedNotes, babyJubPublicKey);
+          const unpackedNotes = await this.#core.unpackAuthenticatedNotes(s, v, authenticatedNotes, babyJubPublicKey);
 
           try {
             const noteEntries = await this.#processNotes(
