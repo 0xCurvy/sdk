@@ -140,6 +140,7 @@ class CurvySDK implements ICurvySDK {
 
   static async DANGER_DO_NOT_USE_init(): Promise<CurvySDK> {
     const core = new Core();
+    await core.loadWasm();
     return new CurvySDK("", core);
   }
 
