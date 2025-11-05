@@ -249,7 +249,6 @@ class WalletManager implements IWalletManager {
     additionalData?: AdditionalWalletData,
   ) {
     const keyPairs = await this.#core.getCurvyKeys(s, v);
-    await this.#updateBearerToken(keyPairs.s);
 
     await this.#apiClient.user.RegisterCurvyHandle({
       handle,
@@ -264,6 +263,8 @@ class WalletManager implements IWalletManager {
     const { data: registerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
     if (!registerDetails)
       throw new Error(`Registration validation failed for handle ${handle}. Please try adding the wallet manually.`);
+
+    await this.#updateBearerToken(keyPairs.s);
 
     return this.#createAndAddWallet(handle, ownerAddress, registerDetails.createdAt, keyPairs, additionalData);
   }
