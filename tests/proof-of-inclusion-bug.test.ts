@@ -66,7 +66,7 @@ const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
 };
 
 async function setup() {
-  curvySDK = await CurvySDK.init("local", "localnet", "http://localhost:4000");
+  curvySDK = await CurvySDK.init("local", "localnet", "http://localhost:4001");
 
   const urlParams = new URLSearchParams(LocalnetGeneratedValues.urlsCurvyOS["user-1"]);
   const signature = urlParams.get("signature");
@@ -157,4 +157,20 @@ test("Inclusion proof bug", async () => {
 
   const planResult2 = await doPlan(intent2);
   expect(planResult2).toBe(true);
+}, 600_000);
+
+test("Vault withdraw bug", async () => {
+  await setup();
+  const to = "0x6718a78b04FA537c58EbF88fE17A84248eD64542";
+  const amount1 = parseDecimal("10", currency!);
+
+  const intent1: CurvyIntent = {
+    toAddress: to,
+    amount: amount1,
+    currency: currency!,
+    network: network!,
+  };
+
+  const planResult1 = await doPlan(intent1);
+  expect(planResult1).toBe(true);
 }, 600_000);
