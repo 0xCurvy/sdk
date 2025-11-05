@@ -227,8 +227,6 @@ class WalletManager implements IWalletManager {
     keyPairs: CurvyKeyPairs,
     additionalData?: AdditionalWalletData,
   ) {
-    await this.#updateBearerToken(keyPairs.s);
-
     const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
     const wallet = new CurvyWallet(
       walletId,
@@ -251,6 +249,7 @@ class WalletManager implements IWalletManager {
     additionalData?: AdditionalWalletData,
   ) {
     const keyPairs = await this.#core.getCurvyKeys(s, v);
+    await this.#updateBearerToken(keyPairs.s);
 
     await this.#apiClient.user.RegisterCurvyHandle({
       handle,
@@ -271,6 +270,8 @@ class WalletManager implements IWalletManager {
 
   async addWalletWithPrivateKeys(s: string, v: string, requestingAddress: HexString, credId?: ArrayBuffer) {
     const keyPairs = await this.#core.getCurvyKeys(s, v);
+
+    await this.#updateBearerToken(keyPairs.s);
 
     const { curvyHandle, createdAt } = await this.#preLoginChecks(
       { V: keyPairs.V, S: keyPairs.S, babyJubjubPublicKey: keyPairs.babyJubjubPublicKey },
@@ -299,6 +300,8 @@ class WalletManager implements IWalletManager {
       flavour === NETWORK_FLAVOUR.STARKNET
         ? (validateAndParseAddress(signature.signingAddress) as HexString)
         : signature.signingAddress;
+
+    await this.#updateBearerToken(keyPairs.s);
 
     const { createdAt, curvyHandle } = await this.#preLoginChecks(
       { V: keyPairs.V, S: keyPairs.S, babyJubjubPublicKey: keyPairs.babyJubjubPublicKey },
@@ -332,6 +335,8 @@ class WalletManager implements IWalletManager {
 
     const { s, v } = computePrivateKeys(signature.r.toString(), signature.s.toString());
     const keyPairs = await this.#core.getCurvyKeys(s, v);
+
+    await this.#updateBearerToken(keyPairs.s);
 
     const { curvyHandle, createdAt } = await this.#preLoginChecks(
       { V: keyPairs.V, S: keyPairs.S, babyJubjubPublicKey: keyPairs.babyJubjubPublicKey },
