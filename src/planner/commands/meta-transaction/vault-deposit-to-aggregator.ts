@@ -76,6 +76,8 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
       },
     );
 
+    await this.sdk.storage.removeSpentBalanceEntries("address", [this.input]);
+
     return noteToBalanceEntry(note, {
       symbol: this.input.symbol,
       decimals: this.input.decimals,

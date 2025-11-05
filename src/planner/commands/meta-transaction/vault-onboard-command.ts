@@ -104,6 +104,8 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
       );
     }
 
+    await this.sdk.storage.removeSpentBalanceEntries("address", [this.input]);
+
     const { createdAt: _, ...inputData } = this.input;
 
     const { balances } = await this.#rpc.getVaultBalances(curvyAddress.address);
