@@ -20,7 +20,6 @@ import {
   type CurvyHandle,
   type CurvyKeyPairs,
   type CurvyPrivateKeys,
-  type CurvyPublicKeys,
   type EvmSignatureData,
   type EvmSignTypedDataParameters,
   type HexString,
@@ -172,41 +171,56 @@ class WalletManager implements IWalletManager {
     }
   }
 
-  async #preLoginChecks({ V, S, babyJubjubPublicKey }: CurvyPublicKeys, ownerAddress: HexString) {
-    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(ownerAddress);
+  async #getUserDetails(userAddress: HexString) {
+    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(userAddress);
     if (!curvyHandle) {
-      throw new Error(`No Curvy handle found for owner address: ${ownerAddress}`);
+      throw new Error(`No Curvy handle found for address: ${userAddress}`);
     }
 
     assertCurvyHandle(curvyHandle);
 
-    const { data: ownerDetails } = await this.#apiClient.user.ResolveCurvyHandle(curvyHandle);
-    if (!ownerDetails) throw new Error(`Handle ${curvyHandle} does not exist.`);
+    const { data: userDetails } = await this.#apiClient.user.ResolveCurvyHandle(curvyHandle);
+    if (!userDetails) throw new Error(`Handle ${curvyHandle} does not exist.`);
 
-    const { createdAt, publicKeys } = ownerDetails;
+    return { ...userDetails, curvyHandle };
+  }
 
-    if (!publicKeys.babyJubjubPublicKey) {
+  async #babyJubjubKeyCheck(
+    existingBabyJubjubPublicKey: string | null,
+    babyJubjubPublicKey: string,
+    curvyHandle: CurvyHandle,
+  ) {
+    if (!existingBabyJubjubPublicKey) {
       const result = await this.#apiClient.user.SetBabyJubjubKey(curvyHandle, {
-        babyJubjubPublicKey: babyJubjubPublicKey,
+        babyJubjubPublicKey,
       });
       if (!("data" in result) || result.data.message !== "Saved")
         throw new Error(`Failed to set BabyJubjub key for handle ${curvyHandle}.`);
+    } else {
+      if (existingBabyJubjubPublicKey !== babyJubjubPublicKey) {
+        throw new Error(`Wrong password for handle ${curvyHandle}.`);
+      }
     }
+  }
 
-    if (
-      !(publicKeys.viewingKey === V && publicKeys.spendingKey === S) ||
-      (publicKeys.babyJubjubPublicKey && publicKeys.babyJubjubPublicKey !== babyJubjubPublicKey)
-    ) {
+  async #preLoginChecks(keyPairs: CurvyKeyPairs, userAddress: HexString) {
+    const { createdAt, publicKeys, curvyHandle } = await this.#getUserDetails(userAddress);
+
+    if (!(publicKeys.viewingKey === keyPairs.V && publicKeys.spendingKey === keyPairs.S)) {
       throw new Error(`Wrong password for handle ${curvyHandle}.`);
     }
+
+    await this.#updateBearerToken(keyPairs.s);
+
+    await this.#babyJubjubKeyCheck(publicKeys.babyJubjubPublicKey, keyPairs.babyJubjubPublicKey, curvyHandle);
 
     return { createdAt, curvyHandle };
   }
 
-  async #preRegistrationChecks(handle: CurvyHandle, ownerAddress: HexString) {
-    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(ownerAddress);
+  async #preRegistrationChecks(handle: CurvyHandle, userAddress: HexString) {
+    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(userAddress);
     if (curvyHandle) {
-      throw new Error(`Handle ${curvyHandle} already registered, for owner address: ${ownerAddress}`);
+      throw new Error(`Handle ${curvyHandle} already registered, for owner address: ${userAddress}`);
     }
 
     if (!CURVY_HANDLE_REGEX.test(handle))
@@ -214,15 +228,15 @@ class WalletManager implements IWalletManager {
         `Invalid handle format: ${handle}. Curvy handles can only include letters, numbers, and dashes, with a minimum of 3 and maximum length of 20 characters.`,
       );
 
-    const { data: ownerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
-    if (ownerDetails) throw new Error(`Handle ${handle} already registered.`);
+    const { data: userDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
+    if (userDetails) throw new Error(`Handle ${handle} already registered.`);
 
     return true;
   }
 
   async #createAndAddWallet(
     handle: CurvyHandle,
-    ownerAddress: HexString,
+    userAddress: HexString,
     createdAt: string,
     keyPairs: CurvyKeyPairs,
     additionalData?: AdditionalWalletData,
@@ -232,7 +246,7 @@ class WalletManager implements IWalletManager {
       walletId,
       +dayjs(createdAt),
       handle,
-      ownerAddress,
+      userAddress,
       keyPairs,
       additionalData?.password ? await computePasswordHash(additionalData.password, walletId) : undefined,
       additionalData?.credId,
@@ -245,14 +259,14 @@ class WalletManager implements IWalletManager {
   async #registerAndAddWallet(
     { s, v }: CurvyPrivateKeys,
     handle: CurvyHandle,
-    ownerAddress: HexString,
+    userAddress: HexString,
     additionalData?: AdditionalWalletData,
   ) {
     const keyPairs = await this.#core.getCurvyKeys(s, v);
 
     await this.#apiClient.user.RegisterCurvyHandle({
       handle,
-      ownerAddress,
+      ownerAddress: userAddress,
       publicKeys: {
         viewingKey: keyPairs.V,
         spendingKey: keyPairs.S,
@@ -266,26 +280,21 @@ class WalletManager implements IWalletManager {
 
     await this.#updateBearerToken(keyPairs.s);
 
-    return this.#createAndAddWallet(handle, ownerAddress, registerDetails.createdAt, keyPairs, additionalData);
+    return this.#createAndAddWallet(handle, userAddress, registerDetails.createdAt, keyPairs, additionalData);
   }
 
   async addWalletWithPrivateKeys(s: string, v: string, requestingAddress: HexString, credId?: ArrayBuffer) {
     const keyPairs = await this.#core.getCurvyKeys(s, v);
 
-    await this.#updateBearerToken(keyPairs.s);
-
-    const { curvyHandle, createdAt } = await this.#preLoginChecks(
-      { V: keyPairs.V, S: keyPairs.S, babyJubjubPublicKey: keyPairs.babyJubjubPublicKey },
-      requestingAddress,
-    );
+    const { curvyHandle, createdAt } = await this.#preLoginChecks(keyPairs, requestingAddress);
 
     return this.#createAndAddWallet(curvyHandle, requestingAddress, createdAt, keyPairs, { credId });
   }
 
-  async registerWalletWithPrivateKeys(s: string, v: string, handle: CurvyHandle, ownerAddress: HexString) {
-    await this.#preRegistrationChecks(handle, ownerAddress);
+  async registerWalletWithPrivateKeys(s: string, v: string, handle: CurvyHandle, userAddress: HexString) {
+    await this.#preRegistrationChecks(handle, userAddress);
 
-    return this.#registerAndAddWallet({ s, v }, handle, ownerAddress);
+    return this.#registerAndAddWallet({ s, v }, handle, userAddress);
   }
 
   async addWalletWithSignature(
@@ -297,19 +306,14 @@ class WalletManager implements IWalletManager {
     const { s, v } = computePrivateKeys(r_string, s_string);
     const keyPairs = await this.#core.getCurvyKeys(s, v);
 
-    const ownerAddress =
+    const userAddress =
       flavour === NETWORK_FLAVOUR.STARKNET
         ? (validateAndParseAddress(signature.signingAddress) as HexString)
         : signature.signingAddress;
 
-    await this.#updateBearerToken(keyPairs.s);
+    const { createdAt, curvyHandle } = await this.#preLoginChecks(keyPairs, userAddress);
 
-    const { createdAt, curvyHandle } = await this.#preLoginChecks(
-      { V: keyPairs.V, S: keyPairs.S, babyJubjubPublicKey: keyPairs.babyJubjubPublicKey },
-      ownerAddress,
-    );
-
-    return this.#createAndAddWallet(curvyHandle, ownerAddress, createdAt, keyPairs, { password });
+    return this.#createAndAddWallet(curvyHandle, userAddress, createdAt, keyPairs, { password });
   }
 
   async registerWalletWithSignature(
@@ -318,43 +322,38 @@ class WalletManager implements IWalletManager {
     signature: EvmSignatureData | StarknetSignatureData,
     password: string,
   ) {
-    const ownerAddress =
+    const userAddress =
       flavour === NETWORK_FLAVOUR.STARKNET
         ? (validateAndParseAddress(signature.signingAddress) as HexString)
         : signature.signingAddress;
 
-    await this.#preRegistrationChecks(handle, ownerAddress);
+    await this.#preRegistrationChecks(handle, userAddress);
 
     const [r_string, s_string] = await this.#verifySignature(flavour, signature);
     const { s, v } = computePrivateKeys(r_string, s_string);
 
-    return this.#registerAndAddWallet({ s, v }, handle, ownerAddress, { password });
+    return this.#registerAndAddWallet({ s, v }, handle, userAddress, { password });
   }
 
   async addWalletWithPasskey(prfValue: BufferSource, credId?: ArrayBuffer) {
-    const { prfAddress: ownerAddress, ...signature } = await processPasskeyPrf(prfValue);
+    const { prfAddress: userAddress, ...signature } = await processPasskeyPrf(prfValue);
 
     const { s, v } = computePrivateKeys(signature.r.toString(), signature.s.toString());
     const keyPairs = await this.#core.getCurvyKeys(s, v);
 
-    await this.#updateBearerToken(keyPairs.s);
+    const { curvyHandle, createdAt } = await this.#preLoginChecks(keyPairs, userAddress);
 
-    const { curvyHandle, createdAt } = await this.#preLoginChecks(
-      { V: keyPairs.V, S: keyPairs.S, babyJubjubPublicKey: keyPairs.babyJubjubPublicKey },
-      ownerAddress,
-    );
-
-    return this.#createAndAddWallet(curvyHandle, ownerAddress, createdAt, keyPairs, { credId });
+    return this.#createAndAddWallet(curvyHandle, userAddress, createdAt, keyPairs, { credId });
   }
 
   async registerWalletWithPasskey(handle: CurvyHandle, prfValue: BufferSource, credId?: ArrayBuffer) {
-    const { prfAddress: ownerAddress, ...signature } = await processPasskeyPrf(prfValue);
+    const { prfAddress: userAddress, ...signature } = await processPasskeyPrf(prfValue);
 
-    await this.#preRegistrationChecks(handle, ownerAddress);
+    await this.#preRegistrationChecks(handle, userAddress);
 
     const { s, v } = computePrivateKeys(signature.r.toString(), signature.s.toString());
 
-    return this.#registerAndAddWallet({ s, v }, handle, ownerAddress, { credId });
+    return this.#registerAndAddWallet({ s, v }, handle, userAddress, { credId });
   }
 
   hasActiveWallet(): boolean {

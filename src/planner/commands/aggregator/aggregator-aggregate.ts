@@ -142,11 +142,6 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       // Change note
       const change = this.inputNotesSum - this.#intent.amount;
       changeOrDummyOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, change);
-
-      // We update the toAddress only after the change note is created, so that we don't get both notes
-      if (isValidCurvyHandle(this.#intent.toAddress)) {
-        toAddress = this.#intent.toAddress;
-      }
     } else {
       // If there is no change, then we create a dummy note
       changeOrDummyOutputNote = new Note({
@@ -170,6 +165,11 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
           viewTag: "0x0",
         },
       });
+    }
+
+    // We update the toAddress only after the change note is created, so that we don't get both notes
+    if (this.#intent && isValidCurvyHandle(this.#intent.toAddress)) {
+      toAddress = this.#intent.toAddress;
     }
 
     // Now we create the 2nd output note that we will output as a result of this command
