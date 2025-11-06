@@ -69,7 +69,9 @@ type NoteOwnershipProof = {
 };
 
 type CircuitConfig = {
-  circuit: string;
+  wasmPath?: string;
+  zkeyPath?: string;
+  vkeyPath?: string;
   treeDepth: number;
   maxInputs: number;
   maxOutputs: number;
