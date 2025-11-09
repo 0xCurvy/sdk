@@ -66,7 +66,7 @@ const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
 };
 
 async function setup() {
-  curvySDK = await CurvySDK.init("local", "localnet", "http://localhost:4001");
+  curvySDK = await CurvySDK.init("local", "localnet", "http://localhost:4000");
 
   const urlParams = new URLSearchParams(LocalnetGeneratedValues.urlsCurvyOS["user-1"]);
   const signature = urlParams.get("signature");
