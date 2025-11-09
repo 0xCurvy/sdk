@@ -483,8 +483,6 @@ export class BalanceScanner implements IBalanceScanner {
       console.error(`[BalanceScanner] Error while scanning address balances for address ${address.address}:`, error);
     } finally {
       this.#semaphore[`refresh-balance-${address.id}`] = undefined;
-
-      // TODO add event emitter for error states
     }
   }
 

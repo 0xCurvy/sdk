@@ -144,7 +144,6 @@ class CurvySDK implements ICurvySDK {
     return new CurvySDK("", core);
   }
 
-  // TODO: Think about calling it just executor
   get commandExecutor() {
     if (!this.#commandExecutor) {
       throw new Error("Command executor is not initialized!");
@@ -202,7 +201,6 @@ class CurvySDK implements ICurvySDK {
     return this.storage.getCurvyAddressById(id);
   }
 
-  // TODO[@lazartravica]: I reimplemented this on the backend, I need to revert and use this
   getNetwork(networkFilter: NetworkFilter = undefined) {
     const networks = filterNetworks(this.#networks, networkFilter);
 
@@ -378,12 +376,6 @@ class CurvySDK implements ICurvySDK {
 
     if (this.#balanceScanner) this.#balanceScanner.rpcClient = newRpc;
   }
-
-  /* TODO: Think about how to handle networks better
-   *       SDK should probably be initialized explicitly with networks and switching should happen among them
-   *       eg. someone only passes mainnet networks, switching to 'testnet' then throws an error or warning
-   *       We could provide some general ready to use filters (eg. starknet networks, evm networks...)
-   */
 
   switchNetworkEnvironment(environment: "mainnet" | "testnet") {
     this.setActiveNetworks(environment === "testnet");

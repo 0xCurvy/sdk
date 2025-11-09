@@ -18,7 +18,6 @@ export interface ICommandFactory {
 }
 
 export class CurvyCommandFactory implements ICommandFactory {
-  // TODO: Don't pass entire SDK, but pass only things that are needed
   #sdk: ICurvySDK;
 
   constructor(sdk: ICurvySDK) {
