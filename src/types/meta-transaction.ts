@@ -2,7 +2,6 @@ import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { Currency, Network } from "@/types/api";
 import type { ExtractValues, HexString } from "@/types/helper";
 
-// TODO: Refactor to Command handlers bla bla bla
 const META_TRANSACTION_TYPES = {
   VAULT_TRANSFER: "vault_transfer",
   VAULT_ONBOARD: "vault_onboard",
@@ -24,27 +23,24 @@ export { META_TRANSACTION_STATUSES };
 export type MetaTransactionStatus = ExtractValues<typeof META_TRANSACTION_STATUSES>;
 
 export type MetaTransaction = {
-  id?: string;
   network: Network;
   currency: Currency;
-  ownerHash?: string;
+  amount: bigint;
   fromAddress: HexString;
-  toAddress?: HexString;
+  toAddress: HexString;
+  ownerHash?: string;
   type: MetaTransactionType;
-  signature?: string;
-  gasFeeInCurrency?: bigint;
-  curvyFeeInCurrency?: bigint;
-  status?: MetaTransactionStatus;
-  createdAt?: Date;
-  updatedAt?: Date;
+  curvyFeeInCurrency: bigint;
 };
 
-// TODO: Think about this
+export type EstimatedMetaTransaction = MetaTransaction & { id: string; gasFeeInCurrency: bigint };
+export type SignedMetaTransaction = EstimatedMetaTransaction & { signature: string }; // TODO: da li ovo treba da bude string ili HexString?
+
 export type MetaTransactionEstimate = CurvyCommandEstimate;
 
 // This is from smart contracts
 export const META_TRANSACTION_TYPES_TO_UINT8 = [
-  META_TRANSACTION_TYPES.VAULT_ONBOARD, // TODO: Rename to deposit
+  META_TRANSACTION_TYPES.VAULT_ONBOARD,
   META_TRANSACTION_TYPES.VAULT_TRANSFER,
   META_TRANSACTION_TYPES.VAULT_WITHDRAW,
 ];

@@ -52,8 +52,8 @@ type Network = {
   flavour: NETWORK_FLAVOUR_VALUES;
   multiCallContractAddress: string;
   vaultContractAddress?: string;
-  // TODO: Vrati ga iz network controllera
-  vaultContractVersion?: string; // TODO: Proveri da postoji ovo kad postoji i adresa?
+  vaultContractVersion?: string;
+  tokenMoverContractAddress?: string;
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   nativeCurrency: string | null; // TODO: Why is this string?
