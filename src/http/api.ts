@@ -2,6 +2,7 @@ import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
 import type {
+  EstimatedMetaTransaction,
   GetMetaTransactionStatusReturnType,
   MetaTransaction,
   MetaTransactionEstimationRequestBody,
@@ -229,7 +230,7 @@ class ApiClient extends HttpClient implements IApiClient {
           path: `/meta-transaction/estimate`,
           body,
         })
-      ).data.metaTransaction as MetaTransaction & { id: string };
+      ).data.metaTransaction as EstimatedMetaTransaction;
     },
   };
 }

@@ -30,7 +30,6 @@ export type MetaTransaction = {
   toAddress: HexString;
   ownerHash?: string;
   type: MetaTransactionType;
-  curvyFeeInCurrency: bigint;
 };
 
 export type EstimatedMetaTransaction = MetaTransaction & { id: string; gasFeeInCurrency: bigint };
@@ -39,8 +38,9 @@ export type SignedMetaTransaction = EstimatedMetaTransaction & { signature: stri
 export type MetaTransactionEstimate = CurvyCommandEstimate;
 
 // This is from smart contracts
-export const META_TRANSACTION_TYPES_TO_UINT8 = [
-  META_TRANSACTION_TYPES.VAULT_ONBOARD,
-  META_TRANSACTION_TYPES.VAULT_TRANSFER,
-  META_TRANSACTION_TYPES.VAULT_WITHDRAW,
-];
+export const META_TRANSACTION_TYPES_TO_UINT8 = {
+  [META_TRANSACTION_TYPES.VAULT_ONBOARD]: 2,
+  [META_TRANSACTION_TYPES.VAULT_TRANSFER]: 1,
+  [META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR]: 1,
+  [META_TRANSACTION_TYPES.VAULT_WITHDRAW]: 0,
+};

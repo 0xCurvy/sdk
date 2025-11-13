@@ -1,5 +1,5 @@
 import type { Groth16Proof } from "snarkjs";
-import type { EstimatedMetaTransaction, MetaTransaction } from "@/types";
+import type { EstimatedMetaTransaction } from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
   CreateAnnouncementRequestBody,

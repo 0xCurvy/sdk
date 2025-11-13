@@ -3,8 +3,6 @@ import type { CurvyHandle, Network } from "@/types";
 import type { CurvyCommandData } from "../plan";
 
 export interface CurvyCommandEstimate {
-  [key: string]: unknown;
-
   data?: CurvyCommandData;
 
   curvyFee: bigint;

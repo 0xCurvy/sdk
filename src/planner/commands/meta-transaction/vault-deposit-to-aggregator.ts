@@ -3,13 +3,18 @@ import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractVaultCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import { EvmRpc } from "@/rpc";
-import { type HexString, META_TRANSACTION_TYPES, type Note, type NoteBalanceEntry } from "@/types";
+import {
+  type HexString,
+  META_TRANSACTION_TYPES,
+  type MetaTransactionType,
+  type Note,
+  type NoteBalanceEntry,
+} from "@/types";
 import { noteToBalanceEntry } from "@/utils";
 import { toSlug } from "@/utils/helpers";
 
 interface VaultDepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
   id: string;
-  note: Note;
   data: NoteBalanceEntry;
 }
 
@@ -22,6 +27,14 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
     super(id, sdk, input, estimate);
   }
 
+  getMetaTransactionType(): MetaTransactionType {
+    throw new Error("Method not implemented.");
+  }
+
+  getToAddress(): HexString {
+    throw new Error("Method not implemented.");
+  }
+
   async execute(): Promise<CurvyCommandData> {
     const rpc = this.sdk.rpcClient.Network(this.network.name);
 
@@ -29,7 +42,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
       throw new Error("[VaultDepositToAggregatorCommand] Command must be estimated before execution!");
     }
 
-    const { id, gas, curvyFee, note } = this.estimateData;
+    const { id, gas, curvyFee } = this.estimateData;
 
     if (this.input.balance !== note.balance!.amount) {
       throw new Error("[VaultDepositToAggregatorCommand] Mismatch between actual and estimated balance.");
@@ -88,6 +101,19 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
     });
   }
 
+  async getResultingBalanceEntry() {
+    // Zasto note ne umanjujemo da bude netAmount, vec je input.balance?? Pogledati develop ili main verziju ovoga
+    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
+    return noteToBalanceEntry(note, {
+      symbol: this.input.symbol,
+      decimals: this.input.decimals,
+      walletId: this.input.walletId,
+      environment: this.input.environment,
+      networkSlug: this.input.networkSlug,
+      currencyAddress: this.input.currencyAddress as HexString,
+    });
+  }
+
   async estimate(): Promise<VaultDepositToAggregatorCommandEstimate> {
     const currencyAddress = this.input.currencyAddress;
 
@@ -96,17 +122,6 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
     }
 
     const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
-
-    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
-      type: META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR,
-      currencyAddress,
-      amount: this.input.balance.toString(),
-      fromAddress: this.input.source,
-      // biome-ignore lint/style/noNonNullAssertion: it's checked for in the abstract class constructor
-      toAddress: this.network.aggregatorContractAddress!,
-      network: this.input.networkSlug,
-      ownerHash: `0x${note.ownerHash.toString(16)}`,
-    });
 
     const gas = BigInt(gasFeeInCurrency ?? "0");
     const curvyFee = BigInt(curvyFeeInCurrency ?? "0");

@@ -5,7 +5,13 @@ import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractStealthAddressCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import type { Rpc } from "@/rpc/abstract";
-import { BALANCE_TYPE, type HexString, META_TRANSACTION_TYPES, type VaultBalanceEntry } from "@/types";
+import {
+  BALANCE_TYPE,
+  type HexString,
+  META_TRANSACTION_TYPES,
+  type MetaTransactionType,
+  type VaultBalanceEntry,
+} from "@/types";
 
 interface VaultOnboardCommandEstimate extends CurvyCommandEstimate {
   id: string | null;
@@ -17,7 +23,7 @@ interface VaultOnboardCommandEstimate extends CurvyCommandEstimate {
 // TODO: Move to config, even better read from RPC
 const DEPOSIT_TO_VAULT_FEE = 1;
 
-// This command automatically sends all available balance from a stealth addresss to vault
+// This command automatically sends all available balance from a stealth address to vault
 export class VaultOnboardCommand extends AbstractStealthAddressCommand {
   #rpc: Rpc;
   #provider: PublicClient;
@@ -27,6 +33,14 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
     super(id, sdk, input, estimate);
     this.#rpc = this.sdk.rpcClient.Network(this.input.networkSlug);
     this.#provider = this.#rpc.provider;
+  }
+
+  getMetaTransactionType(): MetaTransactionType {
+    return META_TRANSACTION_TYPES.VAULT_ONBOARD;
+  }
+
+  getToAddress(): HexString {
+    return this.input.source as HexString;
   }
 
   async execute(): Promise<CurvyCommandData> {
@@ -42,7 +56,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
       throw new Error("[SaVaultOnboardCommand] Command must be estimated before execution!");
     }
 
-    const { id, gas } = this.estimateData;
+    const { id, gas } = this.estimatData;
 
     if (isOnboardingNative) {
       await this.#rpc.onboardNativeToVault(
@@ -162,14 +176,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
       return { curvyFee, gas: gasUsage, id: null, data: vaultBalanceEntry, maxFeePerGas, gasLimit };
     }
 
-    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
-      amount: this.input.balance.toString(),
-      currencyAddress: this.input.currencyAddress,
-      fromAddress: this.input.source,
-      network: this.input.networkSlug,
-      type: META_TRANSACTION_TYPES.VAULT_ONBOARD,
-      toAddress: this.input.source,
-    });
+    const { id, gasFeeInCurrency } = await this.estimateGas();
 
     vaultBalanceEntry.balance -= BigInt(gasFeeInCurrency ?? "0") + BigInt(curvyFeeInCurrency ?? "0");
 

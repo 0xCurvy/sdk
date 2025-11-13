@@ -5,6 +5,7 @@ import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abst
 import type { CurvyCommandData } from "@/planner/plan";
 import {
   BALANCE_TYPE,
+  type BalanceEntry,
   type HexString,
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
@@ -16,12 +17,7 @@ import {
 export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
   protected declare input: SaBalanceEntry | VaultBalanceEntry;
 
-  protected async signMetaTransaction(
-    to: HexString,
-    amount: bigint,
-    gasFee: bigint,
-    metaTransactionType: MetaTransactionType,
-  ) {
+  protected async signMetaTransaction(to: HexString) {
     const rpc = this.sdk.rpcClient.Network(this.network.name);
     // const address = await this.sdk.storage.getCurvyAddress(this.input.source);
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
@@ -39,20 +35,6 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       functionName: "getTokenId",
       args: [this.input.currencyAddress as HexString],
     });
-
-    // TODO: Extract / do this better
-    const typeLookup = {
-      vault_onboard: 2,
-      vault_transfer: 1,
-      vault_deposit_to_aggregator: 1,
-      vault_withdraw: 0,
-    };
-
-    if (!(metaTransactionType in typeLookup)) {
-      throw new Error(
-        `Meta transaction type ${metaTransactionType} is not supported. Supported types are: ${META_TRANSACTION_TYPES.VAULT_ONBOARD}, ${META_TRANSACTION_TYPES.VAULT_TRANSFER}, ${META_TRANSACTION_TYPES.VAULT_WITHDRAW}, ${META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR}`,
-      );
-    }
 
     const account = privateKeyToAccount(privateKey);
 
@@ -80,15 +62,66 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
         from: this.input.source as HexString,
         to,
         tokenId: BigInt(tokenId),
-        amount,
-        gasFee,
-        metaTransactionType: typeLookup[metaTransactionType],
+        amount: this.getAmount(),
+        gasFee: this.estimateData.gas,
+        metaTransactionType: this.getMetaTransactionType(),
       },
     });
   }
+
+  abstract getMetaTransactionType(): MetaTransactionType;
+
+  abstract getToAddress(): HexString;
+
+  protected async getNetAmount(): Promise<bigint> {
+    if (!this.estimateData) {
+      throw new Error("Commmand not estimated yet.");
+    }
+
+    return this.input.balance - this.estimateData.gas - this.estimateData.curvyFee;
+  }
+
+  protected async calculateCurvyFee(): Promise<bigint> {
+    const rpc = this.sdk.rpcClient.Network(this.network.name);
+
+    const mapMetaTransactionTypeToFeeVariableName = {
+      [META_TRANSACTION_TYPES.VAULT_WITHDRAW]: "withdrawalFee",
+      [META_TRANSACTION_TYPES.VAULT_TRANSFER]: "transferFee",
+      [META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR]: "transferFee",
+      [META_TRANSACTION_TYPES.VAULT_ONBOARD]: "depositFee",
+    };
+
+    const metaTransactionType = this.getMetaTransactionType();
+
+    if (!(metaTransactionType in mapMetaTransactionTypeToFeeVariableName)) {
+      throw new Error(`Meta transaction type ${this.getMetaTransactionType()} is not supported.`);
+    }
+
+    return rpc.provider.readContract({
+      abi: vaultV1Abi,
+      address: this.network.vaultContractAddress as HexString,
+      functionName: mapMetaTransactionTypeToFeeVariableName[metaTransactionType],
+      args: [],
+    });
+  }
+
+  protected async estimate(ownerHash?: bigint): Promise<{ id: string; gasFeeInCurrency: bigint }> {
+    const { id, gasFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
+      type: this.getMetaTransactionType(),
+      currencyAddress: this.input.currencyAddress,
+      amount: this.input.balance.toString(),
+      fromAddress: this.input.source,
+      toAddress: this.network.aggregatorContractAddress as HexString,
+      network: this.input.networkSlug,
+      ownerHash: ownerHash ? `0x${ownerHash.toString(16)}` : undefined,
+    });
+
+    return { id, gasFeeInCurrency };
+  }
+
+  abstract getResultingBalanceEntry(): Promise<BalanceEntry>;
 }
 
-// This command automatically sends all available balance from CSUC to Aggregator
 export abstract class AbstractVaultCommand extends AbstractMetaTransactionCommand {
   protected declare input: VaultBalanceEntry;
 
@@ -98,11 +131,11 @@ export abstract class AbstractVaultCommand extends AbstractMetaTransactionComman
     super(id, sdk, input, estimate);
 
     if (Array.isArray(input)) {
-      throw new Error("Invalid input for command, CSUC commands only accept one data as input.");
+      throw new Error("Invalid input for command, Vault commands only accept one data as input.");
     }
 
     if (input.type !== BALANCE_TYPE.VAULT) {
-      throw new Error("Invalid input for command, CSUC commands only accept CSUC balance type as input.");
+      throw new Error("Invalid input for command, Vault commands only accept Vault balance type as input.");
     }
 
     this.network = sdk.getNetwork(input.networkSlug);
@@ -111,10 +144,6 @@ export abstract class AbstractVaultCommand extends AbstractMetaTransactionComman
       throw new Error("Aggregator contract address not found for network.");
     }
   }
-
-  abstract execute(): Promise<CurvyCommandData | undefined>;
-
-  abstract estimate(): Promise<CurvyCommandEstimate>;
 }
 
 export abstract class AbstractStealthAddressCommand extends AbstractMetaTransactionCommand {

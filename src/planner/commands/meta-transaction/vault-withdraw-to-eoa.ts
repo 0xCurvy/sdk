@@ -3,7 +3,14 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractVaultCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
-import { BALANCE_TYPE, type HexString, isHexString, META_TRANSACTION_TYPES, type SaBalanceEntry } from "@/types";
+import {
+  BALANCE_TYPE,
+  type HexString,
+  isHexString,
+  META_TRANSACTION_TYPES,
+  type MetaTransactionType,
+  type SaBalanceEntry,
+} from "@/types";
 
 interface VaultWithdrawToEOACommandEstimate extends CurvyCommandEstimate {
   id: string;
@@ -29,6 +36,14 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
     }
 
     this.#intent = intent;
+  }
+
+  getMetaTransactionType(): MetaTransactionType {
+    return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
+  }
+
+  getToAddress(): HexString {
+    return this.#intent.toAddress as HexString;
   }
 
   async execute(): Promise<CurvyCommandData> {
@@ -87,14 +102,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
   async estimate(): Promise<VaultWithdrawToEOACommandEstimate> {
     const currencyAddress = this.input.currencyAddress;
 
-    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
-      type: META_TRANSACTION_TYPES.VAULT_WITHDRAW,
-      currencyAddress,
-      amount: this.input.balance.toString(),
-      fromAddress: this.input.source,
-      network: this.input.networkSlug,
-      toAddress: this.#intent.toAddress,
-    });
+    const { id, gasFeeInCurrency } = await this.estimateGas();
 
     const gas = BigInt(gasFeeInCurrency ?? "0");
     const curvyFee = BigInt(curvyFeeInCurrency ?? "0");
@@ -105,7 +113,6 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
       id,
       data: {
         type: BALANCE_TYPE.SA,
-        walletId: "PLACEHOLDER", // TODO Remove
         source: this.#intent.toAddress as HexString,
         networkSlug: this.input.networkSlug,
         environment: this.input.environment,
@@ -113,8 +120,6 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
         symbol: this.input.symbol,
         decimals: this.input.decimals,
         currencyAddress,
-        lastUpdated: +dayjs(), // TODO Remove
-        createdAt: "PLACEHOLDER", // TODO Remove
       },
     };
   }

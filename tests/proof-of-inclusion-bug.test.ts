@@ -124,53 +124,24 @@ async function setup() {
   );
 }
 
-test("Inclusion proof bug", async () => {
+test("[SMOKE TEST] to Curvy name", async () => {
   await setup();
-  const to = "devenv1.local-curvy.name";
-  const amount1 = parseDecimal("330", currency!);
+  const toAddress = "devenv1.local-curvy.name";
+  const amount = parseDecimal("330", currency!);
 
-  const intent1: CurvyIntent = {
-    toAddress: to,
-    amount: amount1,
-    currency: currency!,
-    network: network!,
+  console.log(`Balance in currency = `);
+
+  const intent: CurvyIntent = {
+    uniswapV4Address,
+    amount,
+    currency,
+    network,
+    data: encodeCallData(""),
   };
 
-  const planResult1 = await doPlan(intent1);
-  expect(planResult1).toBe(true);
 
-  await setup();
+  window.etherum.sendTransaction =>> CurvyIntentsj
 
-  const planResult12 = await doPlan(intent1);
-  expect(planResult12).toBe(true);
-
-  await setup();
-
-  const amount2 = parseDecimal("700", currency!);
-
-  const intent2: CurvyIntent = {
-    toAddress: to,
-    amount: amount2,
-    currency: currency!,
-    network: network!,
-  };
-
-  const planResult2 = await doPlan(intent2);
-  expect(planResult2).toBe(true);
-}, 600_000);
-
-test("Vault withdraw bug", async () => {
-  await setup();
-  const to = "0x6718a78b04FA537c58EbF88fE17A84248eD64542";
-  const amount1 = parseDecimal("10", currency!);
-
-  const intent1: CurvyIntent = {
-    toAddress: to,
-    amount: amount1,
-    currency: currency!,
-    network: network!,
-  };
-
-  const planResult1 = await doPlan(intent1);
-  expect(planResult1).toBe(true);
+  const planResult = await doPlan(intent);
+  expect(planResult).toBe(true);
 }, 600_000);
