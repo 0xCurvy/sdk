@@ -42,7 +42,7 @@ export type MetaTransaction = {
 };
 
 export type EstimatedMetaTransaction = MetaTransaction & { id: string; gasFeeInCurrency: bigint };
-export type SignedMetaTransaction = EstimatedMetaTransaction & { signature: string }; // TODO: da li ovo treba da bude string ili HexString?
+export type SignedMetaTransaction = EstimatedMetaTransaction & { signature: HexString };
 
 export type MetaTransactionEstimate = CurvyCommandEstimate;
 
