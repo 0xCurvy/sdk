@@ -7,6 +7,7 @@ import type { CurvyCommandData } from "@/planner/plan";
 import type { Rpc } from "@/rpc/abstract";
 import {
   BALANCE_TYPE,
+  type BalanceEntry,
   type HexString,
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
@@ -14,7 +15,7 @@ import {
 } from "@/types";
 
 interface VaultOnboardCommandEstimate extends CurvyCommandEstimate {
-  id: string | null;
+  id: string;
   data: VaultBalanceEntry;
   maxFeePerGas?: bigint;
   gasLimit?: bigint;
@@ -43,6 +44,26 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
     return this.input.source as HexString;
   }
 
+  async getResultingBalanceEntry(): Promise<BalanceEntry> {
+    const { createdAt: _, ...inputData } = this.input;
+
+    const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
+    const { balances } = await this.#rpc.getVaultBalances(curvyAddress.address);
+
+    const vaultBalance = balances.find((b) => b.currencyAddress === this.input.currencyAddress);
+
+    if (!vaultBalance) {
+      throw new Error("Failed to retrieve Vault balance after deposit!");
+    }
+
+    return {
+      ...inputData,
+      vaultTokenId: vaultBalance.vaultTokenId,
+      balance: BigInt(vaultBalance.balance),
+      type: BALANCE_TYPE.VAULT,
+    } satisfies VaultBalanceEntry;
+  }
+
   async execute(): Promise<CurvyCommandData> {
     const { native: isOnboardingNative } = await this.sdk.storage.getCurrencyMetadata(
       this.input.currencyAddress,
@@ -56,22 +77,14 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
       throw new Error("[SaVaultOnboardCommand] Command must be estimated before execution!");
     }
 
-    const { id, gas } = this.estimatData;
+    const { id, gasLimit, maxFeePerGas, gasFeeInCurrency } = this.estimateData;
 
     if (isOnboardingNative) {
-      await this.#rpc.onboardNativeToVault(
-        this.input.balance - gas,
-        privateKey,
-        this.estimateData.maxFeePerGas!,
-        this.estimateData.gasLimit!,
-      );
+      await this.#rpc.onboardNativeToVault(await this.getNetAmount(), privateKey, maxFeePerGas!, gasLimit!);
     } else {
       if (id === null) {
         throw new Error("[SaVaultOnboardCommand] Meta transaction ID is null for non-native onboarding!");
       }
-
-      const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-      const privateKey = await this.sdk.walletManager.getAddressPrivateKey(curvyAddress);
 
       // approval = approvujemo ceo erc20 balans na erc20 kontraktu da moze njime da raspolaze vault
       const approvalTransaction = await this.#provider.prepareTransactionRequest({
@@ -98,7 +111,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
         data: encodeFunctionData({
           abi: vaultV1Abi,
           functionName: "deposit",
-          args: [this.input.currencyAddress as HexString, this.input.source, this.input.balance, gas],
+          args: [this.input.currencyAddress as HexString, this.input.source, this.input.balance, gasFeeInCurrency],
         }),
         chain: this.#provider.chain,
       });
@@ -120,24 +133,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
 
     await this.sdk.storage.removeSpentBalanceEntries("address", [this.input]);
 
-    const { createdAt: _, ...inputData } = this.input;
-
-    const { balances } = await this.#rpc.getVaultBalances(curvyAddress.address);
-
-    const vaultBalance = balances.find((b) => b.currencyAddress === this.input.currencyAddress);
-
-    if (!vaultBalance) {
-      throw new Error("Failed to retrieve Vault balance after deposit!");
-    }
-
-    const vaultBalanceEntry = {
-      ...inputData,
-      vaultTokenId: vaultBalance.vaultTokenId,
-      balance: BigInt(vaultBalance.balance),
-      type: BALANCE_TYPE.VAULT,
-    } satisfies VaultBalanceEntry;
-
-    return vaultBalanceEntry;
+    return this.getResultingBalanceEntry();
   }
 
   async estimate(): Promise<VaultOnboardCommandEstimate> {
@@ -166,24 +162,31 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
         this.input.source as HexString,
         this.input.balance,
       );
-      const gasUsage = (maxFeePerGas * gasLimit * 120n) / 100n;
-      const curvyFee = ((this.input.balance - gasUsage) * BigInt(DEPOSIT_TO_VAULT_FEE)) / 1000n;
+      const gasFeeInCurrency = (maxFeePerGas * gasLimit * 120n) / 100n;
+      const curvyFeeInCurrency = ((this.input.balance - gasFeeInCurrency) * BigInt(DEPOSIT_TO_VAULT_FEE)) / 1000n;
 
       // TODO: Move this out of the commands
-      vaultBalanceEntry.balance -= gasUsage;
-      vaultBalanceEntry.balance -= curvyFee;
+      vaultBalanceEntry.balance -= gasFeeInCurrency;
+      vaultBalanceEntry.balance -= curvyFeeInCurrency;
 
-      return { curvyFee, gas: gasUsage, id: null, data: vaultBalanceEntry, maxFeePerGas, gasLimit };
+      return {
+        curvyFeeInCurrency,
+        gasFeeInCurrency,
+        id: "",
+        data: vaultBalanceEntry,
+        maxFeePerGas,
+        gasLimit,
+      };
     }
 
-    const { id, gasFeeInCurrency } = await this.estimateGas();
+    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await super.estimate();
 
     vaultBalanceEntry.balance -= BigInt(gasFeeInCurrency ?? "0") + BigInt(curvyFeeInCurrency ?? "0");
 
     return {
       id,
-      gas: BigInt(gasFeeInCurrency ?? "0"),
-      curvyFee: BigInt(curvyFeeInCurrency ?? "0"),
+      gasFeeInCurrency,
+      curvyFeeInCurrency,
       data: vaultBalanceEntry,
     };
   }

@@ -7,6 +7,7 @@ import {
   BALANCE_TYPE,
   type BalanceEntry,
   type HexString,
+  META_TRANSACTION_NUMERIC_TYPES,
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
   type Network,
@@ -63,8 +64,8 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
         to,
         tokenId: BigInt(tokenId),
         amount: this.getAmount(),
-        gasFee: this.estimateData.gas,
-        metaTransactionType: this.getMetaTransactionType(),
+        gasFee: this.estimateData?.gasFeeInCurrency,
+        metaTransactionType: META_TRANSACTION_NUMERIC_TYPES[this.getMetaTransactionType()],
       },
     });
   }
@@ -78,7 +79,7 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       throw new Error("Commmand not estimated yet.");
     }
 
-    return this.input.balance - this.estimateData.gas - this.estimateData.curvyFee;
+    return this.input.balance - this.estimateData.gasFeeInCurrency - this.estimateData.curvyFeeInCurrency;
   }
 
   protected async calculateCurvyFee(): Promise<bigint> {
@@ -89,7 +90,7 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       [META_TRANSACTION_TYPES.VAULT_TRANSFER]: "transferFee",
       [META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR]: "transferFee",
       [META_TRANSACTION_TYPES.VAULT_ONBOARD]: "depositFee",
-    };
+    } as const;
 
     const metaTransactionType = this.getMetaTransactionType();
 
@@ -105,7 +106,7 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     });
   }
 
-  protected async estimate(ownerHash?: bigint): Promise<{ id: string; gasFeeInCurrency: bigint }> {
+  protected async estimate(ownerHash?: bigint) {
     const { id, gasFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
       type: this.getMetaTransactionType(),
       currencyAddress: this.input.currencyAddress,
@@ -116,7 +117,9 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       ownerHash: ownerHash ? `0x${ownerHash.toString(16)}` : undefined,
     });
 
-    return { id, gasFeeInCurrency };
+    const curvyFeeInCurrency = await this.calculateCurvyFee();
+
+    return { id, gasFeeInCurrency: BigInt(gasFeeInCurrency ?? "0"), curvyFeeInCurrency };
   }
 
   abstract getResultingBalanceEntry(): Promise<BalanceEntry>;

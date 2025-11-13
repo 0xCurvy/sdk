@@ -5,8 +5,8 @@ import type { CurvyCommandData } from "../plan";
 export interface CurvyCommandEstimate {
   data?: CurvyCommandData;
 
-  curvyFee: bigint;
-  gas: bigint;
+  curvyFeeInCurrency: bigint;
+  gasFeeInCurrency: bigint;
 }
 
 export abstract class CurvyCommand {
@@ -33,5 +33,5 @@ export abstract class CurvyCommand {
   }
 
   abstract execute(): Promise<CurvyCommandData | undefined>;
-  abstract estimate(): Promise<CurvyCommandEstimate>;
+  protected abstract estimate(): Promise<CurvyCommandEstimate>;
 }
