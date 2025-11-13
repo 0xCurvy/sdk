@@ -3,6 +3,7 @@ import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
+import { EvmRpc } from "@/rpc";
 import {
   BALANCE_TYPE,
   type BalanceEntry,
@@ -17,8 +18,24 @@ import {
 
 export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
   protected declare input: SaBalanceEntry | VaultBalanceEntry;
+  protected rpc: EvmRpc;
+
+  protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+    super(id, sdk, input, estimate);
+    const rpc = sdk.rpcClient.Network(this.input.networkSlug);
+
+    if (!(rpc instanceof EvmRpc)) {
+      throw new Error("AbstractMetaTransactionCommand only supports EVM networks.");
+    }
+
+    this.rpc = rpc;
+  }
 
   protected async signMetaTransaction(to: HexString) {
+    if (!this.estimateData) {
+      throw new Error("Command not estimated.");
+    }
+
     const rpc = this.sdk.rpcClient.Network(this.network.name);
     // const address = await this.sdk.storage.getCurvyAddress(this.input.source);
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
@@ -63,8 +80,8 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
         from: this.input.source as HexString,
         to,
         tokenId: BigInt(tokenId),
-        amount: this.getAmount(),
-        gasFee: this.estimateData?.gasFeeInCurrency,
+        amount: this.input.balance,
+        gasFee: this.estimateData.gasFeeInCurrency,
         metaTransactionType: META_TRANSACTION_NUMERIC_TYPES[this.getMetaTransactionType()],
       },
     });
@@ -74,9 +91,9 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
 
   abstract getToAddress(): HexString;
 
-  protected async getNetAmount(): Promise<bigint> {
+  protected getNetAmount(): bigint {
     if (!this.estimateData) {
-      throw new Error("Commmand not estimated yet.");
+      throw new Error("Command not estimated.");
     }
 
     return this.input.balance - this.estimateData.gasFeeInCurrency - this.estimateData.curvyFeeInCurrency;
@@ -106,7 +123,7 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     });
   }
 
-  protected async estimate(ownerHash?: bigint) {
+  async estimate(ownerHash?: bigint) {
     const { id, gasFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
       type: this.getMetaTransactionType(),
       currencyAddress: this.input.currencyAddress,
@@ -122,7 +139,9 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     return { id, gasFeeInCurrency: BigInt(gasFeeInCurrency ?? "0"), curvyFeeInCurrency };
   }
 
-  abstract getResultingBalanceEntry(): Promise<BalanceEntry>;
+  async getResultingBalanceEntry(): Promise<BalanceEntry | undefined> {
+    return Promise.resolve(undefined);
+  }
 }
 
 export abstract class AbstractVaultCommand extends AbstractMetaTransactionCommand {
@@ -153,7 +172,7 @@ export abstract class AbstractStealthAddressCommand extends AbstractMetaTransact
   // SA address that will sign / auth. the action to be executed
   protected declare input: SaBalanceEntry;
 
-  protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+  constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
 
     if (Array.isArray(input)) {

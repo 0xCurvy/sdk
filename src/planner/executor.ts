@@ -44,11 +44,11 @@ export class CommandExecutor {
           items: result,
           estimate: result.reduce(
             (res, { estimate }) => {
-              res.estimate.gas += estimate?.gas || 0n;
-              res.estimate.curvyFee += estimate?.curvyFee || 0n;
+              res.estimate.gasFeeInCurrency += estimate?.gasFeeInCurrency || 0n;
+              res.estimate.curvyFeeInCurrency += estimate?.curvyFeeInCurrency || 0n;
               return res;
             },
-            { estimate: { gas: 0n, curvyFee: 0n } },
+            { estimate: { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n } },
           ).estimate,
           data: result.filter((r) => r.success && r.data !== undefined).map((r) => r.data) as BalanceEntry[],
         };
@@ -70,7 +70,7 @@ export class CommandExecutor {
       }
 
       let data = input;
-      const estimate = { gas: 0n, curvyFee: 0n };
+      const estimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
       for (const item of plan.items) {
         const result = await this.#walkRecursively(item, data, dryRun, onCommandStarted);
 
@@ -87,8 +87,8 @@ export class CommandExecutor {
 
         // Set the output of current as data of next step
         data = result.data;
-        estimate.gas += result.estimate?.gas || 0n;
-        estimate.curvyFee += result.estimate?.curvyFee || 0n;
+        estimate.gasFeeInCurrency += result.estimate?.gasFeeInCurrency || 0n;
+        estimate.curvyFeeInCurrency += result.estimate?.curvyFeeInCurrency || 0n;
       }
 
       // The output address of the successful serial flow is the last members address.
@@ -191,8 +191,8 @@ export class CommandExecutor {
 
     return {
       plan,
-      gas: planEstimation.estimate.gas,
-      curvyFee: planEstimation.estimate.curvyFee,
+      gas: planEstimation.estimate.gasFeeInCurrency,
+      curvyFee: planEstimation.estimate.curvyFeeInCurrency,
       effectiveAmount: planEstimation.data.balance,
     };
   }

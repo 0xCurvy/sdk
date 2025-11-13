@@ -127,13 +127,13 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     const { networkSlug, environment, symbol, lastUpdated, currencyAddress, vaultTokenId, decimals, walletId } =
       this.input[0];
 
-    const curvyFee = this.inputNotesSum / 500n; // 0.2% = 1/500
+    const curvyFeeInCurrency = this.inputNotesSum / 500n; // 0.2% = 1/500
 
     const stealthAddressData = await this.sdk.generateNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
 
     return {
-      curvyFee,
-      gas: 0n,
+      curvyFeeInCurrency,
+      gasFeeInCurrency: 0n,
       stealthAddressData,
       data: {
         type: BALANCE_TYPE.VAULT,
@@ -142,7 +142,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
         vaultTokenId: vaultTokenId,
         networkSlug,
         environment,
-        balance: this.inputNotesSum - curvyFee,
+        balance: this.inputNotesSum - curvyFeeInCurrency,
         symbol,
         decimals,
         currencyAddress,

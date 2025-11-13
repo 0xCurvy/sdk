@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractVaultCommand } from "@/planner/commands/meta-transaction/abstract";
@@ -46,26 +45,13 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
     return this.#intent.toAddress as HexString;
   }
 
-  async execute(): Promise<CurvyCommandData> {
-    const currencyAddress = this.input.currencyAddress;
-
+  async execute(): Promise<CurvyCommandData | undefined> {
     if (!this.estimateData) {
       throw new Error("[VaultWithdrawToEoaCommand] Command must be estimated before execution!");
     }
-    const { id, gas, curvyFee } = this.estimateData;
+    const { id } = this.estimateData;
 
-    const amount = this.input.balance;
-
-    const totalFees = gas + curvyFee;
-
-    const effectiveAmount = amount - totalFees;
-
-    const signature = await this.signMetaTransaction(
-      this.#intent.toAddress as HexString,
-      effectiveAmount,
-      gas,
-      META_TRANSACTION_TYPES.VAULT_WITHDRAW,
-    );
+    const signature = await this.signMetaTransaction(this.#intent.toAddress as HexString);
 
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
@@ -84,42 +70,22 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
     const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
     await this.sdk.refreshAddressBalances(curvyAddress);
 
-    return {
-      type: BALANCE_TYPE.SA,
-      walletId: "PLACEHOLDER", // TODO Remove
-      source: this.#intent.toAddress as HexString,
-      networkSlug: this.input.networkSlug,
-      environment: this.input.environment,
-      balance: effectiveAmount,
-      symbol: this.input.symbol,
-      decimals: this.input.decimals,
-      currencyAddress,
-      lastUpdated: +dayjs(), // TODO Remove
-      createdAt: "PLACEHOLDER", // TODO Remove
-    } satisfies SaBalanceEntry;
+    return;
   }
 
   async estimate(): Promise<VaultWithdrawToEOACommandEstimate> {
-    const currencyAddress = this.input.currencyAddress;
-
-    const { id, gasFeeInCurrency } = await this.estimateGas();
-
-    const gas = BigInt(gasFeeInCurrency ?? "0");
-    const curvyFee = BigInt(curvyFeeInCurrency ?? "0");
+    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await super.estimate();
 
     return {
-      gas,
-      curvyFee,
+      gasFeeInCurrency,
+      curvyFeeInCurrency,
       id,
       data: {
+        ...this.input,
+        createdAt: "PLACEHOLDER",
         type: BALANCE_TYPE.SA,
         source: this.#intent.toAddress as HexString,
-        networkSlug: this.input.networkSlug,
-        environment: this.input.environment,
-        balance: this.input.balance - curvyFee - gas,
-        symbol: this.input.symbol,
-        decimals: this.input.decimals,
-        currencyAddress,
+        balance: this.input.balance - curvyFeeInCurrency - gasFeeInCurrency,
       },
     };
   }

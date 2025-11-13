@@ -33,5 +33,5 @@ export abstract class CurvyCommand {
   }
 
   abstract execute(): Promise<CurvyCommandData | undefined>;
-  protected abstract estimate(): Promise<CurvyCommandEstimate>;
+  abstract estimate(): Promise<CurvyCommandEstimate>;
 }

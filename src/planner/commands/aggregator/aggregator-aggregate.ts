@@ -180,9 +180,9 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       throw new Error(`Network aggregation circuit config is not defined for network ${this.network.name}!`);
     }
 
-    const curvyFee = (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig.groupFee)) / 1000n;
+    const curvyFeeInCurrency = (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig.groupFee)) / 1000n;
 
-    const effectiveAmount = this.inputNotesSum - changeOrDummyOutputNote.balance!.amount - curvyFee;
+    const effectiveAmount = this.inputNotesSum - changeOrDummyOutputNote.balance!.amount - curvyFeeInCurrency;
     const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, effectiveAmount);
 
     const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
@@ -197,8 +197,8 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     });
 
     return {
-      curvyFee,
-      gas: 0n,
+      curvyFeeInCurrency,
+      gasFeeInCurrency: 0n,
       mainOutputNote,
       toAddress,
       changeOrDummyOutputNote,

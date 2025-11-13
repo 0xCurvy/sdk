@@ -41,7 +41,7 @@ export type MetaTransaction = {
   type: MetaTransactionType;
 };
 
-export type EstimatedMetaTransaction = MetaTransaction & { id: string; gasFeeInCurrency: bigint };
+export type EstimatedMetaTransaction = { id: string; gasFeeInCurrency: bigint };
 export type SignedMetaTransaction = EstimatedMetaTransaction & { signature: HexString };
 
 export type MetaTransactionEstimate = CurvyCommandEstimate;

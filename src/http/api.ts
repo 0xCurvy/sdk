@@ -2,9 +2,7 @@ import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
 import type {
-  EstimatedMetaTransaction,
   GetMetaTransactionStatusReturnType,
-  MetaTransaction,
   MetaTransactionEstimationRequestBody,
   MetaTransactionSubmitBody,
   SubmitNoteOwnershipProofReturnType,
@@ -224,13 +222,18 @@ class ApiClient extends HttpClient implements IApiClient {
     },
 
     EstimateGas: async (body: MetaTransactionEstimationRequestBody) => {
-      return (
-        await this.request<{ data: { metaTransaction: MetaTransaction } }>({
+      const { id, gasFeeInCurrency } = (
+        await this.request<{ data: { id: string; gasFeeInCurrency: string } }>({
           method: "POST",
           path: `/meta-transaction/estimate`,
           body,
         })
-      ).data.metaTransaction as EstimatedMetaTransaction;
+      ).data;
+
+      return {
+        id,
+        gasFeeInCurrency: BigInt(gasFeeInCurrency ?? "0"),
+      };
     },
   };
 }

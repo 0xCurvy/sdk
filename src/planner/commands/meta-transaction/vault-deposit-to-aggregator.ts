@@ -2,7 +2,6 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractVaultCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import { EvmRpc } from "@/rpc";
 import type { HexString, MetaTransactionType, Note, NoteBalanceEntry } from "@/types";
 import { noteToBalanceEntry } from "@/utils";
 import { toSlug } from "@/utils/helpers";
@@ -32,8 +31,6 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
   }
 
   async execute(): Promise<CurvyCommandData> {
-    const rpc = this.sdk.rpcClient.Network(this.network.name);
-
     if (!this.estimateData) {
       throw new Error("[VaultDepositToAggregatorCommand] Command must be estimated before execution!");
     }
@@ -57,12 +54,8 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
       },
     );
 
-    if (!(rpc instanceof EvmRpc)) {
-      throw new Error("VaultDepositToAggregatorCommand: Only EVM networks are supported");
-    }
-
     for (let i = 0; i < 3; i++) {
-      if (await rpc.isNoteDeposited(note.id)) break;
+      if (await this.rpc.isNoteDeposited(note.id)) break;
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }
 

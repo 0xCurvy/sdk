@@ -1,10 +1,7 @@
-import { encodeFunctionData, erc20Abi, type PublicClient } from "viem";
-import { vaultV1Abi } from "@/contracts/evm/abi";
-import type { ICurvySDK } from "@/interfaces/sdk";
+import { privateKeyToAccount } from "viem/accounts";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractStealthAddressCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import type { Rpc } from "@/rpc/abstract";
 import {
   BALANCE_TYPE,
   type BalanceEntry,
@@ -26,15 +23,7 @@ const DEPOSIT_TO_VAULT_FEE = 1;
 
 // This command automatically sends all available balance from a stealth address to vault
 export class VaultOnboardCommand extends AbstractStealthAddressCommand {
-  #rpc: Rpc;
-  #provider: PublicClient;
   protected declare estimateData: VaultOnboardCommandEstimate | undefined;
-
-  constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(id, sdk, input, estimate);
-    this.#rpc = this.sdk.rpcClient.Network(this.input.networkSlug);
-    this.#provider = this.#rpc.provider;
-  }
 
   getMetaTransactionType(): MetaTransactionType {
     return META_TRANSACTION_TYPES.VAULT_ONBOARD;
@@ -48,7 +37,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
     const { createdAt: _, ...inputData } = this.input;
 
     const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-    const { balances } = await this.#rpc.getVaultBalances(curvyAddress.address);
+    const { balances } = await this.rpc.getVaultBalances(curvyAddress.address);
 
     const vaultBalance = balances.find((b) => b.currencyAddress === this.input.currencyAddress);
 
@@ -77,50 +66,23 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
       throw new Error("[SaVaultOnboardCommand] Command must be estimated before execution!");
     }
 
-    const { id, gasLimit, maxFeePerGas, gasFeeInCurrency } = this.estimateData;
+    const { id, gasLimit, maxFeePerGas } = this.estimateData;
 
     if (isOnboardingNative) {
-      await this.#rpc.onboardNativeToVault(await this.getNetAmount(), privateKey, maxFeePerGas!, gasLimit!);
+      await this.rpc.onboardNativeToVault(this.getNetAmount(), privateKey, maxFeePerGas!, gasLimit!);
     } else {
       if (id === null) {
         throw new Error("[SaVaultOnboardCommand] Meta transaction ID is null for non-native onboarding!");
       }
 
-      // approval = approvujemo ceo erc20 balans na erc20 kontraktu da moze njime da raspolaze vault
-      const approvalTransaction = await this.#provider.prepareTransactionRequest({
-        to: this.input.currencyAddress as HexString,
-        gas: 60_000n,
-        nonce: 0,
-        data: encodeFunctionData({
-          abi: erc20Abi,
-          functionName: "approve",
-          args: [
-            this.network.vaultContractAddress as HexString,
-            this.input.balance, // Approve entire balance
-          ],
-        }),
-        chain: this.#provider.chain,
+      const signedAuthorization = await this.rpc.walletClient.signAuthorization({
+        account: privateKeyToAccount(privateKey),
+        contractAddress: this.network.tokenMoverContractAddress as HexString,
       });
-
-      const signedApprovalTransaction = await this.#rpc.signRawTransaction(privateKey, approvalTransaction);
-
-      const depositTransaction = await this.#provider.prepareTransactionRequest({
-        to: this.network.vaultContractAddress as HexString,
-        gas: 150_000n,
-        nonce: 1,
-        data: encodeFunctionData({
-          abi: vaultV1Abi,
-          functionName: "deposit",
-          args: [this.input.currencyAddress as HexString, this.input.source, this.input.balance, gasFeeInCurrency],
-        }),
-        chain: this.#provider.chain,
-      });
-
-      const signedDepositTransaction = await this.#rpc.signRawTransaction(privateKey, depositTransaction);
 
       await this.sdk.apiClient.metaTransaction.SubmitTransaction({
         id,
-        signature: [signedApprovalTransaction, signedDepositTransaction].join(","),
+        signature: signedAuthorization,
       });
       await this.sdk.pollForCriteria(
         () => this.sdk.apiClient.metaTransaction.GetStatus(id),
@@ -158,7 +120,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
     } satisfies VaultBalanceEntry;
 
     if (isOnboardingNative) {
-      const { maxFeePerGas, gasLimit } = await this.#rpc.estimateOnboardNativeToVault(
+      const { maxFeePerGas, gasLimit } = await this.rpc.estimateOnboardNativeToVault(
         this.input.source as HexString,
         this.input.balance,
       );
