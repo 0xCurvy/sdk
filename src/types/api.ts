@@ -38,7 +38,7 @@ type Currency = {
   price: string | null;
   updatedAt: string;
   decimals: number;
-  contractAddress: string;
+  contractAddress: HexString;
   nativeCurrency: boolean;
   vaultTokenId: number | null;
 };

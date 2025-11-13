@@ -29,10 +29,6 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
     return META_TRANSACTION_TYPES.VAULT_ONBOARD;
   }
 
-  getToAddress(): HexString {
-    return this.input.source as HexString;
-  }
-
   async getResultingBalanceEntry(): Promise<BalanceEntry> {
     const { createdAt: _, ...inputData } = this.input;
 
@@ -82,7 +78,7 @@ export class VaultOnboardCommand extends AbstractStealthAddressCommand {
 
       await this.sdk.apiClient.metaTransaction.SubmitTransaction({
         id,
-        signature: signedAuthorization,
+        signature: JSON.stringify(signedAuthorization),
       });
       await this.sdk.pollForCriteria(
         () => this.sdk.apiClient.metaTransaction.GetStatus(id),

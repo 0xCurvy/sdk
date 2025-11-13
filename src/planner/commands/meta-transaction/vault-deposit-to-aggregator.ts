@@ -2,7 +2,13 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractVaultCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import type { HexString, MetaTransactionType, Note, NoteBalanceEntry } from "@/types";
+import {
+  type HexString,
+  META_TRANSACTION_TYPES,
+  type MetaTransactionType,
+  type Note,
+  type NoteBalanceEntry,
+} from "@/types";
 import { noteToBalanceEntry } from "@/utils";
 import { toSlug } from "@/utils/helpers";
 
@@ -23,11 +29,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
   }
 
   getMetaTransactionType(): MetaTransactionType {
-    throw new Error("Method not implemented.");
-  }
-
-  getToAddress(): HexString {
-    throw new Error("Method not implemented.");
+    return META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR;
   }
 
   async execute(): Promise<CurvyCommandData> {
@@ -103,10 +105,10 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultCommand {
       throw new Error("VaultDepositToAggregatorCommand: vaultTokenId is required");
     }
 
-    const { id, gasFeeInCurrency } = await super.estimate();
-    const curvyFeeInCurrency = await this.calculateCurvyFee();
-
     const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
+
+    const { id, gasFeeInCurrency } = await super.estimate(note.ownerHash);
+    const curvyFeeInCurrency = await this.calculateCurvyFee();
 
     return {
       gasFeeInCurrency,

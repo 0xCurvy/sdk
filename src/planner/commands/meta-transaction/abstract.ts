@@ -89,8 +89,6 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
 
   abstract getMetaTransactionType(): MetaTransactionType;
 
-  abstract getToAddress(): HexString;
-
   protected getNetAmount(): bigint {
     if (!this.estimateData) {
       throw new Error("Command not estimated.");

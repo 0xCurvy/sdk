@@ -41,10 +41,6 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
     return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
   }
 
-  getToAddress(): HexString {
-    return this.#intent.toAddress as HexString;
-  }
-
   async execute(): Promise<CurvyCommandData | undefined> {
     if (!this.estimateData) {
       throw new Error("[VaultWithdrawToEoaCommand] Command must be estimated before execution!");
