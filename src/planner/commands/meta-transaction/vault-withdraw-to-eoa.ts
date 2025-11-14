@@ -62,7 +62,7 @@ export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
     throw new Error("VaultWithdrawToEOACommand does not return a balance entry.");
   }
 
-  async execute(): Promise<CurvyCommandData | undefined> {
+  async run(): Promise<CurvyCommandData | undefined> {
     if (!this.estimateData) {
       throw new Error("[VaultWithdrawToEoaCommand] Command must be estimated before execution!");
     }
@@ -84,6 +84,7 @@ export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
   }
 
   async estimate(): Promise<VaultWithdrawToEOACommandEstimate> {
+    // TODO: Id ne moramo da vracamo njega samo mozemo da setujemo.
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await super.estimate();
 
     return {

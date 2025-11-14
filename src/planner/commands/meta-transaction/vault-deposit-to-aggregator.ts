@@ -60,7 +60,7 @@ export class VaultDepositToAggregatorCommand extends AbstractMetaTransactionComm
     });
   }
 
-  async execute(): Promise<CurvyCommandData> {
+  async run(): Promise<CurvyCommandData> {
     if (!this.estimateData) {
       throw new Error("[VaultDepositToAggregatorCommand] Command must be estimated before execution!");
     }

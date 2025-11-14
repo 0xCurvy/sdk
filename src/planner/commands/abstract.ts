@@ -1,13 +1,12 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { EvmRpc } from "@/rpc";
-import type { BalanceEntry, CurvyHandle, Network } from "@/types";
+import type { CurvyHandle, Network } from "@/types";
 import type { CurvyCommandData } from "../plan";
 
 export interface CurvyCommandEstimate {
-  data?: CurvyCommandData;
-
   curvyFeeInCurrency: bigint;
   gasFeeInCurrency: bigint;
+  netAmount: bigint;
 }
 
 export abstract class CurvyCommand {
@@ -44,13 +43,30 @@ export abstract class CurvyCommand {
 
   abstract get name(): string;
 
-  abstract estimate(): Promise<CurvyCommandEstimate>;
-  abstract execute(): Promise<CurvyCommandData | undefined>;
+  abstract calculateCurvyFeeInCurrency(): Promise<bigint>;
+  abstract calculateGasFeeInCurrency(): Promise<bigint>;
+  abstract getDesiredAmount(): Promise<bigint>;
+
+  async estimate(): Promise<CurvyCommandEstimate> {
+    const curvyFeeInCurrency = await this.calculateCurvyFeeInCurrency();
+    const gasFeeInCurrency = await this.calculateGasFeeInCurrency();
+
+    const netAmount = (await this.getDesiredAmount()) - curvyFeeInCurrency;
+
+    return {
+      curvyFeeInCurrency,
+      gasFeeInCurrency,
+      netAmount,
+    };
+  }
+
+  async execute(): Promise<CurvyCommandData | undefined> {
+    if (!this.estimateData) {
+      throw new Error("Command must be estimated before execution!");
+    }
+    return this.run();
+  }
+  protected abstract run(): Promise<CurvyCommandData | undefined>;
 
   protected abstract validateInput<T extends CurvyCommandData>(input: CurvyCommandData): asserts input is T;
-  //TODO think how we can avoid args unknown, currently only used by onboard native to vault because of gas subtraction
-  protected abstract calculateCurvyFee(...args: unknown[]): Promise<bigint> | bigint;
-
-  protected abstract getResultingBalanceEntry(...args: unknown[]): Promise<BalanceEntry> | BalanceEntry;
-  protected abstract getNetAmount(): bigint;
 }

@@ -20,22 +20,24 @@ export abstract class AbstractAggregatorCommand extends CurvyCommand {
     this.inputNotesSum = this.inputNotes.reduce((acc, note) => acc + note.balance!.amount, 0n);
   }
 
-  protected getNetAmount(): bigint {
-    if (!this.estimateData) {
-      throw new Error("Command must be estimated before calculating net amount!");
-    }
-
-    return this.inputNotesSum - this.estimateData.gasFeeInCurrency - this.estimateData.curvyFeeInCurrency;
-  }
-
   validateInput(input: CurvyCommandData): asserts input is NoteBalanceEntry[] {
+    let firstInput: NoteBalanceEntry | undefined;
     if (Array.isArray(input)) {
       const allAreNotes = input.every((addr) => addr.type === "note");
       if (!allAreNotes) {
         throw new Error("Invalid input for command, aggregator commands only accept notes as input.");
       }
-    } else if (input.type !== "note") {
+      firstInput = input[0];
+    } else if (input.type === "note") {
+      firstInput = input;
+    } else {
       throw new Error("Invalid input for command, aggregator commands only accept notes as input.");
+    }
+
+    if (!firstInput?.vaultTokenId) {
+      throw new Error(
+        "Invalid input for command, aggregator commands only accept notes with currencies with vaultTokenId as input.",
+      );
     }
   }
 }

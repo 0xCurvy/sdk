@@ -87,7 +87,7 @@ export class VaultOnboardCommand extends AbstractMetaTransactionCommand {
     } satisfies VaultBalanceEntry;
   }
 
-  async execute(): Promise<CurvyCommandData> {
+  async run(): Promise<CurvyCommandData> {
     if (!this.estimateData) {
       throw new Error("[SaVaultOnboardCommand] Command must be estimated before execution!");
     }

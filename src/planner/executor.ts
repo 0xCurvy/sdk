@@ -120,7 +120,7 @@ export class CommandExecutor {
 
         if (!dryRun) {
           onCommandStarted?.(plan.name);
-          data = await command.execute();
+          data = await command.run();
 
           await this.#storage.removeSpentBalanceEntries(Array.isArray(input) ? input : [input]);
 

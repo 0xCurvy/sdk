@@ -91,7 +91,7 @@ export class VaultOnboardNativeCommand extends CurvyCommand {
     } satisfies VaultBalanceEntry;
   }
 
-  async execute(): Promise<CurvyCommandData> {
+  async run(): Promise<CurvyCommandData> {
     if (!this.estimateData) {
       throw new Error("[SaVaultOnboardNativeCommand] Command must be estimated before execution!");
     }
