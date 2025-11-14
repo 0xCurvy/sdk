@@ -471,6 +471,9 @@ class WalletManager implements IWalletManager {
 
     if (isHexString(_address)) {
       address = await this.#storage.getCurvyAddress(_address);
+      if (!address) {
+        throw new Error(`Address ${_address} not found in storage!`);
+      }
     } else address = _address;
 
     const wallet = this.getWalletById(address.walletId);

@@ -20,6 +20,55 @@ interface AggregatorWithdrawToVaultCommandEstimate extends CurvyCommandEstimate 
 export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand {
   protected declare estimateData: AggregatorWithdrawToVaultCommandEstimate | undefined;
 
+  get name(): string {
+    return "AggregatorWithdrawToVaultCommand";
+  }
+
+  calculateCurvyFee(): bigint {
+    if (!this.network.withdrawCircuitConfig) {
+      throw new Error(`Network aggregation circuit config is not defined for network ${this.network.name}!`);
+    }
+    return (this.inputNotesSum * BigInt(this.network.withdrawCircuitConfig.groupFee)) / 1000n;
+  }
+
+  async getResultingBalanceEntry(
+    address: HexString,
+    estimationParams?: { curvyFeeInCurrency: bigint },
+  ): Promise<VaultBalanceEntry> {
+    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, vaultTokenId, decimals, walletId } =
+      this.input[0];
+
+    const _curvyFeeInCurrency = estimationParams?.curvyFeeInCurrency ?? this.estimateData?.curvyFeeInCurrency;
+    let _balance: bigint;
+
+    if (estimationParams) {
+      _balance = this.inputNotesSum - (_curvyFeeInCurrency ?? 0n);
+    } else {
+      const { balances } = await this.rpc.getVaultBalances(address);
+
+      const vaultBalance = balances.find((b) => b.currencyAddress === currencyAddress);
+      if (!vaultBalance) {
+        throw new Error("Failed to retrieve Vault balance after deposit!");
+      }
+
+      _balance = vaultBalance.balance;
+    }
+
+    return {
+      type: BALANCE_TYPE.VAULT,
+      walletId,
+      source: address,
+      vaultTokenId: vaultTokenId,
+      networkSlug,
+      environment,
+      balance: _balance,
+      symbol,
+      decimals,
+      currencyAddress,
+      lastUpdated,
+    } satisfies VaultBalanceEntry;
+  }
+
   async #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): Promise<WithdrawRequest> {
     if (!this.network.withdrawCircuitConfig) {
       throw new Error("Network withdraw circuit config is not defined!");
@@ -62,8 +111,6 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
   }
 
   async execute(): Promise<CurvyCommandData> {
-    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, walletId } = this.input[0];
-
     if (!this.estimateData) {
       throw new Error("[AggregatorWithdrawToVaultCommand] Command must be estimated before execution!");
     }
@@ -76,7 +123,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     await this.sdk.storage.storeCurvyAddress({
       ...announcementData,
       address: vaultAddress,
-      walletId,
+      walletId: this.input[0].walletId,
       lastScannedAt: { mainnet: 0, testnet: 0 },
     });
 
@@ -95,59 +142,22 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
       },
     );
 
-    await this.sdk.storage.removeSpentBalanceEntries("note", this.input);
-
-    const { balances } = await this.sdk.rpcClient.Network(this.input[0].networkSlug).getVaultBalances(vaultAddress);
-    const vaultBalance = balances.find((b) => b.currencyAddress === this.input[0].currencyAddress);
-
-    if (!vaultBalance) {
-      throw new Error("Failed to retrieve Vault balance after deposit!");
-    }
-
-    // TODO: Create utility methods for creating balance entries in commands
-    return {
-      type: BALANCE_TYPE.VAULT,
-      walletId: this.input[0].walletId,
-      source: vaultAddress,
-      vaultTokenId: vaultBalance.vaultTokenId,
-      networkSlug,
-      environment,
-      balance: vaultBalance.balance,
-      symbol,
-      decimals: this.input[0].decimals,
-      currencyAddress,
-      lastUpdated,
-    } satisfies VaultBalanceEntry;
+    return this.getResultingBalanceEntry(vaultAddress);
   }
 
-  // In the case of aggregator-withdraw-to-csuc command, both the circuit
-  // and the aggregator SC have withdrawBPS set, circuits calculate what is the
-  // feeAmount and pass it to CSUC so that CSUC can put it on th fee collector
   async estimate(): Promise<AggregatorWithdrawToVaultCommandEstimate> {
-    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, vaultTokenId, decimals, walletId } =
-      this.input[0];
+    const curvyFeeInCurrency = this.calculateCurvyFee();
 
-    const curvyFeeInCurrency = this.inputNotesSum / 500n; // 0.2% = 1/500
-
-    const stealthAddressData = await this.sdk.generateNewStealthAddressForUser(networkSlug, this.senderCurvyHandle);
+    const stealthAddressData = await this.sdk.generateNewStealthAddressForUser(
+      this.input[0].networkSlug,
+      this.senderCurvyHandle,
+    );
 
     return {
       curvyFeeInCurrency,
       gasFeeInCurrency: 0n,
       stealthAddressData,
-      data: {
-        type: BALANCE_TYPE.VAULT,
-        walletId,
-        source: stealthAddressData.address,
-        vaultTokenId: vaultTokenId,
-        networkSlug,
-        environment,
-        balance: this.inputNotesSum - curvyFeeInCurrency,
-        symbol,
-        decimals,
-        currencyAddress,
-        lastUpdated,
-      },
+      data: await this.getResultingBalanceEntry(stealthAddressData.address, { curvyFeeInCurrency }),
     };
   }
 }

@@ -1,3 +1,4 @@
+import type { StorageInterface } from "@/interfaces";
 import type { IBalanceScanner } from "@/interfaces/balance-scanner";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { ICommandFactory } from "@/planner/commands/factory";
@@ -13,12 +14,19 @@ import type { BalanceEntry } from "@/types";
 export class CommandExecutor {
   private commandFactory: ICommandFactory;
   private eventEmitter: ICurvyEventEmitter;
-  #balanceScanner: IBalanceScanner;
+  readonly #balanceScanner: IBalanceScanner;
+  readonly #storage: StorageInterface;
 
-  constructor(commandFactory: ICommandFactory, eventEmitter: ICurvyEventEmitter, balanceScanner: IBalanceScanner) {
+  constructor(
+    commandFactory: ICommandFactory,
+    eventEmitter: ICurvyEventEmitter,
+    balanceScanner: IBalanceScanner,
+    storage: StorageInterface,
+  ) {
     this.commandFactory = commandFactory;
     this.eventEmitter = eventEmitter;
     this.#balanceScanner = balanceScanner;
+    this.#storage = storage;
   }
 
   async #walkRecursively(
@@ -113,6 +121,9 @@ export class CommandExecutor {
         if (!dryRun) {
           onCommandStarted?.(plan.name);
           data = await command.execute();
+
+          await this.#storage.removeSpentBalanceEntries(Array.isArray(input) ? input : [input]);
+
           this.eventEmitter.emitPlanCommandExecutionProgress({ commandId: plan.id });
         } else {
           const { data: estimateData, ...estimate } = await command.estimate();

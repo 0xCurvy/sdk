@@ -14,7 +14,6 @@ import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTran
 import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
-import { aggregatorAlphaV1Abi } from "@/contracts/evm/abi";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { vaultV1Abi } from "@/contracts/evm/abi/vault";
 import { Rpc } from "@/rpc/abstract";
@@ -341,19 +340,6 @@ class EvmRpc extends Rpc {
     return this.#walletClient.signTypedData({
       account: privateKeyToAccount,
       ...typedData,
-    });
-  }
-
-  async isNoteDeposited(noteId: bigint): Promise<boolean> {
-    if (!this.network.aggregatorContractAddress) {
-      throw new Error("Aggregator not supported on this network");
-    }
-
-    return this.provider.readContract({
-      abi: aggregatorAlphaV1Abi,
-      address: this.network.aggregatorContractAddress as HexString,
-      functionName: "noteInQueue",
-      args: [noteId],
     });
   }
 }

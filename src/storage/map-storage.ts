@@ -276,7 +276,7 @@ export class MapStorage implements StorageInterface {
     }
   }
 
-  async removeSpentBalanceEntries(type: "address" | "note", balanceEntries: BalanceEntry[]): Promise<void> {
+  async removeSpentBalanceEntries(balanceEntries: BalanceEntry[]): Promise<void> {
     if (balanceEntries.length === 0) return;
 
     const uniqueWalletId = new Set(balanceEntries.map((b) => b.walletId));
@@ -284,27 +284,38 @@ export class MapStorage implements StorageInterface {
       throw new Error("Tried to remove spent balance entries for multiple wallets at once");
     }
 
-    switch (type) {
-      case "note": {
-        if (!balanceEntries.every((e) => e.type === BALANCE_TYPE.NOTE)) {
-          throw new Error("All entries must be of type NOTE");
-        }
-        return this.updateNoteBalances(
-          balanceEntries[0].walletId,
-          balanceEntries[0].networkSlug,
-          balanceEntries.map((b) => ({ ...b, balance: 0n })),
-        );
-      }
-      case "address": {
-        if (!balanceEntries.every((e) => e.type === BALANCE_TYPE.SA || e.type === BALANCE_TYPE.VAULT)) {
-          throw new Error("All entries must be of type SA or VAULT");
-        }
+    let notes: NoteBalanceEntry[] | undefined;
+    let addresses: (SaBalanceEntry | VaultBalanceEntry)[] | undefined;
 
-        return this.updateAddressBalances(
-          balanceEntries[0].walletId,
-          balanceEntries.map((b) => ({ ...b, balance: 0n })),
-        );
+    for (const entry of balanceEntries) {
+      switch (entry.type) {
+        case BALANCE_TYPE.NOTE: {
+          if (!notes) notes = [entry];
+          else notes.push(entry);
+          break;
+        }
+        case BALANCE_TYPE.SA:
+        case BALANCE_TYPE.VAULT: {
+          if (!addresses) addresses = [entry];
+          else addresses.push(entry);
+          break;
+        }
       }
+    }
+
+    if (notes) {
+      await this.updateNoteBalances(
+        balanceEntries[0].walletId,
+        balanceEntries[0].networkSlug,
+        notes.map((b) => ({ ...b, balance: 0n })),
+      );
+    }
+
+    if (addresses) {
+      await this.updateAddressBalances(
+        balanceEntries[0].walletId,
+        addresses.map((b) => ({ ...b, balance: 0n })),
+      );
     }
   }
 

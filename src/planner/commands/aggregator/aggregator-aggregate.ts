@@ -6,6 +6,7 @@ import {
   type HexString,
   type InputNote,
   isValidCurvyHandle,
+  type NoteBalanceEntry,
   noteToBalanceEntry,
   type OutputNote,
 } from "@/exports";
@@ -36,6 +37,17 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   ) {
     super(id, sdk, input, estimate);
     this.#intent = intent;
+  }
+
+  get name(): string {
+    return "AggregatorAggregateCommand";
+  }
+
+  protected calculateCurvyFee(): bigint {
+    if (!this.network.aggregationCircuitConfig) {
+      throw new Error(`Network aggregation circuit config is not defined for network ${this.network.name}!`);
+    }
+    return (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig.groupFee)) / 1000n;
   }
 
   async #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[]): Promise<AggregationRequest> {
@@ -84,6 +96,18 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     };
   }
 
+  protected getResultingBalanceEntry({ mainOutputNote }: { mainOutputNote: Note }): NoteBalanceEntry {
+    const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
+    return noteToBalanceEntry(mainOutputNote, {
+      symbol,
+      decimals,
+      walletId,
+      environment,
+      networkSlug,
+      currencyAddress: currencyAddress as HexString,
+    });
+  }
+
   async execute(): Promise<CurvyCommandData | undefined> {
     if (!this.estimateData) {
       throw new Error("[AggregatorAggregateCommand] Command must be estimated before execution!");
@@ -105,21 +129,10 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       },
     );
 
-    await this.sdk.storage.removeSpentBalanceEntries("note", this.input);
-
     // If we are aggregating the funds to our own address, that's the only case
     // when we want to return the output note to the rest of the plan
     if (toAddress === this.senderCurvyHandle) {
-      const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
-
-      return noteToBalanceEntry(mainOutputNote, {
-        symbol,
-        decimals,
-        walletId,
-        environment,
-        networkSlug,
-        currencyAddress: currencyAddress as HexString,
-      });
+      return this.getResultingBalanceEntry({ mainOutputNote });
     }
   }
 
@@ -176,25 +189,10 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     // that will either aggregate the funds to our Curvy handle
     // or the Curvy handle of the intent's toAddress recipient
 
-    if (!this.network.aggregationCircuitConfig) {
-      throw new Error(`Network aggregation circuit config is not defined for network ${this.network.name}!`);
-    }
-
-    const curvyFeeInCurrency = (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig.groupFee)) / 1000n;
+    const curvyFeeInCurrency = this.calculateCurvyFee();
 
     const effectiveAmount = this.inputNotesSum - changeOrDummyOutputNote.balance!.amount - curvyFeeInCurrency;
     const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, effectiveAmount);
-
-    const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
-
-    const data = noteToBalanceEntry(mainOutputNote, {
-      symbol,
-      decimals,
-      walletId,
-      environment,
-      networkSlug,
-      currencyAddress: currencyAddress as HexString,
-    });
 
     return {
       curvyFeeInCurrency,
@@ -202,7 +200,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       mainOutputNote,
       toAddress,
       changeOrDummyOutputNote,
-      data,
+      data: toAddress === this.senderCurvyHandle ? this.getResultingBalanceEntry({ mainOutputNote }) : undefined,
     };
   }
 }
