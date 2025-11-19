@@ -1,25 +1,28 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AbstractVaultCommand } from "@/planner/commands/meta-transaction/abstract";
+import { AbstractMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import {
   BALANCE_TYPE,
+  type BalanceEntry,
   type HexString,
   isHexString,
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
   type SaBalanceEntry,
+  type VaultBalanceEntry,
 } from "@/types";
 
 interface VaultWithdrawToEOACommandEstimate extends CurvyCommandEstimate {
   id: string;
-  data: SaBalanceEntry;
 }
 
 // This command automatically sends all available balance from CSUC to external address
-export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
+export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
+  declare estimateData: VaultWithdrawToEOACommandEstimate | undefined;
+  declare input: VaultBalanceEntry;
+
   #intent: CurvyIntent;
-  protected declare estimateData: VaultWithdrawToEOACommandEstimate | undefined;
 
   constructor(
     id: string,
@@ -30,6 +33,8 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
   ) {
     super(id, sdk, input, estimate);
 
+    this.validateInput(this.input);
+
     if (!isHexString(intent.toAddress)) {
       throw new Error("CSUCWithdrawFromCommand: toAddress MUST be a hex string address");
     }
@@ -37,11 +42,27 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
     this.#intent = intent;
   }
 
-  getMetaTransactionType(): MetaTransactionType {
+  get name(): string {
+    return "VaultWithdrawToEOACommand";
+  }
+
+  get metaTransactionType(): MetaTransactionType {
     return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
   }
 
-  async execute(): Promise<CurvyCommandData | undefined> {
+  validateInput(input: SaBalanceEntry | VaultBalanceEntry): asserts input is VaultBalanceEntry {
+    if (input.type !== BALANCE_TYPE.VAULT) {
+      throw new Error(
+        "Invalid input for command, VaultDepositToAggregatorCommand only accept Vault balance type as input.",
+      );
+    }
+  }
+
+  getResultingBalanceEntry(): Promise<BalanceEntry> {
+    throw new Error("VaultWithdrawToEOACommand does not return a balance entry.");
+  }
+
+  async run(): Promise<CurvyCommandData | undefined> {
     if (!this.estimateData) {
       throw new Error("[VaultWithdrawToEoaCommand] Command must be estimated before execution!");
     }
@@ -59,30 +80,17 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
       },
     );
 
-    await this.sdk.storage.removeSpentBalanceEntries("address", [this.input]);
-
-    await new Promise((res) => setTimeout(res, 3000)); // Wait for balances to be updated properly
-
-    const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-    await this.sdk.refreshAddressBalances(curvyAddress);
-
     return;
   }
 
   async estimate(): Promise<VaultWithdrawToEOACommandEstimate> {
+    // TODO: Id ne moramo da vracamo njega samo mozemo da setujemo.
     const { id, gasFeeInCurrency, curvyFeeInCurrency } = await super.estimate();
 
     return {
       gasFeeInCurrency,
       curvyFeeInCurrency,
       id,
-      data: {
-        ...this.input,
-        createdAt: "PLACEHOLDER",
-        type: BALANCE_TYPE.SA,
-        source: this.#intent.toAddress as HexString,
-        balance: this.input.balance - curvyFeeInCurrency - gasFeeInCurrency,
-      },
     };
   }
 }

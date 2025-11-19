@@ -12,18 +12,32 @@ export abstract class AbstractAggregatorCommand extends CurvyCommand {
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
 
-    // Because all aggregator commands take array of notes as input,
-    // make sure we have an array and that it is completely comprised of notes
-    const balanceEntries = Array.isArray(this.input) ? this.input.flat() : [this.input];
+    this.validateInput(this.input);
 
-    const allAreNotes = balanceEntries.every((addr) => addr.type === "note");
-    if (!allAreNotes) {
-      throw new Error("Invalid input for command, aggregator commands only accept notes as input.");
-    }
-
-    this.input = balanceEntries;
+    this.input = Array.isArray(this.input) ? this.input.flat() : [this.input];
 
     this.inputNotes = this.input.map((noteBalanceEntry) => balanceEntryToNote(noteBalanceEntry));
     this.inputNotesSum = this.inputNotes.reduce((acc, note) => acc + note.balance!.amount, 0n);
+  }
+
+  validateInput(input: CurvyCommandData): asserts input is NoteBalanceEntry[] {
+    let firstInput: NoteBalanceEntry | undefined;
+    if (Array.isArray(input)) {
+      const allAreNotes = input.every((addr) => addr.type === "note");
+      if (!allAreNotes) {
+        throw new Error("Invalid input for command, aggregator commands only accept notes as input.");
+      }
+      firstInput = input[0];
+    } else if (input.type === "note") {
+      firstInput = input;
+    } else {
+      throw new Error("Invalid input for command, aggregator commands only accept notes as input.");
+    }
+
+    if (!firstInput?.vaultTokenId) {
+      throw new Error(
+        "Invalid input for command, aggregator commands only accept notes with currencies with vaultTokenId as input.",
+      );
+    }
   }
 }

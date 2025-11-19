@@ -133,6 +133,7 @@ class CurvySDK implements ICurvySDK {
       commandFactory ?? new CurvyCommandFactory(sdk),
       sdk.#emitter,
       sdk.#balanceScanner,
+      sdk.storage,
     );
 
     return sdk;

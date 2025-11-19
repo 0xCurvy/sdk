@@ -1,7 +1,6 @@
 import {
   type AggregationRequest,
   bigIntToDecimalString,
-  type CurvyHandle,
   generateAggregationHash,
   type HexString,
   type InputNote,
@@ -15,17 +14,10 @@ import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstrac
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { Note } from "@/types/note";
 
-interface AggregatorAggregateCommandEstimate extends CurvyCommandEstimate {
-  mainOutputNote: Note;
-  changeOrDummyOutputNote: Note;
-  toAddress: CurvyHandle | HexString;
-}
-
 export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   // If intent is not provided, it means that we are aggregating funds from multiple notes
   // to meet the requirements of main aggregation
   readonly #intent: CurvyIntent | undefined;
-  protected declare estimateData: AggregatorAggregateCommandEstimate | undefined;
 
   constructor(
     id: string,
@@ -36,6 +28,10 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   ) {
     super(id, sdk, input, estimate);
     this.#intent = intent;
+  }
+
+  get name(): string {
+    return "AggregatorAggregateCommand";
   }
 
   async #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[]): Promise<AggregationRequest> {
@@ -84,53 +80,8 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     };
   }
 
-  async execute(): Promise<CurvyCommandData | undefined> {
-    if (!this.estimateData) {
-      throw new Error("[AggregatorAggregateCommand] Command must be estimated before execution!");
-    }
-
-    const { mainOutputNote, changeOrDummyOutputNote, toAddress } = this.estimateData;
-
-    const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
-    const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
-
-    const aggregationRequest = await this.#createAggregationRequest(inputNotes, outputNotes);
-
-    const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(aggregationRequest);
-
-    await this.sdk.pollForCriteria(
-      () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
-      (res) => {
-        return res.status === "success";
-      },
-    );
-
-    await this.sdk.storage.removeSpentBalanceEntries("note", this.input);
-
-    // If we are aggregating the funds to our own address, that's the only case
-    // when we want to return the output note to the rest of the plan
-    if (toAddress === this.senderCurvyHandle) {
-      const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
-
-      return noteToBalanceEntry(mainOutputNote, {
-        symbol,
-        decimals,
-        walletId,
-        environment,
-        networkSlug,
-        currencyAddress: currencyAddress as HexString,
-      });
-    }
-  }
-
-  async estimate(): Promise<AggregatorAggregateCommandEstimate> {
+  async run(): Promise<CurvyCommandData | undefined> {
     const token = this.input[0].vaultTokenId;
-
-    if (!token) {
-      throw new Error("[AggregatorAggregateCommand]: Could not find vaultTokenId of the input note!");
-    }
-
-    let toAddress = this.senderCurvyHandle;
 
     let changeOrDummyOutputNote: Note;
 
@@ -141,7 +92,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
 
       // Change note
       const change = this.inputNotesSum - this.#intent.amount;
-      changeOrDummyOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, change);
+      changeOrDummyOutputNote = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, token, change);
     } else {
       // If there is no change, then we create a dummy note
       changeOrDummyOutputNote = new Note({
@@ -166,28 +117,30 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
         },
       });
     }
-
-    // We update the toAddress only after the change note is created, so that we don't get both notes
+    // If we are sending to a curvy name then set the toAddress to that address, otherwise send to us and we will later to withdraw to EOA.
+    let toAddress = this.senderCurvyHandle;
     if (this.#intent && isValidCurvyHandle(this.#intent.toAddress)) {
       toAddress = this.#intent.toAddress;
     }
 
-    // Now we create the 2nd output note that we will output as a result of this command
-    // that will either aggregate the funds to our Curvy handle
-    // or the Curvy handle of the intent's toAddress recipient
+    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.estimateData!.netAmount);
 
-    if (!this.network.aggregationCircuitConfig) {
-      throw new Error(`Network aggregation circuit config is not defined for network ${this.network.name}!`);
-    }
+    const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
+    const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
 
-    const curvyFeeInCurrency = (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig.groupFee)) / 1000n;
+    const aggregationRequest = await this.#createAggregationRequest(inputNotes, outputNotes);
 
-    const effectiveAmount = this.inputNotesSum - changeOrDummyOutputNote.balance!.amount - curvyFeeInCurrency;
-    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, effectiveAmount);
+    const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(aggregationRequest);
+
+    await this.sdk.pollForCriteria(
+      () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
+      (res) => {
+        return res.status === "success";
+      },
+    );
 
     const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
-
-    const data = noteToBalanceEntry(mainOutputNote, {
+    return noteToBalanceEntry(mainOutputNote, {
       symbol,
       decimals,
       walletId,
@@ -195,14 +148,21 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       networkSlug,
       currencyAddress: currencyAddress as HexString,
     });
+  }
 
-    return {
-      curvyFeeInCurrency,
-      gasFeeInCurrency: 0n,
-      mainOutputNote,
-      toAddress,
-      changeOrDummyOutputNote,
-      data,
-    };
+  async calculateCurvyFeeInCurrency() {
+    return (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n;
+  }
+
+  async calculateGasFeeInCurrency() {
+    return 0n;
+  }
+
+  async getDesiredAmount() {
+    if (this.#intent && this.#intent.amount < this.inputNotesSum) {
+      return this.#intent.amount;
+    }
+
+    return this.inputNotesSum;
   }
 }
