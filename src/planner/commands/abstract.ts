@@ -6,14 +6,13 @@ import type { CurvyCommandData } from "../plan";
 export interface CurvyCommandEstimate {
   curvyFeeInCurrency: bigint;
   gasFeeInCurrency: bigint;
-  netAmount: bigint;
 }
 
 export abstract class CurvyCommand {
   protected sdk: ICurvySDK;
   protected readonly input: CurvyCommandData;
   protected readonly senderCurvyHandle: CurvyHandle;
-  protected readonly estimateData: CurvyCommandEstimate | undefined;
+  #estimateData: CurvyCommandEstimate | undefined;
   protected readonly network: Network;
   protected readonly rpc: EvmRpc;
 
@@ -23,7 +22,7 @@ export abstract class CurvyCommand {
     this.id = id;
     this.sdk = sdk;
     this.input = input;
-    this.estimateData = estimate;
+    this.#estimateData = estimate;
     this.senderCurvyHandle = sdk.walletManager.activeWallet.curvyHandle;
 
     if (Array.isArray(this.input)) {
@@ -42,31 +41,45 @@ export abstract class CurvyCommand {
   }
 
   abstract get name(): string;
+  abstract get grossAmount(): bigint;
 
-  abstract calculateCurvyFeeInCurrency(): Promise<bigint>;
-  abstract calculateGasFeeInCurrency(): Promise<bigint>;
-  abstract getDesiredAmount(): Promise<bigint>;
+  abstract estimateFees(): Promise<CurvyCommandEstimate>;
 
-  async estimate(): Promise<CurvyCommandEstimate> {
-    const curvyFeeInCurrency = await this.calculateCurvyFeeInCurrency();
-    const gasFeeInCurrency = await this.calculateGasFeeInCurrency();
+  async getNetAmount(): Promise<bigint> {
+    if (!this.estimateData) {
+      throw new Error("Fees must be estimated before getting net amount!");
+    }
 
-    const netAmount = (await this.getDesiredAmount()) - curvyFeeInCurrency;
+    const { curvyFeeInCurrency, gasFeeInCurrency } = this.estimateData;
+
+    return this.grossAmount - curvyFeeInCurrency - gasFeeInCurrency;
+  }
+
+  abstract getCommandResult(executionData?: unknown): Promise<CurvyCommandData | undefined>;
+
+  async estimate(): Promise<CurvyCommandEstimate & { commandResult: CurvyCommandData | undefined }> {
+    const feeEstimate = await this.estimateFees();
+
+    // Bind estimate to the current command for dry run,
+    // execution context will get this from estimated plan (passed in constructor)
+    this.#estimateData = feeEstimate;
+    const commandResult = await this.getCommandResult();
 
     return {
-      curvyFeeInCurrency,
-      gasFeeInCurrency,
-      netAmount,
+      ...feeEstimate,
+      commandResult,
     };
   }
 
-  async execute(): Promise<CurvyCommandData | undefined> {
-    if (!this.estimateData) {
-      throw new Error("Command must be estimated before execution!");
+  get estimateData() {
+    if (!this.#estimateData) {
+      throw new Error("Command not estimated yet!");
     }
-    return this.run();
+
+    return this.#estimateData;
   }
-  protected abstract run(): Promise<CurvyCommandData | undefined>;
+
+  abstract execute(): Promise<CurvyCommandData | undefined>;
 
   protected abstract validateInput<T extends CurvyCommandData>(input: CurvyCommandData): asserts input is T;
 }

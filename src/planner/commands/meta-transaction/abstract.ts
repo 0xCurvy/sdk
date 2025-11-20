@@ -1,6 +1,7 @@
 import { privateKeyToAccount } from "viem/accounts";
 import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
+import { VaultWithdrawToEOACommand } from "@/planner/commands";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import {
@@ -12,16 +13,55 @@ import {
   type SaBalanceEntry,
   type VaultBalanceEntry,
 } from "@/types";
+import type { DeepNonNullable } from "@/types/helper";
+
+interface MetaTransactionCommandEstimate extends CurvyCommandEstimate {
+  sharedSecret?: bigint;
+  estimateId: string;
+}
+
+const FEE_DENOMINATOR = 10_000n;
 
 export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
-  protected declare input: SaBalanceEntry | VaultBalanceEntry;
+  protected declare input: DeepNonNullable<SaBalanceEntry | VaultBalanceEntry>;
 
   protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
     this.validateInput(this.input);
   }
 
+  override get estimateData(): MetaTransactionCommandEstimate {
+    return super.estimateData as MetaTransactionCommandEstimate;
+  }
+
+  get grossAmount() {
+    return this.input.balance;
+  }
+
   protected abstract get metaTransactionType(): MetaTransactionType;
+
+  #needsOwnerHashInEstimate() {
+    switch (this.metaTransactionType) {
+      case META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  #getToAddress(): HexString {
+    switch (this.metaTransactionType) {
+      case META_TRANSACTION_TYPES.VAULT_WITHDRAW: {
+        if (!(this instanceof VaultWithdrawToEOACommand)) {
+          throw new Error("Invalid command type for meta transaction type VAULT_WITHDRAW");
+        }
+
+        return this.intent.toAddress as HexString;
+      }
+      default:
+        return this.network.aggregatorContractAddress as HexString;
+    }
+  }
 
   protected validateInput(input: CurvyCommandData): asserts input is SaBalanceEntry | VaultBalanceEntry {
     if (Array.isArray(input)) {
@@ -32,15 +72,18 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       throw new Error(
         "Invalid input for command, Meta transaction commands only accept Sa or Vault balance type as input.",
       );
+
+    if (!input.vaultTokenId) {
+      throw new Error("Invalid input for command, vaultTokenId is required.");
+    }
   }
 
-  protected async signMetaTransaction(to: HexString) {
+  protected async signMetaTransaction(to?: HexString) {
     if (!this.estimateData) {
       throw new Error("Command not estimated.");
     }
 
     const rpc = this.sdk.rpcClient.Network(this.network.name);
-    // const address = await this.sdk.storage.getCurvyAddress(this.input.source);
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
 
     const nonce = await rpc.provider.readContract({
@@ -48,13 +91,6 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       address: this.network.vaultContractAddress as HexString,
       functionName: "getNonce",
       args: [this.input.source as HexString],
-    });
-
-    const tokenId = await rpc.provider.readContract({
-      abi: vaultV1Abi,
-      address: this.network.vaultContractAddress as HexString,
-      functionName: "getTokenId",
-      args: [this.input.currencyAddress as HexString],
     });
 
     const account = privateKeyToAccount(privateKey);
@@ -81,8 +117,8 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       message: {
         nonce,
         from: this.input.source as HexString,
-        to,
-        tokenId: BigInt(tokenId),
+        to: to ?? this.#getToAddress(),
+        tokenId: this.input.vaultTokenId,
         amount: this.input.balance,
         gasFee: this.estimateData.gasFeeInCurrency,
         metaTransactionType: META_TRANSACTION_NUMERIC_TYPES[this.metaTransactionType],
@@ -106,35 +142,45 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       throw new Error(`Meta transaction type ${this.metaTransactionType} is not supported.`);
     }
 
-    return rpc.provider.readContract({
+    const fee = await rpc.provider.readContract({
       abi: vaultV1Abi,
       address: this.network.vaultContractAddress as HexString,
       functionName: mapMetaTransactionTypeToFeeVariableName[metaTransactionType],
       args: [],
     });
+
+    return (this.input.balance * fee) / FEE_DENOMINATOR;
   }
 
-  protected getNetAmount(): bigint {
-    if (!this.estimateData) {
-      throw new Error("Command must be estimated before calculating net amount!");
-    }
-
-    return this.input.balance - this.estimateData.gasFeeInCurrency - this.estimateData.curvyFeeInCurrency;
-  }
-
-  async estimate(ownerHash?: bigint) {
-    const { id, gasFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
+  protected async calculateGasFee(ownerHash?: bigint) {
+    return this.sdk.apiClient.metaTransaction.EstimateGas({
       type: this.metaTransactionType,
       currencyAddress: this.input.currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,
-      toAddress: this.network.aggregatorContractAddress as HexString,
+      toAddress: this.#getToAddress(),
       network: this.input.networkSlug,
       ownerHash: ownerHash ? `0x${ownerHash.toString(16)}` : undefined,
     });
+  }
 
+  async estimateFees(): Promise<MetaTransactionCommandEstimate> {
+    if (this.#needsOwnerHashInEstimate()) {
+      const { ownerHash, owner } = await this.sdk.getNewNoteForUser(
+        this.senderCurvyHandle,
+        this.input.vaultTokenId,
+        this.input.balance,
+      );
+
+      const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee(ownerHash);
+      const curvyFeeInCurrency = await this.calculateCurvyFee();
+
+      return { gasFeeInCurrency, estimateId, curvyFeeInCurrency, sharedSecret: owner?.sharedSecret };
+    }
+
+    const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee();
     const curvyFeeInCurrency = await this.calculateCurvyFee();
 
-    return { id, gasFeeInCurrency: BigInt(gasFeeInCurrency ?? "0"), curvyFeeInCurrency };
+    return { gasFeeInCurrency, estimateId, curvyFeeInCurrency };
   }
 }

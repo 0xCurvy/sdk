@@ -11,21 +11,24 @@ import {
   type SaBalanceEntry,
   type VaultBalanceEntry,
 } from "@/types";
-
-interface VaultOnboardCommandEstimate extends CurvyCommandEstimate {
-  id: string;
-  data: VaultBalanceEntry;
-}
+import type { DeepNonNullable } from "@/types/helper";
 
 // This command automatically sends all available balance from a stealth address to vault
 export class VaultOnboardCommand extends AbstractMetaTransactionCommand {
-  declare estimateData: VaultOnboardCommandEstimate | undefined;
-  declare input: SaBalanceEntry;
+  declare input: DeepNonNullable<SaBalanceEntry>;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
 
     this.validateInput(this.input);
+  }
+
+  override validateInput(input: SaBalanceEntry | VaultBalanceEntry): asserts input is SaBalanceEntry {
+    if (input.type !== BALANCE_TYPE.SA) {
+      throw new Error(
+        "Invalid input for command, VaultDepositToAggregatorCommand only accept Sa balance type as input.",
+      );
+    }
   }
 
   get name(): string {
@@ -36,65 +39,20 @@ export class VaultOnboardCommand extends AbstractMetaTransactionCommand {
     return META_TRANSACTION_TYPES.VAULT_ONBOARD;
   }
 
-  validateInput(input: SaBalanceEntry | VaultBalanceEntry): asserts input is SaBalanceEntry {
-    if (input.type !== BALANCE_TYPE.SA) {
-      throw new Error(
-        "Invalid input for command, VaultDepositToAggregatorCommand only accept Sa balance type as input.",
-      );
-    }
-  }
-
-  async getResultingBalanceEntry(estimationParams?: {
-    gasFeeInCurrency: bigint;
-    curvyFeeInCurrency: bigint;
-  }): Promise<VaultBalanceEntry> {
-    const { vaultTokenId } =
-      this.network.currencies.find((c) => c.contractAddress === this.input.currencyAddress) || {};
-
-    if (!vaultTokenId) {
-      throw new Error(
-        `[SaVaultOnboardCommand] vaultTokenId is not defined for currency ${this.input.currencyAddress} on network ${this.input.networkSlug}`,
-      );
-    }
-
-    const _gasFeeInCurrency = estimationParams?.gasFeeInCurrency ?? this.estimateData?.gasFeeInCurrency;
-    const _curvyFeeInCurrency = estimationParams?.curvyFeeInCurrency ?? this.estimateData?.curvyFeeInCurrency;
-
+  async getCommandResult(): Promise<VaultBalanceEntry> {
     const { createdAt: _, ...inputData } = this.input;
-
-    let _balance: bigint;
-
-    if (estimationParams) {
-      _balance = this.input.balance - (_gasFeeInCurrency ?? 0n) - (_curvyFeeInCurrency ?? 0n);
-    } else {
-      const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-      const { balances } = await this.rpc.getVaultBalances(curvyAddress.address);
-
-      const vaultBalance = balances.find((b) => b.currencyAddress === this.input.currencyAddress);
-
-      if (!vaultBalance) {
-        throw new Error("Failed to retrieve Vault balance after deposit!");
-      }
-
-      _balance = vaultBalance.balance;
-    }
 
     return {
       ...inputData,
-      vaultTokenId: BigInt(vaultTokenId),
-      balance: _balance,
+      balance: await this.getNetAmount(),
       type: BALANCE_TYPE.VAULT,
     } satisfies VaultBalanceEntry;
   }
 
-  async run(): Promise<CurvyCommandData> {
-    if (!this.estimateData) {
-      throw new Error("[SaVaultOnboardCommand] Command must be estimated before execution!");
-    }
-
+  async execute(): Promise<CurvyCommandData> {
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
 
-    const { id } = this.estimateData;
+    const { estimateId: id } = this.estimateData;
 
     const signedAuthorization = await this.rpc.walletClient.signAuthorization({
       account: privateKeyToAccount(privateKey),
@@ -114,19 +72,6 @@ export class VaultOnboardCommand extends AbstractMetaTransactionCommand {
       },
     );
 
-    return this.getResultingBalanceEntry();
-  }
-
-  async estimate(): Promise<VaultOnboardCommandEstimate> {
-    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await super.estimate();
-
-    const vaultBalanceEntry = await this.getResultingBalanceEntry({ gasFeeInCurrency, curvyFeeInCurrency });
-
-    return {
-      id,
-      gasFeeInCurrency,
-      curvyFeeInCurrency,
-      data: vaultBalanceEntry,
-    };
+    return this.getCommandResult();
   }
 }

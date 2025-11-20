@@ -72,20 +72,21 @@ class StarknetRpc extends Rpc {
 
     return tokenBalances
       .map(([low, high], idx) => {
-        const { contractAddress: currencyAddress, symbol, decimals } = this.network.currencies[idx];
+        const { contractAddress: currencyAddress, symbol, decimals, vaultTokenId } = this.network.currencies[idx];
 
         return {
           balance: fromUint256(low, high),
           currencyAddress: currencyAddress as HexString,
+          vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
           symbol,
           decimals,
           environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
         };
       })
       .filter((token) => Boolean(token.balance))
-      .reduce<RpcBalances>((res, { balance, currencyAddress, symbol, environment, decimals }) => {
+      .reduce<RpcBalances>((res, { balance, currencyAddress, vaultTokenId, symbol, environment, decimals }) => {
         if (!res[networkSlug]) res[networkSlug] = Object.create(null);
-        res[networkSlug]![currencyAddress] = { balance, currencyAddress, symbol, environment, decimals };
+        res[networkSlug]![currencyAddress] = { balance, currencyAddress, symbol, vaultTokenId, environment, decimals };
         return res;
       }, Object.create(null));
   }
@@ -94,7 +95,7 @@ class StarknetRpc extends Rpc {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contractAddress: currencyAddress, decimals } = token;
+    const { contractAddress: currencyAddress, decimals, vaultTokenId } = token;
 
     const starkErc20 = new Contract(starknetErc20Abi, currencyAddress as Address, this.#provider).typedv2(
       starknetErc20Abi,
@@ -109,6 +110,7 @@ class StarknetRpc extends Rpc {
     return {
       balance,
       currencyAddress: currencyAddress as HexString,
+      vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
       symbol,
       decimals,
       environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,

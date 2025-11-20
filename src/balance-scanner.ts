@@ -108,6 +108,7 @@ export class BalanceScanner implements IBalanceScanner {
             environment: balanceData.environment,
 
             currencyAddress,
+            vaultTokenId: balanceData.vaultTokenId,
             balance: balanceData.balance,
             symbol: balanceData.symbol,
             decimals: balanceData.decimals,

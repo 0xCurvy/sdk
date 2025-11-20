@@ -3,6 +3,10 @@ import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import { BALANCE_TYPE, type HexString, Note, type NoteBalanceEntry } from "@/types";
 
 function balanceEntryToNote({ balance, owner, deliveryTag, vaultTokenId }: NoteBalanceEntry): Note {
+  if (!vaultTokenId) {
+    throw new Error("vaultTokenId is required to convert NoteBalanceEntry to Note");
+  }
+
   return new Note({
     balance: { amount: balance.toString(), token: vaultTokenId.toString() },
     owner: {

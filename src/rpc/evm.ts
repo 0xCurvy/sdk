@@ -94,7 +94,13 @@ class EvmRpc extends Rpc {
 
     return tokenBalances
       .map((encodedTokenBalance, idx) => {
-        const { contractAddress: currencyAddress, nativeCurrency, symbol, decimals } = this.network.currencies[idx];
+        const {
+          contractAddress: currencyAddress,
+          nativeCurrency,
+          symbol,
+          decimals,
+          vaultTokenId,
+        } = this.network.currencies[idx];
 
         let balance: bigint;
 
@@ -115,6 +121,7 @@ class EvmRpc extends Rpc {
           ? {
               balance,
               currencyAddress: currencyAddress as HexString,
+              vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
               symbol,
               decimals,
               environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
@@ -122,9 +129,9 @@ class EvmRpc extends Rpc {
           : null;
       })
       .filter(Boolean)
-      .reduce<RpcBalances>((res, { balance, currencyAddress, symbol, environment, decimals }) => {
+      .reduce<RpcBalances>((res, { balance, currencyAddress, vaultTokenId, symbol, environment, decimals }) => {
         if (!res[networkSlug]) res[networkSlug] = Object.create(null);
-        res[networkSlug]![currencyAddress] = { balance, currencyAddress, symbol, environment, decimals };
+        res[networkSlug]![currencyAddress] = { balance, currencyAddress, vaultTokenId, symbol, environment, decimals };
         return res;
       }, Object.create(null));
   }
@@ -133,7 +140,7 @@ class EvmRpc extends Rpc {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contractAddress: currencyAddress, nativeCurrency, decimals } = token;
+    const { contractAddress: currencyAddress, nativeCurrency, decimals, vaultTokenId } = token;
 
     let balance: bigint;
 
@@ -153,6 +160,7 @@ class EvmRpc extends Rpc {
     return {
       balance,
       currencyAddress: currencyAddress as HexString,
+      vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
       symbol,
       decimals,
       environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
