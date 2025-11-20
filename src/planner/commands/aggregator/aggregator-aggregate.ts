@@ -30,6 +30,18 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     this.#intent = intent;
   }
 
+  get name(): string {
+    return "AggregatorAggregateCommand";
+  }
+
+  get grossAmount() {
+    if (this.#intent && this.#intent.amount < this.inputNotesSum) {
+      return this.#intent.amount;
+    }
+
+    return this.inputNotesSum;
+  }
+
   async #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[]): Promise<AggregationRequest> {
     if (!this.network.aggregationCircuitConfig) {
       throw new Error("Network aggregation circuit config is not defined!");
@@ -56,8 +68,31 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     };
   }
 
-  get name(): string {
-    return "AggregatorAggregateCommand";
+  async estimateFees() {
+    return {
+      curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n,
+      gasFeeInCurrency: 0n,
+    };
+  }
+
+  async getCommandResult(executionData?: { mainOutputNote: Note }): Promise<CurvyCommandData> {
+    const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
+
+    const mainOutputNote =
+      executionData?.mainOutputNote ??
+      balanceEntryToNote({
+        ...this.input[0],
+        balance: await this.getNetAmount(),
+      });
+
+    return noteToBalanceEntry(mainOutputNote, {
+      symbol,
+      decimals,
+      walletId,
+      environment,
+      networkSlug,
+      currencyAddress: currencyAddress as HexString,
+    });
   }
 
   async execute(): Promise<CurvyCommandData | undefined> {
@@ -108,40 +143,5 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     );
 
     return this.getCommandResult({ mainOutputNote });
-  }
-
-  async getCommandResult(executionData?: { mainOutputNote: Note }): Promise<CurvyCommandData> {
-    const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
-
-    const mainOutputNote =
-      executionData?.mainOutputNote ??
-      balanceEntryToNote({
-        ...this.input[0],
-        balance: await this.getNetAmount(),
-      });
-
-    return noteToBalanceEntry(mainOutputNote, {
-      symbol,
-      decimals,
-      walletId,
-      environment,
-      networkSlug,
-      currencyAddress: currencyAddress as HexString,
-    });
-  }
-
-  async estimateFees() {
-    return {
-      curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n,
-      gasFeeInCurrency: 0n,
-    };
-  }
-
-  get grossAmount() {
-    if (this.#intent && this.#intent.amount < this.inputNotesSum) {
-      return this.#intent.amount;
-    }
-
-    return this.inputNotesSum;
   }
 }

@@ -42,8 +42,20 @@ export abstract class CurvyCommand {
 
   abstract get name(): string;
   abstract get grossAmount(): bigint;
+  get estimateData() {
+    if (!this.#estimateData) {
+      throw new Error("Command not estimated yet!");
+    }
+
+    return this.#estimateData;
+  }
 
   abstract estimateFees(): Promise<CurvyCommandEstimate>;
+  abstract getCommandResult(executionData?: unknown): Promise<CurvyCommandData | undefined>;
+
+  abstract execute(): Promise<CurvyCommandData | undefined>;
+
+  protected abstract validateInput<T extends CurvyCommandData>(input: CurvyCommandData): asserts input is T;
 
   async getNetAmount(): Promise<bigint> {
     if (!this.estimateData) {
@@ -54,8 +66,6 @@ export abstract class CurvyCommand {
 
     return this.grossAmount - curvyFeeInCurrency - gasFeeInCurrency;
   }
-
-  abstract getCommandResult(executionData?: unknown): Promise<CurvyCommandData | undefined>;
 
   async estimate(): Promise<CurvyCommandEstimate & { commandResult: CurvyCommandData | undefined }> {
     const feeEstimate = await this.estimateFees();
@@ -70,16 +80,4 @@ export abstract class CurvyCommand {
       commandResult,
     };
   }
-
-  get estimateData() {
-    if (!this.#estimateData) {
-      throw new Error("Command not estimated yet!");
-    }
-
-    return this.#estimateData;
-  }
-
-  abstract execute(): Promise<CurvyCommandData | undefined>;
-
-  protected abstract validateInput<T extends CurvyCommandData>(input: CurvyCommandData): asserts input is T;
 }

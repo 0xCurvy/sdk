@@ -1,39 +1,17 @@
-import type { ICurvySDK } from "@/interfaces/sdk";
-import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AbstractMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
+import { AbstractVaultMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import {
-  BALANCE_TYPE,
   type HexString,
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
   type Note,
   type NoteBalanceEntry,
-  type SaBalanceEntry,
-  type VaultBalanceEntry,
 } from "@/types";
-import type { DeepNonNullable } from "@/types/helper";
 import { noteToBalanceEntry } from "@/utils";
 import { toSlug } from "@/utils/helpers";
 
 // This command automatically sends all available balance from Vault to Aggregator
-export class VaultDepositToAggregatorCommand extends AbstractMetaTransactionCommand {
-  declare input: DeepNonNullable<VaultBalanceEntry>;
-
-  constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(id, sdk, input, estimate);
-
-    this.validateInput(this.input);
-  }
-
-  override validateInput(input: SaBalanceEntry | VaultBalanceEntry): asserts input is VaultBalanceEntry {
-    if (input.type !== BALANCE_TYPE.VAULT) {
-      throw new Error(
-        "Invalid input for command, VaultDepositToAggregatorCommand only accept Vault balance type as input.",
-      );
-    }
-  }
-
+export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactionCommand {
   get name(): string {
     return "VaultDepositToAggregatorCommand";
   }
