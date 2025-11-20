@@ -33,6 +33,7 @@ type RpcCallReturnType = {
 type RpcBalance = {
   balance: bigint;
   currencyAddress: string;
+  vaultTokenId: bigint | null;
   symbol: string;
   decimals: number;
   environment: NETWORK_ENVIRONMENT_VALUES;
@@ -47,6 +48,7 @@ type RpcBalances = Partial<
         {
           balance: bigint;
           currencyAddress: string;
+          vaultTokenId: bigint | null;
           symbol: string;
           decimals: number;
           environment: NETWORK_ENVIRONMENT_VALUES;

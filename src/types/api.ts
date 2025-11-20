@@ -40,7 +40,7 @@ type Currency = {
   decimals: number;
   contractAddress: HexString;
   nativeCurrency: boolean;
-  vaultTokenId: number | null;
+  vaultTokenId: string | null;
 };
 
 type Network = {

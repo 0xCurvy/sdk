@@ -120,13 +120,13 @@ export class CommandExecutor {
 
         if (!dryRun) {
           onCommandStarted?.(plan.name);
-          data = await command.run();
+          data = await command.execute();
 
           await this.#storage.removeSpentBalanceEntries(Array.isArray(input) ? input : [input]);
 
           this.eventEmitter.emitPlanCommandExecutionProgress({ commandId: plan.id });
         } else {
-          const { data: estimateData, ...estimate } = await command.estimate();
+          const { commandResult: estimateData, ...estimate } = await command.estimate();
           data = estimateData;
           plan.estimate = estimate;
         }
@@ -188,10 +188,6 @@ export class CommandExecutor {
       throw new Error(`Estimation failed: ${planEstimation.error}`);
     }
 
-    if (!planEstimation.data) {
-      throw new Error("Estimation resulted in no data, expected a single BalanceEntry.");
-    }
-
     if (Array.isArray(planEstimation.data)) {
       throw new Error("Estimation resulted in multiple data entries, expected a single BalanceEntry.");
     }
@@ -204,7 +200,7 @@ export class CommandExecutor {
       plan,
       gas: planEstimation.estimate.gasFeeInCurrency,
       curvyFee: planEstimation.estimate.curvyFeeInCurrency,
-      effectiveAmount: planEstimation.data.balance,
+      effectiveAmount: -1n,
     };
   }
 }

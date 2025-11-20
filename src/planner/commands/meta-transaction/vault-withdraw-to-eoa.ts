@@ -4,7 +4,6 @@ import { AbstractMetaTransactionCommand } from "@/planner/commands/meta-transact
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import {
   BALANCE_TYPE,
-  type BalanceEntry,
   type HexString,
   isHexString,
   META_TRANSACTION_TYPES,
@@ -12,17 +11,13 @@ import {
   type SaBalanceEntry,
   type VaultBalanceEntry,
 } from "@/types";
-
-interface VaultWithdrawToEOACommandEstimate extends CurvyCommandEstimate {
-  id: string;
-}
+import type { DeepNonNullable } from "@/types/helper";
 
 // This command automatically sends all available balance from CSUC to external address
 export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
-  declare estimateData: VaultWithdrawToEOACommandEstimate | undefined;
-  declare input: VaultBalanceEntry;
+  declare input: DeepNonNullable<VaultBalanceEntry>;
 
-  #intent: CurvyIntent;
+  readonly #intent: CurvyIntent;
 
   constructor(
     id: string,
@@ -42,15 +37,11 @@ export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
     this.#intent = intent;
   }
 
-  get name(): string {
-    return "VaultWithdrawToEOACommand";
+  get intent(): Readonly<CurvyIntent> {
+    return Object.freeze(this.#intent);
   }
 
-  get metaTransactionType(): MetaTransactionType {
-    return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
-  }
-
-  validateInput(input: SaBalanceEntry | VaultBalanceEntry): asserts input is VaultBalanceEntry {
+  override validateInput(input: SaBalanceEntry | VaultBalanceEntry): asserts input is VaultBalanceEntry {
     if (input.type !== BALANCE_TYPE.VAULT) {
       throw new Error(
         "Invalid input for command, VaultDepositToAggregatorCommand only accept Vault balance type as input.",
@@ -58,17 +49,22 @@ export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
     }
   }
 
-  getResultingBalanceEntry(): Promise<BalanceEntry> {
-    throw new Error("VaultWithdrawToEOACommand does not return a balance entry.");
+  get name() {
+    return "VaultWithdrawToEOACommand";
   }
 
-  async run(): Promise<CurvyCommandData | undefined> {
-    if (!this.estimateData) {
-      throw new Error("[VaultWithdrawToEoaCommand] Command must be estimated before execution!");
-    }
-    const { id } = this.estimateData;
+  get metaTransactionType(): MetaTransactionType {
+    return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
+  }
 
-    const signature = await this.signMetaTransaction(this.#intent.toAddress as HexString);
+  async getCommandResult() {
+    return undefined;
+  }
+
+  async execute(): Promise<CurvyCommandData | undefined> {
+    const { estimateId: id } = this.estimateData;
+
+    const signature = await this.signMetaTransaction(this.intent.toAddress as HexString);
 
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
@@ -81,16 +77,5 @@ export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
     );
 
     return;
-  }
-
-  async estimate(): Promise<VaultWithdrawToEOACommandEstimate> {
-    // TODO: Id ne moramo da vracamo njega samo mozemo da setujemo.
-    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await super.estimate();
-
-    return {
-      gasFeeInCurrency,
-      curvyFeeInCurrency,
-      id,
-    };
   }
 }

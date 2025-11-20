@@ -27,11 +27,13 @@ type StringifyBigInts<T> = Prettify<
         : T
 >;
 
-type NotNullable<T> = { [K in keyof T]-?: NonNullable<T[K]> };
+type DeepNonNullable<T> = {
+  [K in keyof T]: T[K] extends object ? DeepNonNullable<NonNullable<T[K]>> : NonNullable<T[K]>;
+};
 
 type AbortOptions = {
   signal?: AbortSignal;
 };
 
-export type { ExtractKeys, ExtractValues, HexString, Prettify, StringifyBigInts, NotNullable, AbortOptions };
+export type { ExtractKeys, ExtractValues, HexString, Prettify, StringifyBigInts, DeepNonNullable, AbortOptions };
 export { isHexString, isStringArray, isStarkentSignature };

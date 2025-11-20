@@ -12,25 +12,26 @@ import {
   type SaBalanceEntry,
   type VaultBalanceEntry,
 } from "@/types";
+import type { DeepNonNullable } from "@/types/helper";
 import { noteToBalanceEntry } from "@/utils";
 import { toSlug } from "@/utils/helpers";
 
-interface VaultDepositToAggregatorCommandEstimate extends CurvyCommandEstimate {
-  id: string;
-  data: NoteBalanceEntry;
-
-  note: Note;
-}
-
 // This command automatically sends all available balance from Vault to Aggregator
 export class VaultDepositToAggregatorCommand extends AbstractMetaTransactionCommand {
-  declare estimateData: VaultDepositToAggregatorCommandEstimate | undefined;
-  declare input: VaultBalanceEntry;
+  declare input: DeepNonNullable<VaultBalanceEntry>;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
 
     this.validateInput(this.input);
+  }
+
+  override validateInput(input: SaBalanceEntry | VaultBalanceEntry): asserts input is VaultBalanceEntry {
+    if (input.type !== BALANCE_TYPE.VAULT) {
+      throw new Error(
+        "Invalid input for command, VaultDepositToAggregatorCommand only accept Vault balance type as input.",
+      );
+    }
   }
 
   get name(): string {
@@ -41,16 +42,21 @@ export class VaultDepositToAggregatorCommand extends AbstractMetaTransactionComm
     return META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR;
   }
 
-  validateInput(input: SaBalanceEntry | VaultBalanceEntry): asserts input is VaultBalanceEntry {
-    if (input.type !== BALANCE_TYPE.VAULT) {
-      throw new Error(
-        "Invalid input for command, VaultDepositToAggregatorCommand only accept Vault balance type as input.",
-      );
+  async #createDepositNote() {
+    if (!this.estimateData.sharedSecret) {
+      throw new Error("[VaultDepositToAggregatorCommand] Invalid estimate data!");
     }
+
+    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
+    note.sharedSecret = this.estimateData.sharedSecret;
+
+    return note;
   }
 
-  async getResultingBalanceEntry(note: Note): Promise<NoteBalanceEntry> {
-    return noteToBalanceEntry(note, {
+  async getCommandResult(executionData?: { note: Note }): Promise<NoteBalanceEntry> {
+    const _note = executionData?.note ?? (await this.#createDepositNote());
+
+    return noteToBalanceEntry(_note, {
       symbol: this.input.symbol,
       decimals: this.input.decimals,
       walletId: this.input.walletId,
@@ -60,12 +66,8 @@ export class VaultDepositToAggregatorCommand extends AbstractMetaTransactionComm
     });
   }
 
-  async run(): Promise<CurvyCommandData> {
-    if (!this.estimateData) {
-      throw new Error("[VaultDepositToAggregatorCommand] Command must be estimated before execution!");
-    }
-
-    const { id, note } = this.estimateData;
+  async execute(): Promise<CurvyCommandData> {
+    const { estimateId: id } = this.estimateData;
 
     const signature = await this.signMetaTransaction(this.network.aggregatorContractAddress as HexString);
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
@@ -77,6 +79,8 @@ export class VaultDepositToAggregatorCommand extends AbstractMetaTransactionComm
         return res === "completed";
       },
     );
+
+    const note = await this.#createDepositNote();
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
       networkSlug: toSlug(this.network.name),
@@ -92,27 +96,6 @@ export class VaultDepositToAggregatorCommand extends AbstractMetaTransactionComm
       },
     );
 
-    return this.getResultingBalanceEntry(note);
-  }
-
-  async estimate(): Promise<VaultDepositToAggregatorCommandEstimate> {
-    if (!this.input.vaultTokenId) {
-      throw new Error("VaultDepositToAggregatorCommand: vaultTokenId is required");
-    }
-
-    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
-
-    const { id, gasFeeInCurrency } = await super.estimate(note.ownerHash);
-    const curvyFeeInCurrency = await this.calculateCurvyFee();
-
-    note.balance!.amount -= gasFeeInCurrency + curvyFeeInCurrency;
-
-    return {
-      gasFeeInCurrency,
-      curvyFeeInCurrency,
-      id,
-      note,
-      data: await this.getResultingBalanceEntry(note),
-    };
+    return this.getCommandResult({ note });
   }
 }
