@@ -25,6 +25,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "watch": "tsup",
     "build:example": "tsup src/exports/index.ts --format esm --dts --dts-resolve --clean --out-dir example/curvy-os/dist --platform browser --target es2022",
     "clean": "rimraf dist .turbo",
     "check": "biome check --write src",
