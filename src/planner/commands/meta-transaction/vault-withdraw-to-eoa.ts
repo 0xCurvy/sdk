@@ -1,6 +1,6 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AbstractMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
+import { AbstractVaultMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import {
   BALANCE_TYPE,
@@ -9,14 +9,10 @@ import {
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
   type SaBalanceEntry,
-  type VaultBalanceEntry,
 } from "@/types";
-import type { DeepNonNullable } from "@/types/helper";
 
 // This command automatically sends all available balance from CSUC to external address
-export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
-  declare input: DeepNonNullable<VaultBalanceEntry>;
-
+export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionCommand {
   readonly #intent: CurvyIntent;
 
   constructor(
@@ -27,8 +23,6 @@ export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
     estimate?: CurvyCommandEstimate,
   ) {
     super(id, sdk, input, estimate);
-
-    this.validateInput(this.input);
 
     if (!isHexString(intent.toAddress)) {
       throw new Error("CSUCWithdrawFromCommand: toAddress MUST be a hex string address");
@@ -41,14 +35,6 @@ export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
     return Object.freeze(this.#intent);
   }
 
-  override validateInput(input: SaBalanceEntry | VaultBalanceEntry): asserts input is VaultBalanceEntry {
-    if (input.type !== BALANCE_TYPE.VAULT) {
-      throw new Error(
-        "Invalid input for command, VaultDepositToAggregatorCommand only accept Vault balance type as input.",
-      );
-    }
-  }
-
   get name() {
     return "VaultWithdrawToEOACommand";
   }
@@ -58,7 +44,11 @@ export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
   }
 
   async getCommandResult() {
-    return undefined;
+    return {
+      ...this.input,
+      type: BALANCE_TYPE.SA,
+      createdAt: new Date().toISOString(),
+    } satisfies SaBalanceEntry;
   }
 
   async execute(): Promise<CurvyCommandData | undefined> {
@@ -76,6 +66,6 @@ export class VaultWithdrawToEOACommand extends AbstractMetaTransactionCommand {
       },
     );
 
-    return;
+    return this.getCommandResult();
   }
 }

@@ -26,17 +26,6 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     return this.inputNotesSum;
   }
 
-  async estimateFees() {
-    return {
-      curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.withdrawCircuitConfig!.groupFee)) / 1000n,
-      gasFeeInCurrency: 0n,
-      stagedStealthAddressData: await this.sdk.generateNewStealthAddressForUser(
-        toSlug(this.network.name),
-        this.senderCurvyHandle,
-      ),
-    };
-  }
-
   override get estimateData(): AggregatorWithdrawToVaultEstimate {
     return super.estimateData as AggregatorWithdrawToVaultEstimate;
   }
@@ -79,6 +68,17 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
       signature,
       destinationAddress,
       networkId: this.network.id,
+    };
+  }
+
+  async estimateFees() {
+    return {
+      curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.withdrawCircuitConfig!.groupFee)) / 1000n,
+      gasFeeInCurrency: 0n,
+      stagedStealthAddressData: await this.sdk.generateNewStealthAddressForUser(
+        toSlug(this.network.name),
+        this.senderCurvyHandle,
+      ),
     };
   }
 

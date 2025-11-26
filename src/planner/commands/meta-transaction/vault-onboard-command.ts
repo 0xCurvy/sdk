@@ -1,36 +1,16 @@
 import { privateKeyToAccount } from "viem/accounts";
-import type { ICurvySDK } from "@/interfaces/sdk";
-import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AbstractMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
+import { AbstractSaMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import {
   BALANCE_TYPE,
   type HexString,
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
-  type SaBalanceEntry,
   type VaultBalanceEntry,
 } from "@/types";
-import type { DeepNonNullable } from "@/types/helper";
 
 // This command automatically sends all available balance from a stealth address to vault
-export class VaultOnboardCommand extends AbstractMetaTransactionCommand {
-  declare input: DeepNonNullable<SaBalanceEntry>;
-
-  constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(id, sdk, input, estimate);
-
-    this.validateInput(this.input);
-  }
-
-  override validateInput(input: SaBalanceEntry | VaultBalanceEntry): asserts input is SaBalanceEntry {
-    if (input.type !== BALANCE_TYPE.SA) {
-      throw new Error(
-        "Invalid input for command, VaultDepositToAggregatorCommand only accept Sa balance type as input.",
-      );
-    }
-  }
-
+export class VaultOnboardCommand extends AbstractSaMetaTransactionCommand {
   get name(): string {
     return "VaultOnboardErc20Command";
   }

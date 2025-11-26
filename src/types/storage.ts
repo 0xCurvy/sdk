@@ -59,7 +59,7 @@ const isVaultBalanceEntry = (entry: BalanceEntry): entry is VaultBalanceEntry =>
 };
 
 type NoteBalanceEntry = BalanceEntryBase & {
-  source: string;
+  source: HexString;
   id: string;
 
   type: BALANCE_TYPE["NOTE"];

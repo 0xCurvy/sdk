@@ -195,7 +195,7 @@ export class BalanceScanner implements IBalanceScanner {
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
-        source: ownerHash,
+        source: `0x${BigInt(ownerHash).toString(16)}`,
         type: BALANCE_TYPE.NOTE,
         id,
 

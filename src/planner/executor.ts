@@ -188,6 +188,10 @@ export class CommandExecutor {
       throw new Error(`Estimation failed: ${planEstimation.error}`);
     }
 
+    if (!planEstimation.data) {
+      throw new Error("Estimation resulted in no data, expected a single BalanceEntry.");
+    }
+
     if (Array.isArray(planEstimation.data)) {
       throw new Error("Estimation resulted in multiple data entries, expected a single BalanceEntry.");
     }
@@ -200,7 +204,7 @@ export class CommandExecutor {
       plan,
       gas: planEstimation.estimate.gasFeeInCurrency,
       curvyFee: planEstimation.estimate.curvyFeeInCurrency,
-      effectiveAmount: -1n,
+      effectiveAmount: planEstimation.data.balance,
     };
   }
 }
