@@ -2,7 +2,6 @@ import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { Currency, Network } from "@/types/api";
 import type { ExtractValues, HexString } from "@/types/helper";
 
-// TODO: Refactor to Command handlers bla bla bla
 const META_TRANSACTION_TYPES = {
   VAULT_TRANSFER: "vault_transfer",
   VAULT_ONBOARD: "vault_onboard",
@@ -12,6 +11,16 @@ const META_TRANSACTION_TYPES = {
 type META_TRANSACTION_TYPES = typeof META_TRANSACTION_TYPES;
 export { META_TRANSACTION_TYPES };
 export type MetaTransactionType = ExtractValues<META_TRANSACTION_TYPES>;
+
+const META_TRANSACTION_NUMERIC_TYPES = {
+  [META_TRANSACTION_TYPES.VAULT_ONBOARD]: 2,
+  [META_TRANSACTION_TYPES.VAULT_TRANSFER]: 1,
+  [META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR]: 1,
+  [META_TRANSACTION_TYPES.VAULT_WITHDRAW]: 0,
+} as const;
+
+type META_TRANSACTION_NUMERIC_TYPES = typeof META_TRANSACTION_NUMERIC_TYPES;
+export { META_TRANSACTION_NUMERIC_TYPES };
 
 const META_TRANSACTION_STATUSES = {
   ESTIMATED: "estimated",
@@ -24,27 +33,16 @@ export { META_TRANSACTION_STATUSES };
 export type MetaTransactionStatus = ExtractValues<typeof META_TRANSACTION_STATUSES>;
 
 export type MetaTransaction = {
-  id?: string;
   network: Network;
   currency: Currency;
-  ownerHash?: string;
+  amount: bigint;
   fromAddress: HexString;
-  toAddress?: HexString;
+  toAddress: HexString;
+  ownerHash?: string;
   type: MetaTransactionType;
-  signature?: string;
-  gasFeeInCurrency?: bigint;
-  curvyFeeInCurrency?: bigint;
-  status?: MetaTransactionStatus;
-  createdAt?: Date;
-  updatedAt?: Date;
 };
 
-// TODO: Think about this
-export type MetaTransactionEstimate = CurvyCommandEstimate;
+export type EstimatedMetaTransaction = MetaTransaction & { id: string; gasFeeInCurrency: bigint };
+export type SignedMetaTransaction = EstimatedMetaTransaction & { signature: HexString };
 
-// This is from smart contracts
-export const META_TRANSACTION_TYPES_TO_UINT8 = [
-  META_TRANSACTION_TYPES.VAULT_ONBOARD, // TODO: Rename to deposit
-  META_TRANSACTION_TYPES.VAULT_TRANSFER,
-  META_TRANSACTION_TYPES.VAULT_WITHDRAW,
-];
+export type MetaTransactionEstimate = CurvyCommandEstimate;

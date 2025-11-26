@@ -12,7 +12,8 @@
 		"skipLibCheck": true,
 		"noUnusedLocals": true,
 		"noImplicitAny": true,
-		"noEmit": true,
+        "noImplicitOverride": true,
+        "noEmit": true,
 		"outDir": "dist",
 		"resolveJsonModule": true,
 

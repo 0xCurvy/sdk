@@ -33,6 +33,7 @@ type BalanceEntryBase = {
   environment: NETWORK_ENVIRONMENT_VALUES;
 
   currencyAddress: string;
+  vaultTokenId: bigint | null;
   symbol: string;
   decimals: number;
   balance: bigint;
@@ -51,7 +52,6 @@ const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
 
 type VaultBalanceEntry = BalanceEntryBase & {
   source: HexString;
-  vaultTokenId: bigint;
   type: BALANCE_TYPE["VAULT"];
 };
 const isVaultBalanceEntry = (entry: BalanceEntry): entry is VaultBalanceEntry => {
@@ -59,11 +59,10 @@ const isVaultBalanceEntry = (entry: BalanceEntry): entry is VaultBalanceEntry =>
 };
 
 type NoteBalanceEntry = BalanceEntryBase & {
-  source: string;
+  source: HexString;
   id: string;
 
   type: BALANCE_TYPE["NOTE"];
-  vaultTokenId: bigint;
   owner: {
     babyJubjubPublicKey: {
       x: string;

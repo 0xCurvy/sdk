@@ -436,12 +436,6 @@ class WalletManager implements IWalletManager {
     await this.#addressScanner.scan([wallet]);
   }
 
-  /*
-    TODO
-        Should we allow scanning of all wallets at once, or should we only scan the active wallet?
-        If we allow scanning of all wallets, we should consider how we approach request auth verification,
-        as currently the bearer token is set to the active wallet's token.
-  */
   async rescanWallets(walletIds?: Array<string>) {
     if (this.#scanInterval) {
       this.#stopIntervalScan();
@@ -477,6 +471,9 @@ class WalletManager implements IWalletManager {
 
     if (isHexString(_address)) {
       address = await this.#storage.getCurvyAddress(_address);
+      if (!address) {
+        throw new Error(`Address ${_address} not found in storage!`);
+      }
     } else address = _address;
 
     const wallet = this.getWalletById(address.walletId);
