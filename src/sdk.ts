@@ -123,6 +123,7 @@ class CurvySDK implements ICurvySDK {
     sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(
       sdk.rpcClient,
+      sdk.#state.environment,
       sdk.apiClient,
       sdk.storage,
       sdk.#emitter,
@@ -192,10 +193,6 @@ class CurvySDK implements ICurvySDK {
 
   get activeNetworks() {
     return this.#state.activeNetworks;
-  }
-
-  get activeEnvironment() {
-    return this.#state.environment;
   }
 
   getStealthAddressById(id: string) {
@@ -375,7 +372,10 @@ class CurvySDK implements ICurvySDK {
       activeNetworks: this.getNetworks(networkFilter),
     };
 
-    if (this.#balanceScanner) this.#balanceScanner.rpcClient = newRpc;
+    if (this.#balanceScanner) {
+      this.#balanceScanner.rpcClient = newRpc;
+      this.#balanceScanner.environment = this.#state.environment;
+    }
   }
 
   switchNetworkEnvironment(environment: "mainnet" | "testnet") {
@@ -391,7 +391,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanNoteBalances(walletId, this.#state.environment, options);
+    return await this.#balanceScanner.scanNoteBalances(walletId, options);
   }
 
   async refreshAddressBalances(address: CurvyAddress) {
@@ -413,14 +413,14 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanWalletBalances(walletId, this.#state.environment, { scanAll, ...options });
+    return await this.#balanceScanner.scanWalletBalances(walletId, { scanAll, ...options });
   }
 
   async refreshBalances(scanAll = false, options: RefreshOptions = {}) {
     if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
     for (const wallet of this.walletManager.wallets) {
-      await this.#balanceScanner.scanWalletBalances(wallet.id, this.#state.environment, { scanAll, ...options });
+      await this.#balanceScanner.scanWalletBalances(wallet.id, { scanAll, ...options });
     }
   }
 

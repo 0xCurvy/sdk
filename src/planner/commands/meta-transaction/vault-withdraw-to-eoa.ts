@@ -46,6 +46,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
   async getCommandResult() {
     return {
       ...this.input,
+      balance: await this.getNetAmount(),
       type: BALANCE_TYPE.SA,
       createdAt: new Date().toISOString(),
     } satisfies SaBalanceEntry;

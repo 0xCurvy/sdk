@@ -29,19 +29,12 @@ export class CommandExecutor {
     this.#storage = storage;
   }
 
-  async #walkRecursively(
-    plan: CurvyPlan,
-    input?: CurvyCommandData,
-    dryRun?: boolean,
-    onCommandStarted?: (command: string) => void,
-  ): Promise<CurvyPlanExecution> {
+  async #walkRecursively(plan: CurvyPlan, input?: CurvyCommandData, dryRun?: boolean): Promise<CurvyPlanExecution> {
     // CurvyPlanFlowControl, parallel
     if (plan.type === "parallel") {
       // Parallel plans don't take any input,
       // because that would mean that each of its children is getting the same Address as input
-      const result = await Promise.all(
-        plan.items.map((item) => this.#walkRecursively(item, undefined, dryRun, onCommandStarted)),
-      );
+      const result = await Promise.all(plan.items.map((item) => this.#walkRecursively(item, undefined, dryRun)));
       const success = result.every((r) => r.success);
 
       this.eventEmitter.emitPlanExecutionProgress({ plan, result: { success, items: result } as CurvyPlanExecution });
@@ -80,7 +73,7 @@ export class CommandExecutor {
       let data = input;
       const estimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
       for (const item of plan.items) {
-        const result = await this.#walkRecursively(item, data, dryRun, onCommandStarted);
+        const result = await this.#walkRecursively(item, data, dryRun);
 
         results.push(result);
 
@@ -119,7 +112,6 @@ export class CommandExecutor {
         let data: CurvyCommandData | undefined;
 
         if (!dryRun) {
-          onCommandStarted?.(plan.name);
           data = await command.execute();
 
           await this.#storage.removeSpentBalanceEntries(Array.isArray(input) ? input : [input]);
@@ -155,18 +147,44 @@ export class CommandExecutor {
     throw new Error(`Unrecognized type for plan node: ${plan.type}`);
   }
 
+  // async #refreshUsedBalances(balanceEntries: BalanceEntry[]) {
+  //   for (const balanceEntry of balanceEntries) {
+  //     switch (balanceEntry.type) {
+  //       case BALANCE_TYPE.SA:
+  //       case BALANCE_TYPE.VAULT: {
+  //         try {
+  //           const address = await this.#storage.getCurvyAddress(balanceEntry.source);
+  //
+  //           await this.#balanceScanner.scanAddressBalances(address);
+  //         } catch {
+  //           console.warn("Failed to refresh SA or VAULT address:", balanceEntry.source);
+  //         }
+  //         break;
+  //       }
+  //       case BALANCE_TYPE.NOTE: {
+  //         // For now all notes are refreshed
+  //         break;
+  //       }
+  //     }
+  //   }
+  //   await this.#balanceScanner.scanNoteBalances();
+  // }
+
   async executePlan(
     plan: CurvyPlan,
-    walletId: string,
-    onCommandStarted?: (command: string) => void,
+    options?: {
+      walletId?: string;
+    },
   ): Promise<CurvyPlanExecution> {
     this.eventEmitter.emitPlanExecutionStarted({ plan });
 
-    this.#balanceScanner.pauseBalanceRefreshForWallet(walletId);
+    this.#balanceScanner.pauseBalanceRefreshForWallet(options?.walletId);
 
-    const result = await this.#walkRecursively(plan, undefined, false, onCommandStarted);
+    const result = await this.#walkRecursively(plan, undefined, false);
 
-    this.#balanceScanner.resumeBalanceRefreshForWallet(walletId);
+    this.#balanceScanner.resumeBalanceRefreshForWallet(options?.walletId);
+
+    // await this.#refreshUsedBalances(usedBalances);
 
     if (result.success) {
       this.eventEmitter.emitPlanExecutionComplete({ plan, result });

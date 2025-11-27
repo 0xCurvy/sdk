@@ -38,6 +38,8 @@ export class VaultOnboardNativeCommand extends AbstractClientCommand {
     return {
       gasFeeInCurrency,
       curvyFeeInCurrency,
+      gasLimit,
+      maxFeePerGas,
     };
   }
 
