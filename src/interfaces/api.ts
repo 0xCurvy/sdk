@@ -10,6 +10,8 @@ import type {
   GetCurvyHandleByOwnerAddressReturnType,
   GetMetaTransactionStatusReturnType,
   GetNetworksReturnType,
+  InsertPortalEntityRequestBody,
+  InsertPortalEntityReturnType,
   MetaTransactionEstimationRequestBody,
   MetaTransactionSubmitBody,
   RegisterCurvyHandleRequestBody,
@@ -43,6 +45,10 @@ interface IApiClient {
       size?: number,
       offset?: number,
     ): Promise<GetAnnouncementsReturnType>;
+  };
+
+  portal: {
+    InsertPortalEntity(body: InsertPortalEntityRequestBody): Promise<InsertPortalEntityReturnType>;
   };
 
   network: {

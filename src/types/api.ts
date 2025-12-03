@@ -56,6 +56,7 @@ type Network = {
   tokenMoverContractAddress?: string;
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
+  noteDeployerFactoryContractAddress?: string;
   nativeCurrency: string | null; // TODO: Why is this string?
   chainId: string;
   blockExplorerUrl: string;
@@ -124,6 +125,24 @@ type GetAnnouncementEncryptedMessageReturnType = {
 
 //#endregion
 
+//#region Portal
+
+type InsertPortalEntityRequestBody = {
+  noteDeployerAddress: HexString;
+  viewTag: string;
+  ephemeralKey: string;
+  ownerHash: string;
+};
+type InsertPortalEntityReturnType = {
+  data?: {
+    id: string;
+    message: string;
+  };
+  error?: string | null;
+};
+
+//#endregion
+
 //#region Network
 
 type NetworksWithCurrenciesResponse = {
@@ -147,11 +166,11 @@ type RegisterCurvyHandleRequestBody = {
 };
 type RegisterCurvyHandleReturnType =
   | {
-      message?: string;
-    }
+    message?: string;
+  }
   | {
-      error?: string;
-    };
+    error?: string;
+  };
 type ResolveCurvyHandleReturnType = {
   data: {
     createdAt: string;
@@ -177,14 +196,14 @@ type SetBabyJubjubPublicKeyRequestBody = {
 
 type SetBabyJubjubPublicKeyReturnType =
   | {
-      data: {
-        message: string;
-      };
-      error: null;
-    }
-  | {
-      error?: string;
+    data: {
+      message: string;
     };
+    error: null;
+  }
+  | {
+    error?: string;
+  };
 
 //#endregion
 
@@ -264,6 +283,8 @@ export type {
   SetBabyJubjubPublicKeyRequestBody,
   SetBabyJubjubPublicKeyReturnType,
   SubmitNoteOwnershipProofReturnType,
+  InsertPortalEntityRequestBody,
+  InsertPortalEntityReturnType,
 };
 
 //#endregion

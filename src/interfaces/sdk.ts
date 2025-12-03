@@ -30,6 +30,8 @@ interface ICurvySDK {
   getNetworks(networkFilter?: NetworkFilter): Network[];
   getNetworkBySlug(networkSlug: NETWORKS): Network | undefined;
 
+  generateNewShieldingAddress(networkIdentifier: NetworkFilter, handle: string): Promise<void>;
+
   generateNewStealthAddressForUser(
     networkIdentifier: NetworkFilter,
     handle: string,
