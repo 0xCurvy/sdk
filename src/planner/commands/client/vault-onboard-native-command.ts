@@ -15,22 +15,16 @@ export class VaultOnboardNativeCommand extends AbstractClientCommand {
 
     return {
       ...inputData,
-      balance: await this.getNetAmount(),
+      balance: this.netAmount,
       type: BALANCE_TYPE.VAULT,
     } satisfies VaultBalanceEntry;
   }
 
-  async #estimateGas() {
+  async estimateFees() {
     const { maxFeePerGas, gasLimit } = await this.rpc.estimateOnboardNativeToVault(
       this.input.source as HexString,
       this.input.balance,
     );
-
-    return { maxFeePerGas, gasLimit };
-  }
-
-  async estimateFees() {
-    const { gasLimit, maxFeePerGas } = await this.#estimateGas();
 
     const gasFeeInCurrency = (maxFeePerGas * gasLimit * 120n) / 100n;
     const curvyFeeInCurrency = ((this.input.balance - gasFeeInCurrency) * BigInt(DEPOSIT_TO_VAULT_FEE)) / 1000n;
@@ -44,7 +38,7 @@ export class VaultOnboardNativeCommand extends AbstractClientCommand {
   async execute(): Promise<CurvyCommandData> {
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
 
-    const { gasLimit, maxFeePerGas, gasFeeInCurrency } = this.estimateData;
+    const { gasLimit, maxFeePerGas, gasFeeInCurrency } = this.estimate;
     await this.rpc.onboardNativeToVault(this.grossAmount - gasFeeInCurrency, privateKey, maxFeePerGas, gasLimit);
 
     return this.getResultingBalanceEntry();

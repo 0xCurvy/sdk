@@ -24,12 +24,12 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
   }
 
   async #createDepositNote() {
-    if (!this.estimateData.sharedSecret) {
+    if (!this.estimate.sharedSecret) {
       throw new Error("[VaultDepositToAggregatorCommand] Invalid estimate data!");
     }
 
     const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
-    note.sharedSecret = this.estimateData.sharedSecret;
+    note.sharedSecret = this.estimate.sharedSecret;
 
     return note;
   }
@@ -61,7 +61,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
   }
 
   async execute(): Promise<CurvyCommandData> {
-    const { estimateId: id } = this.estimateData;
+    const { estimateId: id } = this.estimate;
 
     const signature = await this.signMetaTransaction(this.network.aggregatorContractAddress as HexString);
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });

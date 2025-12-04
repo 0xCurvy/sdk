@@ -24,7 +24,8 @@ export interface MetaTransactionCommandEstimate extends CurvyCommandEstimate {
 const FEE_DENOMINATOR = 10_000n;
 
 abstract class AbstractMetaTransactionCommand extends CurvyCommand {
-  protected declare input: DeepNonNullable<BalanceEntry>;
+  declare input: DeepNonNullable<BalanceEntry>;
+  declare estimate: MetaTransactionCommandEstimate;
 
   protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
@@ -32,9 +33,6 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
   }
 
   protected abstract get metaTransactionType(): MetaTransactionType;
-  override get estimateData(): MetaTransactionCommandEstimate {
-    return super.estimateData as MetaTransactionCommandEstimate;
-  }
 
   get grossAmount() {
     return this.input.balance;
@@ -64,7 +62,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
   }
 
   protected async signMetaTransaction(to?: HexString) {
-    if (!this.estimateData) {
+    if (!this.estimate) {
       throw new Error("Command not estimated.");
     }
 
@@ -105,7 +103,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
         to: to ?? this.#getToAddress(),
         tokenId: this.input.vaultTokenId,
         amount: this.input.balance,
-        gasFee: this.estimateData.gasFeeInCurrency,
+        gasFee: this.estimate.gasFeeInCurrency,
         metaTransactionType: META_TRANSACTION_NUMERIC_TYPES[this.metaTransactionType],
       },
     });
@@ -159,6 +157,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
 
 export abstract class AbstractVaultMetaTransactionCommand extends AbstractMetaTransactionCommand {
   declare input: DeepNonNullable<VaultBalanceEntry>;
+  declare estimate: MetaTransactionCommandEstimate;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);

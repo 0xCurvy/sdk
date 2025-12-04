@@ -126,9 +126,10 @@ export class CommandExecutor {
 
           this.eventEmitter.emitPlanCommandExecutionProgress({ commandId: plan.id });
         } else {
-          const { commandResult: estimateData, ...estimate } = await command.estimate();
-          data = estimateData;
-          plan.estimate = estimate;
+          // Not great, but a WAAAAY simpler solution :)
+          command.estimate = await command.estimateFees();
+          data = await command.getResultingBalanceEntry();
+          plan.estimate = command.estimate;
         }
 
         return <CurvyPlanSuccessfulExecution>{

@@ -82,7 +82,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       executionData?.mainOutputNote ??
       balanceEntryToNote({
         ...this.input[0],
-        balance: await this.getNetAmount(),
+        balance: this.netAmount,
       });
 
     return noteToBalanceEntry(mainOutputNote, {
@@ -126,7 +126,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       toAddress = this.#intent.toAddress;
     }
 
-    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, await this.getNetAmount());
+    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.netAmount);
 
     const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
     const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());

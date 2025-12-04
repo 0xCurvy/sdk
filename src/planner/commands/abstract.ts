@@ -12,9 +12,10 @@ export abstract class CurvyCommand {
   protected sdk: ICurvySDK;
   protected readonly input: CurvyCommandData;
   protected readonly senderCurvyHandle: CurvyHandle;
-  #estimateData: CurvyCommandEstimate | undefined;
   protected readonly network: Network;
   protected readonly rpc: EvmRpc;
+
+  public estimate?: CurvyCommandEstimate;
 
   readonly id: string;
 
@@ -22,7 +23,7 @@ export abstract class CurvyCommand {
     this.id = id;
     this.sdk = sdk;
     this.input = input;
-    this.#estimateData = estimate;
+    this.estimate = estimate;
     this.senderCurvyHandle = sdk.walletManager.activeWallet.curvyHandle;
 
     if (Array.isArray(this.input)) {
@@ -42,13 +43,6 @@ export abstract class CurvyCommand {
 
   abstract get name(): string;
   abstract get grossAmount(): bigint;
-  get estimateData() {
-    if (!this.#estimateData) {
-      throw new Error("Command not estimated yet!");
-    }
-
-    return this.#estimateData;
-  }
 
   abstract estimateFees(): Promise<CurvyCommandEstimate>;
   abstract getResultingBalanceEntry(executionData?: unknown): Promise<CurvyCommandData | undefined>;
@@ -57,27 +51,13 @@ export abstract class CurvyCommand {
 
   protected abstract validateInput<T extends CurvyCommandData>(input: CurvyCommandData): asserts input is T;
 
-  async getNetAmount(): Promise<bigint> {
-    if (!this.estimateData) {
-      throw new Error("Fees must be estimated before getting net amount!");
+  get netAmount(): bigint {
+    if (!this.estimate) {
+      throw new Error("Command not estimated.");
     }
 
-    const { curvyFeeInCurrency, gasFeeInCurrency } = this.estimateData;
+    const { curvyFeeInCurrency, gasFeeInCurrency } = this.estimate;
 
     return this.grossAmount - curvyFeeInCurrency - gasFeeInCurrency;
-  }
-
-  async estimate(): Promise<CurvyCommandEstimate & { commandResult: CurvyCommandData | undefined }> {
-    const feeEstimate = await this.estimateFees();
-
-    // Bind estimate to the current command for dry run,
-    // execution context will get this from estimated plan (passed in constructor)
-    this.#estimateData = feeEstimate;
-    const commandResult = await this.getResultingBalanceEntry();
-
-    return {
-      ...feeEstimate,
-      commandResult,
-    };
   }
 }

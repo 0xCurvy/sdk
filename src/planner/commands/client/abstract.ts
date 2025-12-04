@@ -11,15 +11,12 @@ interface ClientCommandEstimate extends CurvyCommandEstimate {
 
 export abstract class AbstractClientCommand extends CurvyCommand {
   declare input: DeepNonNullable<SaBalanceEntry>;
+  declare estimate: ClientCommandEstimate;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
 
     this.validateInput(this.input);
-  }
-
-  override get estimateData(): ClientCommandEstimate {
-    return super.estimateData as ClientCommandEstimate;
   }
 
   get grossAmount(): bigint {
