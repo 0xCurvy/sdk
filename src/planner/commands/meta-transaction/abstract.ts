@@ -1,7 +1,6 @@
 import { privateKeyToAccount } from "viem/accounts";
 import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
-import { VaultWithdrawToEOACommand } from "@/planner/commands";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import {
@@ -44,18 +43,8 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     return this.input.balance;
   }
 
-  #getToAddress(): HexString {
-    switch (this.metaTransactionType) {
-      case META_TRANSACTION_TYPES.VAULT_WITHDRAW: {
-        if (!(this instanceof VaultWithdrawToEOACommand)) {
-          throw new Error("Invalid command type for meta transaction type VAULT_WITHDRAW");
-        }
-
-        return this.intent.toAddress as HexString;
-      }
-      default:
-        return this.network.aggregatorContractAddress as HexString;
-    }
+  get toAddress(): HexString {
+    return this.network.aggregatorContractAddress as HexString;
   }
 
   protected async signMetaTransaction(to?: HexString) {
@@ -97,7 +86,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       message: {
         nonce,
         from: this.input.source as HexString,
-        to: to ?? this.#getToAddress(),
+        to: to ?? this.toAddress,
         tokenId: this.input.vaultTokenId,
         amount: this.input.balance,
         gasFee: this.estimate.gasFeeInCurrency,
@@ -138,7 +127,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       currencyAddress: this.input.currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,
-      toAddress: this.#getToAddress(),
+      toAddress: this.toAddress,
       network: this.input.networkSlug,
       ownerHash: ownerHash ? `0x${ownerHash.toString(16)}` : undefined,
     });

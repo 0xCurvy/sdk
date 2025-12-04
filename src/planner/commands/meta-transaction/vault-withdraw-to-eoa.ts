@@ -43,6 +43,10 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
     return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
   }
 
+  override get toAddress(): HexString {
+    return this.intent.toAddress as HexString;
+  }
+
   async getResultingBalanceEntry() {
     return {
       ...this.input,
