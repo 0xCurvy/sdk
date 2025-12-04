@@ -1,4 +1,7 @@
-import { AbstractVaultMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
+import {
+  AbstractVaultMetaTransactionCommand,
+  type MetaTransactionCommandEstimate,
+} from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import {
   type HexString,
@@ -29,6 +32,19 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
     note.sharedSecret = this.estimateData.sharedSecret;
 
     return note;
+  }
+
+  override async estimateFees(): Promise<MetaTransactionCommandEstimate> {
+    const { ownerHash, owner } = await this.sdk.getNewNoteForUser(
+      this.senderCurvyHandle,
+      this.input.vaultTokenId,
+      this.input.balance,
+    );
+
+    const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee(ownerHash);
+    const curvyFeeInCurrency = await this.calculateCurvyFee();
+
+    return { gasFeeInCurrency, estimateId, curvyFeeInCurrency, sharedSecret: owner?.sharedSecret };
   }
 
   async getCommandResult(executionData?: { note: Note }): Promise<NoteBalanceEntry> {

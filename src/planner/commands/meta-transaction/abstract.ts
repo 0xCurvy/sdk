@@ -16,7 +16,7 @@ import {
 } from "@/types";
 import type { DeepNonNullable } from "@/types/helper";
 
-interface MetaTransactionCommandEstimate extends CurvyCommandEstimate {
+export interface MetaTransactionCommandEstimate extends CurvyCommandEstimate {
   sharedSecret?: bigint;
   estimateId: string;
 }
@@ -38,15 +38,6 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
 
   get grossAmount() {
     return this.input.balance;
-  }
-
-  #needsOwnerHashInEstimate() {
-    switch (this.metaTransactionType) {
-      case META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR:
-        return true;
-      default:
-        return false;
-    }
   }
 
   #getToAddress(): HexString {
@@ -159,19 +150,6 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
   }
 
   async estimateFees(): Promise<MetaTransactionCommandEstimate> {
-    if (this.#needsOwnerHashInEstimate()) {
-      const { ownerHash, owner } = await this.sdk.getNewNoteForUser(
-        this.senderCurvyHandle,
-        this.input.vaultTokenId,
-        this.input.balance,
-      );
-
-      const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee(ownerHash);
-      const curvyFeeInCurrency = await this.calculateCurvyFee();
-
-      return { gasFeeInCurrency, estimateId, curvyFeeInCurrency, sharedSecret: owner?.sharedSecret };
-    }
-
     const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee();
     const curvyFeeInCurrency = await this.calculateCurvyFee();
 
