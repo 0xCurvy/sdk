@@ -42,15 +42,13 @@ export abstract class CurvyCommand {
   }
 
   abstract get name(): string;
-  abstract get grossAmount(): bigint;
 
   abstract estimateFees(): Promise<CurvyCommandEstimate>;
   abstract getResultingBalanceEntry(executionData?: unknown): Promise<CurvyCommandData | undefined>;
 
   abstract execute(): Promise<CurvyCommandData | undefined>;
 
-  protected abstract validateInput<T extends CurvyCommandData>(input: CurvyCommandData): asserts input is T;
-
+  abstract get grossAmount(): bigint;
   get netAmount(): bigint {
     if (!this.estimate) {
       throw new Error("Command not estimated.");
