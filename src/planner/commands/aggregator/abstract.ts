@@ -11,17 +11,6 @@ export abstract class AbstractAggregatorCommand extends CurvyCommand {
   protected readonly inputNotesSum: bigint;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(id, sdk, input, estimate);
-
-    this.validateInput(this.input);
-
-    this.input = Array.isArray(this.input) ? this.input.flat() : [this.input];
-
-    this.inputNotes = this.input.map((noteBalanceEntry) => balanceEntryToNote(noteBalanceEntry));
-    this.inputNotesSum = this.inputNotes.reduce((acc, note) => acc + note.balance!.amount, 0n);
-  }
-
-  validateInput(input: CurvyCommandData): asserts input is NoteBalanceEntry[] {
     if (Array.isArray(input)) {
       const allAreNotes = input.every((addr) => addr.type === "note");
       if (!allAreNotes) {
@@ -40,5 +29,12 @@ export abstract class AbstractAggregatorCommand extends CurvyCommand {
         throw new Error("Invalid input for command, vaultTokenId is required.");
       }
     }
+
+    super(id, sdk, input, estimate);
+
+    this.input = Array.isArray(this.input) ? this.input.flat() : [this.input];
+
+    this.inputNotes = this.input.map((noteBalanceEntry) => balanceEntryToNote(noteBalanceEntry));
+    this.inputNotesSum = this.inputNotes.reduce((acc, note) => acc + note.balance!.amount, 0n);
   }
 }

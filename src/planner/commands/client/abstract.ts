@@ -14,16 +14,6 @@ export abstract class AbstractClientCommand extends CurvyCommand {
   declare estimate: ClientCommandEstimate;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(id, sdk, input, estimate);
-
-    this.validateInput(this.input);
-  }
-
-  get grossAmount(): bigint {
-    return this.input.balance;
-  }
-
-  validateInput(input: CurvyCommandData): asserts input is SaBalanceEntry {
     if (Array.isArray(input)) {
       throw new Error("Invalid input for command, SA commands only accept one data as input.");
     }
@@ -35,5 +25,11 @@ export abstract class AbstractClientCommand extends CurvyCommand {
     if (!input.vaultTokenId) {
       throw new Error("Invalid input for command, vaultTokenId is required.");
     }
+
+    super(id, sdk, input, estimate);
+  }
+
+  get grossAmount(): bigint {
+    return this.input.balance;
   }
 }
