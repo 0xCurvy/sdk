@@ -75,7 +75,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     };
   }
 
-  async getCommandResult(executionData?: { mainOutputNote: Note }): Promise<CurvyCommandData> {
+  async getResultingBalanceEntry(executionData?: { mainOutputNote: Note }): Promise<CurvyCommandData> {
     const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 
     const mainOutputNote =
@@ -142,6 +142,6 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       },
     );
 
-    return this.getCommandResult({ mainOutputNote });
+    return this.getResultingBalanceEntry({ mainOutputNote });
   }
 }

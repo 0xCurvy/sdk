@@ -47,7 +47,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
     return { gasFeeInCurrency, estimateId, curvyFeeInCurrency, sharedSecret: owner?.sharedSecret };
   }
 
-  async getCommandResult(executionData?: { note: Note }): Promise<NoteBalanceEntry> {
+  async getResultingBalanceEntry(executionData?: { note: Note }): Promise<NoteBalanceEntry> {
     const _note = executionData?.note ?? (await this.#createDepositNote());
 
     return noteToBalanceEntry(_note, {
@@ -90,6 +90,6 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
       },
     );
 
-    return this.getCommandResult({ note });
+    return this.getResultingBalanceEntry({ note });
   }
 }

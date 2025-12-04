@@ -10,7 +10,7 @@ export class VaultOnboardNativeCommand extends AbstractClientCommand {
     return "VaultOnboardNativeCommand";
   }
 
-  async getCommandResult(): Promise<CurvyCommandData> {
+  async getResultingBalanceEntry(): Promise<CurvyCommandData> {
     const { createdAt: _, ...inputData } = this.input;
 
     return {
@@ -47,6 +47,6 @@ export class VaultOnboardNativeCommand extends AbstractClientCommand {
     const { gasLimit, maxFeePerGas, gasFeeInCurrency } = this.estimateData;
     await this.rpc.onboardNativeToVault(this.grossAmount - gasFeeInCurrency, privateKey, maxFeePerGas, gasLimit);
 
-    return this.getCommandResult();
+    return this.getResultingBalanceEntry();
   }
 }

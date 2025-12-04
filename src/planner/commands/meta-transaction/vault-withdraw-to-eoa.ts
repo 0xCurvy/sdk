@@ -43,7 +43,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
     return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
   }
 
-  async getCommandResult() {
+  async getResultingBalanceEntry() {
     return {
       ...this.input,
       type: BALANCE_TYPE.SA,
@@ -66,6 +66,6 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
       },
     );
 
-    return this.getCommandResult();
+    return this.getResultingBalanceEntry();
   }
 }

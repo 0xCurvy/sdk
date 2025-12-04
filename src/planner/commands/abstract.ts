@@ -51,7 +51,7 @@ export abstract class CurvyCommand {
   }
 
   abstract estimateFees(): Promise<CurvyCommandEstimate>;
-  abstract getCommandResult(executionData?: unknown): Promise<CurvyCommandData | undefined>;
+  abstract getResultingBalanceEntry(executionData?: unknown): Promise<CurvyCommandData | undefined>;
 
   abstract execute(): Promise<CurvyCommandData | undefined>;
 
@@ -73,7 +73,7 @@ export abstract class CurvyCommand {
     // Bind estimate to the current command for dry run,
     // execution context will get this from estimated plan (passed in constructor)
     this.#estimateData = feeEstimate;
-    const commandResult = await this.getCommandResult();
+    const commandResult = await this.getResultingBalanceEntry();
 
     return {
       ...feeEstimate,

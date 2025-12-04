@@ -82,7 +82,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     };
   }
 
-  async getCommandResult() {
+  async getResultingBalanceEntry() {
     const { networkSlug, environment, symbol, lastUpdated, currencyAddress, vaultTokenId, decimals, walletId } =
       this.input[0];
 
@@ -131,6 +131,6 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
       },
     );
 
-    return this.getCommandResult();
+    return this.getResultingBalanceEntry();
   }
 }

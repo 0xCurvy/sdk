@@ -19,7 +19,7 @@ export class VaultOnboardCommand extends AbstractSaMetaTransactionCommand {
     return META_TRANSACTION_TYPES.VAULT_ONBOARD;
   }
 
-  async getCommandResult(): Promise<VaultBalanceEntry> {
+  async getResultingBalanceEntry(): Promise<VaultBalanceEntry> {
     const { createdAt: _, ...inputData } = this.input;
 
     return {
@@ -52,6 +52,6 @@ export class VaultOnboardCommand extends AbstractSaMetaTransactionCommand {
       },
     );
 
-    return this.getCommandResult();
+    return this.getResultingBalanceEntry();
   }
 }
