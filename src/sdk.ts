@@ -32,10 +32,10 @@ import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
-import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
-import { WalletManager } from "./wallet-manager";
 import { noteDeployerFactoryAbi, poseidonHash } from "./exports";
 import { deriveAddress } from "./utils/address";
+import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
+import { WalletManager } from "./wallet-manager";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -233,6 +233,8 @@ class CurvySDK implements ICurvySDK {
 
   async generateNewShieldingAddress(networkIdentifier: NetworkFilter, handle: string) {
     const network = this.getNetwork(networkIdentifier);
+
+    console.log(network);
     if (!network.noteDeployerFactoryContractAddress) {
       throw new Error(`Network ${networkIdentifier} does not have a note deployer factory contract address`);
     }
@@ -254,19 +256,15 @@ class CurvySDK implements ICurvySDK {
     // Calculate ownerHash from sharedSecret and babyJubjubPublicKey
     let ownerHash: string | undefined;
     if (babyJubjubPublicKey && recipientStealthPublicKey) {
-      const [bjjX, bjjY] = babyJubjubPublicKey.split('.');
-      const sharedSecret = recipientStealthPublicKey.split('.')[0]; // Extract first component
+      const [bjjX, bjjY] = babyJubjubPublicKey.split(".");
+      const sharedSecret = recipientStealthPublicKey.split(".")[0]; // Extract first component
 
-      ownerHash = poseidonHash([
-        BigInt(bjjX),
-        BigInt(bjjY),
-        BigInt(sharedSecret)
-      ]).toString();
+      ownerHash = poseidonHash([BigInt(bjjX), BigInt(bjjY), BigInt(sharedSecret)]).toString();
     }
 
     if (!ownerHash) throw new Error("Couldn't derive owner hash!");
 
-    const noteDeployerAddress = await this.rpcClient.Network(networkIdentifier).provider.readContract({
+    const noteDeployerAddress: HexString = await this.rpcClient.Network(networkIdentifier).provider.readContract({
       address: network.noteDeployerFactoryContractAddress,
       abi: noteDeployerFactoryAbi,
       functionName: "getContractAddress",
@@ -283,6 +281,8 @@ class CurvySDK implements ICurvySDK {
     });
 
     if (response.data?.message !== "Saved") throw new Error("Failed to register announcement");
+
+    return { address: noteDeployerAddress };
   }
 
   async generateNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string) {
