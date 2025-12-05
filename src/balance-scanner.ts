@@ -30,6 +30,7 @@ export class BalanceScanner implements IBalanceScanner {
   };
 
   #rpcClient: MultiRpc;
+  environment: NETWORK_ENVIRONMENT_VALUES;
   readonly apiClient: IApiClient;
   readonly #storage: StorageInterface;
   readonly #emitter: ICurvyEventEmitter;
@@ -38,6 +39,7 @@ export class BalanceScanner implements IBalanceScanner {
 
   constructor(
     rpcClient: MultiRpc,
+    environment: NETWORK_ENVIRONMENT_VALUES,
     apiClient: IApiClient,
     storage: StorageInterface,
     emitter: ICurvyEventEmitter,
@@ -45,6 +47,7 @@ export class BalanceScanner implements IBalanceScanner {
     walletManager: IWalletManager,
   ) {
     this.#rpcClient = rpcClient;
+    this.environment = environment;
     this.apiClient = apiClient;
     this.#storage = storage;
     this.#emitter = emitter;
@@ -53,11 +56,11 @@ export class BalanceScanner implements IBalanceScanner {
     this.#semaphore = Object.create(null);
   }
 
-  pauseBalanceRefreshForWallet(walletId: string) {
+  pauseBalanceRefreshForWallet(walletId = this.#walletManager.activeWallet.id) {
     this.#semaphore[`refresh-wallet-${walletId}`] = true;
   }
 
-  resumeBalanceRefreshForWallet(walletId: string) {
+  resumeBalanceRefreshForWallet(walletId = this.#walletManager.activeWallet.id) {
     this.#semaphore[`refresh-wallet-${walletId}`] = false;
   }
 
@@ -245,7 +248,6 @@ export class BalanceScanner implements IBalanceScanner {
 
   async #noteScan(
     walletId: string,
-    environment: NETWORK_ENVIRONMENT_VALUES,
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
       scanAll?: boolean;
@@ -257,7 +259,7 @@ export class BalanceScanner implements IBalanceScanner {
     signal?.throwIfAborted();
 
     const networks = (await this.apiClient.network.GetNetworks()).filter(
-      (network) => network.testnet === (environment === "testnet") && !!network.vaultContractAddress,
+      (network) => network.testnet === (this.environment === "testnet") && !!network.vaultContractAddress,
     );
 
     if (networks.length === 0) {
@@ -324,7 +326,7 @@ export class BalanceScanner implements IBalanceScanner {
             this.#scanProgress.notes = ((batchNumber + 1) / noteBatchCount) * (1 / networkCount);
             if (!options?.silent)
               this.#emitter.emitBalanceRefreshProgress({
-                environment,
+                environment: this.environment,
                 walletId,
                 progress: Math.round(this.totalScanProgress),
               });
@@ -343,7 +345,6 @@ export class BalanceScanner implements IBalanceScanner {
 
   async #addressScan(
     walletId: string,
-    environment: NETWORK_ENVIRONMENT_VALUES,
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
       scanAll?: boolean;
@@ -356,7 +357,7 @@ export class BalanceScanner implements IBalanceScanner {
     signal?.throwIfAborted();
 
     try {
-      const addresses = await this.#storage.getScannableAddresses(walletId, environment, scanAll ? 0 : undefined);
+      const addresses = await this.#storage.getScannableAddresses(walletId, this.environment, scanAll ? 0 : undefined);
 
       const addressCount = addresses.length;
 
@@ -384,7 +385,7 @@ export class BalanceScanner implements IBalanceScanner {
           await this.#storage.storeManyCurvyAddresses(
             addressBatch.map((address) => ({
               ...address,
-              lastScannedAt: { ...address.lastScannedAt, [environment]: +dayjs() },
+              lastScannedAt: { ...address.lastScannedAt, [this.environment]: +dayjs() },
             })),
           );
         } catch (error) {
@@ -396,7 +397,7 @@ export class BalanceScanner implements IBalanceScanner {
           this.#scanProgress.addresses = (batchNumber + 1) / addressBatchCount;
           if (!options?.silent)
             this.#emitter.emitBalanceRefreshProgress({
-              environment,
+              environment: this.environment,
               walletId,
               progress: Math.round(this.totalScanProgress),
             });
@@ -414,12 +415,10 @@ export class BalanceScanner implements IBalanceScanner {
   /**
    * The main scan coordinator function.
    * @param walletId The ID of the wallet to sync.
-   * @param environment {NETWORK_ENVIRONMENT_VALUES} The network environment to scan
    * @param options An object containing the onProgress callback and the batchSize.
    */
   async scanWalletBalances(
-    walletId: string,
-    environment: NETWORK_ENVIRONMENT_VALUES,
+    walletId = this.#walletManager.activeWallet.id,
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
       scanAll?: boolean;
@@ -434,23 +433,20 @@ export class BalanceScanner implements IBalanceScanner {
     if (!options?.silent)
       this.#emitter.emitBalanceRefreshStarted({
         walletId,
-        environment,
+        environment: this.environment,
       });
 
     try {
-      await Promise.all([
-        this.#addressScan(walletId, environment, options),
-        this.#noteScan(walletId, environment, options),
-      ]);
+      await Promise.all([this.#addressScan(walletId, options), this.#noteScan(walletId, options)]);
 
       if (!options?.silent)
         this.#emitter.emitBalanceRefreshComplete({
           walletId,
-          environment,
+          environment: this.environment,
         });
     } catch (e) {
       if (e instanceof Error && e.cause === "abort")
-        this.#emitter.emitBalanceRefreshCancelled({ reason: e.message, environment });
+        this.#emitter.emitBalanceRefreshCancelled({ reason: e.message, environment: this.environment });
       else console.error(e);
     } finally {
       this.#semaphore[`refresh-wallet-${walletId}`] = false;
@@ -488,8 +484,7 @@ export class BalanceScanner implements IBalanceScanner {
   }
 
   async scanNoteBalances(
-    walletId: string,
-    environment: NETWORK_ENVIRONMENT_VALUES,
+    walletId = this.#walletManager.activeWallet.id,
     options?: { onProgress?: (entries: BalanceEntry[]) => void; scanAll?: boolean } & RefreshOptions,
   ) {
     if (this.#semaphore[`refresh-notes-${walletId}`]) return;
@@ -499,15 +494,15 @@ export class BalanceScanner implements IBalanceScanner {
     if (!options?.silent)
       this.#emitter.emitBalanceRefreshStarted({
         walletId,
-        environment,
+        environment: this.environment,
       });
 
     try {
-      await this.#noteScan(walletId, environment, options);
+      await this.#noteScan(walletId, options);
       if (!options?.silent)
         this.#emitter.emitBalanceRefreshComplete({
           walletId,
-          environment,
+          environment: this.environment,
         });
     } catch (e) {
       if (e instanceof Error && e.cause === "abort") this.#emitter.emitBalanceRefreshCancelled({ reason: e.message });
