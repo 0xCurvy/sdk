@@ -9,7 +9,6 @@ import { toSlug } from "@/utils/helpers";
 // - callback: Filter callback function that takes Network as argument
 // - boolean: Indicates whether we should connect to all mainnets (false) or all testnets (true)
 // - undefined: We want to return all
-// TODO: Think about renaming to NetworkSelector
 export type NetworkFilter =
   | string
   | string[]
@@ -19,7 +18,6 @@ export type NetworkFilter =
   | boolean
   | undefined;
 
-// TODO: We are not exporting this first into utils, but directly into main index.ts barrel fail - make it consistent
 export function filterNetworks(networks: Network[], networkFilter: NetworkFilter): Network[] {
   if (networkFilter === undefined) {
     return networks;

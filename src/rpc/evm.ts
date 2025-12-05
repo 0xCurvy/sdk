@@ -14,7 +14,6 @@ import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTran
 import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
-import { aggregatorAlphaV1Abi } from "@/contracts/evm/abi";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { vaultV1Abi } from "@/contracts/evm/abi/vault";
 import { Rpc } from "@/rpc/abstract";
@@ -95,7 +94,13 @@ class EvmRpc extends Rpc {
 
     return tokenBalances
       .map((encodedTokenBalance, idx) => {
-        const { contractAddress: currencyAddress, nativeCurrency, symbol, decimals } = this.network.currencies[idx];
+        const {
+          contractAddress: currencyAddress,
+          nativeCurrency,
+          symbol,
+          decimals,
+          vaultTokenId,
+        } = this.network.currencies[idx];
 
         let balance: bigint;
 
@@ -116,6 +121,7 @@ class EvmRpc extends Rpc {
           ? {
               balance,
               currencyAddress: currencyAddress as HexString,
+              vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
               symbol,
               decimals,
               environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
@@ -123,9 +129,9 @@ class EvmRpc extends Rpc {
           : null;
       })
       .filter(Boolean)
-      .reduce<RpcBalances>((res, { balance, currencyAddress, symbol, environment, decimals }) => {
+      .reduce<RpcBalances>((res, { balance, currencyAddress, vaultTokenId, symbol, environment, decimals }) => {
         if (!res[networkSlug]) res[networkSlug] = Object.create(null);
-        res[networkSlug]![currencyAddress] = { balance, currencyAddress, symbol, environment, decimals };
+        res[networkSlug]![currencyAddress] = { balance, currencyAddress, vaultTokenId, symbol, environment, decimals };
         return res;
       }, Object.create(null));
   }
@@ -134,7 +140,7 @@ class EvmRpc extends Rpc {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contractAddress: currencyAddress, nativeCurrency, decimals } = token;
+    const { contractAddress: currencyAddress, nativeCurrency, decimals, vaultTokenId } = token;
 
     let balance: bigint;
 
@@ -154,6 +160,7 @@ class EvmRpc extends Rpc {
     return {
       balance,
       currencyAddress: currencyAddress as HexString,
+      vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
       symbol,
       decimals,
       environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
@@ -341,19 +348,6 @@ class EvmRpc extends Rpc {
     return this.#walletClient.signTypedData({
       account: privateKeyToAccount,
       ...typedData,
-    });
-  }
-
-  async isNoteDeposited(noteId: bigint): Promise<boolean> {
-    if (!this.network.aggregatorContractAddress) {
-      throw new Error("Aggregator not supported on this network");
-    }
-
-    return this.provider.readContract({
-      abi: aggregatorAlphaV1Abi,
-      address: this.network.aggregatorContractAddress as HexString,
-      functionName: "noteInQueue",
-      args: [noteId],
     });
   }
 }

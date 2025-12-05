@@ -10,7 +10,6 @@ export interface CurvyIntent {
   // I don't care that Currency and Network are large objects, intents are rare and always user-generated.
   currency: Currency;
   network: Network;
-  privateKey?: HexString;
 }
 
 export type CurvyPlanCommand = {

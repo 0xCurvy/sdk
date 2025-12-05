@@ -1,19 +1,19 @@
-import dayjs from "dayjs";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import { AbstractVaultCommand } from "@/planner/commands/meta-transaction/abstract";
+import { AbstractVaultMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
-import { BALANCE_TYPE, type HexString, isHexString, META_TRANSACTION_TYPES, type SaBalanceEntry } from "@/types";
-
-interface VaultWithdrawToEOACommandEstimate extends CurvyCommandEstimate {
-  id: string;
-  data: SaBalanceEntry;
-}
+import {
+  BALANCE_TYPE,
+  type HexString,
+  isHexString,
+  META_TRANSACTION_TYPES,
+  type MetaTransactionType,
+  type SaBalanceEntry,
+} from "@/types";
 
 // This command automatically sends all available balance from CSUC to external address
-export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
-  #intent: CurvyIntent;
-  protected declare estimateData: VaultWithdrawToEOACommandEstimate | undefined;
+export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionCommand {
+  readonly #intent: CurvyIntent;
 
   constructor(
     id: string,
@@ -25,32 +25,40 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
     super(id, sdk, input, estimate);
 
     if (!isHexString(intent.toAddress)) {
-      throw new Error("CSUCWithdrawFromCommand: toAddress MUST be a hex string address");
+      throw new Error(`${this.name}: toAddress MUST be a hex string address`);
     }
 
     this.#intent = intent;
   }
 
-  async execute(): Promise<CurvyCommandData> {
-    const currencyAddress = this.input.currencyAddress;
+  get intent(): Readonly<CurvyIntent> {
+    return Object.freeze(this.#intent);
+  }
 
-    if (!this.estimateData) {
-      throw new Error("[VaultWithdrawToEoaCommand] Command must be estimated before execution!");
-    }
-    const { id, gas, curvyFee } = this.estimateData;
+  get name() {
+    return "VaultWithdrawToEOACommand";
+  }
 
-    const amount = this.input.balance;
+  get metaTransactionType(): MetaTransactionType {
+    return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
+  }
 
-    const totalFees = gas + curvyFee;
+  override get toAddress(): HexString {
+    return this.intent.toAddress as HexString;
+  }
 
-    const effectiveAmount = amount - totalFees;
+  async getResultingBalanceEntry() {
+    return {
+      ...this.input,
+      type: BALANCE_TYPE.SA,
+      createdAt: new Date().toISOString(),
+    } satisfies SaBalanceEntry;
+  }
 
-    const signature = await this.signMetaTransaction(
-      this.#intent.toAddress as HexString,
-      effectiveAmount,
-      gas,
-      META_TRANSACTION_TYPES.VAULT_WITHDRAW,
-    );
+  async execute(): Promise<CurvyCommandData | undefined> {
+    const { estimateId: id } = this.estimate;
+
+    const signature = await this.signMetaTransaction(this.intent.toAddress as HexString);
 
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
@@ -62,60 +70,6 @@ export class VaultWithdrawToEOACommand extends AbstractVaultCommand {
       },
     );
 
-    await this.sdk.storage.removeSpentBalanceEntries("address", [this.input]);
-
-    await new Promise((res) => setTimeout(res, 3000)); // Wait for balances to be updated properly
-
-    const curvyAddress = await this.sdk.storage.getCurvyAddress(this.input.source);
-    await this.sdk.refreshAddressBalances(curvyAddress);
-
-    return {
-      type: BALANCE_TYPE.SA,
-      walletId: "PLACEHOLDER", // TODO Remove
-      source: this.#intent.toAddress as HexString,
-      networkSlug: this.input.networkSlug,
-      environment: this.input.environment,
-      balance: effectiveAmount,
-      symbol: this.input.symbol,
-      decimals: this.input.decimals,
-      currencyAddress,
-      lastUpdated: +dayjs(), // TODO Remove
-      createdAt: "PLACEHOLDER", // TODO Remove
-    } satisfies SaBalanceEntry;
-  }
-
-  async estimate(): Promise<VaultWithdrawToEOACommandEstimate> {
-    const currencyAddress = this.input.currencyAddress;
-
-    const { id, gasFeeInCurrency, curvyFeeInCurrency } = await this.sdk.apiClient.metaTransaction.EstimateGas({
-      type: META_TRANSACTION_TYPES.VAULT_WITHDRAW,
-      currencyAddress,
-      amount: this.input.balance.toString(),
-      fromAddress: this.input.source,
-      network: this.input.networkSlug,
-      toAddress: this.#intent.toAddress,
-    });
-
-    const gas = BigInt(gasFeeInCurrency ?? "0");
-    const curvyFee = BigInt(curvyFeeInCurrency ?? "0");
-
-    return {
-      gas,
-      curvyFee,
-      id,
-      data: {
-        type: BALANCE_TYPE.SA,
-        walletId: "PLACEHOLDER", // TODO Remove
-        source: this.#intent.toAddress as HexString,
-        networkSlug: this.input.networkSlug,
-        environment: this.input.environment,
-        balance: this.input.balance - curvyFee - gas,
-        symbol: this.input.symbol,
-        decimals: this.input.decimals,
-        currencyAddress,
-        lastUpdated: +dayjs(), // TODO Remove
-        createdAt: "PLACEHOLDER", // TODO Remove
-      },
-    };
+    return this.getResultingBalanceEntry();
   }
 }

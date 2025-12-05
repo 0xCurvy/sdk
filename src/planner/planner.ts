@@ -2,6 +2,7 @@ import { v4 as uuidV4 } from "uuid";
 import type { CurvyIntent, CurvyPlan, CurvyPlanFlowControl, GeneratePlanReturnType } from "@/planner/plan";
 import { BALANCE_TYPE, type BalanceEntry } from "@/types";
 import { isHexString } from "@/types/helper";
+import { NATIVE_CURRENCY_ADDRESS } from "@/utils";
 
 const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
   // If is note, just return it
@@ -27,7 +28,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
     plan.items.push({
       type: "command",
       id: uuidV4(),
-      name: "sa-vault-onboard", // This includes gas sponsorship as well.
+      name: balanceEntry.currencyAddress === NATIVE_CURRENCY_ADDRESS ? "vault-onboard-native" : "vault-onboard-erc20", // This includes gas sponsorship as well.
     });
   }
 

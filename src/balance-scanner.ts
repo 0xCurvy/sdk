@@ -108,6 +108,7 @@ export class BalanceScanner implements IBalanceScanner {
             environment: balanceData.environment,
 
             currencyAddress,
+            vaultTokenId: balanceData.vaultTokenId,
             balance: balanceData.balance,
             symbol: balanceData.symbol,
             decimals: balanceData.decimals,
@@ -194,7 +195,7 @@ export class BalanceScanner implements IBalanceScanner {
 
       entries.push({
         walletId: this.#walletManager.activeWallet.id,
-        source: ownerHash,
+        source: `0x${BigInt(ownerHash).toString(16)}`,
         type: BALANCE_TYPE.NOTE,
         id,
 
@@ -483,8 +484,6 @@ export class BalanceScanner implements IBalanceScanner {
       console.error(`[BalanceScanner] Error while scanning address balances for address ${address.address}:`, error);
     } finally {
       this.#semaphore[`refresh-balance-${address.id}`] = undefined;
-
-      // TODO add event emitter for error states
     }
   }
 
