@@ -18,7 +18,6 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { CommandExecutor } from "@/planner/executor";
-import type { Rpc } from "@/rpc/abstract";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
@@ -86,14 +85,6 @@ class CurvySDK implements ICurvySDK {
     }
 
     return this.#walletManager;
-  }
-
-  getRpcClient(network: NetworkFilter): Rpc {
-    if (!this.#rpcClient) {
-      throw new Error("Rpc client is not initialized!");
-    }
-
-    return this.#rpcClient.Network(network);
   }
 
   static async init(

@@ -30,7 +30,7 @@ export class BalanceScanner implements IBalanceScanner {
   };
 
   #rpcClient: MultiRpc;
-  #environment: NETWORK_ENVIRONMENT_VALUES;
+  environment: NETWORK_ENVIRONMENT_VALUES;
   readonly apiClient: IApiClient;
   readonly #storage: StorageInterface;
   readonly #emitter: ICurvyEventEmitter;
@@ -47,7 +47,7 @@ export class BalanceScanner implements IBalanceScanner {
     walletManager: IWalletManager,
   ) {
     this.#rpcClient = rpcClient;
-    this.#environment = environment;
+    this.environment = environment;
     this.apiClient = apiClient;
     this.#storage = storage;
     this.#emitter = emitter;
@@ -73,14 +73,6 @@ export class BalanceScanner implements IBalanceScanner {
       throw new Error("RPC client not set.");
     }
     return this.#rpcClient;
-  }
-
-  set environment(environment: NETWORK_ENVIRONMENT_VALUES) {
-    this.#environment = environment;
-  }
-
-  get environment() {
-    return this.#environment;
   }
 
   get totalScanProgress() {

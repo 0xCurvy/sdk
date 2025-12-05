@@ -9,7 +9,7 @@ import type {
   CurvyPlanSuccessfulExecution,
   CurvyPlanUnsuccessfulExecution,
 } from "@/planner/plan";
-import { BALANCE_TYPE, type BalanceEntry } from "@/types";
+import type { BalanceEntry } from "@/types";
 
 export class CommandExecutor {
   private commandFactory: ICommandFactory;
@@ -145,30 +145,6 @@ export class CommandExecutor {
     }
 
     throw new Error(`Unrecognized type for plan node: ${plan.type}`);
-  }
-
-  // @ts-expect-error Will be used later
-  async #refreshUsedBalances(balanceEntries: BalanceEntry[]) {
-    for (const balanceEntry of balanceEntries) {
-      switch (balanceEntry.type) {
-        case BALANCE_TYPE.SA:
-        case BALANCE_TYPE.VAULT: {
-          try {
-            const address = await this.#storage.getCurvyAddress(balanceEntry.source);
-
-            await this.#balanceScanner.scanAddressBalances(address);
-          } catch {
-            console.warn("Failed to refresh SA or VAULT address:", balanceEntry.source);
-          }
-          break;
-        }
-        case BALANCE_TYPE.NOTE: {
-          // For now all notes are refreshed
-          break;
-        }
-      }
-    }
-    await this.#balanceScanner.scanNoteBalances();
   }
 
   async executePlan(
