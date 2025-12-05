@@ -55,7 +55,7 @@ class EvmRpc extends Rpc {
     return this.#walletClient;
   }
 
-  async getBalances(stealthAddress: CurvyAddress) {
+  async getBalances(stealthAddress: HexString) {
     const evmMulticall = getContract({
       abi: evmMulticall3Abi,
       address: this.network.multiCallContractAddress as Address,
@@ -69,7 +69,7 @@ class EvmRpc extends Rpc {
           callData: encodeFunctionData({
             abi: evmMulticall3Abi,
             functionName: "getEthBalance",
-            args: [stealthAddress.address as Address],
+            args: [stealthAddress as Address],
           }),
           gasLimit: 30_000n,
         };
@@ -80,7 +80,7 @@ class EvmRpc extends Rpc {
         callData: encodeFunctionData({
           abi: erc20Abi,
           functionName: "balanceOf",
-          args: [stealthAddress.address as Address],
+          args: [stealthAddress as Address],
         }),
         gasLimit: 30_000n,
       };
@@ -136,7 +136,7 @@ class EvmRpc extends Rpc {
       }, Object.create(null));
   }
 
-  async getBalance(stealthAddress: CurvyAddress, symbol: string) {
+  async getBalance(stealthAddress: HexString, symbol: string) {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
@@ -146,14 +146,14 @@ class EvmRpc extends Rpc {
 
     if (nativeCurrency) {
       balance = await getBalance(this.#publicClient, {
-        address: stealthAddress.address as Address,
+        address: stealthAddress as Address,
       });
     } else {
       balance = await readContract(this.#publicClient, {
         address: currencyAddress as Address,
         abi: erc20Abi,
         functionName: "balanceOf",
-        args: [stealthAddress.address as Address],
+        args: [stealthAddress as Address],
       });
     }
 

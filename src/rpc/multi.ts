@@ -1,5 +1,5 @@
 import { NETWORK_FLAVOUR } from "@/constants/networks";
-import type { CurvyAddress, RpcBalances, VaultBalance } from "@/types";
+import { type CurvyAddress, type HexString, isHexString, type RpcBalances, type VaultBalance } from "@/types";
 import type { AbortOptions } from "@/types/helper";
 import { toSlug } from "@/utils/helpers";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
@@ -13,16 +13,18 @@ class MultiRpc {
   }
 
   async getBalances(
-    stealthAddress: CurvyAddress,
-    networks: string[],
+    stealthAddress: HexString | CurvyAddress,
+    networks?: string[],
     { signal }: AbortOptions = {},
   ): Promise<RpcBalances> {
     const rpcs = this.#rpcArray.filter(
       (rpc) =>
-        rpc.network.flavour === stealthAddress.networkFlavour &&
-        (networks.length === 0 || networks.includes(toSlug(rpc.network.name))),
+        (isHexString(stealthAddress) || rpc.network.flavour === stealthAddress.networkFlavour) &&
+        (!networks || networks.length === 0 || networks.includes(toSlug(rpc.network.name))),
     );
-    return Promise.all(rpcs.map((rpc) => rpc.getBalances(stealthAddress))).then((results) => {
+    return Promise.all(
+      rpcs.map((rpc) => rpc.getBalances(isHexString(stealthAddress) ? stealthAddress : stealthAddress.address)),
+    ).then((results) => {
       return Object.assign(Object.create(null), ...results);
     });
   }
