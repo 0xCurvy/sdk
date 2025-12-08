@@ -80,6 +80,11 @@ export const noteDeployerFactoryAbi = [
         name: "note",
         type: "tuple",
       },
+      {
+        internalType: "address",
+        name: "tokenAddress",
+        type: "address",
+      },
     ],
     name: "deployAndBridge",
     outputs: [],
