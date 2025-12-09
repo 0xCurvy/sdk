@@ -93,11 +93,9 @@ export interface StorageInterface {
 
   /**
    * Removes balance entries that have been spent from the storage.
-   * @param type - The type of balance entries to remove ("note" or "address").
    * @param entries - The balance entries to remove.
    */
-  removeSpentBalanceEntries(type: "note", entries: NoteBalanceEntry[]): Promise<void>;
-  removeSpentBalanceEntries(type: "address", entries: (SaBalanceEntry | VaultBalanceEntry)[]): Promise<void>;
+  removeSpentBalanceEntries(entries: BalanceEntry[]): Promise<void>;
 
   /**
    * Gets the total balances grouped by currency and network for the specified wallet.

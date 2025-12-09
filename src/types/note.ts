@@ -136,8 +136,40 @@ class Note {
     return poseidonHash([this.owner.sharedSecret, this.owner.babyJubjubPublicKey.x, this.owner.babyJubjubPublicKey.y]);
   }
 
+  // Sets the shared secret and updates the owner hash accordingly
+  set sharedSecret(sharedSecret: bigint) {
+    if (!this.owner) {
+      throw new Error("Owner is not set");
+    }
+    this.owner.sharedSecret = sharedSecret;
+    this.ownerHash = Note.generateOwnerHash(this.owner);
+  }
+
   static generateOwnerHash(owner: Owner): bigint {
     return poseidonHash([owner.babyJubjubPublicKey.x, owner.babyJubjubPublicKey.y, owner.sharedSecret]);
+  }
+
+  static random(definedParams: Partial<FullNoteData>): Note {
+    return new Note({
+      owner: {
+        babyJubjubPublicKey: {
+          x: "0",
+          y: "0",
+        },
+        sharedSecret: BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`).toString(),
+      },
+      balance: {
+        amount: "0",
+        token: "0",
+      },
+      deliveryTag: {
+        ephemeralKey: bigIntToDecimalString(
+          BigInt(`0x${Buffer.from(crypto.getRandomValues(new Uint8Array(31))).toString("hex")}`),
+        ),
+        viewTag: "0x0",
+      },
+      ...definedParams,
+    });
   }
 
   serializeInputNote(): InputNote {

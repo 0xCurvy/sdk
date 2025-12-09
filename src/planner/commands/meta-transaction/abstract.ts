@@ -4,26 +4,59 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import {
-  BALANCE_TYPE,
   type HexString,
+  isSaBalanceEntry,
+  isVaultBalanceEntry,
+  META_TRANSACTION_NUMERIC_TYPES,
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
-  type Network,
+  type Note,
   type SaBalanceEntry,
   type VaultBalanceEntry,
 } from "@/types";
+import type { DeepNonNullable } from "@/types/helper";
 
-export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
-  protected declare input: SaBalanceEntry | VaultBalanceEntry;
+export interface MetaTransactionCommandEstimate extends CurvyCommandEstimate {
+  estimateId: string;
+}
 
-  protected async signMetaTransaction(
-    to: HexString,
-    amount: bigint,
-    gasFee: bigint,
-    metaTransactionType: MetaTransactionType,
-  ) {
+export interface MetaTransactionCommandEstimateWithNote extends MetaTransactionCommandEstimate {
+  note: Note;
+}
+
+const FEE_DENOMINATOR = 10_000n;
+
+abstract class AbstractMetaTransactionCommand extends CurvyCommand {
+  declare input: DeepNonNullable<SaBalanceEntry | VaultBalanceEntry>;
+  declare estimate: MetaTransactionCommandEstimate;
+
+  protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+    super(id, sdk, input, estimate);
+
+    if (Array.isArray(input)) {
+      throw new Error("Invalid input for command, meta transaction commands only accept single data  input.");
+    }
+    if (!input.vaultTokenId) {
+      throw new Error("Invalid input for command, vaultTokenId is required.");
+    }
+  }
+
+  protected abstract get metaTransactionType(): MetaTransactionType;
+
+  get grossAmount() {
+    return this.input.balance;
+  }
+
+  get toAddress(): HexString {
+    return this.network.aggregatorContractAddress as HexString;
+  }
+
+  protected async signMetaTransaction(to?: HexString) {
+    if (!this.estimate) {
+      throw new Error("Command not estimated.");
+    }
+
     const rpc = this.sdk.rpcClient.Network(this.network.name);
-    // const address = await this.sdk.storage.getCurvyAddress(this.input.source);
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
 
     const nonce = await rpc.provider.readContract({
@@ -32,27 +65,6 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       functionName: "getNonce",
       args: [this.input.source as HexString],
     });
-
-    const tokenId = await rpc.provider.readContract({
-      abi: vaultV1Abi,
-      address: this.network.vaultContractAddress as HexString,
-      functionName: "getTokenId",
-      args: [this.input.currencyAddress as HexString],
-    });
-
-    // TODO: Extract / do this better
-    const typeLookup = {
-      vault_onboard: 2,
-      vault_transfer: 1,
-      vault_deposit_to_aggregator: 1,
-      vault_withdraw: 0,
-    };
-
-    if (!(metaTransactionType in typeLookup)) {
-      throw new Error(
-        `Meta transaction type ${metaTransactionType} is not supported. Supported types are: ${META_TRANSACTION_TYPES.VAULT_ONBOARD}, ${META_TRANSACTION_TYPES.VAULT_TRANSFER}, ${META_TRANSACTION_TYPES.VAULT_WITHDRAW}, ${META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR}`,
-      );
-    }
 
     const account = privateKeyToAccount(privateKey);
 
@@ -78,60 +90,84 @@ export abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       message: {
         nonce,
         from: this.input.source as HexString,
-        to,
-        tokenId: BigInt(tokenId),
-        amount,
-        gasFee,
-        metaTransactionType: typeLookup[metaTransactionType],
+        to: to ?? this.toAddress,
+        tokenId: this.input.vaultTokenId,
+        amount: this.input.balance,
+        gasFee: this.estimate.gasFeeInCurrency,
+        metaTransactionType: META_TRANSACTION_NUMERIC_TYPES[this.metaTransactionType],
       },
     });
   }
-}
 
-// This command automatically sends all available balance from CSUC to Aggregator
-export abstract class AbstractVaultCommand extends AbstractMetaTransactionCommand {
-  protected declare input: VaultBalanceEntry;
+  protected async calculateCurvyFee(): Promise<bigint> {
+    const rpc = this.sdk.rpcClient.Network(this.network.name);
 
-  protected network: Network;
+    const mapMetaTransactionTypeToFeeVariableName = {
+      [META_TRANSACTION_TYPES.VAULT_WITHDRAW]: "withdrawalFee",
+      [META_TRANSACTION_TYPES.VAULT_TRANSFER]: "transferFee",
+      [META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR]: "transferFee",
+      [META_TRANSACTION_TYPES.VAULT_ONBOARD]: "depositFee",
+    } as const;
 
-  protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(id, sdk, input, estimate);
+    const metaTransactionType = this.metaTransactionType;
 
-    if (Array.isArray(input)) {
-      throw new Error("Invalid input for command, CSUC commands only accept one data as input.");
+    if (!(metaTransactionType in mapMetaTransactionTypeToFeeVariableName)) {
+      throw new Error(`Meta transaction type ${this.metaTransactionType} is not supported.`);
     }
 
-    if (input.type !== BALANCE_TYPE.VAULT) {
-      throw new Error("Invalid input for command, CSUC commands only accept CSUC balance type as input.");
-    }
+    const fee = await rpc.provider.readContract({
+      abi: vaultV1Abi,
+      address: this.network.vaultContractAddress as HexString,
+      functionName: mapMetaTransactionTypeToFeeVariableName[metaTransactionType],
+      args: [],
+    });
 
-    this.network = sdk.getNetwork(input.networkSlug);
-
-    if (!this.network.aggregatorContractAddress) {
-      throw new Error("Aggregator contract address not found for network.");
-    }
+    return (this.input.balance * fee) / FEE_DENOMINATOR;
   }
 
-  abstract execute(): Promise<CurvyCommandData | undefined>;
+  protected async calculateGasFee(ownerHash?: bigint) {
+    return this.sdk.apiClient.metaTransaction.EstimateGas({
+      type: this.metaTransactionType,
+      currencyAddress: this.input.currencyAddress,
+      amount: this.input.balance.toString(),
+      fromAddress: this.input.source,
+      toAddress: this.toAddress,
+      network: this.input.networkSlug,
+      ownerHash: ownerHash ? `0x${ownerHash.toString(16)}` : undefined,
+    });
+  }
 
-  abstract estimate(): Promise<CurvyCommandEstimate>;
+  async estimateFees(): Promise<MetaTransactionCommandEstimate> {
+    const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee();
+    const curvyFeeInCurrency = await this.calculateCurvyFee();
+
+    return { gasFeeInCurrency, estimateId, curvyFeeInCurrency };
+  }
 }
 
-export abstract class AbstractStealthAddressCommand extends AbstractMetaTransactionCommand {
-  // SA address that will sign / auth. the action to be executed
-  protected declare input: SaBalanceEntry;
+export abstract class AbstractVaultMetaTransactionCommand extends AbstractMetaTransactionCommand {
+  declare input: DeepNonNullable<VaultBalanceEntry>;
+  declare estimate: MetaTransactionCommandEstimate;
 
-  protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+  constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+    if (Array.isArray(input) || !isVaultBalanceEntry(input)) {
+      throw new Error(
+        "Invalid input for command, VaultMetaTransaction commands only accept Vault balance entry as input.",
+      );
+    }
+
     super(id, sdk, input, estimate);
+  }
+}
 
-    if (Array.isArray(input)) {
-      throw new Error("Invalid input for command, SA commands only accept one data as input.");
+export abstract class AbstractSaMetaTransactionCommand extends AbstractMetaTransactionCommand {
+  declare input: DeepNonNullable<SaBalanceEntry>;
+
+  constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+    if (Array.isArray(input) || !isSaBalanceEntry(input)) {
+      throw new Error("Invalid input for command, SaMetaTransaction commands only accept Sa balance entry as input.");
     }
 
-    if (input.type !== BALANCE_TYPE.SA) {
-      throw new Error("Invalid input for command, SA commands only accept SA balance type as input.");
-    }
-
-    this.network = sdk.getNetwork(input.networkSlug);
+    super(id, sdk, input, estimate);
   }
 }

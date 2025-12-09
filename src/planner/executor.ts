@@ -1,3 +1,4 @@
+import type { StorageInterface } from "@/interfaces";
 import type { IBalanceScanner } from "@/interfaces/balance-scanner";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { ICommandFactory } from "@/planner/commands/factory";
@@ -13,27 +14,27 @@ import type { BalanceEntry } from "@/types";
 export class CommandExecutor {
   private commandFactory: ICommandFactory;
   private eventEmitter: ICurvyEventEmitter;
-  #balanceScanner: IBalanceScanner;
+  readonly #balanceScanner: IBalanceScanner;
+  readonly #storage: StorageInterface;
 
-  constructor(commandFactory: ICommandFactory, eventEmitter: ICurvyEventEmitter, balanceScanner: IBalanceScanner) {
+  constructor(
+    commandFactory: ICommandFactory,
+    eventEmitter: ICurvyEventEmitter,
+    balanceScanner: IBalanceScanner,
+    storage: StorageInterface,
+  ) {
     this.commandFactory = commandFactory;
     this.eventEmitter = eventEmitter;
     this.#balanceScanner = balanceScanner;
+    this.#storage = storage;
   }
 
-  async #walkRecursively(
-    plan: CurvyPlan,
-    input?: CurvyCommandData,
-    dryRun?: boolean,
-    onCommandStarted?: (command: string) => void,
-  ): Promise<CurvyPlanExecution> {
+  async #walkRecursively(plan: CurvyPlan, input?: CurvyCommandData, dryRun?: boolean): Promise<CurvyPlanExecution> {
     // CurvyPlanFlowControl, parallel
     if (plan.type === "parallel") {
       // Parallel plans don't take any input,
       // because that would mean that each of its children is getting the same Address as input
-      const result = await Promise.all(
-        plan.items.map((item) => this.#walkRecursively(item, undefined, dryRun, onCommandStarted)),
-      );
+      const result = await Promise.all(plan.items.map((item) => this.#walkRecursively(item, undefined, dryRun)));
       const success = result.every((r) => r.success);
 
       this.eventEmitter.emitPlanExecutionProgress({ plan, result: { success, items: result } as CurvyPlanExecution });
@@ -44,11 +45,11 @@ export class CommandExecutor {
           items: result,
           estimate: result.reduce(
             (res, { estimate }) => {
-              res.estimate.gas += estimate?.gas || 0n;
-              res.estimate.curvyFee += estimate?.curvyFee || 0n;
+              res.estimate.gasFeeInCurrency += estimate?.gasFeeInCurrency || 0n;
+              res.estimate.curvyFeeInCurrency += estimate?.curvyFeeInCurrency || 0n;
               return res;
             },
-            { estimate: { gas: 0n, curvyFee: 0n } },
+            { estimate: { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n } },
           ).estimate,
           data: result.filter((r) => r.success && r.data !== undefined).map((r) => r.data) as BalanceEntry[],
         };
@@ -70,9 +71,9 @@ export class CommandExecutor {
       }
 
       let data = input;
-      const estimate = { gas: 0n, curvyFee: 0n };
+      const estimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
       for (const item of plan.items) {
-        const result = await this.#walkRecursively(item, data, dryRun, onCommandStarted);
+        const result = await this.#walkRecursively(item, data, dryRun);
 
         results.push(result);
 
@@ -87,8 +88,8 @@ export class CommandExecutor {
 
         // Set the output of current as data of next step
         data = result.data;
-        estimate.gas += result.estimate?.gas || 0n;
-        estimate.curvyFee += result.estimate?.curvyFee || 0n;
+        estimate.gasFeeInCurrency += result.estimate?.gasFeeInCurrency || 0n;
+        estimate.curvyFeeInCurrency += result.estimate?.curvyFeeInCurrency || 0n;
       }
 
       // The output address of the successful serial flow is the last members address.
@@ -111,13 +112,16 @@ export class CommandExecutor {
         let data: CurvyCommandData | undefined;
 
         if (!dryRun) {
-          onCommandStarted?.(plan.name);
           data = await command.execute();
+
+          await this.#storage.removeSpentBalanceEntries(Array.isArray(input) ? input : [input]);
+
           this.eventEmitter.emitPlanCommandExecutionProgress({ commandId: plan.id });
         } else {
-          const { data: estimateData, ...estimate } = await command.estimate();
-          data = estimateData;
-          plan.estimate = estimate;
+          // Not great, but a WAAAAY simpler solution :)
+          command.estimate = await command.estimateFees();
+          data = await command.getResultingBalanceEntry();
+          plan.estimate = command.estimate;
         }
 
         return <CurvyPlanSuccessfulExecution>{
@@ -146,16 +150,19 @@ export class CommandExecutor {
 
   async executePlan(
     plan: CurvyPlan,
-    walletId: string,
-    onCommandStarted?: (command: string) => void,
+    options?: {
+      walletId?: string;
+    },
   ): Promise<CurvyPlanExecution> {
     this.eventEmitter.emitPlanExecutionStarted({ plan });
 
-    this.#balanceScanner.pauseBalanceRefreshForWallet(walletId);
+    this.#balanceScanner.pauseBalanceRefreshForWallet(options?.walletId);
 
-    const result = await this.#walkRecursively(plan, undefined, false, onCommandStarted);
+    const result = await this.#walkRecursively(plan, undefined, false);
 
-    this.#balanceScanner.resumeBalanceRefreshForWallet(walletId);
+    this.#balanceScanner.resumeBalanceRefreshForWallet(options?.walletId);
+
+    // TODO Refresh used balances
 
     if (result.success) {
       this.eventEmitter.emitPlanExecutionComplete({ plan, result });
@@ -191,8 +198,8 @@ export class CommandExecutor {
 
     return {
       plan,
-      gas: planEstimation.estimate.gas,
-      curvyFee: planEstimation.estimate.curvyFee,
+      gas: planEstimation.estimate.gasFeeInCurrency,
+      curvyFee: planEstimation.estimate.curvyFeeInCurrency,
       effectiveAmount: planEstimation.data.balance,
     };
   }

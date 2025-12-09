@@ -18,7 +18,6 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { CommandExecutor } from "@/planner/executor";
-import type { Rpc } from "@/rpc/abstract";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
@@ -88,14 +87,6 @@ class CurvySDK implements ICurvySDK {
     return this.#walletManager;
   }
 
-  getRpcClient(network: NetworkFilter): Rpc {
-    if (!this.#rpcClient) {
-      throw new Error("Rpc client is not initialized!");
-    }
-
-    return this.#rpcClient.Network(network);
-  }
-
   static async init(
     apiKey: string,
     networkFilter: NetworkFilter = undefined,
@@ -123,6 +114,7 @@ class CurvySDK implements ICurvySDK {
     sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(
       sdk.rpcClient,
+      sdk.#state.environment,
       sdk.apiClient,
       sdk.storage,
       sdk.#emitter,
@@ -133,6 +125,7 @@ class CurvySDK implements ICurvySDK {
       commandFactory ?? new CurvyCommandFactory(sdk),
       sdk.#emitter,
       sdk.#balanceScanner,
+      sdk.storage,
     );
 
     return sdk;
@@ -144,7 +137,6 @@ class CurvySDK implements ICurvySDK {
     return new CurvySDK("", core);
   }
 
-  // TODO: Think about calling it just executor
   get commandExecutor() {
     if (!this.#commandExecutor) {
       throw new Error("Command executor is not initialized!");
@@ -194,15 +186,10 @@ class CurvySDK implements ICurvySDK {
     return this.#state.activeNetworks;
   }
 
-  get activeEnvironment() {
-    return this.#state.environment;
-  }
-
   getStealthAddressById(id: string) {
     return this.storage.getCurvyAddressById(id);
   }
 
-  // TODO[@lazartravica]: I reimplemented this on the backend, I need to revert and use this
   getNetwork(networkFilter: NetworkFilter = undefined) {
     const networks = filterNetworks(this.#networks, networkFilter);
 
@@ -376,14 +363,11 @@ class CurvySDK implements ICurvySDK {
       activeNetworks: this.getNetworks(networkFilter),
     };
 
-    if (this.#balanceScanner) this.#balanceScanner.rpcClient = newRpc;
+    if (this.#balanceScanner) {
+      this.#balanceScanner.rpcClient = newRpc;
+      this.#balanceScanner.environment = this.#state.environment;
+    }
   }
-
-  /* TODO: Think about how to handle networks better
-   *       SDK should probably be initialized explicitly with networks and switching should happen among them
-   *       eg. someone only passes mainnet networks, switching to 'testnet' then throws an error or warning
-   *       We could provide some general ready to use filters (eg. starknet networks, evm networks...)
-   */
 
   switchNetworkEnvironment(environment: "mainnet" | "testnet") {
     this.setActiveNetworks(environment === "testnet");
@@ -398,7 +382,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanNoteBalances(walletId, this.#state.environment, options);
+    return await this.#balanceScanner.scanNoteBalances(walletId, options);
   }
 
   async refreshAddressBalances(address: CurvyAddress) {
@@ -420,14 +404,14 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanWalletBalances(walletId, this.#state.environment, { scanAll, ...options });
+    return await this.#balanceScanner.scanWalletBalances(walletId, { scanAll, ...options });
   }
 
   async refreshBalances(scanAll = false, options: RefreshOptions = {}) {
     if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
     for (const wallet of this.walletManager.wallets) {
-      await this.#balanceScanner.scanWalletBalances(wallet.id, this.#state.environment, { scanAll, ...options });
+      await this.#balanceScanner.scanWalletBalances(wallet.id, { scanAll, ...options });
     }
   }
 
