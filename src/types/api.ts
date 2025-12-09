@@ -56,7 +56,7 @@ type Network = {
   tokenMoverContractAddress?: string;
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
-  noteDeployerFactoryContractAddress?: string;
+  airlockFactoryContractAddress?: string;
   nativeCurrency: string | null; // TODO: Why is this string?
   chainId: string;
   blockExplorerUrl: string;
@@ -128,7 +128,7 @@ type GetAnnouncementEncryptedMessageReturnType = {
 //#region Portal
 
 type InsertPortalEntityRequestBody = {
-  noteDeployerAddress: HexString;
+  airlockAddress: HexString;
   viewTag: string;
   ephemeralKey: string;
   ownerHash: string;

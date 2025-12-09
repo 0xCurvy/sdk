@@ -32,7 +32,7 @@ import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
-import { noteDeployerFactoryAbi, poseidonHash } from "./exports";
+import { airlockFactoryAbi, poseidonHash } from "./exports";
 import { deriveAddress } from "./utils/address";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { WalletManager } from "./wallet-manager";
@@ -234,8 +234,8 @@ class CurvySDK implements ICurvySDK {
   async generateNewShieldingAddress(networkIdentifier: NetworkFilter, handle: string) {
     const network = this.getNetwork(networkIdentifier);
 
-    if (!network.noteDeployerFactoryContractAddress) {
-      throw new Error(`Network ${networkIdentifier} does not have a note deployer factory contract address`);
+    if (!network.airlockFactoryContractAddress) {
+      throw new Error(`Network ${networkIdentifier} does not have a airlock factory contract address`);
     }
 
     const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
@@ -263,17 +263,17 @@ class CurvySDK implements ICurvySDK {
 
     if (!ownerHash) throw new Error("Couldn't derive owner hash!");
 
-    const noteDeployerAddress: HexString = await this.rpcClient.Network(networkIdentifier).provider.readContract({
-      address: network.noteDeployerFactoryContractAddress,
-      abi: noteDeployerFactoryAbi,
-      functionName: "getContractAddress",
+    const airlockAddress: HexString = await this.rpcClient.Network(networkIdentifier).provider.readContract({
+      address: network.airlockFactoryContractAddress,
+      abi: airlockFactoryAbi,
+      functionName: "getAirlockAddress",
       args: [ownerHash],
     });
 
-    if (!noteDeployerAddress) throw new Error("Couldn't derive address!");
+    if (!airlockAddress) throw new Error("Couldn't derive address!");
 
     const response = await this.apiClient.portal.InsertPortalEntity({
-      noteDeployerAddress,
+      airlockAddress,
       viewTag,
       ephemeralKey: ephemeralPublicKey,
       ownerHash,
@@ -281,7 +281,7 @@ class CurvySDK implements ICurvySDK {
 
     if (response.data?.message !== "Saved") throw new Error("Failed to register announcement");
 
-    return { address: noteDeployerAddress };
+    return { address: airlockAddress };
   }
 
   async generateNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string) {
