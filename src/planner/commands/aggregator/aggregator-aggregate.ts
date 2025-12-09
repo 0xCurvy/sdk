@@ -1,6 +1,5 @@
 import {
   type AggregationRequest,
-  balanceEntryToNote,
   generateAggregationHash,
   type HexString,
   type InputNote,
@@ -14,7 +13,13 @@ import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstrac
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { Note } from "@/types/note";
 
+interface CurvyCommandEstimateWithNote extends CurvyCommandEstimate {
+  note: Note;
+}
+
 export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
+  declare estimate: CurvyCommandEstimateWithNote;
+
   // If intent is not provided, it means that we are aggregating funds from multiple notes
   // to meet the requirements of main aggregation
   readonly #intent: CurvyIntent | undefined;
@@ -69,23 +74,24 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   }
 
   async estimateFees() {
+    // If we are sending to a curvy name then set the toAddress to that address, otherwise send to us - and we will later withdraw to EOA.
+    let toAddress = this.senderCurvyHandle;
+    if (this.#intent && isValidCurvyHandle(this.#intent.toAddress)) {
+      toAddress = this.#intent.toAddress;
+    }
+    const note = await this.sdk.getNewNoteForUser(toAddress, this.input[0].vaultTokenId, this.netAmount);
+
     return {
       curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n,
       gasFeeInCurrency: 0n,
+      note,
     };
   }
 
-  async getResultingBalanceEntry(executionData?: { mainOutputNote: Note }): Promise<CurvyCommandData> {
+  async getResultingBalanceEntry(): Promise<CurvyCommandData> {
     const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 
-    const mainOutputNote =
-      executionData?.mainOutputNote ??
-      balanceEntryToNote({
-        ...this.input[0],
-        balance: this.netAmount,
-      });
-
-    return noteToBalanceEntry(mainOutputNote, {
+    return noteToBalanceEntry(this.estimate.note, {
       symbol,
       decimals,
       walletId,
@@ -120,16 +126,9 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
         },
       });
     }
-    // If we are sending to a curvy name then set the toAddress to that address, otherwise send to us and we will later to withdraw to EOA.
-    let toAddress = this.senderCurvyHandle;
-    if (this.#intent && isValidCurvyHandle(this.#intent.toAddress)) {
-      toAddress = this.#intent.toAddress;
-    }
-
-    const mainOutputNote = await this.sdk.getNewNoteForUser(toAddress, token, this.netAmount);
 
     const inputNotes = this.inputNotes.map((note) => note.serializeInputNote());
-    const outputNotes = [mainOutputNote, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
+    const outputNotes = [this.estimate.note, changeOrDummyOutputNote].map((note) => note.serializeOutputNote());
 
     const aggregationRequest = await this.#createAggregationRequest(inputNotes, outputNotes);
 
@@ -142,6 +141,6 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       },
     );
 
-    return this.getResultingBalanceEntry({ mainOutputNote });
+    return this.getResultingBalanceEntry();
   }
 }

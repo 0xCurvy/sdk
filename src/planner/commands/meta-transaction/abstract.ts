@@ -10,14 +10,18 @@ import {
   META_TRANSACTION_NUMERIC_TYPES,
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
+  type Note,
   type SaBalanceEntry,
   type VaultBalanceEntry,
 } from "@/types";
 import type { DeepNonNullable } from "@/types/helper";
 
 export interface MetaTransactionCommandEstimate extends CurvyCommandEstimate {
-  sharedSecret?: bigint;
   estimateId: string;
+}
+
+export interface MetaTransactionCommandEstimateWithNote extends MetaTransactionCommandEstimate {
+  note: Note;
 }
 
 const FEE_DENOMINATOR = 10_000n;

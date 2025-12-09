@@ -1,20 +1,16 @@
 import {
   AbstractVaultMetaTransactionCommand,
-  type MetaTransactionCommandEstimate,
+  type MetaTransactionCommandEstimateWithNote,
 } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import {
-  type HexString,
-  META_TRANSACTION_TYPES,
-  type MetaTransactionType,
-  type Note,
-  type NoteBalanceEntry,
-} from "@/types";
+import { type HexString, META_TRANSACTION_TYPES, type MetaTransactionType, type NoteBalanceEntry } from "@/types";
 import { noteToBalanceEntry } from "@/utils";
 import { toSlug } from "@/utils/helpers";
 
 // This command automatically sends all available balance from Vault to Aggregator
 export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactionCommand {
+  declare estimate: MetaTransactionCommandEstimateWithNote;
+
   get name(): string {
     return "VaultDepositToAggregatorCommand";
   }
@@ -23,34 +19,17 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
     return META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR;
   }
 
-  async #createDepositNote() {
-    if (!this.estimate.sharedSecret) {
-      throw new Error("[VaultDepositToAggregatorCommand] Invalid estimate data!");
-    }
-
+  override async estimateFees(): Promise<MetaTransactionCommandEstimateWithNote> {
     const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
-    note.sharedSecret = this.estimate.sharedSecret;
 
-    return note;
-  }
-
-  override async estimateFees(): Promise<MetaTransactionCommandEstimate> {
-    const { ownerHash, owner } = await this.sdk.getNewNoteForUser(
-      this.senderCurvyHandle,
-      this.input.vaultTokenId,
-      this.input.balance,
-    );
-
-    const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee(ownerHash);
+    const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee(note.ownerHash);
     const curvyFeeInCurrency = await this.calculateCurvyFee();
 
-    return { gasFeeInCurrency, estimateId, curvyFeeInCurrency, sharedSecret: owner?.sharedSecret };
+    return { gasFeeInCurrency, estimateId, curvyFeeInCurrency, note };
   }
 
-  async getResultingBalanceEntry(executionData?: { note: Note }): Promise<NoteBalanceEntry> {
-    const _note = executionData?.note ?? (await this.#createDepositNote());
-
-    return noteToBalanceEntry(_note, {
+  async getResultingBalanceEntry(): Promise<NoteBalanceEntry> {
+    return noteToBalanceEntry(this.estimate.note, {
       symbol: this.input.symbol,
       decimals: this.input.decimals,
       walletId: this.input.walletId,
@@ -74,11 +53,9 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
       },
     );
 
-    const note = await this.#createDepositNote();
-
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitDeposit({
       networkSlug: toSlug(this.network.name),
-      outputNotes: [note.serializeOutputNote()],
+      outputNotes: [this.estimate.note.serializeOutputNote()],
       fromAddress: this.input.source,
       networkId: this.network.id,
     });
@@ -90,6 +67,6 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
       },
     );
 
-    return this.getResultingBalanceEntry({ note });
+    return this.getResultingBalanceEntry();
   }
 }

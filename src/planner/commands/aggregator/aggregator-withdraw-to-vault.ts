@@ -1,7 +1,9 @@
+import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import {
   BALANCE_TYPE,
+  type GetStealthAddressReturnType,
   type HexString,
   type InputNote,
   Note,
@@ -11,7 +13,13 @@ import {
 import { generateWithdrawalHash } from "@/utils/aggregator";
 import { toSlug } from "@/utils/helpers";
 
+interface CurvyCommandEstimateWithStealthAddressData extends CurvyCommandEstimate {
+  stealthAddressData: GetStealthAddressReturnType;
+}
+
 export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand {
+  declare estimate: CurvyCommandEstimateWithStealthAddressData;
+
   get name(): string {
     return "AggregatorWithdrawToVaultCommand";
   }
@@ -61,21 +69,25 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     };
   }
 
-  async estimateFees() {
+  async estimateFees(): Promise<CurvyCommandEstimateWithStealthAddressData> {
     return {
       curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.withdrawCircuitConfig!.groupFee)) / 1000n,
       gasFeeInCurrency: 0n,
+      stealthAddressData: await this.sdk.generateNewStealthAddressForUser(
+        toSlug(this.network.name),
+        this.senderCurvyHandle,
+      ),
     };
   }
 
-  async getResultingBalanceEntry({ address }: { address: HexString }) {
+  async getResultingBalanceEntry() {
     const { networkSlug, environment, symbol, lastUpdated, currencyAddress, vaultTokenId, decimals, walletId } =
       this.input[0];
 
     return {
       type: BALANCE_TYPE.VAULT,
       walletId,
-      source: address,
+      source: this.estimate.stealthAddressData.address,
       vaultTokenId: vaultTokenId,
       networkSlug,
       environment,
@@ -88,9 +100,8 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
   }
 
   async execute(): Promise<CurvyCommandData> {
-    const { address, announcementData } = await this.sdk.generateAndRegisterNewStealthAddressForUser(
-      toSlug(this.network.name),
-      this.senderCurvyHandle,
+    const { address, announcementData } = await this.sdk.registerStealthAddressForUser(
+      this.estimate.stealthAddressData,
     );
 
     await this.sdk.storage.storeCurvyAddress({
@@ -114,6 +125,6 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
       },
     );
 
-    return this.getResultingBalanceEntry({ address });
+    return this.getResultingBalanceEntry();
   }
 }
