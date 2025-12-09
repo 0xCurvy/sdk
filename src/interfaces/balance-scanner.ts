@@ -1,11 +1,9 @@
 import type { MultiRpc } from "@/rpc/multi";
 import type { BalanceEntry, CurvyAddress } from "@/types";
-import type { NETWORK_ENVIRONMENT_VALUES } from "../constants/networks";
 
 interface IBalanceScanner {
   scanWalletBalances(
-    walletId: string,
-    environment: NETWORK_ENVIRONMENT_VALUES,
+    walletId?: string,
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
     },
@@ -18,14 +16,10 @@ interface IBalanceScanner {
     },
   ): Promise<void>;
 
-  scanNoteBalances(
-    walletId: string,
-    environment: NETWORK_ENVIRONMENT_VALUES,
-    options?: { onProgress?: (entries: BalanceEntry[]) => void },
-  ): Promise<void>;
+  scanNoteBalances(walletId?: string, options?: { onProgress?: (entries: BalanceEntry[]) => void }): Promise<void>;
 
-  pauseBalanceRefreshForWallet(walletId: string): void;
-  resumeBalanceRefreshForWallet(walletId: string): void;
+  pauseBalanceRefreshForWallet(walletId?: string): void;
+  resumeBalanceRefreshForWallet(walletId?: string): void;
 
   get rpcClient(): MultiRpc;
   set rpcClient(value: MultiRpc);

@@ -29,19 +29,12 @@ export class CommandExecutor {
     this.#storage = storage;
   }
 
-  async #walkRecursively(
-    plan: CurvyPlan,
-    input?: CurvyCommandData,
-    dryRun?: boolean,
-    onCommandStarted?: (command: string) => void,
-  ): Promise<CurvyPlanExecution> {
+  async #walkRecursively(plan: CurvyPlan, input?: CurvyCommandData, dryRun?: boolean): Promise<CurvyPlanExecution> {
     // CurvyPlanFlowControl, parallel
     if (plan.type === "parallel") {
       // Parallel plans don't take any input,
       // because that would mean that each of its children is getting the same Address as input
-      const result = await Promise.all(
-        plan.items.map((item) => this.#walkRecursively(item, undefined, dryRun, onCommandStarted)),
-      );
+      const result = await Promise.all(plan.items.map((item) => this.#walkRecursively(item, undefined, dryRun)));
       const success = result.every((r) => r.success);
 
       this.eventEmitter.emitPlanExecutionProgress({ plan, result: { success, items: result } as CurvyPlanExecution });
@@ -80,7 +73,7 @@ export class CommandExecutor {
       let data = input;
       const estimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
       for (const item of plan.items) {
-        const result = await this.#walkRecursively(item, data, dryRun, onCommandStarted);
+        const result = await this.#walkRecursively(item, data, dryRun);
 
         results.push(result);
 
@@ -119,7 +112,6 @@ export class CommandExecutor {
         let data: CurvyCommandData | undefined;
 
         if (!dryRun) {
-          onCommandStarted?.(plan.name);
           data = await command.execute();
 
           await this.#storage.removeSpentBalanceEntries(Array.isArray(input) ? input : [input]);
@@ -158,16 +150,19 @@ export class CommandExecutor {
 
   async executePlan(
     plan: CurvyPlan,
-    walletId: string,
-    onCommandStarted?: (command: string) => void,
+    options?: {
+      walletId?: string;
+    },
   ): Promise<CurvyPlanExecution> {
     this.eventEmitter.emitPlanExecutionStarted({ plan });
 
-    this.#balanceScanner.pauseBalanceRefreshForWallet(walletId);
+    this.#balanceScanner.pauseBalanceRefreshForWallet(options?.walletId);
 
-    const result = await this.#walkRecursively(plan, undefined, false, onCommandStarted);
+    const result = await this.#walkRecursively(plan, undefined, false);
 
-    this.#balanceScanner.resumeBalanceRefreshForWallet(walletId);
+    this.#balanceScanner.resumeBalanceRefreshForWallet(options?.walletId);
+
+    // TODO Refresh used balances
 
     if (result.success) {
       this.eventEmitter.emitPlanExecutionComplete({ plan, result });

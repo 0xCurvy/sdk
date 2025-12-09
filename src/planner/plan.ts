@@ -1,6 +1,5 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import type { BalanceEntry } from "@/types";
-import type { Currency, Network } from "@/types/api";
+import type { BalanceEntry, Currency, Network } from "@/types";
 import type { CurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 
