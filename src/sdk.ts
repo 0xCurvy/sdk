@@ -234,7 +234,6 @@ class CurvySDK implements ICurvySDK {
   async generateNewShieldingAddress(networkIdentifier: NetworkFilter, handle: string) {
     const network = this.getNetwork(networkIdentifier);
 
-    console.log(network);
     if (!network.noteDeployerFactoryContractAddress) {
       throw new Error(`Network ${networkIdentifier} does not have a note deployer factory contract address`);
     }
