@@ -266,7 +266,7 @@ class CurvySDK implements ICurvySDK {
     const airlockAddress: HexString = await this.rpcClient.Network(networkIdentifier).provider.readContract({
       address: network.airlockFactoryContractAddress,
       abi: airlockFactoryAbi,
-      functionName: "getAirlockAddress",
+      functionName: "getContractAddress",
       args: [ownerHash],
     });
 
