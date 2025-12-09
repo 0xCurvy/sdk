@@ -18,7 +18,6 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { CommandExecutor } from "@/planner/executor";
-import type { Rpc } from "@/rpc/abstract";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
@@ -89,14 +88,6 @@ class CurvySDK implements ICurvySDK {
     return this.#walletManager;
   }
 
-  getRpcClient(network: NetworkFilter): Rpc {
-    if (!this.#rpcClient) {
-      throw new Error("Rpc client is not initialized!");
-    }
-
-    return this.#rpcClient.Network(network);
-  }
-
   static async init(
     apiKey: string,
     networkFilter: NetworkFilter = undefined,
@@ -124,6 +115,7 @@ class CurvySDK implements ICurvySDK {
     sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(
       sdk.rpcClient,
+      sdk.#state.environment,
       sdk.apiClient,
       sdk.storage,
       sdk.#emitter,
@@ -193,10 +185,6 @@ class CurvySDK implements ICurvySDK {
 
   get activeNetworks() {
     return this.#state.activeNetworks;
-  }
-
-  get activeEnvironment() {
-    return this.#state.environment;
   }
 
   getStealthAddressById(id: string) {
@@ -429,7 +417,10 @@ class CurvySDK implements ICurvySDK {
       activeNetworks: this.getNetworks(networkFilter),
     };
 
-    if (this.#balanceScanner) this.#balanceScanner.rpcClient = newRpc;
+    if (this.#balanceScanner) {
+      this.#balanceScanner.rpcClient = newRpc;
+      this.#balanceScanner.environment = this.#state.environment;
+    }
   }
 
   switchNetworkEnvironment(environment: "mainnet" | "testnet") {
@@ -445,7 +436,7 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanNoteBalances(walletId, this.#state.environment, options);
+    return await this.#balanceScanner.scanNoteBalances(walletId, options);
   }
 
   async refreshAddressBalances(address: CurvyAddress) {
@@ -467,14 +458,14 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Balance scanner not initialized!");
     }
 
-    return await this.#balanceScanner.scanWalletBalances(walletId, this.#state.environment, { scanAll, ...options });
+    return await this.#balanceScanner.scanWalletBalances(walletId, { scanAll, ...options });
   }
 
   async refreshBalances(scanAll = false, options: RefreshOptions = {}) {
     if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
     for (const wallet of this.walletManager.wallets) {
-      await this.#balanceScanner.scanWalletBalances(wallet.id, this.#state.environment, { scanAll, ...options });
+      await this.#balanceScanner.scanWalletBalances(wallet.id, { scanAll, ...options });
     }
   }
 

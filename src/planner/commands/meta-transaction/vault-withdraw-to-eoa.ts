@@ -25,7 +25,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
     super(id, sdk, input, estimate);
 
     if (!isHexString(intent.toAddress)) {
-      throw new Error("CSUCWithdrawFromCommand: toAddress MUST be a hex string address");
+      throw new Error(`${this.name}: toAddress MUST be a hex string address`);
     }
 
     this.#intent = intent;
@@ -43,16 +43,21 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
     return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
   }
 
-  async getCommandResult() {
+  override get toAddress(): HexString {
+    return this.intent.toAddress as HexString;
+  }
+
+  async getResultingBalanceEntry() {
     return {
       ...this.input,
+      balance: this.netAmount,
       type: BALANCE_TYPE.SA,
       createdAt: new Date().toISOString(),
     } satisfies SaBalanceEntry;
   }
 
   async execute(): Promise<CurvyCommandData | undefined> {
-    const { estimateId: id } = this.estimateData;
+    const { estimateId: id } = this.estimate;
 
     const signature = await this.signMetaTransaction(this.intent.toAddress as HexString);
 
@@ -66,6 +71,6 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
       },
     );
 
-    return this.getCommandResult();
+    return this.getResultingBalanceEntry();
   }
 }

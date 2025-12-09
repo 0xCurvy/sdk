@@ -1,69 +1,38 @@
 import { privateKeyToAccount } from "viem/accounts";
 import { vaultV1Abi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
-import { VaultWithdrawToEOACommand } from "@/planner/commands";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import {
-  BALANCE_TYPE,
-  type BalanceEntry,
   type HexString,
+  isSaBalanceEntry,
+  isVaultBalanceEntry,
   META_TRANSACTION_NUMERIC_TYPES,
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
+  type Note,
   type SaBalanceEntry,
   type VaultBalanceEntry,
 } from "@/types";
 import type { DeepNonNullable } from "@/types/helper";
 
-interface MetaTransactionCommandEstimate extends CurvyCommandEstimate {
-  sharedSecret?: bigint;
+export interface MetaTransactionCommandEstimate extends CurvyCommandEstimate {
   estimateId: string;
+}
+
+export interface MetaTransactionCommandEstimateWithNote extends MetaTransactionCommandEstimate {
+  note: Note;
 }
 
 const FEE_DENOMINATOR = 10_000n;
 
 abstract class AbstractMetaTransactionCommand extends CurvyCommand {
-  protected declare input: DeepNonNullable<BalanceEntry>;
+  declare input: DeepNonNullable<SaBalanceEntry | VaultBalanceEntry>;
+  declare estimate: MetaTransactionCommandEstimate;
 
   protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
-    this.validateInput(this.input);
-  }
 
-  protected abstract get metaTransactionType(): MetaTransactionType;
-  override get estimateData(): MetaTransactionCommandEstimate {
-    return super.estimateData as MetaTransactionCommandEstimate;
-  }
-
-  get grossAmount() {
-    return this.input.balance;
-  }
-
-  #needsOwnerHashInEstimate() {
-    switch (this.metaTransactionType) {
-      case META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR:
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  #getToAddress(): HexString {
-    switch (this.metaTransactionType) {
-      case META_TRANSACTION_TYPES.VAULT_WITHDRAW: {
-        if (!(this instanceof VaultWithdrawToEOACommand)) {
-          throw new Error("Invalid command type for meta transaction type VAULT_WITHDRAW");
-        }
-
-        return this.intent.toAddress as HexString;
-      }
-      default:
-        return this.network.aggregatorContractAddress as HexString;
-    }
-  }
-
-  protected validateInput(input: CurvyCommandData): asserts input is SaBalanceEntry | VaultBalanceEntry {
     if (Array.isArray(input)) {
       throw new Error("Invalid input for command, meta transaction commands only accept single data  input.");
     }
@@ -72,8 +41,18 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     }
   }
 
+  protected abstract get metaTransactionType(): MetaTransactionType;
+
+  get grossAmount() {
+    return this.input.balance;
+  }
+
+  get toAddress(): HexString {
+    return this.network.aggregatorContractAddress as HexString;
+  }
+
   protected async signMetaTransaction(to?: HexString) {
-    if (!this.estimateData) {
+    if (!this.estimate) {
       throw new Error("Command not estimated.");
     }
 
@@ -111,10 +90,10 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       message: {
         nonce,
         from: this.input.source as HexString,
-        to: to ?? this.#getToAddress(),
+        to: to ?? this.toAddress,
         tokenId: this.input.vaultTokenId,
         amount: this.input.balance,
-        gasFee: this.estimateData.gasFeeInCurrency,
+        gasFee: this.estimate.gasFeeInCurrency,
         metaTransactionType: META_TRANSACTION_NUMERIC_TYPES[this.metaTransactionType],
       },
     });
@@ -152,26 +131,13 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       currencyAddress: this.input.currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,
-      toAddress: this.#getToAddress(),
+      toAddress: this.toAddress,
       network: this.input.networkSlug,
       ownerHash: ownerHash ? `0x${ownerHash.toString(16)}` : undefined,
     });
   }
 
   async estimateFees(): Promise<MetaTransactionCommandEstimate> {
-    if (this.#needsOwnerHashInEstimate()) {
-      const { ownerHash, owner } = await this.sdk.getNewNoteForUser(
-        this.senderCurvyHandle,
-        this.input.vaultTokenId,
-        this.input.balance,
-      );
-
-      const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee(ownerHash);
-      const curvyFeeInCurrency = await this.calculateCurvyFee();
-
-      return { gasFeeInCurrency, estimateId, curvyFeeInCurrency, sharedSecret: owner?.sharedSecret };
-    }
-
     const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee();
     const curvyFeeInCurrency = await this.calculateCurvyFee();
 
@@ -181,17 +147,16 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
 
 export abstract class AbstractVaultMetaTransactionCommand extends AbstractMetaTransactionCommand {
   declare input: DeepNonNullable<VaultBalanceEntry>;
+  declare estimate: MetaTransactionCommandEstimate;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(id, sdk, input, estimate);
-    this.validateInput(this.input);
-  }
-
-  protected override validateInput(input: BalanceEntry): asserts input is VaultBalanceEntry {
-    if (input.type !== BALANCE_TYPE.VAULT)
+    if (Array.isArray(input) || !isVaultBalanceEntry(input)) {
       throw new Error(
         "Invalid input for command, VaultMetaTransaction commands only accept Vault balance entry as input.",
       );
+    }
+
+    super(id, sdk, input, estimate);
   }
 }
 
@@ -199,12 +164,10 @@ export abstract class AbstractSaMetaTransactionCommand extends AbstractMetaTrans
   declare input: DeepNonNullable<SaBalanceEntry>;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(id, sdk, input, estimate);
-    this.validateInput(this.input);
-  }
-
-  protected override validateInput(input: BalanceEntry): asserts input is VaultBalanceEntry {
-    if (input.type !== BALANCE_TYPE.SA)
+    if (Array.isArray(input) || !isSaBalanceEntry(input)) {
       throw new Error("Invalid input for command, SaMetaTransaction commands only accept Sa balance entry as input.");
+    }
+
+    super(id, sdk, input, estimate);
   }
 }

@@ -31,7 +31,7 @@ const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
 
   const estimation = await executor.estimatePlan(plan);
 
-  const result = await executor.executePlan(estimation.plan, curvySDK.walletManager.activeWallet.id);
+  const result = await executor.executePlan(estimation.plan);
 
   return result.success;
 };
@@ -97,7 +97,8 @@ async function setup() {
 
 test("Inclusion proof bug", async () => {
   await setup();
-  const to = "devenv1.local-curvy.name";
+  // const to = "devenv1.local-curvy.name";
+  const to = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
   const amount1 = parseDecimal("330", currency!);
 
   const intent1: CurvyIntent = {

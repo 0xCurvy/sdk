@@ -11,22 +11,9 @@ interface ClientCommandEstimate extends CurvyCommandEstimate {
 
 export abstract class AbstractClientCommand extends CurvyCommand {
   declare input: DeepNonNullable<SaBalanceEntry>;
+  declare estimate: ClientCommandEstimate;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
-    super(id, sdk, input, estimate);
-
-    this.validateInput(this.input);
-  }
-
-  override get estimateData(): ClientCommandEstimate {
-    return super.estimateData as ClientCommandEstimate;
-  }
-
-  get grossAmount(): bigint {
-    return this.input.balance;
-  }
-
-  validateInput(input: CurvyCommandData): asserts input is SaBalanceEntry {
     if (Array.isArray(input)) {
       throw new Error("Invalid input for command, SA commands only accept one data as input.");
     }
@@ -38,5 +25,11 @@ export abstract class AbstractClientCommand extends CurvyCommand {
     if (!input.vaultTokenId) {
       throw new Error("Invalid input for command, vaultTokenId is required.");
     }
+
+    super(id, sdk, input, estimate);
+  }
+
+  get grossAmount(): bigint {
+    return this.input.balance;
   }
 }

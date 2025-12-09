@@ -19,12 +19,12 @@ export class VaultOnboardCommand extends AbstractSaMetaTransactionCommand {
     return META_TRANSACTION_TYPES.VAULT_ONBOARD;
   }
 
-  async getCommandResult(): Promise<VaultBalanceEntry> {
+  async getResultingBalanceEntry(): Promise<VaultBalanceEntry> {
     const { createdAt: _, ...inputData } = this.input;
 
     return {
       ...inputData,
-      balance: await this.getNetAmount(),
+      balance: await this.netAmount,
       type: BALANCE_TYPE.VAULT,
     } satisfies VaultBalanceEntry;
   }
@@ -32,7 +32,7 @@ export class VaultOnboardCommand extends AbstractSaMetaTransactionCommand {
   async execute(): Promise<CurvyCommandData> {
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
 
-    const { estimateId: id } = this.estimateData;
+    const { estimateId: id } = this.estimate;
 
     const signedAuthorization = await this.rpc.walletClient.signAuthorization({
       account: privateKeyToAccount(privateKey),
@@ -52,6 +52,6 @@ export class VaultOnboardCommand extends AbstractSaMetaTransactionCommand {
       },
     );
 
-    return this.getCommandResult();
+    return this.getResultingBalanceEntry();
   }
 }
