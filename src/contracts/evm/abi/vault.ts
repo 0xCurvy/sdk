@@ -1,4 +1,4 @@
-export const vaultV1Abi = [
+export const vaultAbi = [
   {
     inputs: [],
     stateMutability: "nonpayable",
@@ -60,12 +60,58 @@ export const vaultV1Abi = [
   },
   {
     inputs: [],
+    name: "ETHTransferFailed",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "FailedCall",
     type: "error",
   },
   {
     inputs: [],
+    name: "InsufficientAmountForGas",
+    type: "error",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "balance",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "required",
+        type: "uint256",
+      },
+    ],
+    name: "InsufficientBalance",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidGasSponsorship",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "InvalidInitialization",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidRecipient",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidSender",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidTransactionType",
     type: "error",
   },
   {
@@ -104,6 +150,11 @@ export const vaultV1Abi = [
       },
     ],
     name: "SafeERC20FailedOperation",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "TokenNotRegistered",
     type: "error",
   },
   {
@@ -341,7 +392,7 @@ export const vaultV1Abi = [
       },
       {
         internalType: "uint256",
-        name: "gasFee",
+        name: "gasSponsorshipAmount",
         type: "uint256",
       },
     ],

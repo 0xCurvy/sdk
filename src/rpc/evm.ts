@@ -15,7 +15,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
-import { vaultV1Abi } from "@/contracts/evm/abi/vault";
+import { vaultAbi } from "@/contracts/evm/abi/vault";
 import { Rpc } from "@/rpc/abstract";
 import type { RpcBalance, RpcBalances, VaultBalance } from "@/types";
 import type { CurvyAddress } from "@/types/address";
@@ -275,7 +275,7 @@ class EvmRpc extends Rpc {
     const currencyIds = vaultEnabledCurrencies.map(({ vaultTokenId }) => BigInt(vaultTokenId!));
 
     const balances = await this.provider.readContract({
-      abi: vaultV1Abi,
+      abi: vaultAbi,
       address: this.network.vaultContractAddress as Address,
       functionName: "balanceOfBatch",
       args: [new Array(currencyIds.length).fill(address as Address), currencyIds],

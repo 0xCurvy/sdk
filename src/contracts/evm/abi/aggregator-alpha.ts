@@ -1,4 +1,4 @@
-export const aggregatorAlphaV1Abi = [
+export const aggregatorAlphaAbi = [
   {
     inputs: [],
     stateMutability: "nonpayable",

@@ -166,11 +166,11 @@ type RegisterCurvyHandleRequestBody = {
 };
 type RegisterCurvyHandleReturnType =
   | {
-    message?: string;
-  }
+      message?: string;
+    }
   | {
-    error?: string;
-  };
+      error?: string;
+    };
 type ResolveCurvyHandleReturnType = {
   data: {
     createdAt: string;
@@ -196,14 +196,14 @@ type SetBabyJubjubPublicKeyRequestBody = {
 
 type SetBabyJubjubPublicKeyReturnType =
   | {
-    data: {
-      message: string;
-    };
-    error: null;
-  }
+      data: {
+        message: string;
+      };
+      error: null;
+    }
   | {
-    error?: string;
-  };
+      error?: string;
+    };
 
 //#endregion
 

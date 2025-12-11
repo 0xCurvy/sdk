@@ -6,6 +6,21 @@ export const airlockFactoryAbi = [
         name: "initialOwner",
         type: "address",
       },
+      {
+        internalType: "address",
+        name: "curvyVaultProxyAddress",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "curvyAggregatorAlphaProxyAddress",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "lifiDiamondAddress",
+        type: "address",
+      },
     ],
     stateMutability: "nonpayable",
     type: "constructor",
@@ -142,7 +157,7 @@ export const airlockFactoryAbi = [
         type: "uint256",
       },
     ],
-    name: "getContractAddress",
+    name: "getAirlockAddress",
     outputs: [
       {
         internalType: "address",
@@ -208,29 +223,12 @@ export const airlockFactoryAbi = [
   {
     inputs: [
       {
-        components: [
-          {
-            internalType: "address",
-            name: "curvyVaultProxyAddress",
-            type: "address",
-          },
-          {
-            internalType: "address",
-            name: "curvyAggregatorAlphaProxyAddress",
-            type: "address",
-          },
-          {
-            internalType: "address",
-            name: "lifiDiamondAddress",
-            type: "address",
-          },
-        ],
-        internalType: "struct CurvyTypes.AirlockFactoryConfigurationUpdate",
-        name: "_update",
-        type: "tuple",
+        internalType: "address",
+        name: "lifiDiamondAddress",
+        type: "address",
       },
     ],
-    name: "updateConfig",
+    name: "updateLifiDiamondAddress",
     outputs: [
       {
         internalType: "bool",
