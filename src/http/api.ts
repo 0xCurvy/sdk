@@ -3,8 +3,6 @@ import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
 import type {
   GetMetaTransactionStatusReturnType,
-  InsertPortalEntityRequestBody,
-  InsertPortalEntityReturnType,
   MetaTransactionEstimationRequestBody,
   MetaTransactionSubmitBody,
   SubmitNoteOwnershipProofReturnType,
@@ -72,16 +70,6 @@ class ApiClient extends HttpClient implements IApiClient {
       return await this.request<GetAnnouncementEncryptedMessageReturnType>({
         method: "GET",
         path: `/announcement/${id}/encryptedMessage`,
-      });
-    },
-  };
-
-  portal = {
-    InsertPortalEntity: async (body: InsertPortalEntityRequestBody) => {
-      return await this.request<InsertPortalEntityReturnType>({
-        method: "POST",
-        path: "/portal/insert",
-        body,
       });
     },
   };

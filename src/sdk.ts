@@ -31,7 +31,6 @@ import { arrayBufferToHex, toSlug } from "@/utils/helpers";
 import { getSignatureParams as evmGetSignatureParams } from "./constants/evm";
 import { getSignatureParams as starknetGetSignatureParams } from "./constants/starknet";
 import { Core } from "./core";
-import { airlockFactoryAbi, poseidonHash } from "./exports";
 import { deriveAddress } from "./utils/address";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { WalletManager } from "./wallet-manager";
@@ -217,59 +216,6 @@ class CurvySDK implements ICurvySDK {
     }
 
     return networks[0];
-  }
-
-  async generateNewShieldingAddress(networkIdentifier: NetworkFilter, handle: string) {
-    const network = this.getNetwork(networkIdentifier);
-
-    if (!network.airlockFactoryContractAddress) {
-      throw new Error(`Network ${networkIdentifier} does not have a airlock factory contract address`);
-    }
-
-    const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
-
-    if (!recipientDetails) {
-      throw new Error(`Handle ${handle} not found`);
-    }
-
-    const { spendingKey, viewingKey, babyJubjubPublicKey } = recipientDetails.publicKeys;
-
-    const {
-      spendingPubKey: recipientStealthPublicKey,
-      R: ephemeralPublicKey,
-      viewTag,
-    } = await this.#core.send(spendingKey, viewingKey);
-
-    // Calculate ownerHash from sharedSecret and babyJubjubPublicKey
-    let ownerHash: string | undefined;
-    if (babyJubjubPublicKey && recipientStealthPublicKey) {
-      const [bjjX, bjjY] = babyJubjubPublicKey.split(".");
-      const sharedSecret = recipientStealthPublicKey.split(".")[0]; // Extract first component
-
-      ownerHash = poseidonHash([BigInt(bjjX), BigInt(bjjY), BigInt(sharedSecret)]).toString();
-    }
-
-    if (!ownerHash) throw new Error("Couldn't derive owner hash!");
-
-    const airlockAddress: HexString = await this.rpcClient.Network(networkIdentifier).provider.readContract({
-      address: network.airlockFactoryContractAddress,
-      abi: airlockFactoryAbi,
-      functionName: "getContractAddress",
-      args: [ownerHash],
-    });
-
-    if (!airlockAddress) throw new Error("Couldn't derive address!");
-
-    const response = await this.apiClient.portal.InsertPortalEntity({
-      airlockAddress,
-      viewTag,
-      ephemeralKey: ephemeralPublicKey,
-      ownerHash,
-    });
-
-    if (response.data?.message !== "Saved") throw new Error("Failed to register announcement");
-
-    return { address: airlockAddress };
   }
 
   async generateNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: string) {

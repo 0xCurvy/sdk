@@ -125,24 +125,6 @@ type GetAnnouncementEncryptedMessageReturnType = {
 
 //#endregion
 
-//#region Portal
-
-type InsertPortalEntityRequestBody = {
-  airlockAddress: HexString;
-  viewTag: string;
-  ephemeralKey: string;
-  ownerHash: string;
-};
-type InsertPortalEntityReturnType = {
-  data?: {
-    id: string;
-    message: string;
-  };
-  error?: string | null;
-};
-
-//#endregion
-
 //#region Network
 
 type NetworksWithCurrenciesResponse = {
@@ -283,8 +265,6 @@ export type {
   SetBabyJubjubPublicKeyRequestBody,
   SetBabyJubjubPublicKeyReturnType,
   SubmitNoteOwnershipProofReturnType,
-  InsertPortalEntityRequestBody,
-  InsertPortalEntityReturnType,
 };
 
 //#endregion
