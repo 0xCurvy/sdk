@@ -9,6 +9,7 @@ import type { MultiRpc } from "@/rpc/multi";
 import {
   BALANCE_TYPE,
   type CurvyAddress,
+  type HexString,
   type Network,
   type NoteBalanceEntry,
   type RefreshOptions,
@@ -98,7 +99,7 @@ export class BalanceScanner implements IBalanceScanner {
 
       for (const networkSlug in saData) {
         for (const currencyAddress in saData[networkSlug]) {
-          const balanceData = saData[networkSlug][currencyAddress];
+          const balanceData = saData[networkSlug][currencyAddress as HexString];
 
           if (!balanceData) continue;
 

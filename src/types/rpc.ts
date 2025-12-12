@@ -32,7 +32,7 @@ type RpcCallReturnType = {
 
 type RpcBalance = {
   balance: bigint;
-  currencyAddress: string;
+  currencyAddress: HexString;
   vaultTokenId: bigint | null;
   symbol: string;
   decimals: number;

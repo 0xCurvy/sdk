@@ -1,24 +1,9 @@
-export const airlockFactoryAbi = [
+export const portalFactoryAbi = [
   {
     inputs: [
       {
         internalType: "address",
         name: "initialOwner",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "curvyVaultProxyAddress",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "curvyAggregatorAlphaProxyAddress",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "lifiDiamondAddress",
         type: "address",
       },
     ],
@@ -65,19 +50,6 @@ export const airlockFactoryAbi = [
     ],
     name: "OwnershipTransferred",
     type: "event",
-  },
-  {
-    inputs: [],
-    name: "airlock",
-    outputs: [
-      {
-        internalType: "contract IAirlock",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
   },
   {
     inputs: [
@@ -157,7 +129,26 @@ export const airlockFactoryAbi = [
         type: "uint256",
       },
     ],
-    name: "getAirlockAddress",
+    name: "getCreationCode",
+    outputs: [
+      {
+        internalType: "bytes",
+        name: "",
+        type: "bytes",
+      },
+    ],
+    stateMutability: "pure",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "ownerHash",
+        type: "uint256",
+      },
+    ],
+    name: "getPortalAddress",
     outputs: [
       {
         internalType: "address",
@@ -171,20 +162,30 @@ export const airlockFactoryAbi = [
   {
     inputs: [
       {
-        internalType: "uint256",
-        name: "ownerHash",
-        type: "uint256",
+        internalType: "address",
+        name: "curvyVaultProxyAddress",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "curvyAggregatorAlphaProxyAddress",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "lifiDiamondAddress",
+        type: "address",
       },
     ],
-    name: "getCreationCode",
+    name: "initializeConfig",
     outputs: [
       {
-        internalType: "bytes",
+        internalType: "bool",
         name: "",
-        type: "bytes",
+        type: "bool",
       },
     ],
-    stateMutability: "pure",
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
