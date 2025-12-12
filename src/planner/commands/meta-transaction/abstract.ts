@@ -1,5 +1,5 @@
 import { privateKeyToAccount } from "viem/accounts";
-import { vaultV1Abi } from "@/contracts/evm/abi";
+import { vaultAbi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
@@ -60,7 +60,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
 
     const nonce = await rpc.provider.readContract({
-      abi: vaultV1Abi,
+      abi: vaultAbi,
       address: this.network.vaultContractAddress as HexString,
       functionName: "getNonce",
       args: [this.input.source as HexString],
@@ -116,7 +116,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     }
 
     const fee = await rpc.provider.readContract({
-      abi: vaultV1Abi,
+      abi: vaultAbi,
       address: this.network.vaultContractAddress as HexString,
       functionName: mapMetaTransactionTypeToFeeVariableName[metaTransactionType],
       args: [],

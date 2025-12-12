@@ -1,6 +1,6 @@
 import type { EstimateFee, GetTransactionReceiptResponse as StarknetTransactionReceipt } from "starknet";
 import type { TransactionReceipt as EvmTransactionReceipt } from "viem";
-import type { NETWORK_ENVIRONMENT_VALUES, NETWORKS, TOKENS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES, NETWORKS } from "@/constants/networks";
 import type { RawAnnouncement } from "@/types/api";
 import type { HexString } from "@/types/helper";
 
@@ -32,31 +32,14 @@ type RpcCallReturnType = {
 
 type RpcBalance = {
   balance: bigint;
-  currencyAddress: string;
+  currencyAddress: HexString;
   vaultTokenId: bigint | null;
   symbol: string;
   decimals: number;
   environment: NETWORK_ENVIRONMENT_VALUES;
 };
 
-type RpcBalances = Partial<
-  Record<
-    NETWORKS,
-    Partial<
-      Record<
-        TOKENS,
-        {
-          balance: bigint;
-          currencyAddress: string;
-          vaultTokenId: bigint | null;
-          symbol: string;
-          decimals: number;
-          environment: NETWORK_ENVIRONMENT_VALUES;
-        }
-      >
-    >
-  >
->;
+type RpcBalances = Partial<Record<NETWORKS, Partial<Record<HexString, RpcBalance>>>>;
 
 type VaultBalance = {
   network: string;

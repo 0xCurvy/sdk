@@ -1,4 +1,5 @@
-export { aggregatorAlphaV1Abi } from "./aggregator-alpha";
+export { aggregatorAlphaAbi } from "./aggregator-alpha";
 export { evmMulticall3Abi } from "./multicall3";
+export { portalFactoryAbi } from "./portal-factory";
 export { tokenMoverAbi } from "./token-mover";
-export { vaultV1Abi } from "./vault";
+export { vaultAbi } from "./vault";

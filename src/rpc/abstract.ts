@@ -18,9 +18,9 @@ abstract class Rpc {
   // biome-ignore lint/suspicious/noExplicitAny: Different networks have different provider types
   abstract get provider(): any;
 
-  abstract getBalances(stealthAddress: CurvyAddress): Promise<RpcBalances>;
+  abstract getBalances(stealthAddress: HexString): Promise<RpcBalances>;
 
-  abstract getBalance(stealthAddress: CurvyAddress, symbol: string): Promise<RpcBalance>;
+  abstract getBalance(stealthAddress: HexString, symbol: string): Promise<RpcBalance>;
 
   abstract sendToAddress(
     _curvyAddress: CurvyAddress,

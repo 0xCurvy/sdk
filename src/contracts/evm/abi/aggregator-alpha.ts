@@ -1,4 +1,4 @@
-export const aggregatorAlphaV1Abi = [
+export const aggregatorAlphaAbi = [
   {
     inputs: [],
     stateMutability: "nonpayable",
@@ -66,6 +66,17 @@ export const aggregatorAlphaV1Abi = [
       },
     ],
     name: "OwnableUnauthorizedAccount",
+    type: "error",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "token",
+        type: "address",
+      },
+    ],
+    name: "SafeERC20FailedOperation",
     type: "error",
   },
   {
@@ -166,6 +177,41 @@ export const aggregatorAlphaV1Abi = [
       },
     ],
     stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        components: [
+          {
+            internalType: "uint256",
+            name: "ownerHash",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "token",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "amount",
+            type: "uint256",
+          },
+        ],
+        internalType: "struct CurvyTypes.Note",
+        name: "note",
+        type: "tuple",
+      },
+      {
+        internalType: "address",
+        name: "tokenAddress",
+        type: "address",
+      },
+    ],
+    name: "autoShield",
+    outputs: [],
+    stateMutability: "payable",
     type: "function",
   },
   {

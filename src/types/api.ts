@@ -56,6 +56,7 @@ type Network = {
   tokenMoverContractAddress?: string;
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
+  portalFactoryContractAddress?: string;
   nativeCurrency: string | null; // TODO: Why is this string?
   chainId: string;
   blockExplorerUrl: string;

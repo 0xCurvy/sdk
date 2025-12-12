@@ -46,7 +46,7 @@ class StarknetRpc extends Rpc {
     return this.#provider;
   }
 
-  async getBalances(stealthAddress: CurvyAddress) {
+  async getBalances(stealthAddress: HexString) {
     const starkMulticall = new Contract(
       starknetMulticallAbi,
       this.network.multiCallContractAddress as Address,
@@ -63,7 +63,7 @@ class StarknetRpc extends Rpc {
       selector: new CairoCustomEnum({
         Hardcoded: hash.getSelectorFromName("balance_of"),
       }),
-      calldata: [new CairoCustomEnum({ Hardcoded: stealthAddress.address })],
+      calldata: [new CairoCustomEnum({ Hardcoded: stealthAddress })],
     }));
 
     const tokenBalances = await starkMulticall.aggregate(calls);
@@ -91,7 +91,7 @@ class StarknetRpc extends Rpc {
       }, Object.create(null));
   }
 
-  async getBalance(stealthAddress: CurvyAddress, symbol: string) {
+  async getBalance(stealthAddress: HexString, symbol: string) {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
@@ -101,7 +101,7 @@ class StarknetRpc extends Rpc {
       starknetErc20Abi,
     );
 
-    let balance = await starkErc20.balance_of(stealthAddress.address);
+    let balance = await starkErc20.balance_of(stealthAddress);
 
     if (typeof balance === "number") balance = BigInt(balance);
     if (typeof balance !== "bigint" && "low" in balance && "high" in balance)
