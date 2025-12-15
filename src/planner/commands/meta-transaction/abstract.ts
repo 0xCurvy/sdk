@@ -141,7 +141,10 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee();
     const curvyFeeInCurrency = await this.calculateCurvyFee();
 
-    return { gasFeeInCurrency, estimateId, curvyFeeInCurrency };
+    const estimate = { gasFeeInCurrency, estimateId, curvyFeeInCurrency };
+    this.estimate = estimate;
+
+    return estimate;
   }
 }
 

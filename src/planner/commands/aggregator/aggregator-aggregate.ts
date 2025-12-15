@@ -79,13 +79,25 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     if (this.#intent && isValidCurvyHandle(this.#intent.toAddress)) {
       toAddress = this.#intent.toAddress;
     }
-    const note = await this.sdk.getNewNoteForUser(toAddress, this.input[0].vaultTokenId, this.netAmount);
 
-    return {
-      curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n,
-      gasFeeInCurrency: 0n,
+    const curvyFeeInCurrency = (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n;
+    const gasFeeInCurrency = 0n;
+
+    const note = await this.sdk.getNewNoteForUser(
+      toAddress,
+      this.input[0].vaultTokenId,
+      this.grossAmount - curvyFeeInCurrency - gasFeeInCurrency,
+    );
+
+    const estimate = {
+      curvyFeeInCurrency,
+      gasFeeInCurrency,
       note,
     };
+
+    this.estimate = estimate;
+
+    return estimate;
   }
 
   async getResultingBalanceEntry(): Promise<CurvyCommandData> {

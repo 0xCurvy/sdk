@@ -25,7 +25,16 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
     const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee(note.ownerHash);
     const curvyFeeInCurrency = await this.calculateCurvyFee();
 
-    return { gasFeeInCurrency, estimateId, curvyFeeInCurrency, note };
+    const estimate = {
+      gasFeeInCurrency,
+      estimateId,
+      curvyFeeInCurrency,
+      note,
+    };
+
+    this.estimate = estimate;
+
+    return estimate;
   }
 
   async getResultingBalanceEntry(): Promise<NoteBalanceEntry> {
