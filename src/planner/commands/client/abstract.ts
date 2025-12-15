@@ -4,7 +4,7 @@ import type { CurvyCommandData } from "@/planner/plan";
 import { BALANCE_TYPE, type SaBalanceEntry } from "@/types";
 import type { DeepNonNullable } from "@/types/helper";
 
-interface ClientCommandEstimate extends CurvyCommandEstimate {
+export interface ClientCommandEstimate extends CurvyCommandEstimate {
   maxFeePerGas: bigint;
   gasLimit: bigint;
 }
