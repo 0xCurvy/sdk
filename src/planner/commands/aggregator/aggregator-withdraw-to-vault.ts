@@ -70,7 +70,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
   }
 
   async estimateFees(): Promise<CurvyCommandEstimateWithStealthAddressData> {
-    return {
+    this.estimate = {
       curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.withdrawCircuitConfig!.groupFee)) / 1000n,
       gasFeeInCurrency: 0n,
       stealthAddressData: await this.sdk.generateNewStealthAddressForUser(
@@ -78,6 +78,8 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
         this.senderCurvyHandle,
       ),
     };
+
+    return this.estimate;
   }
 
   async getResultingBalanceEntry() {
