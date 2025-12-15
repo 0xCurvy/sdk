@@ -29,16 +29,14 @@ export class VaultOnboardNativeCommand extends AbstractClientCommand {
     const gasFeeInCurrency = (maxFeePerGas * gasLimit * 120n) / 100n;
     const curvyFeeInCurrency = ((this.input.balance - gasFeeInCurrency) * BigInt(DEPOSIT_TO_VAULT_FEE)) / 1000n;
 
-    const estimate = {
+    this.estimate = {
       gasFeeInCurrency,
       curvyFeeInCurrency,
       gasLimit,
       maxFeePerGas,
     };
 
-    this.estimate = estimate;
-
-    return estimate;
+    return this.estimate;
   }
 
   async execute(): Promise<CurvyCommandData> {
