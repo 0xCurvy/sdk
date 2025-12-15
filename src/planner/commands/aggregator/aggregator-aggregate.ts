@@ -83,8 +83,11 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     const curvyFeeInCurrency = (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n;
     const gasFeeInCurrency = 0n;
 
-    this.estimate.curvyFeeInCurrency = curvyFeeInCurrency;
-    this.estimate.gasFeeInCurrency = gasFeeInCurrency;
+    this.estimate = {
+      curvyFeeInCurrency,
+      gasFeeInCurrency,
+      note: {} as never,
+    };
     this.estimate.note = await this.sdk.getNewNoteForUser(toAddress, this.input[0].vaultTokenId, this.netAmount);
 
     return this.estimate;
