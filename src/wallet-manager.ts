@@ -489,8 +489,11 @@ class WalletManager implements IWalletManager {
     return privateKey;
   }
 
-  signMessageWithBabyJubjub(message: bigint): Promise<StringifyBigInts<Signature>> {
-    return this.#core.signWithBabyJubjubPrivateKey(message, this.activeWallet.keyPairs.s);
+  signMessageWithBabyJubjub(
+    message: bigint,
+    { babyJubjubPrivateKey }: { babyJubjubPrivateKey?: string } = {},
+  ): Promise<StringifyBigInts<Signature>> {
+    return this.#core.signWithBabyJubjubPrivateKey(message, babyJubjubPrivateKey ?? this.activeWallet.keyPairs.s);
   }
 }
 

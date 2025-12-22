@@ -50,6 +50,7 @@ export class CurvyCommandFactory implements ICommandFactory {
       case "aggregator-aggregate": {
         return new AggregatorAggregateCommand(id, this.#sdk, input, intent, estimate);
       }
+
       case "aggregator-withdraw-to-vault":
         return new AggregatorWithdrawToVaultCommand(id, this.#sdk, input, estimate);
     }

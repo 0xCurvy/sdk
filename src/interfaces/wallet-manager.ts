@@ -79,7 +79,10 @@ interface IWalletManager {
 
   getAddressPrivateKey(address: CurvyAddress | HexString): Promise<HexString>;
 
-  signMessageWithBabyJubjub(message: bigint): Promise<StringifyBigInts<Signature>>;
+  signMessageWithBabyJubjub(
+    message: bigint,
+    opts?: { babyJubjubPrivateKey?: string },
+  ): Promise<StringifyBigInts<Signature>>;
 }
 
 export type { IWalletManager };

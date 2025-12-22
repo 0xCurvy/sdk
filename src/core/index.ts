@@ -17,6 +17,7 @@ import type {
 import type { HexString, StringifyBigInts } from "@/types/helper";
 import type { AuthenticatedNote } from "@/types/note";
 import { Note, type PublicNote } from "@/types/note";
+
 import { isNode } from "@/utils/helpers";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
@@ -437,6 +438,21 @@ class Core implements ICore {
 
   isValidSECP256k1Point(point: string): boolean {
     return curvy.dbg_isValidSECP256k1Point(point);
+  }
+
+  prepareOwnerForSTA(sharedSecret: bigint, s: string) {
+    const babyJubjubPublicKeyPoints = this.#eddsa!.prv2pub(Buffer.from(s, "hex"));
+    const babyJubjubPublicKey = babyJubjubPublicKeyPoints.map((p) => this.#eddsa!.F.toObject(p).toString()).join(".");
+
+    const owner = {
+      babyJubjubPublicKey: {
+        x: BigInt(babyJubjubPublicKey.split(".")[0]),
+        y: BigInt(babyJubjubPublicKey.split(".")[1]),
+      },
+      sharedSecret,
+    };
+
+    return { ownerHash: Note.generateOwnerHash(owner).toString(), babyJubjubPublicKey };
   }
 
   version(): string {

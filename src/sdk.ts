@@ -1,5 +1,7 @@
 import { Buffer as BufferPolyfill } from "buffer";
+import dayjs from "dayjs";
 import { mul, toNumber } from "dnum";
+import { v4 as uuidV4 } from "uuid";
 import { getAddress } from "viem";
 import { BalanceScanner } from "@/balance-scanner";
 import {
@@ -16,12 +18,14 @@ import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
+import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { CommandExecutor } from "@/planner/executor";
+import type { CurvyIntent } from "@/planner/plan";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type { GetStealthAddressReturnType, Network, RefreshOptions } from "@/types";
+import { BALANCE_TYPE, type GetStealthAddressReturnType, type Network, Note, type RefreshOptions } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
@@ -528,6 +532,119 @@ class CurvySDK implements ICurvySDK {
       amount,
       token,
     });
+  }
+
+  async getStaNote(token: bigint, amount: bigint) {
+    const keyPair = await this.#core.generateKeyPairs();
+
+    const { S, s, V, babyJubjubPublicKey } = keyPair;
+
+    return {
+      note: await this.#core.sendNote(S, V, {
+        ownerBabyJubjubPublicKey: babyJubjubPublicKey,
+        amount,
+        token,
+      }),
+      privateSigningKey: s as HexString,
+    };
+  }
+
+  async claimStaNote(sharedSecret: string, signingKey: string) {
+    const network = this.getNetwork((n) => !!n.aggregatorContractAddress);
+
+    const { ownerHash, babyJubjubPublicKey } = this.#core.prepareOwnerForSTA(BigInt(sharedSecret), signingKey);
+
+    const { proof } = await this.#core.generateNoteOwnershipProof(
+      [{ ownerHash, sharedSecret: BigInt(sharedSecret) }],
+      babyJubjubPublicKey,
+    );
+
+    const { notes } = await this.apiClient.aggregator.SubmitNotesOwnershipProof({
+      proof,
+      ownerHashes: [ownerHash],
+      networkId: network.id,
+    });
+
+    const authenticatedNote = notes.find((n) => n.ownerHash === ownerHash);
+
+    if (!authenticatedNote) {
+      throw new Error("Note not found for the provided shared secret!");
+    }
+
+    const [x, y] = babyJubjubPublicKey.split(".");
+
+    const {
+      balance: { token, amount },
+      owner,
+      deliveryTag,
+      id,
+    } = new Note({
+      owner: {
+        babyJubjubPublicKey: {
+          x,
+          y,
+        },
+        sharedSecret: sharedSecret,
+      },
+      ...authenticatedNote,
+    }).serializeFullNote();
+
+    const currency = network.currencies.find((c) => c.vaultTokenId === token);
+    if (!currency) {
+      throw new Error(`Currency with vault token ID ${token} not found on network ${network.name}`);
+    }
+
+    const networkSlug = toSlug(network.name);
+    const vaultTokenId = BigInt(token);
+
+    const { symbol, environment, address, decimals } = await this.storage.getCurrencyMetadata(
+      vaultTokenId,
+      networkSlug,
+    );
+
+    const balanceEntry = {
+      walletId: "ephemeral-claim-wallet",
+      source: `0x${BigInt(ownerHash).toString(16)}` as const,
+      type: BALANCE_TYPE.NOTE,
+      id,
+
+      networkSlug,
+      environment,
+
+      currencyAddress: address,
+      vaultTokenId,
+      symbol,
+      balance: BigInt(amount),
+      decimals,
+
+      owner: {
+        babyJubjubPublicKey: {
+          x: owner.babyJubjubPublicKey.x,
+          y: owner.babyJubjubPublicKey.y,
+        },
+        sharedSecret: owner.sharedSecret,
+      },
+      deliveryTag: {
+        ephemeralKey: deliveryTag.ephemeralKey,
+        viewTag: deliveryTag.viewTag,
+      },
+
+      lastUpdated: +dayjs(),
+    };
+
+    const claimIntent = {
+      amount: BigInt(amount),
+      toAddress: this.walletManager.activeWallet.curvyHandle,
+      signingKey,
+      network,
+      currency,
+    } satisfies CurvyIntent;
+
+    const aggregatorCommand = new AggregatorAggregateCommand(uuidV4(), this, balanceEntry, claimIntent);
+
+    await aggregatorCommand.estimateFees();
+
+    return aggregatorCommand.execute();
   }
 }
 
