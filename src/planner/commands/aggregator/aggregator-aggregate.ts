@@ -15,6 +15,7 @@ import { Note } from "@/types/note";
 
 interface CurvyCommandEstimateWithNote extends CurvyCommandEstimate {
   note: Note;
+  signingKey?: HexString;
 }
 
 export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
@@ -59,7 +60,9 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     }
 
     const msgHash = generateAggregationHash(outputNotes);
-    const rawSignature = await this.sdk.walletManager.signMessageWithBabyJubjub(msgHash);
+    const rawSignature = await this.sdk.walletManager.signMessageWithBabyJubjub(msgHash, {
+      babyJubjubPrivateKey: this.#intent?.signingKey,
+    });
     const signature = {
       S: BigInt(rawSignature.S),
       R8: rawSignature.R8.map((r) => BigInt(r)),
@@ -88,7 +91,14 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       gasFeeInCurrency,
       note: {} as never,
     };
-    this.estimate.note = await this.sdk.getNewNoteForUser(toAddress, this.input[0].vaultTokenId, this.netAmount);
+
+    if (this.#intent?.sta) {
+      const { note, privateSigningKey } = await this.sdk.getStaNote(this.input[0].vaultTokenId, this.netAmount);
+      this.estimate.note = note;
+      this.estimate.signingKey = privateSigningKey;
+    } else {
+      this.estimate.note = await this.sdk.getNewNoteForUser(toAddress, this.input[0].vaultTokenId, this.netAmount);
+    }
 
     return this.estimate;
   }

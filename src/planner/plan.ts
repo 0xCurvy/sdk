@@ -6,9 +6,12 @@ import type { HexString } from "@/types/helper";
 export interface CurvyIntent {
   amount: bigint;
   toAddress: CurvyHandle | HexString;
+
   // I don't care that Currency and Network are large objects, intents are rare and always user-generated.
   currency: Currency;
   network: Network;
+  sta?: boolean;
+  signingKey?: string;
 }
 
 export type CurvyPlanCommand = {
