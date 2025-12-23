@@ -11,7 +11,7 @@ export interface CurvyCommandEstimate {
 export abstract class CurvyCommand {
   protected sdk: ICurvySDK;
   protected readonly input: CurvyCommandData;
-  protected readonly senderCurvyHandle: CurvyHandle;
+  protected readonly senderCurvyHandle: CurvyHandle | null;
   protected readonly network: Network;
   protected readonly rpc: EvmRpc;
 

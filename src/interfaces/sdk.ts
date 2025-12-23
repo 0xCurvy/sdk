@@ -4,7 +4,14 @@ import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type { CurvyHandle, CurvyPublicKeys, ExtendedAnnouncement, GetStealthAddressReturnType, Note } from "@/types";
+import type {
+  CurvyHandle,
+  CurvyKeyPairs,
+  CurvyPublicKeys,
+  ExtendedAnnouncement,
+  GetStealthAddressReturnType,
+  Note,
+} from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
@@ -96,6 +103,7 @@ interface ICurvySDK {
     delayMs?: number,
   ): Promise<T>;
 
+  generateCurvyKeyPairs(): Promise<CurvyKeyPairs>;
   generateNewNote(handleOrKeys: CurvyHandle | CurvyPublicKeys, token: bigint, amount: bigint): Promise<Note>;
 }
 

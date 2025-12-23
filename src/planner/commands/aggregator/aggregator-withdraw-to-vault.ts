@@ -70,6 +70,10 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
   }
 
   async estimateFees(): Promise<CurvyCommandEstimateWithStealthAddressData> {
+    if (!this.senderCurvyHandle) {
+      throw new Error("Active wallet must have a Curvy Handle to perform withdraw to vault.");
+    }
+
     this.estimate = {
       curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.withdrawCircuitConfig!.groupFee)) / 1000n,
       gasFeeInCurrency: 0n,
