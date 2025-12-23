@@ -8,8 +8,8 @@ import type { SerializedCurvyWallet } from "@/types/wallet";
 class CurvyWallet implements ICurvyWallet {
   readonly #keyPairs: CurvyKeyPairs;
 
-  readonly #curvyHandle: CurvyHandle | null;
-  readonly #ownerAddress: string | null;
+  readonly curvyHandle: CurvyHandle | null;
+  readonly ownerAddress: string | null;
   readonly createdAt: number;
   readonly id: string;
 
@@ -25,8 +25,8 @@ class CurvyWallet implements ICurvyWallet {
     credId?: ArrayBuffer,
   ) {
     this.#keyPairs = { S: "", V: "", s: "", v: "", babyJubjubPublicKey: "", ...keyPairs };
-    this.#curvyHandle = curvyHandle;
-    this.#ownerAddress = ownerAddress;
+    this.curvyHandle = curvyHandle;
+    this.ownerAddress = ownerAddress;
     this.createdAt = createdAt;
     this.id = uuidV4();
     this.#passwordHash = passwordHash;
@@ -37,23 +37,8 @@ class CurvyWallet implements ICurvyWallet {
     return Object.freeze(this.#keyPairs);
   }
 
-  get curvyHandle(): CurvyHandle {
-    if (!this.#curvyHandle) {
-      throw new Error("Curvy handle is not set");
-    }
-
-    return this.#curvyHandle;
-  }
-
-  get ownerAddress(): string {
-    if (!this.#ownerAddress) {
-      throw new Error("Owner address is not set");
-    }
-    return this.#ownerAddress;
-  }
-
   get isPartial() {
-    return !this.#curvyHandle || !this.#ownerAddress;
+    return !this.curvyHandle || !this.ownerAddress;
   }
 
   async authWithPassword(getPasswordHash: () => Promise<string>) {
@@ -77,8 +62,8 @@ class CurvyWallet implements ICurvyWallet {
     return {
       id: this.id,
       createdAt: this.createdAt,
-      ownerAddress: this.ownerAddress,
-      curvyHandle: this.curvyHandle,
+      ownerAddress: this.ownerAddress!,
+      curvyHandle: this.curvyHandle!,
     };
   }
 }

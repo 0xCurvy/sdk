@@ -5,9 +5,8 @@ import type { SerializedCurvyWallet } from "@/types/wallet";
 interface ICurvyWallet {
   readonly id: string;
   readonly createdAt: number;
-
-  get curvyHandle(): CurvyHandle;
-  get ownerAddress(): string;
+  readonly curvyHandle: CurvyHandle | null;
+  readonly ownerAddress: string | null;
 
   get keyPairs(): Readonly<CurvyKeyPairs>;
   get isPartial(): boolean;

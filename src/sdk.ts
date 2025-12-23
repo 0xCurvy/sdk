@@ -542,87 +542,9 @@ class CurvySDK implements ICurvySDK {
     });
   }
 
-  // async claimStaNote(args: { sharedSecret: string; amount: string; token: string }) {
-  //   const network = this.getNetwork((n) => !!n.aggregatorContractAddress);
-  //
-  //   const [x, y] = (await this.walletManager.getBabyJubjubPublicKey()).split(".");
-  //
-  //   const {
-  //     balance: { token, amount },
-  //     owner,
-  //     ownerHash,
-  //     deliveryTag,
-  //     id,
-  //   } = new Note({
-  //     owner: {
-  //       babyJubjubPublicKey: {
-  //         x,
-  //         y,
-  //       },
-  //       sharedSecret: args.sharedSecret,
-  //     },
-  //     balance: {
-  //       amount: args.amount,
-  //       token: args.token,
-  //     },
-  //   }).serializeFullNote();
-  //
-  //   const currency = network.currencies.find((c) => c.vaultTokenId === token);
-  //   if (!currency) {
-  //     throw new Error(`Currency with vault token ID ${token} not found on network ${network.name}`);
-  //   }
-  //
-  //   const networkSlug = toSlug(network.name);
-  //   const vaultTokenId = BigInt(token);
-  //
-  //   const { symbol, environment, address, decimals } = await this.storage.getCurrencyMetadata(
-  //     vaultTokenId,
-  //     networkSlug,
-  //   );
-  //
-  //   const balanceEntry = {
-  //     walletId: "ephemeral-claim-wallet",
-  //     source: `0x${BigInt(ownerHash).toString(16)}` as const,
-  //     type: BALANCE_TYPE.NOTE,
-  //     id,
-  //
-  //     networkSlug,
-  //     environment,
-  //
-  //     currencyAddress: address,
-  //     vaultTokenId,
-  //     symbol,
-  //     balance: BigInt(amount),
-  //     decimals,
-  //
-  //     owner: {
-  //       babyJubjubPublicKey: {
-  //         x: owner.babyJubjubPublicKey.x,
-  //         y: owner.babyJubjubPublicKey.y,
-  //       },
-  //       sharedSecret: owner.sharedSecret,
-  //     },
-  //     deliveryTag: {
-  //       ephemeralKey: deliveryTag.ephemeralKey,
-  //       viewTag: deliveryTag.viewTag,
-  //     },
-  //
-  //     lastUpdated: +dayjs(),
-  //   };
-  //
-  //   const claimIntent = {
-  //     amount: BigInt(amount),
-  //     recipient: this.walletManager.activeWallet.curvyHandle,
-  //     network,
-  //     currency,
-  //   } satisfies CurvyIntent;
-  //
-  //   const aggregatorCommand = new AggregatorAggregateCommand(uuidV4(), this, balanceEntry, claimIntent);
-  //
-  //   await aggregatorCommand.estimateFees();
-  //
-  //   return aggregatorCommand.execute();
-  // }
+  generateCurvyKeyPairs() {
+    return this.#core.generateKeyPairs();
+  }
 }
 
 export { CurvySDK };
