@@ -20,7 +20,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
   }
 
   override async estimateFees(): Promise<MetaTransactionCommandEstimateWithNote> {
-    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
+    const note = await this.sdk.generateNewNote(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
 
     const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee(note.ownerHash);
     const curvyFeeInCurrency = await this.calculateCurvyFee();

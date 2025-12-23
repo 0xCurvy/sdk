@@ -9,17 +9,8 @@ function balanceEntryToNote({ balance, owner, deliveryTag, vaultTokenId }: NoteB
 
   return new Note({
     balance: { amount: balance.toString(), token: vaultTokenId.toString() },
-    owner: {
-      babyJubjubPublicKey: {
-        x: owner.babyJubjubPublicKey.x,
-        y: owner.babyJubjubPublicKey.y,
-      },
-      sharedSecret: owner.sharedSecret,
-    },
-    deliveryTag: {
-      ephemeralKey: deliveryTag.ephemeralKey,
-      viewTag: deliveryTag.viewTag,
-    },
+    owner,
+    deliveryTag,
   });
 }
 

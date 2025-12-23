@@ -24,7 +24,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
   ) {
     super(id, sdk, input, estimate);
 
-    if (!isHexString(intent.toAddress)) {
+    if (!isHexString(intent.recipient)) {
       throw new Error(`${this.name}: toAddress MUST be a hex string address`);
     }
 
@@ -44,7 +44,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
   }
 
   override get toAddress(): HexString {
-    return this.intent.toAddress as HexString;
+    return this.intent.recipient as HexString;
   }
 
   async getResultingBalanceEntry() {
@@ -59,7 +59,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
   async execute(): Promise<CurvyCommandData | undefined> {
     const { estimateId: id } = this.estimate;
 
-    const signature = await this.signMetaTransaction(this.intent.toAddress as HexString);
+    const signature = await this.signMetaTransaction(this.intent.recipient as HexString);
 
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 

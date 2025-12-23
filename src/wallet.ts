@@ -1,38 +1,59 @@
+import dayjs from "dayjs";
+import { v4 as uuidV4 } from "uuid";
 import type { ICurvyWallet } from "@/interfaces/wallet";
 import type { CurvyKeyPairs } from "@/types/core";
 import type { CurvyHandle } from "@/types/curvy";
 import type { SerializedCurvyWallet } from "@/types/wallet";
 
 class CurvyWallet implements ICurvyWallet {
-  readonly id: string;
+  readonly #keyPairs: CurvyKeyPairs;
+
+  readonly #curvyHandle: CurvyHandle | null;
+  readonly #ownerAddress: string | null;
   readonly createdAt: number;
-  readonly ownerAddress: string;
-  readonly curvyHandle: CurvyHandle;
+  readonly id: string;
+
   readonly #passwordHash?: string;
   readonly #credId?: ArrayBuffer;
 
-  readonly #keyPairs: CurvyKeyPairs;
-
   constructor(
-    id: string,
-    createdAt: number,
-    curvyHandle: CurvyHandle,
-    ownerAddress: string,
-    keyPairs: CurvyKeyPairs,
+    keyPairs: Partial<CurvyKeyPairs>,
+    curvyHandle: CurvyHandle | null,
+    ownerAddress: string | null,
+    createdAt = +dayjs(),
     passwordHash?: string,
     credId?: ArrayBuffer,
   ) {
-    this.id = id;
+    this.#keyPairs = { S: "", V: "", s: "", v: "", babyJubjubPublicKey: "", ...keyPairs };
+    this.#curvyHandle = curvyHandle;
+    this.#ownerAddress = ownerAddress;
     this.createdAt = createdAt;
-    this.curvyHandle = curvyHandle;
-    this.ownerAddress = ownerAddress;
-    this.#keyPairs = keyPairs;
+    this.id = uuidV4();
     this.#passwordHash = passwordHash;
     this.#credId = credId;
   }
 
   get keyPairs() {
     return Object.freeze(this.#keyPairs);
+  }
+
+  get curvyHandle(): CurvyHandle {
+    if (!this.#curvyHandle) {
+      throw new Error("Curvy handle is not set");
+    }
+
+    return this.#curvyHandle;
+  }
+
+  get ownerAddress(): string {
+    if (!this.#ownerAddress) {
+      throw new Error("Owner address is not set");
+    }
+    return this.#ownerAddress;
+  }
+
+  get isPartial() {
+    return !this.#curvyHandle || !this.#ownerAddress;
   }
 
   async authWithPassword(getPasswordHash: () => Promise<string>) {
@@ -49,6 +70,10 @@ class CurvyWallet implements ICurvyWallet {
   }
 
   serialize(): SerializedCurvyWallet {
+    if (this.isPartial) {
+      throw new Error("Cannot serialize a partial wallet!");
+    }
+
     return {
       id: this.id,
       createdAt: this.createdAt,
