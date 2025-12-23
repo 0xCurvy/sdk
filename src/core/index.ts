@@ -144,11 +144,11 @@ class Core implements ICore {
     this.#eddsa = await buildEddsa();
   }
 
-  async #getBabyJubjubPublicKey(keyPairs: CoreLegacyKeyPairs): Promise<string> {
+  async getBabyJubjubPublicKey(babyJubjubPrivateKey: string): Promise<string> {
     await this.loadEddsa();
 
     // @ts-expect-error
-    const babyJubjubPublicKey = this.#eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
+    const babyJubjubPublicKey = this.#eddsa.prv2pub(Buffer.from(babyJubjubPrivateKey, "hex"));
 
     return babyJubjubPublicKey.map((p) => this.#eddsa?.F.toObject(p).toString()).join(".");
   }
@@ -201,7 +201,7 @@ class Core implements ICore {
 
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
-    const babyJubjubPublicKeyStringified = await this.#getBabyJubjubPublicKey(keyPairs);
+    const babyJubjubPublicKeyStringified = await this.getBabyJubjubPublicKey(keyPairs.k);
 
     return {
       s: keyPairs.k,
@@ -218,7 +218,7 @@ class Core implements ICore {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const babyJubjubPublicKey = await this.#getBabyJubjubPublicKey(result);
+    const babyJubjubPublicKey = await this.getBabyJubjubPublicKey(result.k);
 
     return {
       s: result.k,

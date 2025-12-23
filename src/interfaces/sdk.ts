@@ -3,9 +3,8 @@ import type { IApiClient } from "@/interfaces/api";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
-import type { CurvyCommandData } from "@/planner/plan";
 import type { MultiRpc } from "@/rpc/multi";
-import type { ExtendedAnnouncement, GetStealthAddressReturnType, Note } from "@/types";
+import type { CurvyHandle, CurvyPublicKeys, ExtendedAnnouncement, GetStealthAddressReturnType, Note } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
@@ -96,9 +95,8 @@ interface ICurvySDK {
     maxRetries?: number,
     delayMs?: number,
   ): Promise<T>;
-  getNewNoteForUser(handle: string, token: bigint, amount: bigint): Promise<Note>;
-  getStaNote(token: bigint, amount: bigint): Promise<{ note: Note; privateSigningKey: HexString }>;
-  claimStaNote(sharedSecret: string, signingKey: string): Promise<CurvyCommandData | undefined>;
+
+  generateNewNote(handleOrKeys: CurvyHandle | CurvyPublicKeys, token: bigint, amount: bigint): Promise<Note>;
 }
 
 export type { ICurvySDK };

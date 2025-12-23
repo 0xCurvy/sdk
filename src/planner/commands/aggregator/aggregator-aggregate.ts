@@ -1,5 +1,7 @@
 import {
   type AggregationRequest,
+  type CurvyHandle,
+  type CurvyPublicKeys,
   generateAggregationHash,
   type HexString,
   type InputNote,
@@ -15,7 +17,6 @@ import { Note } from "@/types/note";
 
 interface CurvyCommandEstimateWithNote extends CurvyCommandEstimate {
   note: Note;
-  signingKey?: HexString;
 }
 
 export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
@@ -60,9 +61,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     }
 
     const msgHash = generateAggregationHash(outputNotes);
-    const rawSignature = await this.sdk.walletManager.signMessageWithBabyJubjub(msgHash, {
-      babyJubjubPrivateKey: this.#intent?.signingKey,
-    });
+    const rawSignature = await this.sdk.walletManager.signMessageWithBabyJubjub(msgHash);
     const signature = {
       S: BigInt(rawSignature.S),
       R8: rawSignature.R8.map((r) => BigInt(r)),
@@ -78,10 +77,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
 
   async estimateFees() {
     // If we are sending to a curvy name then set the toAddress to that address, otherwise send to us - and we will later withdraw to EOA.
-    let toAddress = this.senderCurvyHandle;
-    if (this.#intent && isValidCurvyHandle(this.#intent.toAddress)) {
-      toAddress = this.#intent.toAddress;
-    }
+    let recipientData: CurvyHandle | CurvyPublicKeys = this.senderCurvyHandle;
 
     const curvyFeeInCurrency = (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n;
     const gasFeeInCurrency = 0n;
@@ -92,13 +88,14 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       note: {} as never,
     };
 
-    if (this.#intent?.sta) {
-      const { note, privateSigningKey } = await this.sdk.getStaNote(this.input[0].vaultTokenId, this.netAmount);
-      this.estimate.note = note;
-      this.estimate.signingKey = privateSigningKey;
-    } else {
-      this.estimate.note = await this.sdk.getNewNoteForUser(toAddress, this.input[0].vaultTokenId, this.netAmount);
+    if (this.#intent) {
+      if (isValidCurvyHandle(this.#intent.recipient)) {
+        recipientData = this.#intent.recipient;
+      } else if (this.#intent.recipientPublicKeys) {
+        recipientData = this.#intent.recipientPublicKeys;
+      }
     }
+    this.estimate.note = await this.sdk.generateNewNote(recipientData, this.input[0].vaultTokenId, this.netAmount);
 
     return this.estimate;
   }
@@ -127,7 +124,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       // This means we should address the note to another recipient right now
 
       // Change note
-      changeOrDummyOutputNote = await this.sdk.getNewNoteForUser(
+      changeOrDummyOutputNote = await this.sdk.generateNewNote(
         this.senderCurvyHandle,
         token,
         this.inputNotesSum - this.#intent.amount,
