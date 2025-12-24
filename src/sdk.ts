@@ -71,7 +71,7 @@ class CurvySDK implements ICurvySDK {
     this.#networks = [];
     this.storage = storage;
     this.#state = {
-      environment: "mainnet",
+      environment: "testnet",
       activeNetworks: [],
     };
     // Must bind for correct this reference
@@ -103,7 +103,7 @@ class CurvySDK implements ICurvySDK {
     await sdk.storage.upsertCurrencyMetadata(networksToCurrencyMetadata(sdk.#networks));
 
     if (networkFilter === undefined) {
-      await sdk.setActiveNetworks(false); // all mainnets by default
+      await sdk.setActiveNetworks(true); // all mainnets by default
     } else {
       await sdk.setActiveNetworks(networkFilter);
     }

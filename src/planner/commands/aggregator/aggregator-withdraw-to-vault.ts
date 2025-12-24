@@ -29,6 +29,10 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
   }
 
   override get recipient() {
+    if (!this.senderCurvyHandle) {
+      throw new Error("Active wallet must have a Curvy Handle to perform aggregator withdraw to vault.");
+    }
+
     return this.senderCurvyHandle;
   }
 
