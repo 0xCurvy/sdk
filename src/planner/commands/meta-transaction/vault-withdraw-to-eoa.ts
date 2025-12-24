@@ -43,7 +43,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
     return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
   }
 
-  override get toAddress(): HexString {
+  override get recipient() {
     return this.intent.recipient as HexString;
   }
 

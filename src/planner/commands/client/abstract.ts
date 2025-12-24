@@ -32,4 +32,8 @@ export abstract class AbstractClientCommand extends CurvyCommand {
   get grossAmount(): bigint {
     return this.input.balance;
   }
+
+  override get recipient() {
+    return this.input.source; // For client commands, default recipient is the source of the SA Balance entry
+  }
 }

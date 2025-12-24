@@ -1,6 +1,6 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { EvmRpc } from "@/rpc";
-import type { CurvyHandle, Network } from "@/types";
+import type { CurvyHandle, CurvyPublicKeys, HexString, Network } from "@/types";
 import type { CurvyCommandData } from "../plan";
 
 export interface CurvyCommandEstimate {
@@ -41,6 +41,7 @@ export abstract class CurvyCommand {
     this.rpc = rpc;
   }
 
+  abstract get recipient(): HexString | CurvyHandle | CurvyPublicKeys;
   abstract get name(): string;
 
   abstract estimateFees(): Promise<CurvyCommandEstimate>;

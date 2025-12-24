@@ -1,7 +1,5 @@
 import {
   type AggregationRequest,
-  type CurvyHandle,
-  type CurvyPublicKeys,
   generateAggregationHash,
   type HexString,
   type InputNote,
@@ -49,6 +47,20 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     return this.inputNotesSum;
   }
 
+  override get recipient() {
+    // If there are multiple aggregation steps intent is not provided and funds are aggregated to self
+    // Otherwise in last aggregation step we use the recipient data from intent
+    if (this.#intent) {
+      if (isValidCurvyHandle(this.#intent.recipient)) {
+        return this.#intent.recipient;
+      } else if (this.#intent.recipientPublicKeys) {
+        return this.#intent.recipientPublicKeys;
+      }
+    }
+
+    return this.senderCurvyHandle;
+  }
+
   async #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[]): Promise<AggregationRequest> {
     if (!this.network.aggregationCircuitConfig) {
       throw new Error("Network aggregation circuit config is not defined!");
@@ -76,9 +88,6 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   }
 
   async estimateFees() {
-    // If we are sending to a curvy name then set the toAddress to that address, otherwise send to us - and we will later withdraw to EOA.
-    let recipientData: CurvyHandle | CurvyPublicKeys | null = this.senderCurvyHandle;
-
     const curvyFeeInCurrency = (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n;
     const gasFeeInCurrency = 0n;
 
@@ -88,19 +97,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       note: {} as never,
     };
 
-    if (this.#intent) {
-      if (isValidCurvyHandle(this.#intent.recipient)) {
-        recipientData = this.#intent.recipient;
-      } else if (this.#intent.recipientPublicKeys) {
-        recipientData = this.#intent.recipientPublicKeys;
-      }
-    }
-
-    if (recipientData === null) {
-      throw new Error("Recipient data is null");
-    }
-
-    this.estimate.note = await this.sdk.generateNewNote(recipientData, this.input[0].vaultTokenId, this.netAmount);
+    this.estimate.note = await this.sdk.generateNewNote(this.recipient, this.input[0].vaultTokenId, this.netAmount);
 
     return this.estimate;
   }
@@ -127,11 +124,6 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     // then we calculate the change for passing it as the second output note, instead of the dummy one
     if (this.#intent && this.#intent.amount < this.inputNotesSum) {
       // This means we should address the note to another recipient right now
-
-      if (this.senderCurvyHandle === null) {
-        throw new Error("Sender curvy handle can only be null if sending full amount to another recipient");
-      }
-
       // Change note
       changeOrDummyOutputNote = await this.sdk.generateNewNote(
         this.senderCurvyHandle,

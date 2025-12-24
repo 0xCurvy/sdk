@@ -28,6 +28,10 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     return this.inputNotesSum;
   }
 
+  override get recipient() {
+    return this.senderCurvyHandle;
+  }
+
   async #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): Promise<WithdrawRequest> {
     if (!this.network.withdrawCircuitConfig) {
       throw new Error("Network withdraw circuit config is not defined!");
@@ -70,17 +74,10 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
   }
 
   async estimateFees(): Promise<CurvyCommandEstimateWithStealthAddressData> {
-    if (!this.senderCurvyHandle) {
-      throw new Error("Active wallet must have a Curvy Handle to perform withdraw to vault.");
-    }
-
     this.estimate = {
       curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.withdrawCircuitConfig!.groupFee)) / 1000n,
       gasFeeInCurrency: 0n,
-      stealthAddressData: await this.sdk.generateNewStealthAddressForUser(
-        toSlug(this.network.name),
-        this.senderCurvyHandle,
-      ),
+      stealthAddressData: await this.sdk.generateNewStealthAddressForUser(toSlug(this.network.name), this.recipient),
     };
 
     return this.estimate;

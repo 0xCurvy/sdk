@@ -1,7 +1,7 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
-import type { Note, NoteBalanceEntry } from "@/types";
+import type { CurvyHandle, Note, NoteBalanceEntry } from "@/types";
 import type { DeepNonNullable } from "@/types/helper";
 import { balanceEntryToNote } from "@/utils";
 
@@ -9,6 +9,7 @@ export abstract class AbstractAggregatorCommand extends CurvyCommand {
   protected declare input: DeepNonNullable<NoteBalanceEntry>[];
   protected readonly inputNotes: Note[];
   protected readonly inputNotesSum: bigint;
+  protected declare senderCurvyHandle: CurvyHandle;
 
   constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     if (Array.isArray(input)) {
@@ -31,6 +32,10 @@ export abstract class AbstractAggregatorCommand extends CurvyCommand {
     }
 
     super(id, sdk, input, estimate);
+
+    if (!this.senderCurvyHandle) {
+      throw new Error("Active wallet must have a Curvy Handle to perform meta transactions.");
+    }
 
     this.input = Array.isArray(this.input) ? this.input.flat() : [this.input];
 

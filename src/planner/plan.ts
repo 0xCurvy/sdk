@@ -3,24 +3,22 @@ import type { BalanceEntry, Currency, CurvyPublicKeys, Network } from "@/types";
 import type { CurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 
-type CurvyIntentBase = {
+export type CurvyIntent = {
   amount: bigint;
+
   // I don't care that Currency and Network are large objects, intents are rare and always user-generated.
   currency: Currency;
   network: Network;
-};
-
-export type CurvyIntent = CurvyIntentBase &
-  (
-    | {
-        recipient: CurvyHandle | HexString;
-        recipientPublicKeys?: never;
-      }
-    | {
-        recipient?: never;
-        recipientPublicKeys: CurvyPublicKeys;
-      }
-  );
+} & (
+  | {
+      recipient: CurvyHandle | HexString;
+      recipientPublicKeys?: never;
+    }
+  | {
+      recipient?: never;
+      recipientPublicKeys: CurvyPublicKeys;
+    }
+);
 
 export type CurvyPlanCommand = {
   type: "command";
