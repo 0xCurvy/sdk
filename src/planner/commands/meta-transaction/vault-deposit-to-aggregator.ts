@@ -20,10 +20,6 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
   }
 
   override async estimateFees(): Promise<MetaTransactionCommandEstimateWithNote> {
-    if (!this.senderCurvyHandle) {
-      throw new Error(`Active wallet must have a Curvy Handle to perform deposit to aggregator.`);
-    }
-
     const note = await this.sdk.generateNewNote(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
 
     const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee(note.ownerHash);
