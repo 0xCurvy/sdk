@@ -439,21 +439,6 @@ class Core implements ICore {
     return curvy.dbg_isValidSECP256k1Point(point);
   }
 
-  prepareOwnerForSTA(sharedSecret: bigint, s: string) {
-    const babyJubjubPublicKeyPoints = this.#eddsa!.prv2pub(Buffer.from(s, "hex"));
-    const babyJubjubPublicKey = babyJubjubPublicKeyPoints.map((p) => this.#eddsa!.F.toObject(p).toString()).join(".");
-
-    const owner = {
-      babyJubjubPublicKey: {
-        x: BigInt(babyJubjubPublicKey.split(".")[0]),
-        y: BigInt(babyJubjubPublicKey.split(".")[1]),
-      },
-      sharedSecret,
-    };
-
-    return { ownerHash: Note.generateOwnerHash(owner).toString(), babyJubjubPublicKey };
-  }
-
   version(): string {
     return curvy.version();
   }

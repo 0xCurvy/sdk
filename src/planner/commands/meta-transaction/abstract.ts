@@ -4,6 +4,7 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
 import {
+  type CurvyHandle,
   type HexString,
   isSaBalanceEntry,
   isVaultBalanceEntry,
@@ -29,6 +30,7 @@ const FEE_DENOMINATOR = 10_000n;
 abstract class AbstractMetaTransactionCommand extends CurvyCommand {
   declare input: DeepNonNullable<SaBalanceEntry | VaultBalanceEntry>;
   declare estimate: MetaTransactionCommandEstimate;
+  protected declare senderCurvyHandle: CurvyHandle;
 
   protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
@@ -39,6 +41,9 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     if (!input.vaultTokenId) {
       throw new Error("Invalid input for command, vaultTokenId is required.");
     }
+    if (!this.senderCurvyHandle) {
+      throw new Error("Active wallet must have a Curvy Handle to perform meta transactions.");
+    }
   }
 
   protected abstract get metaTransactionType(): MetaTransactionType;
@@ -47,7 +52,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     return this.input.balance;
   }
 
-  get toAddress(): HexString {
+  override get recipient(): HexString {
     return this.network.aggregatorContractAddress as HexString;
   }
 
@@ -90,7 +95,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       message: {
         nonce,
         from: this.input.source as HexString,
-        to: to ?? this.toAddress,
+        to: to ?? this.recipient,
         tokenId: this.input.vaultTokenId,
         amount: this.input.balance,
         gasFee: this.estimate.gasFeeInCurrency,
@@ -131,7 +136,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       currencyAddress: this.input.currencyAddress,
       amount: this.input.balance.toString(),
       fromAddress: this.input.source,
-      toAddress: this.toAddress,
+      toAddress: this.recipient,
       network: this.input.networkSlug,
       ownerHash: ownerHash ? `0x${ownerHash.toString(16)}` : undefined,
     });

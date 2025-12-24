@@ -150,7 +150,7 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
 
   // If we are sending to EOA, push two more commands
   // to move funds from Aggregator to CSUC to EOA
-  if ("recipient" in intent && isHexString(intent.recipient)) {
+  if (isHexString(intent.recipient)) {
     plan = {
       type: "serial",
       items: [
