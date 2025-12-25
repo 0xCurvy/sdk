@@ -1,9 +1,10 @@
 import dayjs from "dayjs";
-import { v4 as uuidV4 } from "uuid";
+import { sha256 } from "viem";
 import type { ICurvyWallet } from "@/interfaces/wallet";
 import type { CurvyKeyPairs } from "@/types/core";
 import type { CurvyHandle } from "@/types/curvy";
 import type { SerializedCurvyWallet } from "@/types/wallet";
+import { textEncoder } from "@/utils/helpers";
 
 class CurvyWallet implements ICurvyWallet {
   readonly #keyPairs: CurvyKeyPairs;
@@ -28,7 +29,7 @@ class CurvyWallet implements ICurvyWallet {
     this.curvyHandle = curvyHandle;
     this.ownerAddress = ownerAddress;
     this.createdAt = createdAt;
-    this.id = uuidV4();
+    this.id = sha256(textEncoder.encode(JSON.stringify(this.#keyPairs)));
     this.#passwordHash = passwordHash;
     this.#credId = credId;
   }
