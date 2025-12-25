@@ -17,6 +17,7 @@ import type {
 import type { HexString, StringifyBigInts } from "@/types/helper";
 import type { AuthenticatedNote } from "@/types/note";
 import { Note, type PublicNote } from "@/types/note";
+
 import { isNode } from "@/utils/helpers";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
