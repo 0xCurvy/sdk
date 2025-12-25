@@ -58,6 +58,11 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       }
     }
 
+    // During STA claim senderCurvyHandle is null as we use ephemeral wallet for STA claims
+    // In that case we return early through intent branch
+    if (!this.senderCurvyHandle) {
+      throw new Error("Active wallet must have a Curvy Handle to perform aggregator aggregate.");
+    }
     return this.senderCurvyHandle;
   }
 
@@ -126,7 +131,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       // This means we should address the note to another recipient right now
       // Change note
       changeOrDummyOutputNote = await this.sdk.generateNewNote(
-        this.senderCurvyHandle,
+        this.senderCurvyHandle!, // Estimate will fail earlier if senderCurvyHandle is null, if called somehow generateNewNote will throw
         token,
         this.inputNotesSum - this.#intent.amount,
       );
