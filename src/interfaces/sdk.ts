@@ -1,4 +1,4 @@
-import type { NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
@@ -60,7 +60,7 @@ interface ICurvySDK {
   ): Promise<CurvySignatureParameters>;
 
   setActiveNetworks(networkFilter: NetworkFilter): void;
-  switchNetworkEnvironment(environment: "mainnet" | "testnet"): void;
+  switchNetworkEnvironment(environment?: NETWORK_ENVIRONMENT_VALUES): Promise<NETWORK_ENVIRONMENT_VALUES>;
 
   // Actions
 

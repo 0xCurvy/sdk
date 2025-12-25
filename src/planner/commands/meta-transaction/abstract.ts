@@ -3,6 +3,7 @@ import { vaultAbi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
+import { EvmRpc } from "@/rpc";
 import {
   type CurvyHandle,
   type HexString,
@@ -31,6 +32,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
   declare input: DeepNonNullable<SaBalanceEntry | VaultBalanceEntry>;
   declare estimate: MetaTransactionCommandEstimate;
   protected declare senderCurvyHandle: CurvyHandle;
+  protected readonly rpc: EvmRpc;
 
   protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
     super(id, sdk, input, estimate);
@@ -44,6 +46,14 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     if (!this.senderCurvyHandle) {
       throw new Error("Active wallet must have a Curvy Handle to perform meta transactions.");
     }
+
+    const rpc = sdk.rpcClient.Network(this.network.id);
+
+    if (!(rpc instanceof EvmRpc)) {
+      throw new Error("AbstractMetaTransactionCommand only supports EVM networks.");
+    }
+
+    this.rpc = rpc;
   }
 
   protected abstract get metaTransactionType(): MetaTransactionType;
@@ -61,10 +71,9 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       throw new Error("Command not estimated.");
     }
 
-    const rpc = this.sdk.rpcClient.Network(this.network.name);
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
 
-    const nonce = await rpc.provider.readContract({
+    const nonce = await this.rpc.provider.readContract({
       abi: vaultAbi,
       address: this.network.vaultContractAddress as HexString,
       functionName: "getNonce",
@@ -105,8 +114,6 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
   }
 
   protected async calculateCurvyFee(): Promise<bigint> {
-    const rpc = this.sdk.rpcClient.Network(this.network.name);
-
     const mapMetaTransactionTypeToFeeVariableName = {
       [META_TRANSACTION_TYPES.VAULT_WITHDRAW]: "withdrawalFee",
       [META_TRANSACTION_TYPES.VAULT_TRANSFER]: "transferFee",
@@ -120,7 +127,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       throw new Error(`Meta transaction type ${this.metaTransactionType} is not supported.`);
     }
 
-    const fee = await rpc.provider.readContract({
+    const fee = await this.rpc.provider.readContract({
       abi: vaultAbi,
       address: this.network.vaultContractAddress as HexString,
       functionName: mapMetaTransactionTypeToFeeVariableName[metaTransactionType],

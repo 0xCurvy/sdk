@@ -1,5 +1,4 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
-import { EvmRpc } from "@/rpc";
 import type { CurvyHandle, CurvyPublicKeys, HexString, Network } from "@/types";
 import type { CurvyCommandData } from "../plan";
 
@@ -13,7 +12,6 @@ export abstract class CurvyCommand {
   protected readonly input: CurvyCommandData;
   protected readonly senderCurvyHandle: CurvyHandle | null;
   protected readonly network: Network;
-  protected readonly rpc: EvmRpc;
 
   public estimate?: CurvyCommandEstimate;
 
@@ -31,14 +29,6 @@ export abstract class CurvyCommand {
     } else {
       this.network = sdk.getNetwork(this.input.networkSlug);
     }
-
-    const rpc = sdk.rpcClient.Network(this.network.id);
-
-    if (!(rpc instanceof EvmRpc)) {
-      throw new Error("AbstractMetaTransactionCommand only supports EVM networks.");
-    }
-
-    this.rpc = rpc;
   }
 
   abstract get recipient(): HexString | CurvyHandle | CurvyPublicKeys;

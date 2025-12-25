@@ -71,7 +71,7 @@ class CurvySDK implements ICurvySDK {
     this.#networks = [];
     this.storage = storage;
     this.#state = {
-      environment: "testnet",
+      environment: "mainnet",
       activeNetworks: [],
     };
     // Must bind for correct this reference
@@ -103,7 +103,7 @@ class CurvySDK implements ICurvySDK {
     await sdk.storage.upsertCurrencyMetadata(networksToCurrencyMetadata(sdk.#networks));
 
     if (networkFilter === undefined) {
-      await sdk.setActiveNetworks(true); // all mainnets by default
+      await sdk.setActiveNetworks(false); // all mainnets by default
     } else {
       await sdk.setActiveNetworks(networkFilter);
     }
@@ -369,8 +369,12 @@ class CurvySDK implements ICurvySDK {
     }
   }
 
-  switchNetworkEnvironment(environment: "mainnet" | "testnet") {
-    this.setActiveNetworks(environment === "testnet");
+  async switchNetworkEnvironment(environment?: "mainnet" | "testnet") {
+    const isTestnet = environment ? environment === "testnet" : this.#state.environment === "mainnet"; // If mainnet, toggle to testnet (true)
+
+    await this.setActiveNetworks(isTestnet);
+
+    return this.#state.environment;
   }
 
   async refreshNoteBalances(walletId = this.walletManager.activeWallet.id, options: RefreshOptions = {}) {
