@@ -88,21 +88,6 @@ interface ICurvySDK {
     message?: string,
   ): Promise<RpcCallReturnType>;
 
-  /**
-   *  * Polls a function until the criteria is met or max retries is reached.
-   *
-   * @param pollFunction
-   * @param pollCriteria
-   * @param {number} [maxRetries=120] - Maximum number of retries
-   * @param {number} [delayMs=10_000] - Delay between retries in milliseconds
-   */
-  pollForCriteria<T>(
-    pollFunction: () => Promise<T>,
-    pollCriteria: (res: T) => boolean,
-    maxRetries?: number,
-    delayMs?: number,
-  ): Promise<T>;
-
   generateCurvyKeyPairs(): Promise<CurvyKeyPairs>;
   generateNewNote(handleOrKeys: CurvyHandle | CurvyPublicKeys, token: bigint, amount: bigint): Promise<Note>;
 }

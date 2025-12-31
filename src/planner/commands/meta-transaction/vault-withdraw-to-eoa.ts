@@ -10,6 +10,7 @@ import {
   type MetaTransactionType,
   type SaBalanceEntry,
 } from "@/types";
+import { pollForCriteria } from "@/utils/helpers";
 
 // This command automatically sends all available balance from CSUC to external address
 export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionCommand {
@@ -44,7 +45,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
   }
 
   override get recipient() {
-    return this.intent.recipient as HexString;
+    return this.intent.exitNetwork ? this.input.source : (this.intent.recipient as HexString);
   }
 
   async getResultingBalanceEntry() {
@@ -63,7 +64,7 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
 
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
-    await this.sdk.pollForCriteria(
+    await pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
         if (res === "failed") throw new Error(`[VaultWithdrawToEoaCommand] Meta-transaction execution failed!`);
