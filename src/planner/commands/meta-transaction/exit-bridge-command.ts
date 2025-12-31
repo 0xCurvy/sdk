@@ -1,3 +1,4 @@
+import { privateKeyToAccount } from "viem/accounts";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractSaMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
@@ -68,11 +69,16 @@ export class ExitBridgeCommand extends AbstractSaMetaTransactionCommand {
   }
 
   async execute(): Promise<CurvyCommandData> {
+    const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
+
     const { estimateId: id } = this.estimate;
 
-    const signature = await this.signMetaTransaction(this.intent.recipient as HexString);
+    const signedAuthorization = await this.rpc.walletClient.signAuthorization({
+      account: privateKeyToAccount(privateKey),
+      contractAddress: this.network.tokenBridgeContractAddress as HexString,
+    });
 
-    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
+    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: JSON.stringify(signedAuthorization) });
 
     await pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
