@@ -8,6 +8,7 @@ import {
   type MetaTransactionType,
   type VaultBalanceEntry,
 } from "@/types";
+import { pollForCriteria } from "@/utils/helpers";
 
 // This command automatically sends all available balance from a stealth address to vault
 export class VaultOnboardCommand extends AbstractSaMetaTransactionCommand {
@@ -44,7 +45,7 @@ export class VaultOnboardCommand extends AbstractSaMetaTransactionCommand {
       signature: JSON.stringify(signedAuthorization),
     });
 
-    await this.sdk.pollForCriteria(
+    await pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
         if (res === "failed") throw new Error(`[SaOnboardToVault] Meta-transaction execution failed!`);

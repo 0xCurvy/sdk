@@ -5,5 +5,5 @@ export * from "./common";
 export * from "./currency";
 export * from "./decimal-conversions";
 export * from "./encryption";
-export { shaDigest } from "./helpers";
+export { pollForCriteria, shaDigest } from "./helpers";
 export { generateViemChainFromNetwork } from "./rpc";

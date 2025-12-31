@@ -168,6 +168,15 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
         },
       ],
     };
+
+    if (intent.exitNetwork) {
+      plan.items.push({
+        type: "command",
+        id: uuidV4(),
+        name: intent.currency.nativeCurrency ? "exit-bridge-native" : "exit-bridge",
+        intent,
+      });
+    }
   } else {
     plan = aggregationPlan;
   }

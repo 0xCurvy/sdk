@@ -29,4 +29,31 @@ function encode(message: string) {
   return textEncoder.encode(message);
 }
 
-export { isNode, shaDigest, generateWalletId, textEncoder, toSlug, arrayBufferToHex, encode };
+/**
+ *  * Polls a function until the criteria is met or max retries is reached.
+ *
+ * @param pollFunction
+ * @param pollCriteria
+ * @param {number} [maxRetries=120] - Maximum number of retries
+ * @param {number} [delayMs=10_000] - Delay between retries in milliseconds
+ */
+async function pollForCriteria<T>(
+  pollFunction: () => Promise<T>,
+  pollCriteria: (res: T) => boolean,
+  maxRetries = 120,
+  delayMs = 10000,
+): Promise<T> {
+  for (let i = 0; i < maxRetries; i++) {
+    const res = await pollFunction();
+
+    if (pollCriteria(res)) {
+      return res;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  throw new Error(`Polling failed!`);
+}
+
+export { isNode, shaDigest, generateWalletId, textEncoder, toSlug, arrayBufferToHex, encode, pollForCriteria };
