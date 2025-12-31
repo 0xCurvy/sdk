@@ -1,6 +1,7 @@
 import type { StorageInterface } from "@/interfaces";
 import type { IBalanceScanner } from "@/interfaces/balance-scanner";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
+import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { ICommandFactory } from "@/planner/commands/factory";
 import type {
   CurvyCommandData,
@@ -43,10 +44,16 @@ export class CommandExecutor {
         return {
           success: true,
           items: result,
-          estimate: result.reduce(
+          estimate: result.reduce<{ estimate: CurvyCommandEstimate }>(
             (res, { estimate }) => {
               res.estimate.gasFeeInCurrency += estimate?.gasFeeInCurrency || 0n;
               res.estimate.curvyFeeInCurrency += estimate?.curvyFeeInCurrency || 0n;
+
+              if (estimate?.bridgeFeeInCurrency)
+                res.estimate.bridgeFeeInCurrency = res.estimate.bridgeFeeInCurrency
+                  ? res.estimate.bridgeFeeInCurrency + estimate.bridgeFeeInCurrency
+                  : estimate.bridgeFeeInCurrency;
+
               return res;
             },
             { estimate: { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n } },
@@ -71,7 +78,7 @@ export class CommandExecutor {
       }
 
       let data = input;
-      const estimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
+      const estimate: CurvyCommandEstimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
       for (const item of plan.items) {
         const result = await this.#walkRecursively(item, data, dryRun);
 
@@ -90,6 +97,11 @@ export class CommandExecutor {
         data = result.data;
         estimate.gasFeeInCurrency += result.estimate?.gasFeeInCurrency || 0n;
         estimate.curvyFeeInCurrency += result.estimate?.curvyFeeInCurrency || 0n;
+
+        if (result.estimate?.bridgeFeeInCurrency)
+          estimate.bridgeFeeInCurrency = estimate.bridgeFeeInCurrency
+            ? estimate.bridgeFeeInCurrency + result.estimate.bridgeFeeInCurrency
+            : result.estimate.bridgeFeeInCurrency;
       }
 
       // The output address of the successful serial flow is the last members address.
@@ -173,9 +185,13 @@ export class CommandExecutor {
     return result;
   }
 
-  async estimatePlan(
-    _plan: CurvyPlan,
-  ): Promise<{ plan: CurvyPlan; gas: bigint; curvyFee: bigint; effectiveAmount: bigint }> {
+  async estimatePlan(_plan: CurvyPlan): Promise<{
+    plan: CurvyPlan;
+    gas: bigint;
+    curvyFee: bigint;
+    effectiveAmount: bigint;
+    bridgeFee: bigint | undefined;
+  }> {
     const plan = structuredClone(_plan);
 
     const planEstimation = await this.#walkRecursively(plan, undefined, true);
@@ -200,6 +216,7 @@ export class CommandExecutor {
       plan,
       gas: planEstimation.estimate.gasFeeInCurrency,
       curvyFee: planEstimation.estimate.curvyFeeInCurrency,
+      bridgeFee: planEstimation.estimate.bridgeFeeInCurrency,
       effectiveAmount: planEstimation.data.balance,
     };
   }

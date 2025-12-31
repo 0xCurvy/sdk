@@ -68,8 +68,12 @@ export class ExitBridgeNativeCommand extends AbstractClientCommand {
       fromAmount: this.netAmount.toString(),
     });
 
+    // TODO check if this calc is correct especially when sending ERC20
     this.estimate = {
       ...this.estimate,
+      bridgeFeeInCurrency:
+        (bridgeQuote.estimate.feeCosts?.reduce((acc, { amount }) => acc + BigInt(amount), 0n) ?? 0n) +
+        (bridgeQuote.estimate.gasCosts?.reduce((acc, { amount }) => acc + BigInt(amount), 0n) ?? 0n),
       bridgeQuote,
     };
 

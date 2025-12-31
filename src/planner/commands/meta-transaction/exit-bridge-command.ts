@@ -48,7 +48,11 @@ export class ExitBridgeCommand extends AbstractSaMetaTransactionCommand {
   }
 
   override async estimateFees() {
-    const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee({
+    const {
+      gasFeeInCurrency,
+      id: estimateId,
+      bridgeFeeInCurrency,
+    } = await this.calculateGasFee({
       exitNetwork: toSlug(this.intent.exitNetwork!.name),
     });
     const curvyFeeInCurrency = await this.calculateCurvyFee();
@@ -57,6 +61,7 @@ export class ExitBridgeCommand extends AbstractSaMetaTransactionCommand {
       gasFeeInCurrency,
       estimateId,
       curvyFeeInCurrency,
+      bridgeFeeInCurrency,
     };
 
     return this.estimate;
