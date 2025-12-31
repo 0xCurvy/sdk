@@ -5,6 +5,7 @@ import type { CurvyCommandData } from "../plan";
 export interface CurvyCommandEstimate {
   curvyFeeInCurrency: bigint;
   gasFeeInCurrency: bigint;
+  bridgeFeeInCurrency?: bigint;
 }
 
 export abstract class CurvyCommand {
