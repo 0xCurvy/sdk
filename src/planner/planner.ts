@@ -176,7 +176,7 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
       plan.items.push({
         type: "command",
         id: uuidV4(),
-        name: intent.currency.nativeCurrency ? "exit-bridge-native" : "exit-bridge",
+        name: "exit-bridge",
         intent,
       });
     }
