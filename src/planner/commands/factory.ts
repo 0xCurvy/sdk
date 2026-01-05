@@ -43,10 +43,6 @@ export class CurvyCommandFactory implements ICommandFactory {
       case "vault-deposit-to-aggregator":
         return new VaultDepositToAggregatorCommand(id, this.#sdk, input, estimate);
       case "vault-withdraw-to-eoa": {
-        if (!intent) {
-          throw new Error(`${name} requires an intent`);
-        }
-
         return new VaultWithdrawToEOACommand(id, this.#sdk, input, intent, estimate);
       }
       case "aggregator-aggregate": {
