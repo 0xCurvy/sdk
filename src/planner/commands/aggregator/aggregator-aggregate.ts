@@ -12,6 +12,7 @@ import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { Note } from "@/types/note";
+import { pollForCriteria } from "@/utils/helpers";
 
 interface CurvyCommandEstimateWithNote extends CurvyCommandEstimate {
   note: Note;
@@ -97,9 +98,9 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     const gasFeeInCurrency = 0n;
 
     this.estimate = {
+      ...this.estimate,
       curvyFeeInCurrency,
       gasFeeInCurrency,
-      note: {} as never,
     };
 
     this.estimate.note = await this.sdk.generateNewNote(this.recipient, this.input[0].vaultTokenId, this.netAmount);
@@ -152,7 +153,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
 
     const requestId = await this.sdk.apiClient.aggregator.SubmitAggregation(aggregationRequest);
 
-    await this.sdk.pollForCriteria(
+    await pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId.requestId),
       (res) => {
         return res.status === "success";

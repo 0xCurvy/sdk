@@ -123,6 +123,10 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
 
     const metaTransactionType = this.metaTransactionType;
 
+    if (metaTransactionType === META_TRANSACTION_TYPES.EXIT_BRIDGE) {
+      return 0n;
+    }
+
     if (!(metaTransactionType in mapMetaTransactionTypeToFeeVariableName)) {
       throw new Error(`Meta transaction type ${this.metaTransactionType} is not supported.`);
     }
@@ -137,7 +141,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     return (this.input.balance * fee) / FEE_DENOMINATOR;
   }
 
-  protected async calculateGasFee(ownerHash?: bigint) {
+  protected async calculateGasFee(args: { ownerHash?: bigint; exitNetwork?: string } = {}) {
     return this.sdk.apiClient.metaTransaction.EstimateGas({
       type: this.metaTransactionType,
       currencyAddress: this.input.currencyAddress,
@@ -145,7 +149,8 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       fromAddress: this.input.source,
       toAddress: this.recipient,
       network: this.input.networkSlug,
-      ownerHash: ownerHash ? `0x${ownerHash.toString(16)}` : undefined,
+      ownerHash: args.ownerHash ? `0x${args.ownerHash.toString(16)}` : undefined,
+      exitNetwork: args.exitNetwork,
     });
   }
 

@@ -54,6 +54,7 @@ type Network = {
   vaultContractAddress?: string;
   vaultContractVersion?: string;
   tokenMoverContractAddress?: string;
+  tokenBridgeContractAddress?: string;
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   portalFactoryContractAddress?: string;
@@ -229,6 +230,7 @@ type MetaTransactionEstimationRequestBody = {
   toAddress: string;
   amount: string;
   network: string;
+  exitNetwork?: string;
   currencyAddress: string;
   ownerHash?: string;
 };

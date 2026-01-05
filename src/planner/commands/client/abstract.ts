@@ -1,3 +1,4 @@
+import type { LiFiStep } from "@lifi/sdk";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
@@ -8,6 +9,10 @@ import type { DeepNonNullable } from "@/types/helper";
 export interface ClientCommandEstimate extends CurvyCommandEstimate {
   maxFeePerGas: bigint;
   gasLimit: bigint;
+}
+
+export interface ClientTransactionEstimateWithBridgeQuote extends ClientCommandEstimate {
+  bridgeQuote: LiFiStep;
 }
 
 export abstract class AbstractClientCommand extends CurvyCommand {

@@ -11,7 +11,7 @@ import {
   type WithdrawRequest,
 } from "@/types";
 import { generateWithdrawalHash } from "@/utils/aggregator";
-import { toSlug } from "@/utils/helpers";
+import { pollForCriteria, toSlug } from "@/utils/helpers";
 
 interface CurvyCommandEstimateWithStealthAddressData extends CurvyCommandEstimate {
   stealthAddressData: GetStealthAddressReturnType;
@@ -125,7 +125,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw(withdrawRequest);
 
-    await this.sdk.pollForCriteria(
+    await pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res) => {
         return res.status === "success";
