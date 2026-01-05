@@ -497,25 +497,6 @@ class CurvySDK implements ICurvySDK {
       .sendToAddress(from, privateKey, recipientAddress, amount, currency, fee);
   }
 
-  async pollForCriteria<T>(
-    pollFunction: () => Promise<T>,
-    pollCriteria: (res: T) => boolean,
-    maxRetries = 120,
-    delayMs = 10000,
-  ): Promise<T> {
-    for (let i = 0; i < maxRetries; i++) {
-      const res = await pollFunction();
-
-      if (pollCriteria(res)) {
-        return res;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-
-    throw new Error(`Polling failed!`);
-  }
-
   async generateNewNote(handleOrKeys: CurvyHandle | CurvyPublicKeys, token: bigint, amount: bigint) {
     let S: string, V: string, babyJubjubPublicKey: string;
 
