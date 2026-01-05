@@ -1,4 +1,4 @@
-import type { LiFiStep } from "@lifi/sdk";
+import type { TransactionRequest } from "@lifi/sdk";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { CurvyCommandData } from "@/planner/plan";
@@ -12,7 +12,7 @@ export interface ClientCommandEstimate extends CurvyCommandEstimate {
 }
 
 export interface ClientTransactionEstimateWithBridgeQuote extends ClientCommandEstimate {
-  bridgeQuote: LiFiStep;
+  transactionRequest: TransactionRequest;
 }
 
 export abstract class AbstractClientCommand extends CurvyCommand {

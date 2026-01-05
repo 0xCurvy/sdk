@@ -8,7 +8,7 @@ import {
   type ClientTransactionEstimateWithBridgeQuote,
 } from "@/planner/commands/client/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
-import type { SaBalanceEntry } from "@/types";
+import { isHexString, type SaBalanceEntry } from "@/types";
 import { pollForCriteria, toSlug } from "@/utils/helpers";
 
 export class ExitBridgeNativeCommand extends AbstractClientCommand {
@@ -38,6 +38,14 @@ export class ExitBridgeNativeCommand extends AbstractClientCommand {
     } satisfies SaBalanceEntry;
   }
 
+  override get recipient() {
+    if (!this.#intent.recipient || !isHexString(this.#intent.recipient)) {
+      throw new Error(`${this.name}: Recipient MUST be a hex string address, got ${this.#intent.recipient}`);
+    }
+
+    return this.#intent.recipient;
+  }
+
   async estimateFees() {
     const { maxFeePerGas } = await this.rpc.provider.estimateFeesPerGas();
     const gasLimit = 320_000n;
@@ -53,24 +61,28 @@ export class ExitBridgeNativeCommand extends AbstractClientCommand {
       maxFeePerGas,
     };
 
-    const bridgeQuote = await getQuote({
+    const { estimate, transactionRequest } = await getQuote({
       fromChain: this.network.chainId,
       toChain: this.#intent.network.chainId,
       fromToken: this.#intent.currency.symbol,
       toToken: this.#intent.currency.symbol,
       slippage: 0.01,
       fromAddress: this.input.source,
-      toAddress: this.input.source,
+      toAddress: this.recipient,
       fromAmount: this.netAmount.toString(),
     });
 
-    // TODO check if this calc is correct especially when sending ERC20
+    if (!estimate || !transactionRequest) {
+      throw new Error(`${this.name}: Failed to get bridge quote for exit bridge.`);
+    }
+
     this.estimate = {
-      ...this.estimate,
-      bridgeFeeInCurrency:
-        (bridgeQuote.estimate.feeCosts?.reduce((acc, { amount }) => acc + BigInt(amount), 0n) ?? 0n) +
-        (bridgeQuote.estimate.gasCosts?.reduce((acc, { amount }) => acc + BigInt(amount), 0n) ?? 0n),
-      bridgeQuote,
+      gasLimit,
+      maxFeePerGas,
+      gasFeeInCurrency,
+      curvyFeeInCurrency: 0n,
+      bridgeFeeInCurrency: estimate.feeCosts?.reduce((acc, { amount }) => acc + BigInt(amount), 0n) ?? 0n,
+      transactionRequest,
     };
 
     return this.estimate;
@@ -79,15 +91,15 @@ export class ExitBridgeNativeCommand extends AbstractClientCommand {
   async execute(): Promise<CurvyCommandData> {
     const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
 
-    const { gasLimit, maxFeePerGas, bridgeQuote } = this.estimate;
+    const { gasLimit, maxFeePerGas, transactionRequest } = this.estimate;
 
     const hash = await this.rpc.walletClient.sendTransaction({
       account: privateKeyToAccount(privateKey),
       chain: this.rpc.walletClient.chain,
-      to: bridgeQuote.transactionRequest?.to as Address,
-      data: bridgeQuote.transactionRequest?.data as Address,
-      value: BigInt(bridgeQuote.transactionRequest?.value || "0"),
-      gasLimit,
+      to: transactionRequest.to as Address,
+      data: transactionRequest.data as Address,
+      value: BigInt(transactionRequest.value || "0"),
+      gas: gasLimit,
       maxFeePerGas,
     });
 
@@ -97,14 +109,14 @@ export class ExitBridgeNativeCommand extends AbstractClientCommand {
       () => {
         return getStatus({
           txHash: hash,
-          fromChain: bridgeQuote.action.fromChainId,
-          toChain: bridgeQuote.action.toChainId,
-          bridge: bridgeQuote.tool,
-        });
+        }).catch();
       },
       ({ status }) => {
         if (status === "FAILED") {
           throw new Error(`Bridge failed for transaction with hash ${hash}`);
+        }
+        if (status === "INVALID" || status === "NOT_FOUND") {
+          throw new Error(`Bridge transaction with hash ${hash} is invalid or not found`);
         }
         return status === "DONE";
       },
