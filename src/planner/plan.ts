@@ -9,7 +9,6 @@ export type CurvyIntent = {
   // I don't care that Currency and Network are large objects, intents are rare and always user-generated.
   currency: Currency;
   network: Network;
-  exitNetwork?: Network;
 } & (
   | {
       recipient: CurvyHandle | HexString;
