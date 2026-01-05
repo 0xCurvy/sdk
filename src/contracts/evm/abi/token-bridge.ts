@@ -34,9 +34,9 @@ export const tokenBridgeAbi = [
         type: "bytes",
       },
     ],
-    name: "bridgeAllTokens",
+    name: "bridgeFullBalance",
     outputs: [],
-    stateMutability: "payable",
+    stateMutability: "nonpayable",
     type: "function",
   },
 ] as const;

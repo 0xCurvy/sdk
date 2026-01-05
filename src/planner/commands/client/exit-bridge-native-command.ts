@@ -24,10 +24,6 @@ export class ExitBridgeNativeCommand extends AbstractClientCommand {
   ) {
     super(id, sdk, input, estimate);
     this.#intent = intent;
-
-    if (!this.#intent.exitNetwork) {
-      throw new Error(`${this.name}: exitNetwork is required in intent`);
-    }
   }
 
   get name() {
@@ -38,15 +34,15 @@ export class ExitBridgeNativeCommand extends AbstractClientCommand {
     return {
       ...this.input,
       balance: this.netAmount,
-      networkSlug: toSlug(this.#intent.exitNetwork!.name),
+      networkSlug: toSlug(this.#intent.network.name),
     } satisfies SaBalanceEntry;
   }
 
   async estimateFees() {
     const { maxFeePerGas } = await this.rpc.provider.estimateFeesPerGas();
-    const gasLimit = 300_000n;
+    const gasLimit = 320_000n;
 
-    const gasFeeInCurrency = (maxFeePerGas * gasLimit * 110n) / 100n;
+    const gasFeeInCurrency = maxFeePerGas * gasLimit;
     const curvyFeeInCurrency = 0n;
 
     this.estimate = {
@@ -59,7 +55,7 @@ export class ExitBridgeNativeCommand extends AbstractClientCommand {
 
     const bridgeQuote = await getQuote({
       fromChain: this.network.chainId,
-      toChain: this.#intent.exitNetwork!.chainId,
+      toChain: this.#intent.network.chainId,
       fromToken: this.#intent.currency.symbol,
       toToken: this.#intent.currency.symbol,
       slippage: 0.01,
@@ -107,8 +103,13 @@ export class ExitBridgeNativeCommand extends AbstractClientCommand {
         });
       },
       ({ status }) => {
-        return status === "DONE" || status === "FAILED";
+        if (status === "FAILED") {
+          throw new Error(`Bridge failed for transaction with hash ${hash}`);
+        }
+        return status === "DONE";
       },
+      24,
+      5000,
     );
 
     return this.getResultingBalanceEntry();

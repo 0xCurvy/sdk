@@ -18,10 +18,6 @@ export class ExitBridgeCommand extends AbstractSaMetaTransactionCommand {
   ) {
     super(id, sdk, input, estimate);
     this.#intent = intent;
-
-    if (!this.intent.exitNetwork) {
-      throw new Error(`${this.name}: exitNetwork is required in intent`);
-    }
   }
 
   get name() {
@@ -36,7 +32,7 @@ export class ExitBridgeCommand extends AbstractSaMetaTransactionCommand {
     return {
       ...this.input,
       balance: this.netAmount, // Technically this is not accurate, as the final amount will be somewhere between toAmount and toAmountMin from quote
-      networkSlug: toSlug(this.intent.exitNetwork!.name),
+      networkSlug: toSlug(this.intent.network.name),
     } satisfies SaBalanceEntry;
   }
 
@@ -54,7 +50,7 @@ export class ExitBridgeCommand extends AbstractSaMetaTransactionCommand {
       id: estimateId,
       bridgeFeeInCurrency,
     } = await this.calculateGasFee({
-      exitNetwork: toSlug(this.intent.exitNetwork!.name),
+      exitNetwork: toSlug(this.intent.network.name),
     });
     const curvyFeeInCurrency = await this.calculateCurvyFee();
 
