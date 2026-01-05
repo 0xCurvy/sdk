@@ -4,6 +4,7 @@ import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractSaMetaTransactionCommand } from "@/planner/commands/meta-transaction/abstract";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { type HexString, META_TRANSACTION_TYPES, type SaBalanceEntry } from "@/types";
+import { jsonStringify } from "@/utils";
 import { pollForCriteria, toSlug } from "@/utils/helpers";
 
 export class ExitBridgeCommand extends AbstractSaMetaTransactionCommand {
@@ -74,7 +75,7 @@ export class ExitBridgeCommand extends AbstractSaMetaTransactionCommand {
       contractAddress: this.network.tokenBridgeContractAddress as HexString,
     });
 
-    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: JSON.stringify(signedAuthorization) });
+    await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature: jsonStringify(signedAuthorization) });
 
     await pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
