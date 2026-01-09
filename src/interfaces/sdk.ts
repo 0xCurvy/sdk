@@ -75,14 +75,14 @@ interface ICurvySDK {
     from: CurvyAddress,
     networkIdentifier: NetworkFilter,
     to: string,
-    amount: string,
+    amount: bigint,
     currency: string,
   ): Promise<CurvyFeeEstimate>;
   send(
     from: CurvyAddress,
     networkIdentifier: NetworkFilter,
     to: string,
-    amount: string,
+    amount: bigint,
     currency: string,
     fee: StarknetFeeEstimate | bigint,
     message?: string,

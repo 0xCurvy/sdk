@@ -436,7 +436,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     networkIdentifier: NetworkFilter,
     to: HexString | CurvyHandle,
-    amount: string,
+    amount: bigint,
     currency: string,
   ) {
     const privateKey = await this.walletManager.getAddressPrivateKey(from);
@@ -449,7 +449,7 @@ class CurvySDK implements ICurvySDK {
 
     const rpc = this.rpcClient.Network(networkIdentifier);
     const nativeToken = this.getNetwork(networkIdentifier).currencies.find((c) => c.nativeCurrency)!;
-    const fee = await rpc.estimateFee(from, privateKey, recipientAddress, amount, currency);
+    const fee = await rpc.estimateTransactionFee(from, privateKey, recipientAddress, amount, currency);
     const raw = rpc.feeToAmount(fee);
     const fiat = toNumber(
       mul([raw, nativeToken.decimals], (await this.storage.getCurrencyPrice(nativeToken.symbol)).price),
@@ -467,7 +467,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     networkIdentifier: NetworkFilter,
     to: CurvyHandle | HexString,
-    amount: string,
+    amount: bigint,
     currency: string,
     fee: StarknetFeeEstimate | bigint,
     message?: string,
