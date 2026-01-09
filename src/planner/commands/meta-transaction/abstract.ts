@@ -123,7 +123,10 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
 
     const metaTransactionType = this.metaTransactionType;
 
-    if (metaTransactionType === META_TRANSACTION_TYPES.EXIT_BRIDGE) {
+    if (
+      metaTransactionType === META_TRANSACTION_TYPES.EXIT_BRIDGE ||
+      metaTransactionType === META_TRANSACTION_TYPES.LEGACY_PORTAL
+    ) {
       return 0n;
     }
 

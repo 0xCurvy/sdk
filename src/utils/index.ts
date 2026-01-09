@@ -6,4 +6,4 @@ export * from "./currency";
 export * from "./decimal-conversions";
 export * from "./encryption";
 export { pollForCriteria, shaDigest } from "./helpers";
-export { generateViemChainFromNetwork } from "./rpc";
+export { type CurvyPublicClient, type CurvyWalletClient, generateViemChainFromNetwork } from "./rpc";

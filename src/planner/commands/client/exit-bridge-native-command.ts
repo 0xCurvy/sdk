@@ -95,7 +95,6 @@ export class ExitBridgeNativeCommand extends AbstractClientCommand {
 
     const hash = await this.rpc.walletClient.sendTransaction({
       account: privateKeyToAccount(privateKey),
-      chain: this.rpc.walletClient.chain,
       to: transactionRequest.to as Address,
       data: transactionRequest.data as Address,
       value: BigInt(transactionRequest.value || "0"),
