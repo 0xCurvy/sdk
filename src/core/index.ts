@@ -17,6 +17,7 @@ import type {
 import type { HexString, StringifyBigInts } from "@/types/helper";
 import type { AuthenticatedNote } from "@/types/note";
 import { Note, type PublicNote } from "@/types/note";
+
 import { isNode } from "@/utils/helpers";
 import { poseidonHash } from "@/utils/poseidon-hash";
 
@@ -73,27 +74,14 @@ class Core implements ICore {
 
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
-      const wasmPath = path.resolve(
-        __dirname,
-        "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm",
-      );
-      const zkeyPath = path.resolve(
-        __dirname,
-        "../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey",
-      );
 
-      this.#noteProvingWasm = await fs.readFile(wasmPath);
-      this.#noteProvingZkey = await fs.readFile(zkeyPath);
+      this.#noteProvingWasm = await fs.readFile(path.resolve(__dirname, "/zk-artifacts/verifyNoteOwnership_10.wasm"));
+      this.#noteProvingZkey = await fs.readFile(
+        path.resolve(__dirname, "/zk-artifacts/verifyNoteOwnership_10_0001.zkey"),
+      );
     } else {
-      this.#noteProvingWasm = (
-        await import(
-          "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm?url"
-        )
-      ).default;
-
-      this.#noteProvingZkey = (
-        await import("../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey?url")
-      ).default;
+      this.#noteProvingWasm = (await import("./zk-artifacts/verifyNoteOwnership_10.wasm?url")).default;
+      this.#noteProvingZkey = (await import("./zk-artifacts/verifyNoteOwnership_10_0001.zkey?url")).default;
     }
   }
 
