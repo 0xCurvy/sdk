@@ -1,15 +1,4 @@
-import {
-  type Address,
-  createPublicClient,
-  createWalletClient,
-  decodeFunctionResult,
-  encodeFunctionData,
-  erc20Abi,
-  getContract,
-  http,
-  type PublicClient,
-  type WalletClient,
-} from "viem";
+import { type Address, createPublicClient, createWalletClient, encodeFunctionData, erc20Abi, http } from "viem";
 import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTransaction";
 import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
@@ -21,13 +10,17 @@ import type { RpcBalance, RpcBalances, VaultBalance } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import { parseDecimal } from "@/utils/currency";
 import { toSlug } from "@/utils/helpers";
-import { generateViemChainFromNetwork } from "@/utils/rpc";
+import {
+  type CurvyPublicClient,
+  type CurvyWalletClient,
+  extendClientFromNetwork,
+  generateViemChainFromNetwork,
+} from "@/utils/rpc";
 
 class EvmRpc extends Rpc {
-  readonly #publicClient: PublicClient;
-  readonly #walletClient: WalletClient;
+  readonly #publicClient: CurvyPublicClient;
+  readonly #walletClient: CurvyWalletClient;
 
   constructor(network: Network) {
     super(network);
@@ -38,13 +31,13 @@ class EvmRpc extends Rpc {
       transport: http(this.network.rpcUrl),
       name: `CurvyEvmPublicClient-${toSlug(network.name)}`,
       chain,
-    });
+    }).extend((client) => extendClientFromNetwork(network, client));
 
     this.#walletClient = createWalletClient({
       transport: http(this.network.rpcUrl),
       name: `CurvyEvmWalletClient-${toSlug(network.name)}`,
       chain,
-    });
+    }).extend((client) => extendClientFromNetwork(network, client));
   }
 
   get provider() {
@@ -56,70 +49,40 @@ class EvmRpc extends Rpc {
   }
 
   async getBalances(stealthAddress: HexString) {
-    const evmMulticall = getContract({
-      abi: evmMulticall3Abi,
-      address: this.network.multiCallContractAddress as Address,
-      client: this.#publicClient,
-    });
-
     const calls = this.network.currencies.map(({ nativeCurrency, contractAddress }) => {
       if (nativeCurrency) {
         return {
-          target: evmMulticall.address,
-          callData: encodeFunctionData({
-            abi: evmMulticall3Abi,
-            functionName: "getEthBalance",
-            args: [stealthAddress as Address],
-          }),
-          gasLimit: 30_000n,
+          address: this.network.multiCallContractAddress as Address,
+          abi: evmMulticall3Abi,
+          functionName: "getEthBalance",
+          args: [stealthAddress as Address],
         };
       }
 
       return {
-        target: contractAddress as Address,
-        callData: encodeFunctionData({
-          abi: erc20Abi,
-          functionName: "balanceOf",
-          args: [stealthAddress as Address],
-        }),
-        gasLimit: 30_000n,
+        address: contractAddress as Address,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [stealthAddress as Address],
       };
     });
 
-    const {
-      result: [_, tokenBalances],
-    } = await evmMulticall.simulate.aggregate([calls]);
+    const tokenBalances = await this.#publicClient.multicall({ contracts: calls, allowFailure: true });
 
     const networkSlug = toSlug(this.network.name);
 
     return tokenBalances
-      .map((encodedTokenBalance, idx) => {
-        const {
-          contractAddress: currencyAddress,
-          nativeCurrency,
-          symbol,
-          decimals,
-          vaultTokenId,
-        } = this.network.currencies[idx];
+      .map((tokenBalance, idx) => {
+        const { contractAddress: currencyAddress, symbol, decimals, vaultTokenId } = this.network.currencies[idx];
 
-        let balance: bigint;
+        if (tokenBalance.error) {
+          console.log(`Couldn't get balance for token ${currencyAddress}: `, tokenBalance.error);
+          return null;
+        }
 
-        if (nativeCurrency)
-          balance = decodeFunctionResult({
-            abi: evmMulticall3Abi,
-            functionName: "getEthBalance",
-            data: encodedTokenBalance,
-          });
-        else
-          balance = decodeFunctionResult({
-            abi: erc20Abi,
-            functionName: "balanceOf",
-            data: encodedTokenBalance,
-          });
-
-        return balance
+        return tokenBalance.result
           ? {
-              balance,
+              balance: BigInt(tokenBalance.result),
               currencyAddress: currencyAddress as HexString,
               vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
               symbol,
@@ -167,31 +130,26 @@ class EvmRpc extends Rpc {
     } satisfies RpcBalance;
   }
 
-  async #prepareTx(privateKey: HexString, address: Address, amount: string, currencySymbol: string) {
-    const token = this.network.currencies.find((c) => c.symbol === currencySymbol);
-    if (!token) throw new Error(`Token ${currencySymbol} not found.`);
+  async #prepareTx(privateKey: HexString, address: Address, amount: bigint, currencyAddress: HexString) {
+    const currency = this.network.currencies.find((c) => c.contractAddress === currencyAddress);
+    if (!currency) throw new Error(`Currency ${currencyAddress} not found.`);
 
     const account = privateKeyToAccount(privateKey);
 
-    const txRequestBase = {
-      account,
-      chain: this.#walletClient.chain,
-    } as const;
-
-    if (token.nativeCurrency) {
+    if (currency.nativeCurrency) {
       const gasLimit = await this.#publicClient
         .estimateGas({
           account,
           to: address,
-          value: parseDecimal(amount, token),
+          value: amount,
         })
         .then((res) => res)
         .catch(() => 21_000n);
 
       return this.#walletClient.prepareTransactionRequest({
-        ...txRequestBase,
+        account,
         to: address,
-        value: parseDecimal(amount, token),
+        value: amount,
         gas: gasLimit,
       });
     }
@@ -199,25 +157,23 @@ class EvmRpc extends Rpc {
     const data = encodeFunctionData({
       abi: erc20Abi,
       functionName: "transfer",
-      // No parse units, use Currency utils
-      args: [address, parseDecimal(amount, token)],
+      args: [address, amount],
     });
 
     const gasLimit = await this.#publicClient
       .estimateContractGas({
         account,
-        address: token.contractAddress as Address,
+        address: currencyAddress,
         abi: erc20Abi,
         functionName: "transfer",
-        // No parse units, use Currency utils
-        args: [address, parseDecimal(amount, token)],
+        args: [address, amount],
       })
       .then((res) => res)
       .catch(() => 65_000n);
 
     return this.#walletClient.prepareTransactionRequest({
-      ...txRequestBase,
-      to: token.contractAddress as Address,
+      account,
+      to: currencyAddress,
       gas: gasLimit,
       data,
       value: 0n,
@@ -228,11 +184,11 @@ class EvmRpc extends Rpc {
     _curvyAddress: CurvyAddress,
     privateKey: HexString,
     address: string,
-    amount: string,
-    currencySymbol: string,
+    amount: bigint,
+    currencyAddress: HexString,
     _fee?: bigint,
   ) {
-    const txRequest = await this.#prepareTx(privateKey, address as `0x${string}`, amount, currencySymbol);
+    const txRequest = await this.#prepareTx(privateKey, address as `0x${string}`, amount, currencyAddress);
     const serializedTransaction = await this.#walletClient.signTransaction(txRequest);
 
     const hash = await this.#walletClient.sendRawTransaction({ serializedTransaction });
@@ -250,15 +206,14 @@ class EvmRpc extends Rpc {
     };
   }
 
-  async estimateFee(
+  async estimateTransactionFee(
     _curvyAddress: CurvyAddress,
     privateKey: HexString,
     address: Address,
-    amount: string,
-    currency: string,
+    amount: bigint,
+    currencyAddress: HexString,
   ) {
-    const txRequest = await this.#prepareTx(privateKey, address, amount, currency);
-
+    const txRequest = await this.#prepareTx(privateKey, address, amount, currencyAddress);
     return txRequest ? txRequest.maxFeePerGas * txRequest.gas : 0n;
   }
 
@@ -315,7 +270,6 @@ class EvmRpc extends Rpc {
     }
 
     const hash = await this.#walletClient.sendTransaction({
-      chain: this.#walletClient.chain,
       account: privateKeyToAccount(privateKey),
       maxFeePerGas,
       gasLimit,
@@ -339,7 +293,6 @@ class EvmRpc extends Rpc {
   async signRawTransaction(privateKey: HexString, txRequest: SignTransactionRequest) {
     return this.#walletClient.signTransaction({
       account: privateKeyToAccount(privateKey),
-      chain: this.#walletClient.chain,
       ...txRequest,
     });
   }
