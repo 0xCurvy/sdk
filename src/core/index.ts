@@ -75,11 +75,11 @@ class Core implements ICore {
       const __dirname = path.dirname(__filename);
       const wasmPath = path.resolve(
         __dirname,
-        "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm",
+        "./zk-artifacts/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm",
       );
       const zkeyPath = path.resolve(
         __dirname,
-        "../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey",
+        "./zk-artifacts/keys/verifyNoteOwnership_10_0001.zkey",
       );
 
       this.#noteProvingWasm = await fs.readFile(wasmPath);
@@ -87,12 +87,12 @@ class Core implements ICore {
     } else {
       this.#noteProvingWasm = (
         await import(
-          "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm?url"
+          "./zk-artifacts/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm?url"
         )
       ).default;
 
       this.#noteProvingZkey = (
-        await import("../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey?url")
+        await import("./zk-artifacts/keys/verifyNoteOwnership_10_0001.zkey?url")
       ).default;
     }
   }
