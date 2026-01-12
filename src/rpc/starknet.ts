@@ -25,7 +25,6 @@ import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate, VaultBalance } from "@/types/rpc";
-import { parseDecimal } from "@/utils/currency";
 import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { toSlug } from "@/utils/helpers";
 import { fromUint256 } from "@/utils/rpc";
@@ -117,18 +116,24 @@ class StarknetRpc extends Rpc {
     } satisfies RpcBalance;
   }
 
-  #prepareTx(curvyAddress: CurvyAddress, privateKey: HexString, address: Address, amount: string, currency: string) {
-    const token = this.network.currencies.find((c) => c.symbol === currency);
-    if (!token) throw new Error(`Token ${currency} not found.`);
+  #prepareTx(
+    curvyAddress: CurvyAddress,
+    privateKey: HexString,
+    address: Address,
+    amount: bigint,
+    currencyAddress: HexString,
+  ) {
+    const currency = this.network.currencies.find((c) => c.symbol === currencyAddress);
+    if (!currency) throw new Error(`Currency ${currencyAddress} not found.`);
 
     const starknetAccount = new Account(this.#provider, curvyAddress.address, new EthSigner(privateKey));
 
     const txPayload = {
-      contractAddress: token.contractAddress as string,
+      contractAddress: currencyAddress,
       entrypoint: "transfer",
       calldata: CallData.compile({
         to: address,
-        amount: cairo.uint256(parseDecimal(amount, token)),
+        amount: cairo.uint256(amount),
       }),
     } satisfies Call;
 
@@ -253,8 +258,8 @@ class StarknetRpc extends Rpc {
     curvyAddress: CurvyAddress,
     privateKey: HexString,
     address: string,
-    amount: string,
-    currency: string,
+    amount: bigint,
+    currencyAddress: HexString,
     fee?: StarknetFeeEstimate,
   ) {
     if (!(await this.checkIsStarknetAccountDeployed(curvyAddress.address))) {
@@ -266,7 +271,7 @@ class StarknetRpc extends Rpc {
       privateKey,
       address as `0x${string}`,
       amount,
-      currency,
+      currencyAddress,
     );
 
     let feeEstimate: EstimateFee;
@@ -295,12 +300,12 @@ class StarknetRpc extends Rpc {
     };
   }
 
-  async estimateFee(
+  async estimateTransactionFee(
     curvyAddress: CurvyAddress,
     privateKey: HexString,
     address: Address,
-    amount: string,
-    currency: string,
+    amount: bigint,
+    currencyAddress: HexString,
   ): Promise<StarknetFeeEstimate> {
     let deployFee: EstimateFee | undefined;
     const isDeployed = await this.checkIsStarknetAccountDeployed(curvyAddress.address);
@@ -308,7 +313,7 @@ class StarknetRpc extends Rpc {
       deployFee = await this.#estimateDeployFee(curvyAddress, privateKey);
     }
 
-    let { starknetAccount, txPayload } = this.#prepareTx(curvyAddress, privateKey, address, amount, currency);
+    let { starknetAccount, txPayload } = this.#prepareTx(curvyAddress, privateKey, address, amount, currencyAddress);
 
     if (!isDeployed) {
       // Try to fool the estimator so that we can extract total fee (deploy + tx) for undeployed account.

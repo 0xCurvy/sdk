@@ -1,5 +1,14 @@
-import { NETWORK_FLAVOUR } from "@/constants/networks";
-import { type CurvyAddress, type HexString, isHexString, type RpcBalances, type VaultBalance } from "@/types";
+import { normalize } from "viem/ens";
+import { type NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR } from "@/constants/networks";
+import type { EvmRpc } from "@/rpc/evm";
+import {
+  type CurvyAddress,
+  type CurvyHandle,
+  type HexString,
+  isHexString,
+  type RpcBalances,
+  type VaultBalance,
+} from "@/types";
 import type { AbortOptions } from "@/types/helper";
 import { toSlug } from "@/utils/helpers";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
@@ -37,6 +46,19 @@ class MultiRpc {
 
     return Promise.all(rpcs.map((rpc) => rpc.getVaultBalances(curvyAddress.address))).then((results) => {
       return results;
+    });
+  }
+
+  async ensResolveCurvyHandle(handle: CurvyHandle, environment: NETWORK_ENVIRONMENT_VALUES, slip0044?: bigint) {
+    const publicClient = (this.Network(environment === "mainnet" ? "ethereum" : "ethereum-sepolia") as EvmRpc).provider;
+
+    if (handle.includes(".local-curvy.name")) {
+      throw new Error("Local Curvy handles are not supported for ENS resolution");
+    }
+
+    return publicClient.getEnsAddress({
+      name: normalize(handle),
+      coinType: slip0044,
     });
   }
 

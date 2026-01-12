@@ -43,7 +43,7 @@
     "@types/snarkjs": "^0.7.9",
     "rimraf": "^6.0.1",
     "tsup": "8.5.0",
-    "typescript": "5.8.3",
+    "typescript": "^5.9.3",
     "vitest": "3.1.4"
   },
   "dependencies": {
@@ -60,7 +60,7 @@
     "snarkjs": "^0.7.5",
     "starknet": "^7.6.4",
     "uuid": "^13.0.0",
-    "viem": "^2.30.5"
+    "viem": "^2.43.5"
   },
   "config": {
     "commitizen": {
