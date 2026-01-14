@@ -2,7 +2,6 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand, CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
 import { AggregatorWithdrawToVaultCommand } from "@/planner/commands/aggregator/aggregator-withdraw-to-vault";
-import { ExitBridgeNativeCommand } from "@/planner/commands/client/exit-bridge-native-command";
 import { VaultOnboardNativeCommand } from "@/planner/commands/client/vault-onboard-native-command";
 import { ExitBridgeCommand } from "@/planner/commands/meta-transaction/exit-bridge-command";
 import { VaultDepositToAggregatorCommand } from "@/planner/commands/meta-transaction/vault-deposit-to-aggregator";
@@ -50,12 +49,6 @@ export class CurvyCommandFactory implements ICommandFactory {
       }
       case "aggregator-withdraw-to-vault":
         return new AggregatorWithdrawToVaultCommand(id, this.#sdk, input, estimate);
-      case "exit-bridge-native":
-        if (!intent) {
-          throw new Error(`${name} requires an intent`);
-        }
-
-        return new ExitBridgeNativeCommand(id, this.#sdk, input, intent, estimate);
       case "exit-bridge":
         if (!intent) {
           throw new Error(`${name} requires an intent`);
