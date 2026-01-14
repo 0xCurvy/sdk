@@ -74,14 +74,27 @@ class Core implements ICore {
 
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
-
-      this.#noteProvingWasm = await fs.readFile(path.resolve(__dirname, "/zk-artifacts/verifyNoteOwnership_10.wasm"));
-      this.#noteProvingZkey = await fs.readFile(
-        path.resolve(__dirname, "/zk-artifacts/verifyNoteOwnership_10_0001.zkey"),
+      const wasmPath = path.resolve(
+        __dirname,
+        "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm",
       );
+      const zkeyPath = path.resolve(
+        __dirname,
+        "../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey",
+      );
+
+      this.#noteProvingWasm = await fs.readFile(wasmPath);
+      this.#noteProvingZkey = await fs.readFile(zkeyPath);
     } else {
-      this.#noteProvingWasm = (await import("./zk-artifacts/verifyNoteOwnership_10.wasm?url")).default;
-      this.#noteProvingZkey = (await import("./zk-artifacts/verifyNoteOwnership_10_0001.zkey?url")).default;
+      this.#noteProvingWasm = (
+        await import(
+          "../../../zk-keys/staging/prod/verifyNoteOwnership/verifyNoteOwnership_10_js/verifyNoteOwnership_10.wasm?url"
+        )
+      ).default;
+
+      this.#noteProvingZkey = (
+        await import("../../../zk-keys/staging/prod/verifyNoteOwnership/keys/verifyNoteOwnership_10_0001.zkey?url")
+      ).default;
     }
   }
 
@@ -132,11 +145,11 @@ class Core implements ICore {
     this.#eddsa = await buildEddsa();
   }
 
-  async #getBabyJubjubPublicKey(keyPairs: CoreLegacyKeyPairs): Promise<string> {
+  async getBabyJubjubPublicKey(babyJubjubPrivateKey: string): Promise<string> {
     await this.loadEddsa();
 
     // @ts-expect-error
-    const babyJubjubPublicKey = this.#eddsa.prv2pub(Buffer.from(keyPairs.k, "hex"));
+    const babyJubjubPublicKey = this.#eddsa.prv2pub(Buffer.from(babyJubjubPrivateKey, "hex"));
 
     return babyJubjubPublicKey.map((p) => this.#eddsa?.F.toObject(p).toString()).join(".");
   }
@@ -189,7 +202,7 @@ class Core implements ICore {
 
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
-    const babyJubjubPublicKeyStringified = await this.#getBabyJubjubPublicKey(keyPairs);
+    const babyJubjubPublicKeyStringified = await this.getBabyJubjubPublicKey(keyPairs.k);
 
     return {
       s: keyPairs.k,
@@ -206,7 +219,7 @@ class Core implements ICore {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const babyJubjubPublicKey = await this.#getBabyJubjubPublicKey(result);
+    const babyJubjubPublicKey = await this.getBabyJubjubPublicKey(result.k);
 
     return {
       s: result.k,

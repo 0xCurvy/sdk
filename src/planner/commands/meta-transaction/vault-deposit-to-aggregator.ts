@@ -5,7 +5,7 @@ import {
 import type { CurvyCommandData } from "@/planner/plan";
 import { type HexString, META_TRANSACTION_TYPES, type MetaTransactionType, type NoteBalanceEntry } from "@/types";
 import { noteToBalanceEntry } from "@/utils";
-import { toSlug } from "@/utils/helpers";
+import { pollForCriteria, toSlug } from "@/utils/helpers";
 
 // This command automatically sends all available balance from Vault to Aggregator
 export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactionCommand {
@@ -20,9 +20,9 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
   }
 
   override async estimateFees(): Promise<MetaTransactionCommandEstimateWithNote> {
-    const note = await this.sdk.getNewNoteForUser(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
+    const note = await this.sdk.generateNewNote(this.senderCurvyHandle, this.input.vaultTokenId, this.input.balance);
 
-    const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee(note.ownerHash);
+    const { gasFeeInCurrency, id: estimateId } = await this.calculateGasFee({ ownerHash: note.ownerHash });
     const curvyFeeInCurrency = await this.calculateCurvyFee();
 
     this.estimate = {
@@ -52,7 +52,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
     const signature = await this.signMetaTransaction(this.network.aggregatorContractAddress as HexString);
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
-    await this.sdk.pollForCriteria(
+    await pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
         if (res === "failed") throw new Error(`[VaultDepositToAggregatorCommand] Meta-transaction execution failed!`);
@@ -67,7 +67,7 @@ export class VaultDepositToAggregatorCommand extends AbstractVaultMetaTransactio
       networkId: this.network.id,
     });
 
-    await this.sdk.pollForCriteria(
+    await pollForCriteria(
       () => this.sdk.apiClient.aggregator.GetAggregatorRequestStatus(requestId),
       (res) => {
         return res.status === "success";

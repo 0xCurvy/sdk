@@ -102,7 +102,7 @@ test("Inclusion proof bug", async () => {
   const amount1 = parseDecimal("330", currency!);
 
   const intent1: CurvyIntent = {
-    toAddress: to,
+    recipient: to,
     amount: amount1,
     currency: currency!,
     network: network!,
@@ -121,7 +121,7 @@ test("Inclusion proof bug", async () => {
   const amount2 = parseDecimal("700", currency!);
 
   const intent2: CurvyIntent = {
-    toAddress: to,
+    recipient: to,
     amount: amount2,
     currency: currency!,
     network: network!,
@@ -137,7 +137,7 @@ test("Vault withdraw bug", async () => {
   const amount1 = parseDecimal("10", currency!);
 
   const intent1: CurvyIntent = {
-    toAddress: to,
+    recipient: to,
     amount: amount1,
     currency: currency!,
     network: network!,

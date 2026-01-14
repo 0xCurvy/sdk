@@ -21,7 +21,7 @@ import { CommandExecutor } from "@/planner/executor";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type { GetStealthAddressReturnType, Network, RefreshOptions } from "@/types";
+import type { CurvyPublicKeys, GetStealthAddressReturnType, Network, RefreshOptions } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import { type CurvyHandle, isValidCurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
@@ -369,8 +369,12 @@ class CurvySDK implements ICurvySDK {
     }
   }
 
-  switchNetworkEnvironment(environment: "mainnet" | "testnet") {
-    this.setActiveNetworks(environment === "testnet");
+  async switchNetworkEnvironment(environment?: "mainnet" | "testnet") {
+    const isTestnet = environment ? environment === "testnet" : this.#state.environment === "mainnet"; // If mainnet, toggle to testnet (true)
+
+    await this.setActiveNetworks(isTestnet);
+
+    return this.#state.environment;
   }
 
   async refreshNoteBalances(walletId = this.walletManager.activeWallet.id, options: RefreshOptions = {}) {
@@ -432,7 +436,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     networkIdentifier: NetworkFilter,
     to: HexString | CurvyHandle,
-    amount: string,
+    amount: bigint,
     currency: string,
   ) {
     const privateKey = await this.walletManager.getAddressPrivateKey(from);
@@ -445,7 +449,7 @@ class CurvySDK implements ICurvySDK {
 
     const rpc = this.rpcClient.Network(networkIdentifier);
     const nativeToken = this.getNetwork(networkIdentifier).currencies.find((c) => c.nativeCurrency)!;
-    const fee = await rpc.estimateFee(from, privateKey, recipientAddress, amount, currency);
+    const fee = await rpc.estimateTransactionFee(from, privateKey, recipientAddress, amount, currency);
     const raw = rpc.feeToAmount(fee);
     const fiat = toNumber(
       mul([raw, nativeToken.decimals], (await this.storage.getCurrencyPrice(nativeToken.symbol)).price),
@@ -463,7 +467,7 @@ class CurvySDK implements ICurvySDK {
     from: CurvyAddress,
     networkIdentifier: NetworkFilter,
     to: CurvyHandle | HexString,
-    amount: string,
+    amount: bigint,
     currency: string,
     fee: StarknetFeeEstimate | bigint,
     message?: string,
@@ -493,41 +497,38 @@ class CurvySDK implements ICurvySDK {
       .sendToAddress(from, privateKey, recipientAddress, amount, currency, fee);
   }
 
-  async pollForCriteria<T>(
-    pollFunction: () => Promise<T>,
-    pollCriteria: (res: T) => boolean,
-    maxRetries = 120,
-    delayMs = 10000,
-  ): Promise<T> {
-    for (let i = 0; i < maxRetries; i++) {
-      const res = await pollFunction();
+  async generateNewNote(handleOrKeys: CurvyHandle | CurvyPublicKeys, token: bigint, amount: bigint) {
+    let S: string, V: string, babyJubjubPublicKey: string;
 
-      if (pollCriteria(res)) {
-        return res;
+    if (isValidCurvyHandle(handleOrKeys)) {
+      const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handleOrKeys);
+
+      if (!recipientDetails) {
+        throw new Error(`Handle ${handleOrKeys} not found`);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      if (!recipientDetails.publicKeys.babyJubjubPublicKey) {
+        throw new Error(`BabyJubjub public key not found for handle ${handleOrKeys}`);
+      }
+
+      ({ spendingKey: S, viewingKey: V, babyJubjubPublicKey } = recipientDetails.publicKeys);
+    } else {
+      if (typeof handleOrKeys !== "object") {
+        throw new Error(`Invalid handle or keys provided`);
+      }
+
+      ({ S, V, babyJubjubPublicKey } = handleOrKeys);
     }
 
-    throw new Error(`Polling failed!`);
-  }
-
-  async getNewNoteForUser(handle: string, token: bigint, amount: bigint) {
-    const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
-
-    if (!recipientDetails) {
-      throw new Error(`Handle ${handle} not found`);
-    }
-
-    const { spendingKey, viewingKey, babyJubjubPublicKey } = recipientDetails.publicKeys;
-    if (!babyJubjubPublicKey) {
-      throw new Error(`BabyJubjub public key not found for handle ${handle}`);
-    }
-    return this.#core.sendNote(spendingKey, viewingKey, {
+    return this.#core.sendNote(S, V, {
       ownerBabyJubjubPublicKey: babyJubjubPublicKey,
       amount,
       token,
     });
+  }
+
+  generateCurvyKeyPairs() {
+    return this.#core.generateKeyPairs();
   }
 }
 

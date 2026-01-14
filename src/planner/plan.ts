@@ -1,15 +1,24 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
-import type { BalanceEntry, Currency, Network } from "@/types";
+import type { BalanceEntry, Currency, CurvyPublicKeys, Network } from "@/types";
 import type { CurvyHandle } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 
-export interface CurvyIntent {
+export type CurvyIntent = {
   amount: bigint;
-  toAddress: CurvyHandle | HexString;
+
   // I don't care that Currency and Network are large objects, intents are rare and always user-generated.
   currency: Currency;
   network: Network;
-}
+} & (
+  | {
+      recipient: CurvyHandle | HexString;
+      recipientPublicKeys?: never;
+    }
+  | {
+      recipient?: never;
+      recipientPublicKeys: CurvyPublicKeys;
+    }
+);
 
 export type CurvyPlanCommand = {
   type: "command";

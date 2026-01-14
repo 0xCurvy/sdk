@@ -1,10 +1,17 @@
-import type { NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES, NETWORKS } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
-import type { ExtendedAnnouncement, GetStealthAddressReturnType, Note } from "@/types";
+import type {
+  CurvyHandle,
+  CurvyKeyPairs,
+  CurvyPublicKeys,
+  ExtendedAnnouncement,
+  GetStealthAddressReturnType,
+  Note,
+} from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
@@ -53,7 +60,7 @@ interface ICurvySDK {
   ): Promise<CurvySignatureParameters>;
 
   setActiveNetworks(networkFilter: NetworkFilter): void;
-  switchNetworkEnvironment(environment: "mainnet" | "testnet"): void;
+  switchNetworkEnvironment(environment?: NETWORK_ENVIRONMENT_VALUES): Promise<NETWORK_ENVIRONMENT_VALUES>;
 
   // Actions
 
@@ -68,34 +75,21 @@ interface ICurvySDK {
     from: CurvyAddress,
     networkIdentifier: NetworkFilter,
     to: string,
-    amount: string,
+    amount: bigint,
     currency: string,
   ): Promise<CurvyFeeEstimate>;
   send(
     from: CurvyAddress,
     networkIdentifier: NetworkFilter,
     to: string,
-    amount: string,
+    amount: bigint,
     currency: string,
     fee: StarknetFeeEstimate | bigint,
     message?: string,
   ): Promise<RpcCallReturnType>;
 
-  /**
-   *  * Polls a function until the criteria is met or max retries is reached.
-   *
-   * @param pollFunction
-   * @param pollCriteria
-   * @param {number} [maxRetries=120] - Maximum number of retries
-   * @param {number} [delayMs=10_000] - Delay between retries in milliseconds
-   */
-  pollForCriteria<T>(
-    pollFunction: () => Promise<T>,
-    pollCriteria: (res: T) => boolean,
-    maxRetries?: number,
-    delayMs?: number,
-  ): Promise<T>;
-  getNewNoteForUser(handle: string, token: bigint, amount: bigint): Promise<Note>;
+  generateCurvyKeyPairs(): Promise<CurvyKeyPairs>;
+  generateNewNote(handleOrKeys: CurvyHandle | CurvyPublicKeys, token: bigint, amount: bigint): Promise<Note>;
 }
 
 export type { ICurvySDK };

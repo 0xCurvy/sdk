@@ -1,38 +1,45 @@
+import dayjs from "dayjs";
+import { sha256 } from "viem";
 import type { ICurvyWallet } from "@/interfaces/wallet";
 import type { CurvyKeyPairs } from "@/types/core";
 import type { CurvyHandle } from "@/types/curvy";
 import type { SerializedCurvyWallet } from "@/types/wallet";
+import { textEncoder } from "@/utils/helpers";
 
 class CurvyWallet implements ICurvyWallet {
-  readonly id: string;
+  readonly #keyPairs: CurvyKeyPairs;
+
+  readonly curvyHandle: CurvyHandle | null;
+  readonly ownerAddress: string | null;
   readonly createdAt: number;
-  readonly ownerAddress: string;
-  readonly curvyHandle: CurvyHandle;
+  readonly id: string;
+
   readonly #passwordHash?: string;
   readonly #credId?: ArrayBuffer;
 
-  readonly #keyPairs: CurvyKeyPairs;
-
   constructor(
-    id: string,
-    createdAt: number,
-    curvyHandle: CurvyHandle,
-    ownerAddress: string,
-    keyPairs: CurvyKeyPairs,
+    keyPairs: Partial<CurvyKeyPairs>,
+    curvyHandle: CurvyHandle | null,
+    ownerAddress: string | null,
+    createdAt = +dayjs(),
     passwordHash?: string,
     credId?: ArrayBuffer,
   ) {
-    this.id = id;
-    this.createdAt = createdAt;
+    this.#keyPairs = { S: "", V: "", s: "", v: "", babyJubjubPublicKey: "", ...keyPairs };
     this.curvyHandle = curvyHandle;
     this.ownerAddress = ownerAddress;
-    this.#keyPairs = keyPairs;
+    this.createdAt = createdAt;
+    this.id = sha256(textEncoder.encode(JSON.stringify(this.#keyPairs)));
     this.#passwordHash = passwordHash;
     this.#credId = credId;
   }
 
   get keyPairs() {
     return Object.freeze(this.#keyPairs);
+  }
+
+  get isPartial() {
+    return !this.curvyHandle || !this.ownerAddress;
   }
 
   async authWithPassword(getPasswordHash: () => Promise<string>) {
@@ -49,11 +56,15 @@ class CurvyWallet implements ICurvyWallet {
   }
 
   serialize(): SerializedCurvyWallet {
+    if (this.isPartial) {
+      throw new Error("Cannot serialize a partial wallet!");
+    }
+
     return {
       id: this.id,
       createdAt: this.createdAt,
-      ownerAddress: this.ownerAddress,
-      curvyHandle: this.curvyHandle,
+      ownerAddress: this.ownerAddress!,
+      curvyHandle: this.curvyHandle!,
     };
   }
 }

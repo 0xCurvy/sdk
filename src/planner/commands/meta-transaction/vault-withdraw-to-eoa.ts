@@ -10,28 +10,28 @@ import {
   type MetaTransactionType,
   type SaBalanceEntry,
 } from "@/types";
+import { pollForCriteria } from "@/utils/helpers";
 
-// This command automatically sends all available balance from CSUC to external address
 export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionCommand {
-  readonly #intent: CurvyIntent;
+  readonly #intent: CurvyIntent | undefined;
 
   constructor(
     id: string,
     sdk: ICurvySDK,
     input: CurvyCommandData,
-    intent: CurvyIntent,
+    intent?: CurvyIntent,
     estimate?: CurvyCommandEstimate,
   ) {
     super(id, sdk, input, estimate);
 
-    if (!isHexString(intent.toAddress)) {
+    if (intent && !isHexString(intent.recipient)) {
       throw new Error(`${this.name}: toAddress MUST be a hex string address`);
     }
 
     this.#intent = intent;
   }
 
-  get intent(): Readonly<CurvyIntent> {
+  get intent(): Readonly<CurvyIntent | undefined> {
     return Object.freeze(this.#intent);
   }
 
@@ -43,8 +43,8 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
     return META_TRANSACTION_TYPES.VAULT_WITHDRAW;
   }
 
-  override get toAddress(): HexString {
-    return this.intent.toAddress as HexString;
+  override get recipient() {
+    return (this.intent?.recipient as HexString) ?? this.input.source;
   }
 
   async getResultingBalanceEntry() {
@@ -59,11 +59,11 @@ export class VaultWithdrawToEOACommand extends AbstractVaultMetaTransactionComma
   async execute(): Promise<CurvyCommandData | undefined> {
     const { estimateId: id } = this.estimate;
 
-    const signature = await this.signMetaTransaction(this.intent.toAddress as HexString);
+    const signature = await this.signMetaTransaction(this.recipient);
 
     await this.sdk.apiClient.metaTransaction.SubmitTransaction({ id, signature });
 
-    await this.sdk.pollForCriteria(
+    await pollForCriteria(
       () => this.sdk.apiClient.metaTransaction.GetStatus(id),
       (res) => {
         if (res === "failed") throw new Error(`[VaultWithdrawToEoaCommand] Meta-transaction execution failed!`);

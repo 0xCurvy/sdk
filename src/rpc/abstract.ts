@@ -26,17 +26,17 @@ abstract class Rpc {
     _curvyAddress: CurvyAddress,
     privateKey: HexString,
     address: string,
-    amount: string,
-    currency: string,
+    amount: bigint,
+    currencyAddress: string,
     fee?: StarknetFeeEstimate | bigint,
   ): Promise<RpcCallReturnType>;
 
-  abstract estimateFee(
+  abstract estimateTransactionFee(
     _curvyAddress: CurvyAddress,
     privateKey: HexString,
     address: string,
-    amount: string,
-    currency: string,
+    amount: bigint,
+    currencyAddress: string,
   ): Promise<bigint | StarknetFeeEstimate>;
 
   abstract feeToAmount(feeEstimate: StarknetFeeEstimate | bigint): bigint;

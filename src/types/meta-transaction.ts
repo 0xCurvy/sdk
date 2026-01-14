@@ -7,6 +7,8 @@ const META_TRANSACTION_TYPES = {
   VAULT_ONBOARD: "vault_onboard",
   VAULT_WITHDRAW: "vault_withdraw",
   VAULT_DEPOSIT_TO_AGGREGATOR: "vault_deposit_to_aggregator",
+  EXIT_BRIDGE: "exit_bridge",
+  LEGACY_PORTAL: "legacy_portal",
 } as const;
 type META_TRANSACTION_TYPES = typeof META_TRANSACTION_TYPES;
 export { META_TRANSACTION_TYPES };
@@ -17,6 +19,8 @@ const META_TRANSACTION_NUMERIC_TYPES = {
   [META_TRANSACTION_TYPES.VAULT_TRANSFER]: 1,
   [META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR]: 1,
   [META_TRANSACTION_TYPES.VAULT_WITHDRAW]: 0,
+  [META_TRANSACTION_TYPES.EXIT_BRIDGE]: 3,
+  [META_TRANSACTION_TYPES.LEGACY_PORTAL]: 4,
 } as const;
 
 type META_TRANSACTION_NUMERIC_TYPES = typeof META_TRANSACTION_NUMERIC_TYPES;
@@ -42,7 +46,12 @@ export type MetaTransaction = {
   type: MetaTransactionType;
 };
 
-export type EstimatedMetaTransaction = MetaTransaction & { id: string; gasFeeInCurrency: bigint };
+export type EstimatedMetaTransaction = MetaTransaction & {
+  id: string;
+  gasFeeInCurrency: bigint;
+  bridgeCalldata?: HexString;
+  bridgeFeeInCurrency?: bigint;
+};
 export type SignedMetaTransaction = EstimatedMetaTransaction & { signature: HexString };
 
 export type MetaTransactionEstimate = CurvyCommandEstimate;

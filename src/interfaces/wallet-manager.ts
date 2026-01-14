@@ -2,6 +2,7 @@ import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES } from "@/constants/networ
 import type {
   CurvyAddress,
   CurvyHandle,
+  CurvyKeyPairs,
   EvmSignatureData,
   HexString,
   Signature,
@@ -13,6 +14,8 @@ import type { CurvyWallet } from "@/wallet";
 interface IWalletManager {
   get wallets(): Array<CurvyWallet>;
   get activeWallet(): Readonly<CurvyWallet>;
+
+  addPartialWallet(keyPairs: Partial<CurvyKeyPairs>): Promise<CurvyWallet>;
 
   addWalletWithPrivateKeys(
     s: string,
@@ -79,6 +82,7 @@ interface IWalletManager {
 
   getAddressPrivateKey(address: CurvyAddress | HexString): Promise<HexString>;
 
+  getBabyJubjubPublicKey(): Promise<string>;
   signMessageWithBabyJubjub(message: bigint): Promise<StringifyBigInts<Signature>>;
 }
 

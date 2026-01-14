@@ -47,6 +47,7 @@ class WalletManager implements IWalletManager {
   readonly #addressScanner: IAddressScanner;
 
   #scanInterval: NodeJS.Timeout | null;
+  #jwtRefreshInterval: NodeJS.Timeout | null;
   #activeWallet: Readonly<CurvyWallet> | null;
 
   constructor(
@@ -64,6 +65,8 @@ class WalletManager implements IWalletManager {
     this.#addressScanner = new AddressScanner(storage, core, client, emitter);
 
     this.#scanInterval = null;
+    this.#jwtRefreshInterval = null;
+
     this.#activeWallet = null;
   }
 
@@ -75,7 +78,7 @@ class WalletManager implements IWalletManager {
   }
 
   get wallets() {
-    return Array.from(this.#wallets.values());
+    return Array.from(this.#wallets.values()).filter((wallet) => !wallet.isPartial);
   }
 
   async #verifySignature(
@@ -243,11 +246,10 @@ class WalletManager implements IWalletManager {
   ) {
     const walletId = await generateWalletId(keyPairs.s, keyPairs.v);
     const wallet = new CurvyWallet(
-      walletId,
-      +dayjs(createdAt),
+      keyPairs,
       handle,
       userAddress,
-      keyPairs,
+      +dayjs(createdAt),
       additionalData?.password ? await computePasswordHash(additionalData.password, walletId) : undefined,
       additionalData?.credId,
     );
@@ -281,6 +283,13 @@ class WalletManager implements IWalletManager {
     await this.#updateBearerToken(keyPairs.s);
 
     return this.#createAndAddWallet(handle, userAddress, registerDetails.createdAt, keyPairs, additionalData);
+  }
+
+  async addPartialWallet(keyPairs: Partial<CurvyKeyPairs>) {
+    const wallet = new CurvyWallet(keyPairs, null, null);
+    await this.addWallet(wallet, true, true);
+
+    return wallet;
   }
 
   async addWalletWithPrivateKeys(s: string, v: string, requestingAddress: HexString, credId?: ArrayBuffer) {
@@ -383,17 +392,11 @@ class WalletManager implements IWalletManager {
 
     this.#activeWallet = wallet;
 
-    if (!skipBearerTokenUpdate) {
+    if (!skipBearerTokenUpdate && !wallet.isPartial) {
       await this.#updateBearerToken(wallet.keyPairs.s);
     }
 
-    setInterval(
-      () =>
-        this.#apiClient.auth.RefreshBearerToken().then((token) => {
-          this.#apiClient.updateBearerToken(token);
-        }),
-      JWT_REFRESH_INTERVAL,
-    );
+    this.#startJwtRefreshInterval();
   }
 
   async addWallet(wallet: CurvyWallet, skipBearerTokenUpdate = false, skipScan = false) {
@@ -401,7 +404,7 @@ class WalletManager implements IWalletManager {
 
     await this.setActiveWallet(wallet, skipBearerTokenUpdate);
 
-    await this.#storage.storeCurvyWallet(wallet);
+    if (!wallet.isPartial) await this.#storage.storeCurvyWallet(wallet);
 
     if (!this.#scanInterval && !skipScan) {
       this.#startIntervalScan();
@@ -418,6 +421,7 @@ class WalletManager implements IWalletManager {
       throw new Error(`Wallet with id ${walletId} does not exist.`);
     }
 
+    this.#stopJwtRefreshInterval();
     this.#apiClient.updateBearerToken(undefined);
     this.#wallets.delete(walletId);
 
@@ -433,6 +437,9 @@ class WalletManager implements IWalletManager {
   }
 
   async scanWallet(wallet: CurvyWallet) {
+    if (wallet.isPartial) {
+      throw new Error("Cannot scan a partially initialized wallet!");
+    }
     await this.#addressScanner.scan([wallet]);
   }
 
@@ -466,6 +473,24 @@ class WalletManager implements IWalletManager {
     this.#scanInterval = null;
   }
 
+  #startJwtRefreshInterval(): void {
+    if (!this.#jwtRefreshInterval && this.#activeWallet && !this.#activeWallet.isPartial) {
+      this.#jwtRefreshInterval = setInterval(async () => {
+        this.#apiClient.auth.RefreshBearerToken().then((token) => {
+          this.#apiClient.updateBearerToken(token);
+        });
+      }, JWT_REFRESH_INTERVAL);
+    }
+  }
+
+  #stopJwtRefreshInterval(): void {
+    if (!this.#jwtRefreshInterval) {
+      return;
+    }
+    clearInterval(this.#jwtRefreshInterval);
+    this.#jwtRefreshInterval = null;
+  }
+
   async getAddressPrivateKey(_address: CurvyAddress | HexString) {
     let address: CurvyAddress;
 
@@ -487,6 +512,10 @@ class WalletManager implements IWalletManager {
     } = await this.#core.scan(s, v, [address]);
 
     return privateKey;
+  }
+
+  getBabyJubjubPublicKey(): Promise<string> {
+    return this.#core.getBabyJubjubPublicKey(this.activeWallet.keyPairs.s);
   }
 
   signMessageWithBabyJubjub(message: bigint): Promise<StringifyBigInts<Signature>> {

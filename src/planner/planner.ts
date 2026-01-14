@@ -45,7 +45,8 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
 };
 
 const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): CurvyPlan => {
-  const maxInputs = intent.network.aggregationCircuitConfig!.maxInputs;
+  // TODO IMPORTANT : Make maxInputs dynamic based on aggregator capabilities
+  const maxInputs = 2;
 
   // If we have just one sub plan, just aggregate it
   if (items.length === 1) {
@@ -150,7 +151,7 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
 
   // If we are sending to EOA, push two more commands
   // to move funds from Aggregator to CSUC to EOA
-  if (isHexString(intent.toAddress)) {
+  if (isHexString(intent.recipient)) {
     plan = {
       type: "serial",
       items: [
@@ -164,10 +165,21 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
           type: "command",
           id: uuidV4(),
           name: "vault-withdraw-to-eoa",
-          intent,
+          // If destination network does not have a Vault, the command withdraws to EOA counterpart (preparing for bridge),
+          // else withdraws to recipient specified in intent
+          intent: intent.network.vaultContractAddress ? intent : undefined,
         },
       ],
     };
+
+    if (!intent.network.vaultContractAddress) {
+      plan.items.push({
+        type: "command",
+        id: uuidV4(),
+        name: "exit-bridge",
+        intent,
+      });
+    }
   } else {
     plan = aggregationPlan;
   }

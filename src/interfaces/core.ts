@@ -20,6 +20,7 @@ interface ICore {
     V: string,
     noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint },
   ): Promise<Note>;
+  getBabyJubjubPublicKey(babyJubjubPrivateKey: string): Promise<string>;
   signWithBabyJubjubPrivateKey(message: bigint, babyJubjubPrivateKey: string): Promise<StringifyBigInts<Signature>>;
   scan(s: string, v: string, announcements: RawAnnouncement[]): Promise<CoreScanReturnType>;
   viewerScan(v: string, S: string, announcements: RawAnnouncement[]): Promise<CoreViewerScanReturnType>;
