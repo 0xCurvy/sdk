@@ -77,6 +77,7 @@ class EvmRpc extends Rpc {
 
         if (tokenBalance.error) {
           console.log(`Couldn't get balance for token ${currencyAddress}: `, tokenBalance.error);
+          console.log("Network:", this.network.name, "multicall address:", this.network.multiCallContractAddress);
           return null;
         }
 

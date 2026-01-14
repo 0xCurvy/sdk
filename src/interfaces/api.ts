@@ -83,7 +83,7 @@ interface IApiClient {
     GetStatus(requestId: string): Promise<GetMetaTransactionStatusReturnType>;
     EstimateGas(
       body: MetaTransactionEstimationRequestBody,
-    ): Promise<{ id: string; gasFeeInCurrency: bigint; bridgeFeeInCurrency?: bigint }>;
+    ): Promise<{ id: string; gasFeeInCurrency: bigint; bridgeFeeInCurrency?: bigint; exitBridgeCurrency?: string }>;
   };
 }
 

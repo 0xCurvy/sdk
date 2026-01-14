@@ -6,6 +6,12 @@ const NETWORK_GROUP = {
   ETHEREUM: "Ethereum",
   STARKNET: "Starknet",
   ARBITRUM: "Arbitrum",
+  BASE: "Base",
+  POLYGON: "Polygon",
+  GNOSIS: "Gnosis",
+  LINEA: "Linea",
+  BSC: "BSC",
+  OPTIMISM: "Optimism",
 } as const;
 type NETWORK_GROUP = typeof NETWORK_GROUP;
 type NETWORK_GROUP_VALUES = ExtractValues<NETWORK_GROUP>;
@@ -20,7 +26,12 @@ type NETWORK_FLAVOUR_VALUES = ExtractValues<NETWORK_FLAVOUR>;
 const EVM_MAINNETS = {
   ETHEREUM: "ethereum",
   ARBITRUM: "arbitrum",
-  LOCALNET: "localnet",
+  BASE: "base",
+  POLYGON: "polygon",
+  GNOSIS: "gnosis",
+  LINEA: "linea",
+  BSC: "bsc",
+  OPTIMISM: "optimism",
 } as const;
 type EVM_MAINNETS = typeof EVM_MAINNETS;
 type EVM_MAINNETS_VALUES = ExtractValues<EVM_MAINNETS>;
@@ -28,6 +39,7 @@ type EVM_MAINNETS_VALUES = ExtractValues<EVM_MAINNETS>;
 const EVM_TESTNETS = {
   ETHEREUM_SEPOLIA: "ethereum-sepolia",
   ARBITRUM_SEPOLIA: "arbitrum-sepolia",
+  LOCALNET: "localnet",
 } as const;
 type EVM_TESTNETS = typeof EVM_TESTNETS;
 type EVM_TESTNETS_VALUES = ExtractValues<EVM_TESTNETS>;

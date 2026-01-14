@@ -50,10 +50,15 @@ export class ExitBridgeCommand extends AbstractSaMetaTransactionCommand {
       gasFeeInCurrency,
       id: estimateId,
       bridgeFeeInCurrency,
+      exitBridgeCurrency,
     } = await this.calculateGasFee({
       exitNetwork: toSlug(this.intent.network.name),
     });
     const curvyFeeInCurrency = await this.calculateCurvyFee();
+
+    console.warn(
+      `ExitBridgeCommand: currency ${this.input.symbol} unavailable on destination network. Switched to ${exitBridgeCurrency} on destination network.`,
+    );
 
     this.estimate = {
       gasFeeInCurrency,
