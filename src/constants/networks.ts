@@ -10,7 +10,7 @@ const NETWORK_GROUP = {
   POLYGON: "Polygon",
   GNOSIS: "Gnosis",
   LINEA: "Linea",
-  BSC: "BSC",
+  BSC: "Bsc",
   OPTIMISM: "Optimism",
 } as const;
 type NETWORK_GROUP = typeof NETWORK_GROUP;
