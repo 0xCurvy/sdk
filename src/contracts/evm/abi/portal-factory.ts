@@ -87,7 +87,7 @@ export const portalFactoryAbi = [
       },
       {
         internalType: "address",
-        name: "admin",
+        name: "recovery",
         type: "address",
       },
     ],
@@ -122,7 +122,7 @@ export const portalFactoryAbi = [
       },
       {
         internalType: "address",
-        name: "admin",
+        name: "recovery",
         type: "address",
       },
     ],
@@ -140,7 +140,7 @@ export const portalFactoryAbi = [
       },
       {
         internalType: "address",
-        name: "admin",
+        name: "recovery",
         type: "address",
       },
     ],
@@ -164,7 +164,7 @@ export const portalFactoryAbi = [
       },
       {
         internalType: "address",
-        name: "admin",
+        name: "recovery",
         type: "address",
       },
     ],
