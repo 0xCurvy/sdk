@@ -74,15 +74,15 @@ class Core implements ICore {
 
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
-      const wasmPath = path.resolve(__dirname, "../zk/verifyNoteOwnership_10.wasm");
-      const zkeyPath = path.resolve(__dirname, "../zk/verifyNoteOwnership_10_0001.zkey");
+      const wasmPath = path.resolve(__dirname, "../../zk/verifyNoteOwnership_10.wasm");
+      const zkeyPath = path.resolve(__dirname, "../../zk/verifyNoteOwnership_10_0001.zkey");
 
       this.#noteProvingWasm = await fs.readFile(wasmPath);
       this.#noteProvingZkey = await fs.readFile(zkeyPath);
     } else {
-      this.#noteProvingWasm = (await import("../zk/verifyNoteOwnership_10.wasm?url")).default;
+      this.#noteProvingWasm = (await import("../../zk/verifyNoteOwnership_10.wasm?url")).default;
 
-      this.#noteProvingZkey = (await import("../zk/verifyNoteOwnership_10_0001.zkey?url")).default;
+      this.#noteProvingZkey = (await import("../../zk/verifyNoteOwnership_10_0001.zkey?url")).default;
     }
   }
 
