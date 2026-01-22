@@ -50,11 +50,19 @@ type CurvyWalletClient = Client<
 const generateViemChainFromNetwork = (network: Network) => {
   const nativeCurrency = network.currencies.find((c) => c.nativeCurrency);
 
-  if (!nativeCurrency) {
+  // TODO: Handle this mapping in a better way, add to db but restrict usage
+  const nativeCurrencyMappings = {
+    Polygon: { name: "POL", symbol: "POL", decimals: 18 },
+    Bsc: { name: "BNB", symbol: "BNB", decimals: 18 },
+    Gnosis: { name: "xDAI", symbol: "xDAI", decimals: 18 },
+  } as const;
+
+  const { name, symbol, decimals } =
+    nativeCurrency || nativeCurrencyMappings[network.name as keyof typeof nativeCurrencyMappings];
+
+  if (!name || !symbol || !decimals) {
     throw new Error(`No native currency found for network: ${network.name}`);
   }
-
-  const { name, symbol, decimals } = nativeCurrency;
 
   const {
     aggregatorContractAddress,
