@@ -12,12 +12,10 @@ type RequestOptions = {
 };
 
 class HttpClient {
-  #apiKey: string;
   #bearerToken?: string;
   protected readonly apiBaseUrl: string;
 
-  constructor(apiKey: string, apiBaseUrl?: string) {
-    this.#apiKey = apiKey;
+  constructor(apiBaseUrl?: string) {
     this.apiBaseUrl = apiBaseUrl || "https://api.curvy.box";
   }
 
@@ -34,7 +32,6 @@ class HttpClient {
     const baseHeaders = {
       "Content-Type": "application/json",
       "User-Agent": "curvy-sdk",
-      "X-Curvy-API-Key": this.#apiKey,
     };
 
     if (this.#bearerToken) {

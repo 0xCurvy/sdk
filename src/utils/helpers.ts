@@ -1,3 +1,9 @@
+import { getAddress } from "viem";
+import { getSignatureParams as evmGetSignatureParams } from "@/constants/evm";
+import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
+import { getSignatureParams as starknetGetSignatureParams } from "@/constants/starknet";
+import type { EvmSignTypedDataParameters, StarknetSignTypedDataParameters } from "@/types";
+
 const isNode = typeof process !== "undefined" && process.versions != null && process.versions.node != null;
 const textEncoder = new TextEncoder();
 
@@ -56,4 +62,50 @@ async function pollForCriteria<T>(
   throw new Error(`Polling failed!`);
 }
 
-export { isNode, shaDigest, generateWalletId, textEncoder, toSlug, arrayBufferToHex, encode, pollForCriteria };
+async function getAuthenticationSignatureParams(
+  flavour: NETWORK_FLAVOUR["EVM"],
+  ownerAddress: string,
+  password: string,
+): Promise<EvmSignTypedDataParameters>;
+async function getAuthenticationSignatureParams(
+  flavour: NETWORK_FLAVOUR["STARKNET"],
+  ownerAddress: string,
+  password: string,
+): Promise<StarknetSignTypedDataParameters>;
+async function getAuthenticationSignatureParams(
+  flavour: NETWORK_FLAVOUR_VALUES,
+  ownerAddress: string,
+  password: string,
+): Promise<EvmSignTypedDataParameters | StarknetSignTypedDataParameters> {
+  let address = ownerAddress;
+
+  if (flavour === "evm") {
+    address = getAddress(ownerAddress); // If it's EVM connection, do EIP-55 checksum of address
+  } else if (flavour === "starknet") {
+    address = `0x${ownerAddress.replace("0x", "").padStart(64, "0")}`; // If it's Starknet, pad with 0s up to 64 chars
+  }
+
+  const preimage = `${address}::${password}`;
+  const messageToSign = await shaDigest("SHA-512", preimage);
+
+  switch (flavour) {
+    case "evm":
+      return evmGetSignatureParams(messageToSign);
+    case "starknet":
+      return starknetGetSignatureParams(messageToSign);
+    default:
+      throw new Error(`Unrecognized network flavour: ${flavour}`);
+  }
+}
+
+export {
+  isNode,
+  shaDigest,
+  generateWalletId,
+  textEncoder,
+  toSlug,
+  arrayBufferToHex,
+  encode,
+  pollForCriteria,
+  getAuthenticationSignatureParams,
+};

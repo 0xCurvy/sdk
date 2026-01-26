@@ -7,10 +7,6 @@ export type {
   PlanExecutionCompleteEvent,
   PlanExecutionProgressEvent,
   PlanExecutionStartedEvent,
-  ScanCompleteEvent,
-  ScanErrorEvent,
-  ScanMatchEvent,
-  ScanProgressEvent,
   SyncCompleteEvent,
   SyncErrorEvent,
   SyncProgressEvent,
@@ -21,18 +17,18 @@ export * from "../contracts/evm/abi";
 export { Core } from "../core";
 export * from "../errors";
 export * from "../interfaces";
+export * from "../planner/commands";
 export * from "../planner/plan";
 export { generatePlan } from "../planner/planner";
-export * from "../planner/commands";
 export * from "../rpc";
 export { CurvySDK } from "../sdk";
 export * from "../types";
 export {
   BalanceEntry,
   CurrencyMetadata,
-  isVaultBalanceEntry,
   isNoteBalanceEntry,
   isSaBalanceEntry,
+  isVaultBalanceEntry,
   TotalBalance,
 } from "../types/storage";
 export * from "../utils";

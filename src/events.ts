@@ -12,10 +12,6 @@ import {
   type PlanExecutionErrorEvent,
   type PlanExecutionProgressEvent,
   type PlanExecutionStartedEvent,
-  type ScanCompleteEvent,
-  type ScanErrorEvent,
-  type ScanMatchEvent,
-  type ScanProgressEvent,
   type SyncCompleteEvent,
   type SyncErrorEvent,
   type SyncProgressEvent,
@@ -37,22 +33,6 @@ export class CurvyEventEmitter extends Emittery<CURVY_EVENTS> implements ICurvyE
 
   emitSyncError(event: SyncErrorEvent) {
     this.emit(CURVY_EVENT_TYPES.SYNC_ERROR, event);
-  }
-
-  emitScanProgress(event: ScanProgressEvent) {
-    this.emit(CURVY_EVENT_TYPES.SCAN_PROGRESS, event);
-  }
-
-  emitScanComplete(event: ScanCompleteEvent) {
-    this.emit(CURVY_EVENT_TYPES.SCAN_COMPLETE, event);
-  }
-
-  emitScanMatch(event: ScanMatchEvent) {
-    this.emit(CURVY_EVENT_TYPES.SCAN_MATCH, event);
-  }
-
-  emitScanError(event: ScanErrorEvent) {
-    this.emit(CURVY_EVENT_TYPES.SCAN_ERROR, event);
   }
 
   emitBalanceRefreshStarted(event: BalanceRefreshStartedEvent) {

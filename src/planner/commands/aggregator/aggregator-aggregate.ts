@@ -103,7 +103,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       gasFeeInCurrency,
     };
 
-    this.estimate.note = await this.sdk.generateNewNote(this.recipient, this.input[0].vaultTokenId, this.netAmount);
+    this.estimate.note = await this.generateNewNote(this.recipient, this.input[0].vaultTokenId, this.netAmount);
 
     return this.estimate;
   }
@@ -131,7 +131,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     if (this.#intent && this.#intent.amount < this.inputNotesSum) {
       // This means we should address the note to another recipient right now
       // Change note
-      changeOrDummyOutputNote = await this.sdk.generateNewNote(
+      changeOrDummyOutputNote = await this.generateNewNote(
         this.senderCurvyHandle!, // Estimate will fail earlier if senderCurvyHandle is null, if called somehow generateNewNote will throw
         token,
         this.inputNotesSum - this.#intent.amount,
