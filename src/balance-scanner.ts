@@ -423,6 +423,7 @@ export class BalanceScanner implements IBalanceScanner {
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
       scanAll?: boolean;
+      type?: "addresses" | "notes" | "all";
     } & RefreshOptions,
   ): Promise<void> {
     if (this.#semaphore[`refresh-wallet-${walletId}`]) return;
@@ -437,8 +438,12 @@ export class BalanceScanner implements IBalanceScanner {
         environment: this.environment,
       });
 
+    const { type, ...opts } = options || {};
+
     try {
-      await Promise.all([this.#addressScan(walletId, options), this.#noteScan(walletId, options)]);
+      if (type === "addresses") await this.#addressScan(walletId, opts);
+      else if (type === "notes") await this.#noteScan(walletId, opts);
+      else await Promise.all([this.#addressScan(walletId, opts), this.#noteScan(walletId, opts)]);
 
       if (!options?.silent)
         this.#emitter.emitBalanceRefreshComplete({

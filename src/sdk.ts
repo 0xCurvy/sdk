@@ -327,11 +327,11 @@ class CurvySDK implements ICurvySDK {
     return this.#balanceScanner.scanAddressBalances(address);
   }
 
-  async refreshBalances(scanAll = false, options: RefreshOptions = {}) {
+  async refreshBalances(options: RefreshOptions & { scanAll?: boolean; type?: "all" | "addresses" | "notes" } = {}) {
     if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
     for (const wallet of this.walletManager.wallets) {
-      await this.#balanceScanner.scanWalletBalances(wallet.id, { scanAll, ...options });
+      await this.#balanceScanner.scanWalletBalances(wallet.id, options);
     }
   }
 

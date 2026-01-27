@@ -10,6 +10,7 @@ import type {
   EvmSignatureData,
   ExtendedAnnouncement,
   GetStealthAddressReturnType,
+  RefreshOptions,
   StarknetSignatureData,
 } from "@/types";
 import type { CurvyAddress } from "@/types/address";
@@ -61,7 +62,7 @@ interface ICurvySDK {
   ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
 
   refreshAddressBalances(address: CurvyAddress): Promise<void>;
-  refreshBalances(scanAll?: boolean): Promise<void>;
+  refreshBalances(options: RefreshOptions & { scanAll?: boolean; type: "addresses" | "notes" | "all" }): Promise<void>;
 
   resetStorage(): Promise<void>;
 }
