@@ -38,7 +38,6 @@ type EVM_MAINNETS_VALUES = ExtractValues<EVM_MAINNETS>;
 
 const EVM_TESTNETS = {
   ETHEREUM_SEPOLIA: "ethereum-sepolia",
-  ARBITRUM_SEPOLIA: "arbitrum-sepolia",
   LOCALNET: "localnet",
 } as const;
 type EVM_TESTNETS = typeof EVM_TESTNETS;

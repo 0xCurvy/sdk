@@ -1,5 +1,5 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
-import type { CurvyHandle, CurvyPublicKeys, HexString, Network } from "@/types";
+import { type CurvyHandle, type CurvyPublicKeys, type HexString, isValidCurvyHandle, type Network } from "@/types";
 import type { CurvyCommandData } from "../plan";
 
 export interface CurvyCommandEstimate {
@@ -49,5 +49,35 @@ export abstract class CurvyCommand {
     const { curvyFeeInCurrency, gasFeeInCurrency } = this.estimate;
 
     return this.grossAmount - curvyFeeInCurrency - gasFeeInCurrency;
+  }
+
+  async generateNewNote(handleOrKeys: CurvyHandle | CurvyPublicKeys, token: bigint, amount: bigint) {
+    let S: string, V: string, babyJubjubPublicKey: string;
+
+    if (isValidCurvyHandle(handleOrKeys)) {
+      const { data: recipientDetails } = await this.sdk.apiClient.user.ResolveCurvyHandle(handleOrKeys);
+
+      if (!recipientDetails) {
+        throw new Error(`Handle ${handleOrKeys} not found`);
+      }
+
+      if (!recipientDetails.publicKeys.babyJubjubPublicKey) {
+        throw new Error(`BabyJubjub public key not found for handle ${handleOrKeys}`);
+      }
+
+      ({ spendingKey: S, viewingKey: V, babyJubjubPublicKey } = recipientDetails.publicKeys);
+    } else {
+      if (typeof handleOrKeys !== "object") {
+        throw new Error(`Invalid handle or keys provided`);
+      }
+
+      ({ S, V, babyJubjubPublicKey } = handleOrKeys);
+    }
+
+    return this.sdk.core.sendNote(S, V, {
+      ownerBabyJubjubPublicKey: babyJubjubPublicKey,
+      amount,
+      token,
+    });
   }
 }

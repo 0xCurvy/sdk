@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import { ec, validateAndParseAddress } from "starknet";
 import { parseSignature, verifyTypedData } from "viem";
 import { AddressScanner } from "@/address-scanner";
+import { JWT_REFRESH_INTERVAL } from "@/constants/intervals";
 import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import { CURVY_HANDLE_REGEX } from "@/constants/regex";
 import type { IAddressScanner } from "@/interfaces/address-scanner";
@@ -35,9 +36,6 @@ import { generateWalletId } from "@/utils/helpers";
 import { processPasskeyPrf } from "@/utils/passkeys";
 import { CurvyWallet } from "@/wallet";
 
-const JWT_REFRESH_INTERVAL = 14 * (60 * 10 ** 3);
-const SCAN_REFRESH_INTERVAL = 15 * 10 ** 3;
-
 class WalletManager implements IWalletManager {
   readonly #apiClient: IApiClient;
   readonly #rpcClient: MultiRpc;
@@ -46,7 +44,6 @@ class WalletManager implements IWalletManager {
   readonly #wallets: Map<string, CurvyWallet>;
   readonly #addressScanner: IAddressScanner;
 
-  #scanInterval: NodeJS.Timeout | null;
   #jwtRefreshInterval: NodeJS.Timeout | null;
   #activeWallet: Readonly<CurvyWallet> | null;
 
@@ -64,7 +61,6 @@ class WalletManager implements IWalletManager {
     this.#core = core;
     this.#addressScanner = new AddressScanner(storage, core, client, emitter);
 
-    this.#scanInterval = null;
     this.#jwtRefreshInterval = null;
 
     this.#activeWallet = null;
@@ -405,15 +401,6 @@ class WalletManager implements IWalletManager {
     await this.setActiveWallet(wallet, skipBearerTokenUpdate);
 
     if (!wallet.isPartial) await this.#storage.storeCurvyWallet(wallet);
-
-    if (!this.#scanInterval && !skipScan) {
-      this.#startIntervalScan();
-      return;
-    }
-
-    if (!skipScan) {
-      await this.scanWallet(wallet);
-    }
   }
 
   async removeWallet(walletId: string) {
@@ -432,7 +419,6 @@ class WalletManager implements IWalletManager {
     }
 
     this.#activeWallet = null;
-    this.#stopIntervalScan();
     return;
   }
 
@@ -444,33 +430,9 @@ class WalletManager implements IWalletManager {
   }
 
   async rescanWallets(walletIds?: Array<string>) {
-    if (this.#scanInterval) {
-      this.#stopIntervalScan();
-    }
-
     const wallets = walletIds ? this.wallets.filter((wallet) => walletIds.includes(wallet.id)) : this.wallets;
 
     await this.#addressScanner.scan(wallets);
-    this.#startIntervalScan();
-  }
-
-  /*
-   * Starts an interval scan for all wallets.
-   * @param interval - The interval in milliseconds to scan wallets. Default is 60 seconds.
-   */
-  #startIntervalScan(interval = SCAN_REFRESH_INTERVAL): void {
-    this.#addressScanner.scan(this.wallets).then(() => {
-      this.#scanInterval = setInterval(() => this.#addressScanner.scan(this.wallets), interval);
-    });
-  }
-
-  #stopIntervalScan(): void {
-    if (!this.#scanInterval) {
-      return;
-    }
-
-    clearInterval(this.#scanInterval);
-    this.#scanInterval = null;
   }
 
   #startJwtRefreshInterval(): void {

@@ -50,11 +50,11 @@ class MultiRpc {
   }
 
   async ensResolveCurvyHandle(handle: CurvyHandle, environment: NETWORK_ENVIRONMENT_VALUES, slip0044?: bigint) {
-    const publicClient = (this.Network(environment === "mainnet" ? "ethereum" : "ethereum-sepolia") as EvmRpc).provider;
-
     if (handle.includes(".local-curvy.name")) {
       throw new Error("Local Curvy handles are not supported for ENS resolution");
     }
+
+    const publicClient = (this.Network(environment === "mainnet" ? "ethereum" : "ethereum-sepolia") as EvmRpc).provider;
 
     return publicClient.getEnsAddress({
       name: normalize(handle),

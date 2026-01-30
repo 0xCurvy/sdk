@@ -27,17 +27,15 @@ let balances: BalanceEntry[];
 const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
   const { plan } = generatePlan(balances, intent);
 
-  const executor = curvySDK.commandExecutor;
+  const estimation = await curvySDK.estimatePlan(plan);
 
-  const estimation = await executor.estimatePlan(plan);
-
-  const result = await executor.executePlan(estimation.plan);
+  const result = await curvySDK.executePlan(estimation.plan);
 
   return result.success;
 };
 
 async function setup() {
-  curvySDK = await CurvySDK.init("local", "localnet", "http://localhost:4000");
+  curvySDK = await CurvySDK.init("testnet", "http://localhost:4000");
 
   const urlParams = new URLSearchParams(LocalnetGeneratedValues.urlsCurvyOS["user-1"]);
   const signature = urlParams.get("signature");
@@ -68,7 +66,7 @@ async function setup() {
     balanceRefreshComplete = true;
   });
 
-  await curvySDK.refreshBalances(true);
+  await curvySDK.refreshBalances({ scanAll: true });
 
   while (!balanceRefreshComplete) {
     retries += 1;

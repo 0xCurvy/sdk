@@ -29,8 +29,6 @@ class AddressScanner implements IAddressScanner {
   }
 
   async #wasmScan(wallet: CurvyWallet, announcements: RawAnnouncement[]) {
-    let matched = 0;
-
     const keyPairs = wallet.keyPairs;
     const { spendingPubKeys } = await this.#core.scan(keyPairs.s, keyPairs.v, announcements);
 
@@ -55,14 +53,6 @@ class AddressScanner implements IAddressScanner {
       .filter(Boolean);
 
     await this.#storage.storeManyCurvyAddresses(addresses);
-
-    matched++;
-
-    this.#emitter.emitScanProgress({
-      scanned: matched,
-      wallet,
-      total: announcements.length,
-    });
   }
 
   async #scanRecent(wallet: CurvyWallet) {

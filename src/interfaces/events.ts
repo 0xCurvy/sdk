@@ -10,10 +10,6 @@ import type {
   PlanExecutionErrorEvent,
   PlanExecutionProgressEvent,
   PlanExecutionStartedEvent,
-  ScanCompleteEvent,
-  ScanErrorEvent,
-  ScanMatchEvent,
-  ScanProgressEvent,
   SyncCompleteEvent,
   SyncErrorEvent,
   SyncProgressEvent,
@@ -25,11 +21,6 @@ interface ICurvyEventEmitter extends Emittery<CURVY_EVENTS> {
   emitSyncProgress(event: SyncProgressEvent): void;
   emitSyncComplete(event: SyncCompleteEvent): void;
   emitSyncError(event: SyncErrorEvent): void;
-
-  emitScanProgress(event: ScanProgressEvent): void;
-  emitScanComplete(event: ScanCompleteEvent): void;
-  emitScanMatch(event: ScanMatchEvent): void;
-  emitScanError(event: ScanErrorEvent): void;
 
   emitBalanceRefreshStarted(event: BalanceRefreshStartedEvent): void;
   emitBalanceRefreshProgress(event: BalanceRefreshProgressEvent): void;

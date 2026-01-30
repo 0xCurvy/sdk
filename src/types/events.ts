@@ -1,20 +1,13 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { CurvyPlan, CurvyPlanExecution } from "@/planner/plan";
-import type { CurvyAddress } from "@/types/address";
 import type { RawAnnouncement } from "@/types/api";
 import type { ExtractValues } from "@/types/helper";
-import type { CurvyWallet } from "@/wallet";
 
 export const CURVY_EVENT_TYPES = {
   SYNC_STARTED: "sync-started",
   SYNC_PROGRESS: "sync-progress",
   SYNC_COMPLETE: "sync-complete",
   SYNC_ERROR: "sync-error",
-
-  SCAN_PROGRESS: "scan-progress",
-  SCAN_COMPLETE: "scan-complete",
-  SCAN_MATCH: "scan-match",
-  SCAN_ERROR: "scan-error",
 
   BALANCE_REFRESH_STARTED: "balance-refresh-started",
   BALANCE_REFRESH_PROGRESS: "balance-refresh-progress",
@@ -33,11 +26,6 @@ export type CURVY_EVENTS = {
   [CURVY_EVENT_TYPES.SYNC_PROGRESS]: SyncProgressEvent;
   [CURVY_EVENT_TYPES.SYNC_COMPLETE]: SyncCompleteEvent;
   [CURVY_EVENT_TYPES.SYNC_ERROR]: SyncErrorEvent;
-
-  [CURVY_EVENT_TYPES.SCAN_PROGRESS]: ScanProgressEvent;
-  [CURVY_EVENT_TYPES.SCAN_COMPLETE]: ScanCompleteEvent;
-  [CURVY_EVENT_TYPES.SCAN_MATCH]: ScanMatchEvent;
-  [CURVY_EVENT_TYPES.SCAN_ERROR]: ScanErrorEvent;
 
   [CURVY_EVENT_TYPES.BALANCE_REFRESH_STARTED]: BalanceRefreshStartedEvent;
   [CURVY_EVENT_TYPES.BALANCE_REFRESH_PROGRESS]: BalanceRefreshProgressEvent;
@@ -74,35 +62,6 @@ type SyncErrorEvent = {
 };
 
 export type { SyncStartedEvent, SyncProgressEvent, SyncCompleteEvent, SyncErrorEvent };
-
-//#endregion
-
-//#region Scan events
-
-type ScanMatchEvent = {
-  wallet: CurvyWallet;
-  stealthAddress: CurvyAddress;
-};
-
-type ScanProgressEvent = {
-  scanned: number;
-  wallet: CurvyWallet;
-  total: number;
-};
-
-type ScanCompleteEvent = {
-  scanned: number;
-  matched: number;
-  wallet: CurvyWallet;
-  total: number;
-};
-
-type ScanErrorEvent = {
-  wallet: CurvyWallet;
-  error: Error;
-};
-
-export type { ScanMatchEvent, ScanProgressEvent, ScanCompleteEvent, ScanErrorEvent };
 
 //#endregion
 
