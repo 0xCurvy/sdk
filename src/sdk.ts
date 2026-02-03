@@ -274,6 +274,12 @@ class CurvySDK implements ICurvySDK {
   }
 
   async ensResolveCurvyHandle(handle: CurvyHandle, slip0044?: bigint): Promise<HexString> {
+    // TODO: SDK should not be affected by local devenv, change how we handle lack of ENS on devenv
+    if (handle.includes(".local-curvy.name")) {
+      const { address } = await this.generateAndRegisterNewStealthAddressForUser("localnet", handle);
+      return address;
+    }
+
     const address = await this.rpcClient.ensResolveCurvyHandle(handle, this.#state.environment, slip0044);
 
     if (!address) {
