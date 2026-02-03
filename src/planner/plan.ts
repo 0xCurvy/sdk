@@ -20,15 +20,17 @@ export type CurvyIntent = {
     }
 );
 
+export type CurvyPlanCommandState = "estimated" | "pending" | "executed" | "failed";
+
 export type CurvyPlanCommand = {
   type: "command";
-  name: string;
   id: string;
+  name: string;
   // Attached to command nodes in estimation phase and used in execute phase
   estimate?: CurvyCommandEstimate;
-  // Some commands such as WithdrawFromCSUC and SendToEOA require an intent.
-  // Intent is not passed in commands where the `to` address is a new CSUC/Note/SA of the current user, e.g. the OnboardToCSUCCommand.
+  // Some commands require access to users intent (e.g. recipient address, amount etc)
   intent?: CurvyIntent;
+  state?: CurvyPlanCommandState;
 };
 
 export type CurvyCommandData = BalanceEntry | BalanceEntry[];
