@@ -47,6 +47,17 @@ type CurvyWalletClient = Client<
   CurvyWalletClientExtension
 >;
 
+const getUniversalResolverAddress = (network: Network) => {
+  switch (network.group) {
+    case "Ethereum":
+      return { address: "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe" } as const;
+    case "Localnet":
+      return { address: "0x68B1D87F95878fE05B998F19b66F4baba5De1aed" } as const;
+    default:
+      return undefined;
+  }
+};
+
 const generateViemChainFromNetwork = (network: Network) => {
   const nativeCurrency = network.currencies.find((c) => c.nativeCurrency);
 
@@ -98,12 +109,8 @@ const generateViemChainFromNetwork = (network: Network) => {
       decimals,
     },
     contracts: {
-      ensUniversalResolver:
-        network.group === "Ethereum"
-          ? {
-              address: "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe",
-            }
-          : undefined,
+      ensUniversalResolver: getUniversalResolverAddress(network),
+
       multicall3: {
         address: multiCallContractAddress as HexString,
       },

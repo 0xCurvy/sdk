@@ -14,7 +14,7 @@ const NETWORK_GROUP = {
   OPTIMISM: "Optimism",
 } as const;
 type NETWORK_GROUP = typeof NETWORK_GROUP;
-type NETWORK_GROUP_VALUES = ExtractValues<NETWORK_GROUP>;
+type NETWORK_GROUP_VALUES = ExtractValues<NETWORK_GROUP> | (string & {});
 
 const NETWORK_FLAVOUR = {
   EVM: "evm",

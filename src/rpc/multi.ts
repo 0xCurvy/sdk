@@ -10,6 +10,7 @@ import {
   type VaultBalance,
 } from "@/types";
 import type { AbortOptions } from "@/types/helper";
+import type { CurvyPublicClient } from "@/utils";
 import { toSlug } from "@/utils/helpers";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
 import type { Rpc } from "./abstract";
@@ -50,11 +51,12 @@ class MultiRpc {
   }
 
   async ensResolveCurvyHandle(handle: CurvyHandle, environment: NETWORK_ENVIRONMENT_VALUES, slip0044?: bigint) {
+    let publicClient: CurvyPublicClient;
     if (handle.includes(".local-curvy.name")) {
-      throw new Error("Local Curvy handles are not supported for ENS resolution");
+      publicClient = (this.Network("localnet") as EvmRpc).provider;
+    } else {
+      publicClient = (this.Network(environment === "mainnet" ? "ethereum" : "ethereum-sepolia") as EvmRpc).provider;
     }
-
-    const publicClient = (this.Network(environment === "mainnet" ? "ethereum" : "ethereum-sepolia") as EvmRpc).provider;
 
     return publicClient.getEnsAddress({
       name: normalize(handle),
