@@ -52,7 +52,7 @@ const getUniversalResolverAddress = (network: Network) => {
     case "Ethereum":
       return { address: "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe" } as const;
     case "Localnet":
-      return { address: "0x68B1D87F95878fE05B998F19b66F4baba5De1aed" } as const;
+      return { address: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE" } as const;
     default:
       return undefined;
   }
