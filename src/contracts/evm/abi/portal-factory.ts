@@ -180,35 +180,6 @@ export const portalFactoryAbi = [
     type: "function",
   },
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "curvyVaultProxyAddress",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "curvyAggregatorAlphaProxyAddress",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "lifiDiamondAddress",
-        type: "address",
-      },
-    ],
-    name: "initializeConfig",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
     inputs: [],
     name: "owner",
     outputs: [
@@ -216,6 +187,25 @@ export const portalFactoryAbi = [
         internalType: "address",
         name: "",
         type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "portalAddress",
+        type: "address",
+      },
+    ],
+    name: "portalIsRegistered",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
       },
     ],
     stateMutability: "view",
@@ -245,11 +235,21 @@ export const portalFactoryAbi = [
     inputs: [
       {
         internalType: "address",
+        name: "curvyVaultProxyAddress",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "curvyAggregatorAlphaProxyAddress",
+        type: "address",
+      },
+      {
+        internalType: "address",
         name: "lifiDiamondAddress",
         type: "address",
       },
     ],
-    name: "updateLifiDiamondAddress",
+    name: "updateConfig",
     outputs: [
       {
         internalType: "bool",
