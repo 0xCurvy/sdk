@@ -127,12 +127,13 @@ export class CommandExecutor {
 
       try {
         const command = this.commandFactory.createCommand(plan.id, plan.name, input, plan.intent, plan.estimate);
-        let data: CurvyCommandData | undefined;
+        let data: CurvyCommandData | undefined = plan.output;
 
         if (plan.state !== "executed")
           if (!dryRun) {
             data = await command.execute();
 
+            plan.output = data;
             plan.state = "executed";
 
             await this.#storage.removeSpentBalanceEntries(Array.isArray(input) ? input : [input]);
@@ -142,9 +143,13 @@ export class CommandExecutor {
             // Not great, but a WAAAAY simpler solution :)
             await command.estimateFees();
             data = await command.getResultingBalanceEntry();
+
             plan.estimate = command.estimate;
             plan.state = "estimated";
           }
+        else {
+          if (!data) throw new Error("Command node is marked as executed but has no output data!");
+        }
 
         return <CurvyPlanSuccessfulExecution>{
           success: true,

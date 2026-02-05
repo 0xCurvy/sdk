@@ -31,6 +31,7 @@ export type CurvyPlanCommand = {
   // Some commands require access to users intent (e.g. recipient address, amount etc)
   intent?: CurvyIntent;
   state?: CurvyPlanCommandState;
+  output?: CurvyCommandData;
 };
 
 export type CurvyCommandData = BalanceEntry | BalanceEntry[];
