@@ -129,6 +129,10 @@ export class CommandExecutor {
         const command = this.commandFactory.createCommand(plan.id, plan.name, input, plan.intent, plan.estimate);
         let data: CurvyCommandData | undefined = plan.output;
 
+        if (plan.state === "executed" && !data) {
+          throw new Error("Command node is marked as executed but has no output data!");
+        }
+
         if (plan.state !== "executed")
           if (!dryRun) {
             data = await command.execute();
@@ -147,9 +151,6 @@ export class CommandExecutor {
             plan.estimate = command.estimate;
             plan.state = "estimated";
           }
-        else {
-          if (!data) throw new Error("Command node is marked as executed but has no output data!");
-        }
 
         return <CurvyPlanSuccessfulExecution>{
           success: true,
@@ -198,6 +199,11 @@ export class CommandExecutor {
       this.eventEmitter.emitPlanExecutionError({ plan, result });
     }
 
+    if (!result.success) {
+      console.error(result);
+      throw result.error;
+    }
+
     return result;
   }
 
@@ -213,7 +219,8 @@ export class CommandExecutor {
     const planEstimation = await this.#walkRecursively(plan, undefined, true);
 
     if (!planEstimation.success) {
-      throw new Error(`Estimation failed: ${planEstimation.error}`);
+      console.error(`Plan estimation failed: ${planEstimation.error}`);
+      throw planEstimation.error;
     }
 
     if (!planEstimation.data) {
