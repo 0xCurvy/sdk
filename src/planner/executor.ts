@@ -32,40 +32,46 @@ export class CommandExecutor {
 
   async #walkRecursively(plan: CurvyPlan, input?: CurvyCommandData, dryRun?: boolean): Promise<CurvyPlanExecution> {
     // CurvyPlanFlowControl, parallel
+
     if (plan.type === "parallel") {
       // Parallel plans don't take any input,
       // because that would mean that each of its children is getting the same Address as input
-      const result = await Promise.all(plan.items.map((item) => this.#walkRecursively(item, undefined, dryRun)));
-      const success = result.every((r) => r.success);
+      const results = await Promise.all(plan.items.map((item) => this.#walkRecursively(item, undefined, dryRun)));
+      const success = results.every((r) => r.success);
 
-      this.eventEmitter.emitPlanExecutionProgress({ plan, result: { success, items: result } as CurvyPlanExecution });
+      this.eventEmitter.emitPlanExecutionProgress({ plan, result: { success, items: results } as CurvyPlanExecution });
 
       if (success) {
         return {
           success: true,
-          items: result,
-          estimate: result.reduce<{ estimate: CurvyCommandEstimate }>(
-            (res, { estimate }) => {
-              res.estimate.gasFeeInCurrency += estimate?.gasFeeInCurrency || 0n;
-              res.estimate.curvyFeeInCurrency += estimate?.curvyFeeInCurrency || 0n;
+          items: results,
+          estimate: results.reduce<CurvyCommandEstimate>(
+            (estimate, result) => {
+              const {
+                gasFeeInCurrency = 0n,
+                curvyFeeInCurrency = 0n,
+                bridgeFeeInCurrency = 0n,
+              } = result.estimate || {};
 
-              if (estimate?.bridgeFeeInCurrency)
-                res.estimate.bridgeFeeInCurrency = res.estimate.bridgeFeeInCurrency
-                  ? res.estimate.bridgeFeeInCurrency + estimate.bridgeFeeInCurrency
-                  : estimate.bridgeFeeInCurrency;
+              estimate.gasFeeInCurrency += gasFeeInCurrency;
+              estimate.curvyFeeInCurrency += curvyFeeInCurrency;
 
-              return res;
+              if (bridgeFeeInCurrency)
+                if (!estimate.bridgeFeeInCurrency) estimate.bridgeFeeInCurrency = bridgeFeeInCurrency;
+                else estimate.bridgeFeeInCurrency += bridgeFeeInCurrency;
+
+              return estimate;
             },
-            { estimate: { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n } },
-          ).estimate,
-          data: result.filter((r) => r.success && r.data !== undefined).map((r) => r.data) as BalanceEntry[],
+            { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n },
+          ),
+          data: results.filter((r) => r.success && r.data !== undefined).map((r) => r.data) as BalanceEntry[],
         };
       }
 
       return {
         success: false,
-        items: result,
-        error: result.filter((r) => !r.success).map((r) => r.error),
+        items: results,
+        error: results.filter((r) => !r.success).map((r) => r.error),
       };
     }
 
@@ -93,15 +99,15 @@ export class CommandExecutor {
           };
         }
 
+        const { gasFeeInCurrency = 0n, curvyFeeInCurrency = 0n, bridgeFeeInCurrency = 0n } = result.estimate || {};
         // Set the output of current as data of next step
         data = result.data;
-        estimate.gasFeeInCurrency += result.estimate?.gasFeeInCurrency || 0n;
-        estimate.curvyFeeInCurrency += result.estimate?.curvyFeeInCurrency || 0n;
+        estimate.gasFeeInCurrency += gasFeeInCurrency;
+        estimate.curvyFeeInCurrency += curvyFeeInCurrency;
 
-        if (result.estimate?.bridgeFeeInCurrency)
-          estimate.bridgeFeeInCurrency = estimate.bridgeFeeInCurrency
-            ? estimate.bridgeFeeInCurrency + result.estimate.bridgeFeeInCurrency
-            : result.estimate.bridgeFeeInCurrency;
+        if (bridgeFeeInCurrency)
+          if (!estimate.bridgeFeeInCurrency) estimate.bridgeFeeInCurrency = bridgeFeeInCurrency;
+          else estimate.bridgeFeeInCurrency += bridgeFeeInCurrency;
       }
 
       // The output address of the successful serial flow is the last members address.
@@ -121,20 +127,30 @@ export class CommandExecutor {
 
       try {
         const command = this.commandFactory.createCommand(plan.id, plan.name, input, plan.intent, plan.estimate);
-        let data: CurvyCommandData | undefined;
+        let data: CurvyCommandData | undefined = plan.output;
 
-        if (!dryRun) {
-          data = await command.execute();
-
-          await this.#storage.removeSpentBalanceEntries(Array.isArray(input) ? input : [input]);
-
-          this.eventEmitter.emitPlanCommandExecutionProgress({ commandId: plan.id });
-        } else {
-          // Not great, but a WAAAAY simpler solution :)
-          await command.estimateFees();
-          data = await command.getResultingBalanceEntry();
-          plan.estimate = command.estimate;
+        if (plan.state === "executed" && !data) {
+          throw new Error("Command node is marked as executed but has no output data!");
         }
+
+        if (plan.state !== "executed")
+          if (!dryRun) {
+            data = await command.execute();
+
+            plan.output = data;
+            plan.state = "executed";
+
+            await this.#storage.removeSpentBalanceEntries(Array.isArray(input) ? input : [input]);
+
+            this.eventEmitter.emitPlanCommandExecutionProgress({ commandId: plan.id });
+          } else {
+            // Not great, but a WAAAAY simpler solution :)
+            await command.estimateFees();
+            data = await command.getResultingBalanceEntry();
+
+            plan.estimate = command.estimate;
+            plan.state = "estimated";
+          }
 
         return <CurvyPlanSuccessfulExecution>{
           success: true,
@@ -142,6 +158,7 @@ export class CommandExecutor {
           data,
         };
       } catch (error) {
+        plan.state = "failed";
         return <CurvyPlanUnsuccessfulExecution>{
           success: false,
           error,

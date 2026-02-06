@@ -23,7 +23,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
     ],
   };
 
-  // Stealth addresses need to be first deposited to CSUC
+  // Stealth addresses need to be first deposited to Vault
   if (balanceEntry.type === BALANCE_TYPE.SA) {
     plan.items.push({
       type: "command",
@@ -32,7 +32,7 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
     });
   }
 
-  // Then addresses can be deposited from CSUC to Aggregator
+  // Then addresses can be deposited from Vault to Aggregator
   if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.VAULT) {
     plan.items.push({
       type: "command",
