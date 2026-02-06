@@ -1,5 +1,6 @@
 // BARREL FILE FOR UTILITY EXPORTS
 
+export { deriveAddress } from "./address";
 export * from "./balance";
 export * from "./common";
 export * from "./currency";
