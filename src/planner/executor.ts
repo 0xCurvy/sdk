@@ -182,6 +182,11 @@ export class CommandExecutor {
       this.eventEmitter.emitPlanExecutionError({ plan, result });
     }
 
+    if (!result.success) {
+      console.error(result);
+      throw result.error;
+    }
+
     return result;
   }
 
@@ -197,7 +202,8 @@ export class CommandExecutor {
     const planEstimation = await this.#walkRecursively(plan, undefined, true);
 
     if (!planEstimation.success) {
-      throw new Error(`Estimation failed: ${planEstimation.error}`);
+      console.error(`Plan estimation failed: ${planEstimation.error}`);
+      throw planEstimation.error;
     }
 
     if (!planEstimation.data) {
