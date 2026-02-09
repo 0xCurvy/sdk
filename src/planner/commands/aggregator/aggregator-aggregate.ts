@@ -41,10 +41,6 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   }
 
   get grossAmount() {
-    if (this.#intent && this.#intent.amount < this.inputNotesSum) {
-      return this.#intent.amount;
-    }
-
     return this.inputNotesSum;
   }
 
@@ -94,7 +90,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   }
 
   async estimateFees() {
-    const curvyFeeInCurrency = (this.inputNotesSum * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n;
+    const curvyFeeInCurrency = (this.grossAmount * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n;
     const gasFeeInCurrency = 0n;
 
     this.estimate = {
@@ -103,7 +99,9 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       gasFeeInCurrency,
     };
 
-    this.estimate.note = await this.generateNewNote(this.recipient, this.input[0].vaultTokenId, this.netAmount);
+    const netAmount = this.#intent && this.#intent.amount < this.netAmount ? this.#intent.amount : this.netAmount;
+
+    this.estimate.note = await this.generateNewNote(this.recipient, this.input[0].vaultTokenId, netAmount);
 
     return this.estimate;
   }
@@ -126,18 +124,17 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
 
     let changeOrDummyOutputNote: Note;
 
-    // If we have the intent passed, and it's amount is less than the sum of input notes
-    // then we calculate the change for passing it as the second output note, instead of the dummy one
-    if (this.#intent && this.#intent.amount < this.inputNotesSum) {
-      // This means we should address the note to another recipient right now
-      // Change note
+    // Only generate a real note if change exists AND covers the fees
+    const changeAmount =
+      this.#intent && this.#intent.amount < this.netAmount ? this.netAmount - this.#intent.amount : 0n;
+    if (changeAmount) {
       changeOrDummyOutputNote = await this.generateNewNote(
         this.senderCurvyHandle!, // Estimate will fail earlier if senderCurvyHandle is null, if called somehow generateNewNote will throw
         token,
-        this.inputNotesSum - this.#intent.amount,
+        changeAmount,
       );
     } else {
-      // If there is no change, then we create a dummy note
+      // If there is no change or it does not cover the fees, then we create a dummy note
       changeOrDummyOutputNote = Note.random({
         balance: {
           amount: "0",
