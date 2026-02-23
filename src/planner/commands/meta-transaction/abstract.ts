@@ -118,14 +118,14 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       [META_TRANSACTION_TYPES.VAULT_WITHDRAW]: "withdrawalFee",
       [META_TRANSACTION_TYPES.VAULT_TRANSFER]: "transferFee",
       [META_TRANSACTION_TYPES.VAULT_DEPOSIT_TO_AGGREGATOR]: "transferFee",
-      [META_TRANSACTION_TYPES.VAULT_ONBOARD]: "depositFee",
     } as const;
 
     const metaTransactionType = this.metaTransactionType;
 
     if (
       metaTransactionType === META_TRANSACTION_TYPES.EXIT_BRIDGE ||
-      metaTransactionType === META_TRANSACTION_TYPES.LEGACY_PORTAL
+      metaTransactionType === META_TRANSACTION_TYPES.LEGACY_PORTAL ||
+      metaTransactionType === META_TRANSACTION_TYPES.SWAP
     ) {
       return 0n;
     }
@@ -144,7 +144,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
     return (this.input.balance * fee) / FEE_DENOMINATOR;
   }
 
-  protected async calculateGasFee(args: { ownerHash?: bigint; exitNetwork?: string } = {}) {
+  protected async calculateGasFee(args: { ownerHash?: bigint; exitNetwork?: string; targetCurrency?: string } = {}) {
     return this.sdk.apiClient.metaTransaction.EstimateGas({
       type: this.metaTransactionType,
       currencyAddress: this.input.currencyAddress,
@@ -154,6 +154,7 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
       network: this.input.networkSlug,
       ownerHash: args.ownerHash ? `0x${args.ownerHash.toString(16)}` : undefined,
       exitNetwork: args.exitNetwork,
+      targetCurrency: args.targetCurrency,
     });
   }
 

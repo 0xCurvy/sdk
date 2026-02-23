@@ -231,6 +231,7 @@ type MetaTransactionEstimationRequestBody = {
   amount: string;
   network: string;
   exitNetwork?: string;
+  targetCurrency?: string;
   currencyAddress: string;
   ownerHash?: string;
 };
