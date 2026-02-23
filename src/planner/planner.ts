@@ -2,7 +2,6 @@ import { v4 as uuidV4 } from "uuid";
 import type { CurvyIntent, CurvyPlan, CurvyPlanFlowControl, GeneratePlanReturnType } from "@/planner/plan";
 import { BALANCE_TYPE, type BalanceEntry } from "@/types";
 import { isHexString } from "@/types/helper";
-import { NATIVE_CURRENCY_ADDRESS } from "@/utils";
 
 const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
   // If is note, just return it
@@ -13,35 +12,20 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
     };
   }
 
-  const plan: CurvyPlan = {
+  return {
     type: "serial",
     items: [
       {
         type: "data",
         data: balanceEntry,
       },
+      {
+        type: "command",
+        id: uuidV4(),
+        name: "vault-deposit-to-aggregator",
+      },
     ],
   };
-
-  // Stealth addresses need to be first deposited to Vault
-  if (balanceEntry.type === BALANCE_TYPE.SA) {
-    plan.items.push({
-      type: "command",
-      id: uuidV4(),
-      name: balanceEntry.currencyAddress === NATIVE_CURRENCY_ADDRESS ? "vault-onboard-native" : "vault-onboard-erc20", // This includes gas sponsorship as well.
-    });
-  }
-
-  // Then addresses can be deposited from Vault to Aggregator
-  if (balanceEntry.type === BALANCE_TYPE.SA || balanceEntry.type === BALANCE_TYPE.VAULT) {
-    plan.items.push({
-      type: "command",
-      id: uuidV4(),
-      name: "vault-deposit-to-aggregator",
-    });
-  }
-
-  return plan;
 };
 
 const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): CurvyPlan => {
@@ -141,7 +125,6 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
   }
 
   // FUTURE TODO: Skip unnecessary aggregation (if exact amount)
-  // FUTURE TODO: Check if we have exact amount on CSUC/SA, and  skip the aggregator altogether
 
   // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
   // into aggregator supported batch sizes
@@ -177,6 +160,13 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
         type: "command",
         id: uuidV4(),
         name: "exit-bridge",
+        intent,
+      });
+    } else if (intent.targetCurrency) {
+      plan.items.push({
+        type: "command",
+        id: uuidV4(),
+        name: "swap",
         intent,
       });
     }
