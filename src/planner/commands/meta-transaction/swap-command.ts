@@ -32,7 +32,7 @@ export class SwapCommand extends AbstractSaMetaTransactionCommand {
   async getResultingBalanceEntry(): Promise<CurvyCommandData> {
     return {
       ...this.input,
-      balance: this.netAmount, // Technically this is not accurate, as the final amount will be somewhere between toAmount and toAmountMin from quote
+      balance: BigInt(this.estimate.bridgeEstimateAmount!),
       networkSlug: toSlug(this.intent.network.name),
     } satisfies SaBalanceEntry;
   }
@@ -50,6 +50,7 @@ export class SwapCommand extends AbstractSaMetaTransactionCommand {
       gasFeeInCurrency,
       id: estimateId,
       bridgeFeeInCurrency,
+      bridgeEstimateAmount,
     } = await this.calculateGasFee({
       targetCurrency: this.intent.targetCurrency,
     });
@@ -60,6 +61,7 @@ export class SwapCommand extends AbstractSaMetaTransactionCommand {
       estimateId,
       curvyFeeInCurrency,
       bridgeFeeInCurrency,
+      bridgeEstimateAmount,
     };
 
     return this.estimate;

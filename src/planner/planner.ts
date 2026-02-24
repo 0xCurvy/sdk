@@ -150,7 +150,7 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
           name: "vault-withdraw-to-eoa",
           // If destination network does not have a Vault, the command withdraws to EOA counterpart (preparing for bridge),
           // else withdraws to recipient specified in intent
-          intent: intent.network.vaultContractAddress ? intent : undefined,
+          intent: intent.network.vaultContractAddress || !intent.targetCurrency ? intent : undefined,
         },
       ],
     };

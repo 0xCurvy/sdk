@@ -222,9 +222,15 @@ class ApiClient extends HttpClient implements IApiClient {
     },
 
     EstimateGas: async (body: MetaTransactionEstimationRequestBody) => {
-      const { id, gasFeeInCurrency, bridgeFeeInCurrency, exitBridgeCurrency } = (
+      const { id, gasFeeInCurrency, bridgeFeeInCurrency, exitBridgeCurrency, bridgeEstimateAmount } = (
         await this.request<{
-          data: { id: string; gasFeeInCurrency: string; bridgeFeeInCurrency?: string; exitBridgeCurrency?: string };
+          data: {
+            id: string;
+            gasFeeInCurrency: string;
+            bridgeFeeInCurrency?: string;
+            exitBridgeCurrency?: string;
+            bridgeEstimateAmount?: string;
+          };
         }>({
           method: "POST",
           path: `/meta-transaction/estimate`,
@@ -237,6 +243,7 @@ class ApiClient extends HttpClient implements IApiClient {
         gasFeeInCurrency: BigInt(gasFeeInCurrency ?? "0"),
         bridgeFeeInCurrency: bridgeFeeInCurrency ? BigInt(bridgeFeeInCurrency) : undefined,
         exitBridgeCurrency,
+        bridgeEstimateAmount,
       };
     },
   };
