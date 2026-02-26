@@ -1,24 +1,32 @@
+import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
-import type { CurvyCommandData } from "@/planner/plan";
+import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import {
   BALANCE_TYPE,
-  type GetStealthAddressReturnType,
   type HexString,
   type InputNote,
+  isHexString,
   Note,
   type VaultBalanceEntry,
   type WithdrawRequest,
 } from "@/types";
 import { generateWithdrawalHash } from "@/utils/aggregator";
-import { pollForCriteria, toSlug } from "@/utils/helpers";
+import { pollForCriteria } from "@/utils/helpers";
 
-interface CurvyCommandEstimateWithStealthAddressData extends CurvyCommandEstimate {
-  stealthAddressData: GetStealthAddressReturnType;
-}
+export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
+  readonly #intent: CurvyIntent;
 
-export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand {
-  declare estimate: CurvyCommandEstimateWithStealthAddressData;
+  constructor(
+    id: string,
+    sdk: ICurvySDK,
+    input: CurvyCommandData,
+    intent: CurvyIntent,
+    estimate?: CurvyCommandEstimate,
+  ) {
+    super(id, sdk, input, estimate);
+    this.#intent = intent;
+  }
 
   get name(): string {
     return "AggregatorWithdrawToVaultCommand";
@@ -29,11 +37,11 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
   }
 
   override get recipient() {
-    if (!this.senderCurvyHandle) {
-      throw new Error("Active wallet must have a Curvy Handle to perform aggregator withdraw to vault.");
+    if (!isHexString(this.#intent.recipient)) {
+      throw new Error("Withdraw command recipient must be a hex string address");
     }
 
-    return this.senderCurvyHandle;
+    return this.#intent.recipient;
   }
 
   async #createWithdrawRequest(inputNotes: InputNote[], destinationAddress: HexString): Promise<WithdrawRequest> {
@@ -77,11 +85,10 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     };
   }
 
-  async estimateFees(): Promise<CurvyCommandEstimateWithStealthAddressData> {
+  async estimateFees() {
     this.estimate = {
       curvyFeeInCurrency: (this.inputNotesSum * BigInt(this.network.withdrawCircuitConfig!.groupFee)) / 1000n,
       gasFeeInCurrency: 0n,
-      stealthAddressData: await this.sdk.generateNewStealthAddressForUser(toSlug(this.network.name), this.recipient),
     };
 
     return this.estimate;
@@ -94,7 +101,7 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
     return {
       type: BALANCE_TYPE.VAULT,
       walletId,
-      source: this.estimate.stealthAddressData.address,
+      source: this.recipient,
       vaultTokenId: vaultTokenId,
       networkSlug,
       environment,
@@ -107,20 +114,9 @@ export class AggregatorWithdrawToVaultCommand extends AbstractAggregatorCommand 
   }
 
   async execute(): Promise<CurvyCommandData> {
-    const { address, announcementData } = await this.sdk.registerStealthAddressForUser(
-      this.estimate.stealthAddressData,
-    );
-
-    await this.sdk.storage.storeCurvyAddress({
-      ...announcementData,
-      address,
-      walletId: this.input[0].walletId,
-      lastScannedAt: { mainnet: 0, testnet: 0 },
-    });
-
     const withdrawRequest = await this.#createWithdrawRequest(
       this.inputNotes.map((note) => note.serializeInputNote()),
-      address,
+      this.recipient,
     );
 
     const { requestId } = await this.sdk.apiClient.aggregator.SubmitWithdraw(withdrawRequest);

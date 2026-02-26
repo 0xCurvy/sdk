@@ -1,9 +1,7 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand, CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
-import { AggregatorWithdrawToVaultCommand } from "@/planner/commands/aggregator/aggregator-withdraw-to-vault";
-import { ExitBridgeCommand } from "@/planner/commands/meta-transaction/exit-bridge-command";
-import { SwapCommand } from "@/planner/commands/meta-transaction/swap-command";
+import { AggregatorWithdrawCommand } from "@/planner/commands/aggregator/aggregator-withdraw";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 
 export interface ICommandFactory {
@@ -35,19 +33,12 @@ export class CurvyCommandFactory implements ICommandFactory {
       case "aggregator-aggregate": {
         return new AggregatorAggregateCommand(id, this.#sdk, input, intent, estimate);
       }
-      case "aggregator-withdraw-to-vault":
-        return new AggregatorWithdrawToVaultCommand(id, this.#sdk, input, estimate);
-      case "exit-bridge": {
+      case "aggregator-withdraw": {
         if (!intent) {
-          throw new Error(`${name} requires an intent`);
+          throw new Error("Intent is required for aggregator withdraw command.");
         }
-        return new ExitBridgeCommand(id, this.#sdk, input, intent, estimate);
-      }
-      case "swap": {
-        if (!intent) {
-          throw new Error(`${name} requires an intent`);
-        }
-        return new SwapCommand(id, this.#sdk, input, intent, estimate);
+
+        return new AggregatorWithdrawCommand(id, this.#sdk, input, intent, estimate);
       }
     }
 

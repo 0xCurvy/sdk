@@ -12,20 +12,8 @@ const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPl
     };
   }
 
-  return {
-    type: "serial",
-    items: [
-      {
-        type: "data",
-        data: balanceEntry,
-      },
-      {
-        type: "command",
-        id: uuidV4(),
-        name: "vault-deposit-to-aggregator",
-      },
-    ],
-  };
+  // TODO Refactor this file and leave only note balances
+  throw new Error("Only note balances allowed");
 };
 
 const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): CurvyPlan => {
@@ -142,34 +130,10 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
         {
           type: "command",
           id: uuidV4(),
-          name: "aggregator-withdraw-to-vault",
-        },
-        {
-          type: "command",
-          id: uuidV4(),
-          name: "vault-withdraw-to-eoa",
-          // If destination network does not have a Vault, the command withdraws to EOA counterpart (preparing for bridge),
-          // else withdraws to recipient specified in intent
-          intent: intent.network.vaultContractAddress || !intent.targetCurrency ? intent : undefined,
+          name: "aggregator-withdraw",
         },
       ],
     };
-
-    if (!intent.network.vaultContractAddress) {
-      plan.items.push({
-        type: "command",
-        id: uuidV4(),
-        name: "exit-bridge",
-        intent,
-      });
-    } else if (intent.targetCurrency) {
-      plan.items.push({
-        type: "command",
-        id: uuidV4(),
-        name: "swap",
-        intent,
-      });
-    }
   } else {
     plan = aggregationPlan;
   }
