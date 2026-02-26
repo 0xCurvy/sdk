@@ -4,8 +4,6 @@ import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggreg
 import { AggregatorWithdrawToVaultCommand } from "@/planner/commands/aggregator/aggregator-withdraw-to-vault";
 import { ExitBridgeCommand } from "@/planner/commands/meta-transaction/exit-bridge-command";
 import { SwapCommand } from "@/planner/commands/meta-transaction/swap-command";
-import { VaultDepositToAggregatorCommand } from "@/planner/commands/meta-transaction/vault-deposit-to-aggregator";
-import { VaultWithdrawToEOACommand } from "@/planner/commands/meta-transaction/vault-withdraw-to-eoa";
 import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 
 export interface ICommandFactory {
@@ -34,11 +32,6 @@ export class CurvyCommandFactory implements ICommandFactory {
     estimate?: CurvyCommandEstimate,
   ): CurvyCommand {
     switch (name) {
-      case "vault-deposit-to-aggregator":
-        return new VaultDepositToAggregatorCommand(id, this.#sdk, input, estimate);
-      case "vault-withdraw-to-eoa": {
-        return new VaultWithdrawToEOACommand(id, this.#sdk, input, intent, estimate);
-      }
       case "aggregator-aggregate": {
         return new AggregatorAggregateCommand(id, this.#sdk, input, intent, estimate);
       }

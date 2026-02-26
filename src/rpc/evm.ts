@@ -4,9 +4,8 @@ import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
-import { vaultAbi } from "@/contracts/evm/abi/vault";
 import { Rpc } from "@/rpc/abstract";
-import type { RpcBalance, RpcBalances, VaultBalance } from "@/types";
+import type { RpcBalance, RpcBalances } from "@/types";
 import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
@@ -219,75 +218,6 @@ class EvmRpc extends Rpc {
 
   feeToAmount(feeEstimate: bigint): bigint {
     return feeEstimate;
-  }
-
-  async getVaultBalances(address: HexString): Promise<VaultBalance> {
-    if (!this.network.vaultContractAddress) {
-      throw new Error("Vault actions not supported on this network");
-    }
-
-    const vaultEnabledCurrencies = this.network.currencies.filter(({ vaultTokenId }) => vaultTokenId);
-    const currencyIds = vaultEnabledCurrencies.map(({ vaultTokenId }) => BigInt(vaultTokenId!));
-
-    const balances = await this.provider.readContract({
-      abi: vaultAbi,
-      address: this.network.vaultContractAddress as Address,
-      functionName: "balanceOfBatch",
-      args: [new Array(currencyIds.length).fill(address as Address), currencyIds],
-    });
-
-    return {
-      network: toSlug(this.network.name),
-      address,
-      balances: balances.map((balance, idx) => {
-        return {
-          balance,
-          currencyAddress: vaultEnabledCurrencies[idx].contractAddress,
-          vaultTokenId: currencyIds[idx],
-        };
-      }),
-    };
-  }
-
-  async estimateOnboardNativeToVault(from: HexString, amount: bigint) {
-    if (!this.network.vaultContractAddress) {
-      throw new Error("Vault actions not supported on this network");
-    }
-    const { maxFeePerGas } = await this.provider.estimateFeesPerGas();
-
-    const gasLimit = await this.provider.estimateGas({
-      account: from,
-      value: amount,
-      to: this.network.vaultContractAddress as Address,
-    });
-
-    return { maxFeePerGas, gasLimit };
-  }
-
-  async onboardNativeToVault(amount: bigint, privateKey: HexString, maxFeePerGas: bigint, gasLimit: bigint) {
-    if (!this.network.vaultContractAddress) {
-      throw new Error("Vault actions not supported on this network");
-    }
-
-    const hash = await this.#walletClient.sendTransaction({
-      account: privateKeyToAccount(privateKey),
-      maxFeePerGas,
-      gasLimit,
-      to: this.network.vaultContractAddress as HexString,
-      value: amount,
-    });
-
-    const receipt = await this.provider.waitForTransactionReceipt({
-      hash,
-    });
-
-    const txExplorerUrl = `${this.network.blockExplorerUrl}/tx/${hash}`;
-
-    return {
-      txHash: hash,
-      txExplorerUrl,
-      receipt,
-    };
   }
 
   async signRawTransaction(privateKey: HexString, txRequest: SignTransactionRequest) {

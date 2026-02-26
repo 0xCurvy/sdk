@@ -1,4 +1,3 @@
-import { privateKeyToAccount } from "viem/accounts";
 import { vaultAbi } from "@/contracts/evm/abi";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
@@ -9,7 +8,6 @@ import {
   type HexString,
   isSaBalanceEntry,
   isVaultBalanceEntry,
-  META_TRANSACTION_NUMERIC_TYPES,
   META_TRANSACTION_TYPES,
   type MetaTransactionType,
   type Note,
@@ -64,53 +62,6 @@ abstract class AbstractMetaTransactionCommand extends CurvyCommand {
 
   override get recipient(): HexString {
     return this.network.aggregatorContractAddress as HexString;
-  }
-
-  protected async signMetaTransaction(to?: HexString) {
-    if (!this.estimate) {
-      throw new Error("Command not estimated.");
-    }
-
-    const privateKey = await this.sdk.walletManager.getAddressPrivateKey(this.input.source);
-
-    const nonce = await this.rpc.provider.readContract({
-      abi: vaultAbi,
-      address: this.network.vaultContractAddress as HexString,
-      functionName: "getNonce",
-      args: [this.input.source as HexString],
-    });
-
-    const account = privateKeyToAccount(privateKey);
-
-    return account.signTypedData({
-      domain: {
-        name: "Curvy Privacy Vault",
-        version: this.network.vaultContractVersion,
-        chainId: BigInt(this.network.chainId),
-        verifyingContract: this.network.vaultContractAddress as HexString,
-      },
-      primaryType: "CurvyMetaTransaction",
-      types: {
-        CurvyMetaTransaction: [
-          { name: "nonce", type: "uint256" },
-          { name: "from", type: "address" },
-          { name: "to", type: "address" },
-          { name: "tokenId", type: "uint256" },
-          { name: "amount", type: "uint256" },
-          { name: "gasFee", type: "uint256" },
-          { name: "metaTransactionType", type: "uint8" },
-        ],
-      },
-      message: {
-        nonce,
-        from: this.input.source as HexString,
-        to: to ?? this.recipient,
-        tokenId: this.input.vaultTokenId,
-        amount: this.input.balance,
-        gasFee: this.estimate.gasFeeInCurrency,
-        metaTransactionType: META_TRANSACTION_NUMERIC_TYPES[this.metaTransactionType],
-      },
-    });
   }
 
   protected async calculateCurvyFee(): Promise<bigint> {

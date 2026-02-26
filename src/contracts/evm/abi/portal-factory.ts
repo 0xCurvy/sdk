@@ -82,11 +82,6 @@ export const portalFactoryAbi = [
       },
       {
         "internalType": "address",
-        "name": "tokenAddress",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
         "name": "recovery",
         "type": "address"
       }

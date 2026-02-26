@@ -1,14 +1,7 @@
 import { normalize } from "viem/ens";
-import { type NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { EvmRpc } from "@/rpc/evm";
-import {
-  type CurvyAddress,
-  type CurvyHandle,
-  type HexString,
-  isHexString,
-  type RpcBalances,
-  type VaultBalance,
-} from "@/types";
+import { type CurvyAddress, type CurvyHandle, type HexString, isHexString, type RpcBalances } from "@/types";
 import type { AbortOptions } from "@/types/helper";
 import type { CurvyPublicClient } from "@/utils";
 import { toSlug } from "@/utils/helpers";
@@ -36,17 +29,6 @@ class MultiRpc {
       rpcs.map((rpc) => rpc.getBalances(isHexString(stealthAddress) ? stealthAddress : stealthAddress.address)),
     ).then((results) => {
       return Object.assign(Object.create(null), ...results);
-    });
-  }
-
-  async getVaultBalances(curvyAddress: CurvyAddress): Promise<VaultBalance[]> {
-    if (curvyAddress.networkFlavour !== NETWORK_FLAVOUR.EVM) return Promise.resolve([]);
-    const rpcs = this.#rpcArray.filter(
-      (rpc) => rpc.network.flavour === curvyAddress.networkFlavour && !!rpc.network.vaultContractAddress,
-    );
-
-    return Promise.all(rpcs.map((rpc) => rpc.getVaultBalances(curvyAddress.address))).then((results) => {
-      return results;
     });
   }
 
