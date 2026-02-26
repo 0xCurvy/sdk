@@ -6,6 +6,7 @@ export interface CurvyCommandEstimate {
   curvyFeeInCurrency: bigint;
   gasFeeInCurrency: bigint;
   bridgeFeeInCurrency?: bigint;
+  bridgeEstimateAmount?: string;
 }
 
 export abstract class CurvyCommand {
