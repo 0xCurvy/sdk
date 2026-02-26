@@ -14,7 +14,6 @@ import {
   type NoteBalanceEntry,
   type RefreshOptions,
   type SaBalanceEntry,
-  type VaultBalanceEntry,
 } from "@/types";
 import type { FullNoteData } from "@/types/note";
 import type { BalanceEntry } from "@/types/storage";
@@ -126,53 +125,6 @@ export class BalanceScanner implements IBalanceScanner {
     }
     return entries;
   }
-  async #processVaultBalances(addresses: CurvyAddress[]) {
-    const arrLength = addresses.length;
-
-    const entries: VaultBalanceEntry[] = [];
-
-    for (let i = 0; i < arrLength; i++) {
-      const address = addresses[i];
-
-      const vaultData = await this.rpcClient.getVaultBalances(address);
-
-      for (const { network, address, balances } of vaultData) {
-        const balancesLength = balances.length;
-        for (let j = 0; j < balancesLength; j++) {
-          const { currencyAddress, balance } = balances[j];
-
-          if (balance === 0n) continue; // Skip zero balances
-
-          const { symbol, environment, decimals, vaultTokenId } = await this.#storage.getCurrencyMetadata(
-            currencyAddress,
-            toSlug(network),
-          );
-
-          if (!vaultTokenId) {
-            throw new Error(`Vault token not found in currency metadata, for address ${currencyAddress}.`);
-          }
-
-          entries.push({
-            walletId: addresses[i].walletId,
-            source: address,
-            type: BALANCE_TYPE.VAULT,
-
-            networkSlug: toSlug(network),
-            environment,
-            decimals,
-
-            vaultTokenId: BigInt(vaultTokenId),
-            currencyAddress,
-            balance,
-            symbol,
-
-            lastUpdated: +dayjs(),
-          });
-        }
-      }
-    }
-    return entries;
-  }
 
   async #processNotes(notes: FullNoteData[], network: Network) {
     const entries: NoteBalanceEntry[] = [];
@@ -230,21 +182,6 @@ export class BalanceScanner implements IBalanceScanner {
     // }
 
     return entries;
-  }
-
-  /**
-   * A helper function to process a batch of addresses.
-   * For each address, it fetches both SA and CSUC balances concurrently.
-   * @param addressBatch An array of CurvyAddress objects to process.
-   * @returns A Promise that resolves to a single, flat array of all BalanceEntry objects for the batch.
-   */
-  async #processAddressBatch(addressBatch: CurvyAddress[]) {
-    const resultsForBatch = await Promise.all([
-      this.#processSaBalances(addressBatch),
-      this.#processVaultBalances(addressBatch.filter((address) => address.networkFlavour === "evm")),
-    ]);
-
-    return resultsForBatch.flat();
   }
 
   async #noteScan(
@@ -371,16 +308,16 @@ export class BalanceScanner implements IBalanceScanner {
         );
 
         try {
-          const combinedEntries = await this.#processAddressBatch(addressBatch); // Assumes a helper for clarity
+          const saEntries = await this.#processSaBalances(addressBatch); // Assumes a helper for clarity
           // Check and throw immediately after getting entries,
           // because during switch some addresses will be checked on wrong environment
           // This effectively cancels processing of the current batch and skips corrupted updates
           signal?.throwIfAborted();
 
-          if (combinedEntries.length > 0) {
-            if (onProgress) onProgress(combinedEntries);
+          if (saEntries.length > 0) {
+            if (onProgress) onProgress(saEntries);
 
-            await this.#storage.updateAddressBalances(walletId, combinedEntries);
+            await this.#storage.updateAddressBalances(walletId, saEntries);
           }
 
           await this.#storage.storeManyCurvyAddresses(
@@ -471,12 +408,12 @@ export class BalanceScanner implements IBalanceScanner {
     });
 
     try {
-      const combinedEntries = await this.#processAddressBatch([address]);
+      const saEntries = await this.#processSaBalances([address]);
 
-      if (combinedEntries.length > 0) {
-        if (onProgress) onProgress(combinedEntries);
+      if (saEntries.length > 0) {
+        if (onProgress) onProgress(saEntries);
 
-        await this.#storage.updateAddressBalances(address.walletId, combinedEntries);
+        await this.#storage.updateAddressBalances(address.walletId, saEntries);
       }
 
       this.#emitter.emitBalanceRefreshComplete({

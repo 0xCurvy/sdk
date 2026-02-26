@@ -24,7 +24,7 @@ import { starknetMulticallAbi } from "@/contracts/starknet/abi/multicall";
 import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import type { RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate, VaultBalance } from "@/types/rpc";
+import type { RpcBalance, RpcBalances, StarknetFeeEstimate } from "@/types/rpc";
 import { decimalStringToHex } from "@/utils/decimal-conversions";
 import { toSlug } from "@/utils/helpers";
 import { fromUint256 } from "@/utils/rpc";
@@ -360,21 +360,6 @@ class StarknetRpc extends Rpc {
         throw new Error(`Unsupported wallet ID: ${walletId}`);
       }
     }
-  }
-
-  async getVaultBalances(_address: HexString): Promise<VaultBalance> {
-    throw new Error("Vault is not supported on Starknet");
-  }
-
-  async estimateOnboardNativeToVault(
-    _from: HexString,
-    _amount: bigint,
-  ): Promise<{ maxFeePerGas: bigint; gasLimit: bigint }> {
-    throw new Error("Vault is not supported on Starknet");
-  }
-
-  async onboardNativeToVault(_amount: bigint, _privateKey: HexString, _gas: bigint): Promise<RpcCallReturnType> {
-    throw new Error("Vault is not supported on Starknet");
   }
 
   async signRawTransaction(_privateKey: HexString, _txRequest: unknown): Promise<string> {
