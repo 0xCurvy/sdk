@@ -16,6 +16,33 @@ export const vaultAbi = [
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "ECDSAInvalidSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "length",
+        "type": "uint256"
+      }
+    ],
+    "name": "ECDSAInvalidSignatureLength",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "s",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ECDSAInvalidSignatureS",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -64,6 +91,11 @@ export const vaultAbi = [
   },
   {
     "inputs": [],
+    "name": "InvalidGasSponsorship",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidInitialization",
     "type": "error"
   },
@@ -75,6 +107,11 @@ export const vaultAbi = [
   {
     "inputs": [],
     "name": "InvalidSender",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidTransactionType",
     "type": "error"
   },
   {
@@ -151,55 +188,24 @@ export const vaultAbi = [
   },
   {
     "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "tokenAddress",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "gasSponsorshipAmount",
-        "type": "uint256"
-      }
-    ],
-    "name": "Deposit",
+    "inputs": [],
+    "name": "EIP712DomainChanged",
     "type": "event"
   },
   {
     "anonymous": false,
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "uint96",
-            "name": "depositFee",
-            "type": "uint96"
-          },
-          {
-            "internalType": "uint96",
-            "name": "withdrawalFee",
-            "type": "uint96"
-          }
-        ],
         "indexed": false,
-        "internalType": "struct CurvyTypes.FeeUpdate",
-        "name": "feeUpdate",
-        "type": "tuple"
+        "internalType": "enum CurvyTypes.MetaTransactionType",
+        "name": "metaTransactionType",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint96",
+        "name": "fee",
+        "type": "uint96"
       }
     ],
     "name": "FeeChange",
@@ -216,6 +222,25 @@ export const vaultAbi = [
       }
     ],
     "name": "Initialized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "signer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newNonce",
+        "type": "uint256"
+      }
+    ],
+    "name": "NonceChange",
     "type": "event"
   },
   {
@@ -260,19 +285,31 @@ export const vaultAbi = [
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
-        "name": "tokenAddress",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "to",
         "type": "address"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "tokenId",
+        "name": "token_id",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
         "type": "uint256"
       }
     ],
-    "name": "TokenUnsupported",
+    "name": "Transfer",
     "type": "event"
   },
   {
@@ -286,31 +323,6 @@ export const vaultAbi = [
       }
     ],
     "name": "Upgraded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "tokenAddress",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "Withdraw",
     "type": "event"
   },
   {
@@ -345,6 +357,30 @@ export const vaultAbi = [
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address[]",
+        "name": "owners",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "balanceOfBatch",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -392,26 +428,65 @@ export const vaultAbi = [
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs": [],
+    "name": "eip712Domain",
+    "outputs": [
+      {
+        "internalType": "bytes1",
+        "name": "fields",
+        "type": "bytes1"
+      },
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "version",
+        "type": "string"
+      },
       {
         "internalType": "uint256",
-        "name": "amount",
+        "name": "chainId",
         "type": "uint256"
       },
       {
         "internalType": "address",
-        "name": "destinationAddress",
+        "name": "verifyingContract",
         "type": "address"
       },
       {
+        "internalType": "bytes32",
+        "name": "salt",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "extensions",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_signer",
+        "type": "address"
+      }
+    ],
+    "name": "getNonce",
+    "outputs": [
+      {
         "internalType": "uint256",
-        "name": "tokenId",
+        "name": "nonce",
         "type": "uint256"
       }
     ],
-    "name": "forceWithdrawal",
-    "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -540,24 +615,112 @@ export const vaultAbi = [
   {
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "uint96",
-            "name": "depositFee",
-            "type": "uint96"
-          },
-          {
-            "internalType": "uint96",
-            "name": "withdrawalFee",
-            "type": "uint96"
-          }
-        ],
-        "internalType": "struct CurvyTypes.FeeUpdate",
-        "name": "feeUpdate",
-        "type": "tuple"
+        "internalType": "enum CurvyTypes.MetaTransactionType",
+        "name": "metaTransactionType",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint96",
+        "name": "fee",
+        "type": "uint96"
       }
     ],
     "name": "setFeeAmount",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "from",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "to",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "gasFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum CurvyTypes.MetaTransactionType",
+            "name": "metaTransactionType",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct CurvyTypes.MetaTransaction",
+        "name": "metaTransaction",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "transfer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "from",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "to",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "gasFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum CurvyTypes.MetaTransactionType",
+            "name": "metaTransactionType",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct CurvyTypes.MetaTransaction",
+        "name": "metaTransaction",
+        "type": "tuple"
+      }
+    ],
+    "name": "transfer",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -592,19 +755,6 @@ export const vaultAbi = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "tokenAddress",
-        "type": "address"
-      }
-    ],
-    "name": "unsupportToken",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
         "name": "newImplementation",
         "type": "address"
       },
@@ -622,19 +772,91 @@ export const vaultAbi = [
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
+        "components": [
+          {
+            "internalType": "address",
+            "name": "from",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "to",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "gasFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum CurvyTypes.MetaTransactionType",
+            "name": "metaTransactionType",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct CurvyTypes.MetaTransaction",
+        "name": "metaTransaction",
+        "type": "tuple"
+      }
+    ],
+    "name": "withdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "from",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "to",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "gasFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum CurvyTypes.MetaTransactionType",
+            "name": "metaTransactionType",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct CurvyTypes.MetaTransaction",
+        "name": "metaTransaction",
+        "type": "tuple"
       },
       {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
       }
     ],
     "name": "withdraw",
