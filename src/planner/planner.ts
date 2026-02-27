@@ -131,6 +131,7 @@ export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): Gen
           type: "command",
           id: uuidV4(),
           name: "aggregator-withdraw",
+          intent,
         },
       ],
     };

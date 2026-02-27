@@ -3,6 +3,7 @@ import type { Signature as StarknetSignature } from "starknet";
 type ExtractKeys<T> = T extends { [key: string]: unknown } ? keyof T : never;
 type ExtractValues<T> = T extends { [key: string]: unknown } ? T[keyof T] : never;
 type Prettify<T> = { [key in keyof T]: T[key] } & unknown;
+type Tuple<T, N extends number, R extends T[] = []> = R["length"] extends N ? R : Tuple<T, N, [...R, T]>;
 
 type HexString = `0x${string}`;
 const isHexString = (value: unknown): value is HexString => {
@@ -41,5 +42,5 @@ type AbortOptions = {
   signal?: AbortSignal;
 };
 
-export type { ExtractKeys, ExtractValues, HexString, Prettify, StringifyBigInts, DeepNonNullable, AbortOptions };
+export type { ExtractKeys, ExtractValues, HexString, Prettify, Tuple, StringifyBigInts, DeepNonNullable, AbortOptions };
 export { isHexString, isStringArray, isStarkentSignature, assertHexString };

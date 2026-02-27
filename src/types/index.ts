@@ -16,6 +16,7 @@ export {
   isStringArray,
   type Prettify,
   type StringifyBigInts,
+  type Tuple,
 } from "./helper";
 export * from "./meta-transaction";
 export * from "./note";
