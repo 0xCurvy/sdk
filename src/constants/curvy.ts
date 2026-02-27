@@ -1,6 +1,6 @@
-const CURVY_HANDLE_DOMAINS = [".staging-curvy.name", ".curvy.name", ".local-curvy.name"] as const;
+const CURVY_ID_DOMAINS = [".staging-curvy.name", ".curvy.name", ".local-curvy.name"] as const;
 
-type CURVY_HANDLE_DOMAINS = (typeof CURVY_HANDLE_DOMAINS)[number];
-type EnsCurvyHandleDomain = Exclude<CURVY_HANDLE_DOMAINS, ".local-curvy.name">;
+type CURVY_ID_DOMAINS = (typeof CURVY_ID_DOMAINS)[number];
+type EnsCurvyIdDomain = Exclude<CURVY_ID_DOMAINS, ".local-curvy.name">;
 
-export { CURVY_HANDLE_DOMAINS, EnsCurvyHandleDomain };
+export { CURVY_ID_DOMAINS, type EnsCurvyIdDomain };

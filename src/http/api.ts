@@ -3,6 +3,9 @@ import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
 import type {
   GetMetaTransactionStatusReturnType,
+  InsertEntryPortalRequestBody,
+  InsertExitPortalRequestBody,
+  InsertPortalReturnType,
   MetaTransactionEstimationRequestBody,
   MetaTransactionSubmitBody,
   SubmitNoteOwnershipProofReturnType,
@@ -15,11 +18,11 @@ import type {
   GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsResponse,
-  GetCurvyHandleByOwnerAddressResponse,
+  GetCurvyIdByOwnerAddressResponse,
   NetworksWithCurrenciesResponse,
-  RegisterCurvyHandleRequestBody,
-  RegisterCurvyHandleReturnType,
-  ResolveCurvyHandleReturnType,
+  RegisterCurvyIdRequestBody,
+  RegisterCurvyIdReturnType,
+  ResolveCurvyIdReturnType,
   SetBabyJubjubPublicKeyRequestBody,
   SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
@@ -28,7 +31,7 @@ import type {
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
-import type { CurvyHandle } from "@/types/curvy";
+import type { CurvyId } from "@/types/curvy";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
@@ -85,32 +88,53 @@ class ApiClient extends HttpClient implements IApiClient {
     },
   };
 
+  portal = {
+    insertEntryPortal: async (body: InsertEntryPortalRequestBody): Promise<InsertPortalReturnType["data"]> => {
+      return (
+        await this.request<InsertPortalReturnType>({
+          method: "POST",
+          path: `/portal/entry`,
+          body,
+        })
+      ).data;
+    },
+    insertExitPortal: async (body: InsertExitPortalRequestBody): Promise<InsertPortalReturnType["data"]> => {
+      return (
+        await this.request<InsertPortalReturnType>({
+          method: "POST",
+          path: `/portal/exit`,
+          body: body,
+        })
+      ).data;
+    },
+  };
+
   user = {
-    RegisterCurvyHandle: async (body: RegisterCurvyHandleRequestBody) => {
-      return await this.request<RegisterCurvyHandleReturnType>({
+    RegisterCurvyId: async (body: RegisterCurvyIdRequestBody) => {
+      return await this.request<RegisterCurvyIdReturnType>({
         method: "POST",
         path: "/user/register",
         body,
       });
     },
 
-    ResolveCurvyHandle: async (username: string) => {
-      return this.request<ResolveCurvyHandleReturnType>({
+    ResolveCurvyId: async (username: string) => {
+      return this.request<ResolveCurvyIdReturnType>({
         method: "GET",
         path: `/user/resolve/${username}`,
       });
     },
 
-    GetCurvyHandleByOwnerAddress: async (ownerAddress: string) => {
-      const response = await this.request<GetCurvyHandleByOwnerAddressResponse>({
+    GetCurvyIdByOwnerAddress: async (ownerAddress: string) => {
+      const response = await this.request<GetCurvyIdByOwnerAddressResponse>({
         method: "GET",
         path: `/user/check/${ownerAddress}`,
       });
 
-      return (response.data?.handle as CurvyHandle) || null;
+      return (response.data?.handle as CurvyId) || null;
     },
 
-    SetBabyJubjubKey: async (handle: CurvyHandle, body: SetBabyJubjubPublicKeyRequestBody) => {
+    SetBabyJubjubKey: async (handle: CurvyId, body: SetBabyJubjubPublicKeyRequestBody) => {
       return await this.request<SetBabyJubjubPublicKeyReturnType>({
         method: "PATCH",
         path: `/user/${handle}/bjj`,

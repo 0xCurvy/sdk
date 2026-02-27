@@ -7,14 +7,17 @@ import type {
   GetAllNotesReturnType,
   GetAnnouncementEncryptedMessageReturnType,
   GetAnnouncementsReturnType,
-  GetCurvyHandleByOwnerAddressReturnType,
+  GetCurvyIdByOwnerAddressReturnType,
   GetMetaTransactionStatusReturnType,
   GetNetworksReturnType,
+  InsertEntryPortalRequestBody,
+  InsertExitPortalRequestBody,
+  InsertPortalReturnType,
   MetaTransactionEstimationRequestBody,
   MetaTransactionSubmitBody,
-  RegisterCurvyHandleRequestBody,
-  RegisterCurvyHandleReturnType,
-  ResolveCurvyHandleReturnType,
+  RegisterCurvyIdRequestBody,
+  RegisterCurvyIdReturnType,
+  ResolveCurvyIdReturnType,
   SetBabyJubjubPublicKeyRequestBody,
   SetBabyJubjubPublicKeyReturnType,
   SubmitAggregationReturnType,
@@ -24,7 +27,7 @@ import type {
   UpdateAnnouncementEncryptedMessageRequestBody,
   UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
-import type { CurvyHandle } from "@/types/curvy";
+import type { CurvyId } from "@/types/curvy";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
@@ -49,12 +52,17 @@ interface IApiClient {
     GetNetworks(): Promise<GetNetworksReturnType>;
   };
 
+  portal: {
+    insertEntryPortal(body: InsertEntryPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
+    insertExitPortal(body: InsertExitPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
+  };
+
   user: {
-    RegisterCurvyHandle(body: RegisterCurvyHandleRequestBody): Promise<RegisterCurvyHandleReturnType>;
-    ResolveCurvyHandle(username: string): Promise<ResolveCurvyHandleReturnType>;
-    GetCurvyHandleByOwnerAddress(ownerAddress: string): Promise<GetCurvyHandleByOwnerAddressReturnType>;
+    RegisterCurvyId(body: RegisterCurvyIdRequestBody): Promise<RegisterCurvyIdReturnType>;
+    ResolveCurvyId(username: string): Promise<ResolveCurvyIdReturnType>;
+    GetCurvyIdByOwnerAddress(ownerAddress: string): Promise<GetCurvyIdByOwnerAddressReturnType>;
     SetBabyJubjubKey(
-      handle: CurvyHandle,
+      handle: CurvyId,
       body: SetBabyJubjubPublicKeyRequestBody,
     ): Promise<SetBabyJubjubPublicKeyReturnType>;
   };

@@ -1,5 +1,5 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
-import { type CurvyHandle, type CurvyPublicKeys, type HexString, isValidCurvyHandle, type Network } from "@/types";
+import { type CurvyId, type CurvyPublicKeys, type HexString, isValidCurvyId, type Network } from "@/types";
 import type { CurvyCommandData } from "../plan";
 
 export interface CurvyCommandEstimate {
@@ -12,7 +12,7 @@ export interface CurvyCommandEstimate {
 export abstract class CurvyCommand {
   protected sdk: ICurvySDK;
   protected readonly input: CurvyCommandData;
-  protected readonly senderCurvyHandle: CurvyHandle | null;
+  protected readonly senderCurvyId: CurvyId | null;
   protected readonly network: Network;
 
   public estimate?: CurvyCommandEstimate;
@@ -24,7 +24,7 @@ export abstract class CurvyCommand {
     this.sdk = sdk;
     this.input = input;
     this.estimate = estimate;
-    this.senderCurvyHandle = sdk.walletManager.activeWallet.curvyHandle;
+    this.senderCurvyId = sdk.walletManager.activeWallet.curvyHandle;
 
     if (Array.isArray(this.input)) {
       this.network = sdk.getNetwork(this.input[0].networkSlug);
@@ -33,7 +33,7 @@ export abstract class CurvyCommand {
     }
   }
 
-  abstract get recipient(): HexString | CurvyHandle | CurvyPublicKeys;
+  abstract get recipient(): HexString | CurvyId | CurvyPublicKeys;
   abstract get name(): string;
 
   abstract estimateFees(): Promise<CurvyCommandEstimate>;
@@ -52,11 +52,11 @@ export abstract class CurvyCommand {
     return this.grossAmount - curvyFeeInCurrency - gasFeeInCurrency;
   }
 
-  async generateNewNote(handleOrKeys: CurvyHandle | CurvyPublicKeys, token: bigint, amount: bigint) {
+  async generateNewNote(handleOrKeys: CurvyId | CurvyPublicKeys, token: bigint, amount: bigint) {
     let S: string, V: string, babyJubjubPublicKey: string;
 
-    if (isValidCurvyHandle(handleOrKeys)) {
-      const { data: recipientDetails } = await this.sdk.apiClient.user.ResolveCurvyHandle(handleOrKeys);
+    if (isValidCurvyId(handleOrKeys)) {
+      const { data: recipientDetails } = await this.sdk.apiClient.user.ResolveCurvyId(handleOrKeys);
 
       if (!recipientDetails) {
         throw new Error(`Handle ${handleOrKeys} not found`);

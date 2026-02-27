@@ -2,14 +2,14 @@ import dayjs from "dayjs";
 import { sha256 } from "viem";
 import type { ICurvyWallet } from "@/interfaces/wallet";
 import type { CurvyKeyPairs } from "@/types/core";
-import type { CurvyHandle } from "@/types/curvy";
+import type { CurvyId } from "@/types/curvy";
 import type { SerializedCurvyWallet } from "@/types/wallet";
 import { textEncoder } from "@/utils/helpers";
 
 class CurvyWallet implements ICurvyWallet {
   readonly #keyPairs: CurvyKeyPairs;
 
-  readonly curvyHandle: CurvyHandle | null;
+  readonly curvyHandle: CurvyId | null;
   readonly ownerAddress: string | null;
   readonly createdAt: number;
   readonly id: string;
@@ -19,7 +19,7 @@ class CurvyWallet implements ICurvyWallet {
 
   constructor(
     keyPairs: Partial<CurvyKeyPairs>,
-    curvyHandle: CurvyHandle | null,
+    curvyHandle: CurvyId | null,
     ownerAddress: string | null,
     createdAt = +dayjs(),
     passwordHash?: string,

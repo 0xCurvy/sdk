@@ -1,7 +1,7 @@
 import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import type {
   CurvyAddress,
-  CurvyHandle,
+  CurvyId,
   CurvyKeyPairs,
   EvmSignatureData,
   HexString,
@@ -23,15 +23,10 @@ interface IWalletManager {
     requestingAddress: HexString,
     credId?: ArrayBuffer,
   ): Promise<CurvyWallet>;
-  registerWalletWithPrivateKeys(
-    s: string,
-    v: string,
-    handle: CurvyHandle,
-    ownerAddress: HexString,
-  ): Promise<CurvyWallet>;
+  registerWalletWithPrivateKeys(s: string, v: string, handle: CurvyId, ownerAddress: HexString): Promise<CurvyWallet>;
 
   addWalletWithPasskey(prfValue: BufferSource, credId: ArrayBuffer): Promise<CurvyWallet>;
-  registerWalletWithPasskey(handle: CurvyHandle, prfValue: BufferSource, credId: ArrayBuffer): Promise<CurvyWallet>;
+  registerWalletWithPasskey(handle: CurvyId, prfValue: BufferSource, credId: ArrayBuffer): Promise<CurvyWallet>;
 
   addWalletWithSignature(
     flavour: NETWORK_FLAVOUR["EVM"],
@@ -50,19 +45,19 @@ interface IWalletManager {
   ): Promise<CurvyWallet>;
 
   registerWalletWithSignature(
-    handle: CurvyHandle,
+    handle: CurvyId,
     flavour: NETWORK_FLAVOUR["EVM"],
     signature: EvmSignatureData,
     password: string,
   ): Promise<CurvyWallet>;
   registerWalletWithSignature(
-    handle: CurvyHandle,
+    handle: CurvyId,
     flavour: NETWORK_FLAVOUR["STARKNET"],
     signature: StarknetSignatureData,
     password: string,
   ): Promise<CurvyWallet>;
   registerWalletWithSignature(
-    handle: CurvyHandle,
+    handle: CurvyId,
     flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
     password: string,

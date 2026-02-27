@@ -330,43 +330,16 @@ export const aggregatorAlphaAbi = [
     type: "function",
   },
   {
-    inputs: [
+    inputs: [],
+    name: "curvyVaultV2",
+    outputs: [
       {
-        internalType: "address",
-        name: "from",
+        internalType: "contract ICurvyVaultV2",
+        name: "",
         type: "address",
       },
-      {
-        components: [
-          {
-            internalType: "uint256",
-            name: "ownerHash",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "token",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "amount",
-            type: "uint256",
-          },
-        ],
-        internalType: "struct CurvyTypes.Note",
-        name: "note",
-        type: "tuple",
-      },
-      {
-        internalType: "bytes",
-        name: "signature",
-        type: "bytes",
-      },
     ],
-    name: "depositNote",
-    outputs: [],
-    stateMutability: "nonpayable",
+    stateMutability: "view",
     type: "function",
   },
   {
@@ -641,6 +614,19 @@ export const aggregatorAlphaAbi = [
     outputs: [
       {
         internalType: "contract ICurvyWithdrawVerifier",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "withdrawVerifierV3",
+    outputs: [
+      {
+        internalType: "contract ICurvyWithdrawVerifierV3",
         name: "",
         type: "address",
       },

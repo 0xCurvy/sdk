@@ -1,5 +1,5 @@
-import { CURVY_HANDLE_DOMAINS } from "@/constants/curvy";
+import { CURVY_ID_DOMAINS } from "@/constants/curvy";
 
-const CURVY_HANDLE_REGEX = new RegExp(`^[a-zA-Z0-9-]{3,20}(${CURVY_HANDLE_DOMAINS.join("|")})$`);
+const CURVY_ID_REGEX = new RegExp(`^[a-zA-Z0-9-]{3,20}(${CURVY_ID_DOMAINS.join("|")})$`);
 
-export { CURVY_HANDLE_REGEX };
+export { CURVY_ID_REGEX };

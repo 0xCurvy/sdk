@@ -1,6 +1,6 @@
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import type { BalanceEntry, Currency, CurvyPublicKeys, Network } from "@/types";
-import type { CurvyHandle } from "@/types/curvy";
+import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 
 export type CurvyIntent = {
@@ -12,7 +12,7 @@ export type CurvyIntent = {
 } & (
   | {
       type: "curvy-transfer";
-      recipient: CurvyHandle;
+      recipient: CurvyId;
       recipientPublicKeys?: never;
     }
   | {

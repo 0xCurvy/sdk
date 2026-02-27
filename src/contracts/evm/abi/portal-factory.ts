@@ -11,6 +11,11 @@ export const portalFactoryAbi = [
     type: "constructor",
   },
   {
+    inputs: [],
+    name: "DeploymentFailed",
+    type: "error",
+  },
+  {
     inputs: [
       {
         internalType: "address",
@@ -30,6 +35,16 @@ export const portalFactoryAbi = [
       },
     ],
     name: "OwnableUnauthorizedAccount",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "UnsupportedBridging",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "UnsupportedShielding",
     type: "error",
   },
   {
@@ -86,7 +101,7 @@ export const portalFactoryAbi = [
         type: "address",
       },
     ],
-    name: "deployAndBridge",
+    name: "deployEntryBridgePortal",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -119,7 +134,7 @@ export const portalFactoryAbi = [
         type: "address",
       },
     ],
-    name: "deployAndExitBridge",
+    name: "deployExitBridgePortal",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -154,7 +169,7 @@ export const portalFactoryAbi = [
         type: "address",
       },
     ],
-    name: "deployAndShield",
+    name: "deployShieldPortal",
     outputs: [],
     stateMutability: "payable",
     type: "function",

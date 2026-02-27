@@ -6,7 +6,7 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { MultiRpc } from "@/rpc/multi";
 import type {
-  CurvyHandle,
+  CurvyId,
   EvmSignatureData,
   ExtendedAnnouncement,
   GetStealthAddressReturnType,
@@ -38,7 +38,7 @@ interface ICurvySDK {
     password: string,
   ): Promise<CurvyWallet>;
   register(
-    handle: CurvyHandle,
+    handle: CurvyId,
     flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
     password: string,
@@ -48,7 +48,25 @@ interface ICurvySDK {
   getNetworks(networkFilter?: NetworkFilter): Network[];
   switchNetworkEnvironment(environment?: NETWORK_ENVIRONMENT_VALUES): Promise<NETWORK_ENVIRONMENT_VALUES>;
 
-  ensResolveCurvyHandle(handle: CurvyHandle, slip0044?: bigint): Promise<HexString>;
+  ensResolveCurvyId(handle: CurvyId, slip0044?: bigint): Promise<HexString>;
+
+  generateEntryPortal(args: { curvyId: CurvyId; coinType?: string }): Promise<HexString>;
+
+  generateExitPortal(args: {
+    curvyId: CurvyId;
+    exitNetworkId: number;
+    exitAddress: string;
+    coinType?: string;
+  }): Promise<HexString>;
+  generateExitPortal(args: { curvyId: CurvyId; exitCurrencyId?: number; coinType?: string }): Promise<HexString>;
+  generateExitPortal(args: {
+    curvyId: CurvyId;
+    exitNetworkId?: number;
+    exitAddress?: string;
+    exitCurrencyId?: number;
+    coinType?: string;
+  }): Promise<HexString>;
+
   generateNewStealthAddressForUser(
     networkIdentifier: NetworkFilter,
     handle: string,

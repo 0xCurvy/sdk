@@ -3,7 +3,7 @@ import {
   generateAggregationHash,
   type HexString,
   type InputNote,
-  isValidCurvyHandle,
+  isValidCurvyId,
   noteToBalanceEntry,
   type OutputNote,
 } from "@/exports";
@@ -48,19 +48,19 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     // If there are multiple aggregation steps intent is not provided and funds are aggregated to self
     // Otherwise in last aggregation step we use the recipient data from intent
     if (this.#intent) {
-      if (isValidCurvyHandle(this.#intent.recipient)) {
+      if (isValidCurvyId(this.#intent.recipient)) {
         return this.#intent.recipient;
       } else if (this.#intent.recipientPublicKeys) {
         return this.#intent.recipientPublicKeys;
       }
     }
 
-    // During STA claim senderCurvyHandle is null as we use ephemeral wallet for STA claims
+    // During STA claim senderCurvyId is null as we use ephemeral wallet for STA claims
     // In that case we return early through intent branch
-    if (!this.senderCurvyHandle) {
+    if (!this.senderCurvyId) {
       throw new Error("Active wallet must have a Curvy Handle to perform aggregator aggregate.");
     }
-    return this.senderCurvyHandle;
+    return this.senderCurvyId;
   }
 
   async #createAggregationRequest(inputNotes: InputNote[], outputNotes: OutputNote[]): Promise<AggregationRequest> {
@@ -129,7 +129,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
       this.#intent && this.#intent.amount < this.netAmount ? this.netAmount - this.#intent.amount : 0n;
     if (changeAmount) {
       changeOrDummyOutputNote = await this.generateNewNote(
-        this.senderCurvyHandle!, // Estimate will fail earlier if senderCurvyHandle is null, if called somehow generateNewNote will throw
+        this.senderCurvyId!, // Estimate will fail earlier if senderCurvyId is null, if called somehow generateNewNote will throw
         token,
         changeAmount,
       );
