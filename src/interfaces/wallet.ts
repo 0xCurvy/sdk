@@ -1,11 +1,11 @@
-import type { CurvyHandle } from "@/types";
+import type { CurvyId } from "@/types";
 import type { CurvyKeyPairs } from "@/types/core";
 import type { SerializedCurvyWallet } from "@/types/wallet";
 
 interface ICurvyWallet {
   readonly id: string;
   readonly createdAt: number;
-  readonly curvyHandle: CurvyHandle | null;
+  readonly curvyHandle: CurvyId | null;
   readonly ownerAddress: string | null;
 
   get keyPairs(): Readonly<CurvyKeyPairs>;

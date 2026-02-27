@@ -9,7 +9,7 @@
 import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
 import type { AggregatorRequestStatus } from "@/types/aggregator";
 import type { CircuitConfig } from "@/types/core";
-import type { CurvyHandle } from "@/types/curvy";
+import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import type { MetaTransactionType } from "@/types/meta-transaction";
 import type { PublicNote } from "@/types/note";
@@ -138,7 +138,7 @@ type GetNetworksReturnType = Array<Network>;
 
 //#region User
 
-type RegisterCurvyHandleRequestBody = {
+type RegisterCurvyIdRequestBody = {
   handle: string;
   ownerAddress: string;
   publicKeys: {
@@ -147,14 +147,14 @@ type RegisterCurvyHandleRequestBody = {
     babyJubjubPublicKey: string;
   };
 };
-type RegisterCurvyHandleReturnType =
+type RegisterCurvyIdReturnType =
   | {
       message?: string;
     }
   | {
       error?: string;
     };
-type ResolveCurvyHandleReturnType = {
+type ResolveCurvyIdReturnType = {
   data: {
     createdAt: string;
     publicKeys: {
@@ -165,13 +165,13 @@ type ResolveCurvyHandleReturnType = {
   } | null;
   error?: string | null;
 };
-type GetCurvyHandleByOwnerAddressResponse = {
+type GetCurvyIdByOwnerAddressResponse = {
   data: {
     handle: string;
   } | null;
   error?: string | null;
 };
-type GetCurvyHandleByOwnerAddressReturnType = CurvyHandle | null;
+type GetCurvyIdByOwnerAddressReturnType = CurvyId | null;
 
 type SetBabyJubjubPublicKeyRequestBody = {
   babyJubjubPublicKey: string;
@@ -246,6 +246,27 @@ type GetMetaTransactionStatusReturnType = "estimated" | "pending" | "completed" 
 export type { MetaTransactionEstimationRequestBody, GetMetaTransactionStatusReturnType, MetaTransactionSubmitBody };
 //#endregion
 
+//#region Portals
+
+type InsertEntryPortalRequestBody = {
+  curvyId: CurvyId;
+  coinType?: string;
+};
+
+type InsertExitPortalRequestBody = {
+  curvyId: CurvyId;
+  coinType?: string;
+  exitNetworkId?: number;
+  exitAddress?: string;
+  exitCurrencyId?: number;
+};
+
+type InsertPortalReturnType = {
+  data: { address: HexString };
+};
+
+//#endregion
+
 export type {
   CreateAnnouncementRequestBody,
   CreateAnnouncementReturnType,
@@ -260,14 +281,17 @@ export type {
   Currency,
   NetworksWithCurrenciesResponse,
   GetNetworksReturnType,
-  RegisterCurvyHandleRequestBody,
-  RegisterCurvyHandleReturnType,
-  ResolveCurvyHandleReturnType,
-  GetCurvyHandleByOwnerAddressResponse,
-  GetCurvyHandleByOwnerAddressReturnType,
+  RegisterCurvyIdRequestBody,
+  RegisterCurvyIdReturnType,
+  ResolveCurvyIdReturnType,
+  GetCurvyIdByOwnerAddressResponse,
+  GetCurvyIdByOwnerAddressReturnType,
   SetBabyJubjubPublicKeyRequestBody,
   SetBabyJubjubPublicKeyReturnType,
   SubmitNoteOwnershipProofReturnType,
+  InsertEntryPortalRequestBody,
+  InsertExitPortalRequestBody,
+  InsertPortalReturnType,
 };
 
 //#endregion

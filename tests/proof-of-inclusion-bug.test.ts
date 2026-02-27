@@ -104,6 +104,7 @@ test("Inclusion proof bug", async () => {
     amount: amount1,
     currency: currency!,
     network: network!,
+    type: "external-transfer",
   };
 
   const planResult1 = await doPlan(intent1);
@@ -123,6 +124,7 @@ test("Inclusion proof bug", async () => {
     amount: amount2,
     currency: currency!,
     network: network!,
+    type: "external-transfer",
   };
 
   const planResult2 = await doPlan(intent2);
@@ -139,6 +141,7 @@ test("Vault withdraw bug", async () => {
     amount: amount1,
     currency: currency!,
     network: network!,
+    type: "external-transfer",
   };
 
   const planResult1 = await doPlan(intent1);

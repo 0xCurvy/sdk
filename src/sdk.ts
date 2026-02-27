@@ -28,7 +28,7 @@ import type {
   StarknetSignatureData,
 } from "@/types";
 import type { CurvyAddress } from "@/types/address";
-import type { CurvyHandle } from "@/types/curvy";
+import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { Core } from "./core";
 import { deriveAddress } from "./utils/address";
@@ -168,7 +168,7 @@ class CurvySDK implements ICurvySDK {
   }
 
   async register(
-    handle: CurvyHandle,
+    handle: CurvyId,
     flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
     password: string,
@@ -213,8 +213,8 @@ class CurvySDK implements ICurvySDK {
     return filterNetworks(this.#networks, networkFilter);
   }
 
-  async generateNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: CurvyHandle) {
-    const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyHandle(handle);
+  async generateNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: CurvyId) {
+    const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyId(handle);
 
     if (!recipientDetails) {
       throw new Error(`Handle ${handle} not found`);
@@ -237,7 +237,7 @@ class CurvySDK implements ICurvySDK {
     return { address, recipientStealthPublicKey, viewTag, ephemeralPublicKey, network };
   }
 
-  async generateAndRegisterNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: CurvyHandle) {
+  async generateAndRegisterNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: CurvyId) {
     const stealthAddressData = await this.generateNewStealthAddressForUser(networkIdentifier, handle);
 
     return this.registerStealthAddressForUser(stealthAddressData);
@@ -273,14 +273,35 @@ class CurvySDK implements ICurvySDK {
     };
   }
 
-  async ensResolveCurvyHandle(handle: CurvyHandle, slip0044?: bigint): Promise<HexString> {
-    const address = await this.rpcClient.ensResolveCurvyHandle(handle, this.#state.environment, slip0044);
+  async ensResolveCurvyId(curvyId: CurvyId, slip0044?: bigint): Promise<HexString> {
+    const address = await this.rpcClient.ensResolveCurvyId(curvyId, this.#state.environment, slip0044);
 
     if (!address) {
-      throw new Error(`Handle ${handle} not found via ENS`);
+      throw new Error(`Handle ${curvyId} not found via ENS`);
     }
 
     return address;
+  }
+
+  async generateEntryPortal(args: { curvyId: CurvyId; coinType?: string }): Promise<HexString> {
+    return this.apiClient.portal.insertEntryPortal(args).then(({ address }) => address);
+  }
+
+  async generateExitPortal(args: {
+    curvyId: CurvyId;
+    exitNetworkId: number;
+    exitAddress: string;
+    coinType?: string;
+  }): Promise<HexString>;
+  async generateExitPortal(args: { curvyId: CurvyId; exitCurrencyId?: number; coinType?: string }): Promise<HexString>;
+  async generateExitPortal(args: {
+    curvyId: CurvyId;
+    exitNetworkId?: number;
+    exitAddress?: string;
+    exitCurrencyId?: number;
+    coinType?: string;
+  }): Promise<HexString> {
+    return this.apiClient.portal.insertExitPortal(args).then(({ address }) => address);
   }
 
   async #setActiveNetworks(networkFilter: NetworkFilter) {

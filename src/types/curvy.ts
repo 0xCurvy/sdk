@@ -1,19 +1,19 @@
-import { CURVY_HANDLE_DOMAINS } from "@/constants/curvy";
-import { CURVY_HANDLE_REGEX } from "@/constants/regex";
+import { CURVY_ID_DOMAINS } from "@/constants/curvy";
+import { CURVY_ID_REGEX } from "@/constants/regex";
 
-type CurvyHandleDomain = (typeof CURVY_HANDLE_DOMAINS)[number];
-type CurvyHandle = `${string}${CurvyHandleDomain}`;
+type CurvyIdDomain = (typeof CURVY_ID_DOMAINS)[number];
+type CurvyId = `${string}${CurvyIdDomain}`;
 
-const isValidCurvyHandleDomain = (domain: string): domain is CurvyHandleDomain => {
-  return CURVY_HANDLE_DOMAINS.includes(domain as CurvyHandleDomain);
+const isValidCurvyIdDomain = (domain: string): domain is CurvyIdDomain => {
+  return CURVY_ID_DOMAINS.includes(domain as CurvyIdDomain);
 };
-const isValidCurvyHandle = (handle: unknown): handle is CurvyHandle => {
-  return typeof handle === "string" && CURVY_HANDLE_REGEX.test(handle);
+const isValidCurvyId = (handle: unknown): handle is CurvyId => {
+  return typeof handle === "string" && CURVY_ID_REGEX.test(handle);
 };
-function assertCurvyHandle(handle: string): asserts handle is CurvyHandle {
-  if (!isValidCurvyHandle(handle)) {
+function assertCurvyId(handle: string): asserts handle is CurvyId {
+  if (!isValidCurvyId(handle)) {
     throw new Error(`Invalid Curvy handle: ${handle}`);
   }
 }
 
-export { isValidCurvyHandle, isValidCurvyHandleDomain, assertCurvyHandle, type CurvyHandle, type CurvyHandleDomain };
+export { isValidCurvyId, isValidCurvyIdDomain, assertCurvyId, type CurvyId, type CurvyIdDomain };

@@ -1,4 +1,4 @@
-import type { CurvyHandle } from "@/types/curvy";
+import type { CurvyId } from "@/types/curvy";
 
 type ScanCursors = {
   latest: number | undefined;
@@ -19,7 +19,7 @@ type CurvyWalletData = {
   readonly id: string;
   readonly createdAt: number;
   readonly ownerAddress: string;
-  readonly curvyHandle: CurvyHandle;
+  readonly curvyHandle: CurvyId;
   scanCursors: ScanCursors;
 };
 
@@ -32,7 +32,7 @@ type SerializedCurvyWallet = {
   readonly id: string;
   readonly createdAt: number;
   readonly ownerAddress: string;
-  readonly curvyHandle: CurvyHandle;
+  readonly curvyHandle: CurvyId;
 };
 
 export type { CurvyWalletData, ScanCursors, ScanInfo, SerializedCurvyWallet, AdditionalWalletData, RefreshOptions };

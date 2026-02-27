@@ -1,14 +1,7 @@
 import { normalize } from "viem/ens";
-import { type NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { EvmRpc } from "@/rpc/evm";
-import {
-  type CurvyAddress,
-  type CurvyHandle,
-  type HexString,
-  isHexString,
-  type RpcBalances,
-  type VaultBalance,
-} from "@/types";
+import { type CurvyAddress, type CurvyId, type HexString, isHexString, type RpcBalances } from "@/types";
 import type { AbortOptions } from "@/types/helper";
 import type { CurvyPublicClient } from "@/utils";
 import { toSlug } from "@/utils/helpers";
@@ -39,27 +32,16 @@ class MultiRpc {
     });
   }
 
-  async getVaultBalances(curvyAddress: CurvyAddress): Promise<VaultBalance[]> {
-    if (curvyAddress.networkFlavour !== NETWORK_FLAVOUR.EVM) return Promise.resolve([]);
-    const rpcs = this.#rpcArray.filter(
-      (rpc) => rpc.network.flavour === curvyAddress.networkFlavour && !!rpc.network.vaultContractAddress,
-    );
-
-    return Promise.all(rpcs.map((rpc) => rpc.getVaultBalances(curvyAddress.address))).then((results) => {
-      return results;
-    });
-  }
-
-  async ensResolveCurvyHandle(handle: CurvyHandle, environment: NETWORK_ENVIRONMENT_VALUES, slip0044?: bigint) {
+  async ensResolveCurvyId(curvyId: CurvyId, environment: NETWORK_ENVIRONMENT_VALUES, slip0044?: bigint) {
     let publicClient: CurvyPublicClient;
-    if (handle.includes(".local-curvy.name")) {
+    if (curvyId.includes(".local-curvy.name")) {
       publicClient = (this.Network("localnet") as EvmRpc).provider;
     } else {
       publicClient = (this.Network(environment === "mainnet" ? "ethereum" : "ethereum-sepolia") as EvmRpc).provider;
     }
 
     return publicClient.getEnsAddress({
-      name: normalize(handle),
+      name: normalize(curvyId),
       coinType: slip0044,
     });
   }

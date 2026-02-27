@@ -4,7 +4,7 @@ import { parseSignature, verifyTypedData } from "viem";
 import { AddressScanner } from "@/address-scanner";
 import { JWT_REFRESH_INTERVAL } from "@/constants/intervals";
 import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
-import { CURVY_HANDLE_REGEX } from "@/constants/regex";
+import { CURVY_ID_REGEX } from "@/constants/regex";
 import type { IAddressScanner } from "@/interfaces/address-scanner";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
@@ -15,10 +15,10 @@ import type { StarknetRpc } from "@/rpc";
 import type { MultiRpc } from "@/rpc/multi";
 import {
   type AdditionalWalletData,
-  assertCurvyHandle,
+  assertCurvyId,
   assertIsStarkentSignatureData,
   type CurvyAddress,
-  type CurvyHandle,
+  type CurvyId,
   type CurvyKeyPairs,
   type CurvyPrivateKeys,
   type EvmSignatureData,
@@ -171,14 +171,14 @@ class WalletManager implements IWalletManager {
   }
 
   async #getUserDetails(userAddress: HexString) {
-    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(userAddress);
+    const curvyHandle = await this.#apiClient.user.GetCurvyIdByOwnerAddress(userAddress);
     if (!curvyHandle) {
       throw new Error(`No Curvy handle found for address: ${userAddress}`);
     }
 
-    assertCurvyHandle(curvyHandle);
+    assertCurvyId(curvyHandle);
 
-    const { data: userDetails } = await this.#apiClient.user.ResolveCurvyHandle(curvyHandle);
+    const { data: userDetails } = await this.#apiClient.user.ResolveCurvyId(curvyHandle);
     if (!userDetails) throw new Error(`Handle ${curvyHandle} does not exist.`);
 
     return { ...userDetails, curvyHandle };
@@ -187,7 +187,7 @@ class WalletManager implements IWalletManager {
   async #babyJubjubKeyCheck(
     existingBabyJubjubPublicKey: string | null,
     babyJubjubPublicKey: string,
-    curvyHandle: CurvyHandle,
+    curvyHandle: CurvyId,
   ) {
     if (!existingBabyJubjubPublicKey) {
       const result = await this.#apiClient.user.SetBabyJubjubKey(curvyHandle, {
@@ -216,25 +216,25 @@ class WalletManager implements IWalletManager {
     return { createdAt, curvyHandle };
   }
 
-  async #preRegistrationChecks(handle: CurvyHandle, userAddress: HexString) {
-    const curvyHandle = await this.#apiClient.user.GetCurvyHandleByOwnerAddress(userAddress);
+  async #preRegistrationChecks(handle: CurvyId, userAddress: HexString) {
+    const curvyHandle = await this.#apiClient.user.GetCurvyIdByOwnerAddress(userAddress);
     if (curvyHandle) {
       throw new Error(`Handle ${curvyHandle} already registered, for owner address: ${userAddress}`);
     }
 
-    if (!CURVY_HANDLE_REGEX.test(handle))
+    if (!CURVY_ID_REGEX.test(handle))
       throw new Error(
         `Invalid handle format: ${handle}. Curvy handles can only include letters, numbers, and dashes, with a minimum of 3 and maximum length of 20 characters.`,
       );
 
-    const { data: userDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
+    const { data: userDetails } = await this.#apiClient.user.ResolveCurvyId(handle);
     if (userDetails) throw new Error(`Handle ${handle} already registered.`);
 
     return true;
   }
 
   async #createAndAddWallet(
-    handle: CurvyHandle,
+    handle: CurvyId,
     userAddress: HexString,
     createdAt: string,
     keyPairs: CurvyKeyPairs,
@@ -256,13 +256,13 @@ class WalletManager implements IWalletManager {
 
   async #registerAndAddWallet(
     { s, v }: CurvyPrivateKeys,
-    handle: CurvyHandle,
+    handle: CurvyId,
     userAddress: HexString,
     additionalData?: AdditionalWalletData,
   ) {
     const keyPairs = await this.#core.getCurvyKeys(s, v);
 
-    await this.#apiClient.user.RegisterCurvyHandle({
+    await this.#apiClient.user.RegisterCurvyId({
       handle,
       ownerAddress: userAddress,
       publicKeys: {
@@ -272,7 +272,7 @@ class WalletManager implements IWalletManager {
       },
     });
 
-    const { data: registerDetails } = await this.#apiClient.user.ResolveCurvyHandle(handle);
+    const { data: registerDetails } = await this.#apiClient.user.ResolveCurvyId(handle);
     if (!registerDetails)
       throw new Error(`Registration validation failed for handle ${handle}. Please try adding the wallet manually.`);
 
@@ -296,7 +296,7 @@ class WalletManager implements IWalletManager {
     return this.#createAndAddWallet(curvyHandle, requestingAddress, createdAt, keyPairs, { credId });
   }
 
-  async registerWalletWithPrivateKeys(s: string, v: string, handle: CurvyHandle, userAddress: HexString) {
+  async registerWalletWithPrivateKeys(s: string, v: string, handle: CurvyId, userAddress: HexString) {
     await this.#preRegistrationChecks(handle, userAddress);
 
     return this.#registerAndAddWallet({ s, v }, handle, userAddress);
@@ -322,7 +322,7 @@ class WalletManager implements IWalletManager {
   }
 
   async registerWalletWithSignature(
-    handle: CurvyHandle,
+    handle: CurvyId,
     flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
     password: string,
@@ -351,7 +351,7 @@ class WalletManager implements IWalletManager {
     return this.#createAndAddWallet(curvyHandle, userAddress, createdAt, keyPairs, { credId });
   }
 
-  async registerWalletWithPasskey(handle: CurvyHandle, prfValue: BufferSource, credId?: ArrayBuffer) {
+  async registerWalletWithPasskey(handle: CurvyId, prfValue: BufferSource, credId?: ArrayBuffer) {
     const { prfAddress: userAddress, ...signature } = await processPasskeyPrf(prfValue);
 
     await this.#preRegistrationChecks(handle, userAddress);

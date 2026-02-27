@@ -7,6 +7,7 @@ export * from "./core";
 export * from "./curvy";
 export * from "./events";
 export {
+  assertHexString,
   type ExtractKeys,
   type ExtractValues,
   type HexString,
@@ -15,6 +16,7 @@ export {
   isStringArray,
   type Prettify,
   type StringifyBigInts,
+  type Tuple,
 } from "./helper";
 export * from "./meta-transaction";
 export * from "./note";
