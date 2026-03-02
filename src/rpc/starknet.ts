@@ -71,9 +71,10 @@ class StarknetRpc extends Rpc {
 
     return tokenBalances
       .map(([low, high], idx) => {
-        const { contractAddress: currencyAddress, symbol, decimals, vaultTokenId } = this.network.currencies[idx];
+        const { contractAddress: currencyAddress, symbol, decimals, vaultTokenId, id } = this.network.currencies[idx];
 
         return {
+          id,
           balance: fromUint256(low, high),
           currencyAddress: currencyAddress as HexString,
           vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
@@ -83,9 +84,9 @@ class StarknetRpc extends Rpc {
         };
       })
       .filter((token) => Boolean(token.balance))
-      .reduce<RpcBalances>((res, { balance, currencyAddress, vaultTokenId, symbol, environment, decimals }) => {
+      .reduce<RpcBalances>((res, rpcBalance) => {
         if (!res[networkSlug]) res[networkSlug] = Object.create(null);
-        res[networkSlug]![currencyAddress] = { balance, currencyAddress, symbol, vaultTokenId, environment, decimals };
+        res[networkSlug]![rpcBalance.currencyAddress] = rpcBalance;
         return res;
       }, Object.create(null));
   }
@@ -94,7 +95,7 @@ class StarknetRpc extends Rpc {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contractAddress: currencyAddress, decimals, vaultTokenId } = token;
+    const { contractAddress: currencyAddress, decimals, vaultTokenId, id } = token;
 
     const starkErc20 = new Contract(starknetErc20Abi, currencyAddress as Address, this.#provider).typedv2(
       starknetErc20Abi,
@@ -107,6 +108,7 @@ class StarknetRpc extends Rpc {
       balance = fromUint256(balance.low, balance.high);
 
     return {
+      id,
       balance,
       currencyAddress: currencyAddress as HexString,
       vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,

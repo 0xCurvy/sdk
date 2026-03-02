@@ -72,7 +72,7 @@ class EvmRpc extends Rpc {
 
     return tokenBalances
       .map((tokenBalance, idx) => {
-        const { contractAddress: currencyAddress, symbol, decimals, vaultTokenId } = this.network.currencies[idx];
+        const { contractAddress: currencyAddress, symbol, decimals, vaultTokenId, id } = this.network.currencies[idx];
 
         if (tokenBalance.error) {
           console.log(`Couldn't get balance for token ${currencyAddress}: `, tokenBalance.error);
@@ -81,6 +81,7 @@ class EvmRpc extends Rpc {
 
         return tokenBalance.result
           ? {
+              id,
               balance: BigInt(tokenBalance.result),
               currencyAddress: currencyAddress as HexString,
               vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
@@ -91,9 +92,9 @@ class EvmRpc extends Rpc {
           : null;
       })
       .filter(Boolean)
-      .reduce<RpcBalances>((res, { balance, currencyAddress, vaultTokenId, symbol, environment, decimals }) => {
+      .reduce<RpcBalances>((res, rpcBalance) => {
         if (!res[networkSlug]) res[networkSlug] = Object.create(null);
-        res[networkSlug]![currencyAddress] = { balance, currencyAddress, vaultTokenId, symbol, environment, decimals };
+        res[networkSlug]![rpcBalance.currencyAddress] = rpcBalance;
         return res;
       }, Object.create(null));
   }
@@ -102,7 +103,7 @@ class EvmRpc extends Rpc {
     const token = this.network.currencies.find((c) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contractAddress: currencyAddress, nativeCurrency, decimals, vaultTokenId } = token;
+    const { contractAddress: currencyAddress, nativeCurrency, decimals, vaultTokenId, id } = token;
 
     let balance: bigint;
 
@@ -120,6 +121,7 @@ class EvmRpc extends Rpc {
     }
 
     return {
+      id,
       balance,
       currencyAddress: currencyAddress as HexString,
       vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
