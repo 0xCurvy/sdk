@@ -97,6 +97,11 @@ export const portalFactoryAbi = [
       },
       {
         internalType: "address",
+        name: "currency",
+        type: "address",
+      },
+      {
+        internalType: "address",
         name: "recovery",
         type: "address",
       },
@@ -117,6 +122,11 @@ export const portalFactoryAbi = [
         internalType: "uint256",
         name: "amount",
         type: "uint256",
+      },
+      {
+        internalType: "address",
+        name: "currency",
+        type: "address",
       },
       {
         internalType: "address",

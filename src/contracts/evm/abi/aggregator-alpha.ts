@@ -16,6 +16,16 @@ export const aggregatorAlphaAbi = [
     type: "error",
   },
   {
+    inputs: [],
+    name: "CurrentNoteTreeRootMismatch",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "CurrentNullifierTreeRootMismatch",
+    type: "error",
+  },
+  {
     inputs: [
       {
         internalType: "address",
@@ -43,7 +53,27 @@ export const aggregatorAlphaAbi = [
   },
   {
     inputs: [],
+    name: "InvalidNotesRoot",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidProof",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidWithdrawProof",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "NotInitializing",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "NoteNotScheduledForDeposit",
     type: "error",
   },
   {
@@ -66,6 +96,11 @@ export const aggregatorAlphaAbi = [
       },
     ],
     name: "OwnableUnauthorizedAccount",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "PortalNotRegistered",
     type: "error",
   },
   {
