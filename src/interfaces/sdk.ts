@@ -55,21 +55,8 @@ interface ICurvySDK {
   generateExitPortal(args: {
     curvyId: CurvyId;
     currencyId: number;
-    exitNetworkId: number;
     exitAddress: string;
-    coinType?: string;
-  }): Promise<HexString>;
-  generateExitPortal(args: {
-    curvyId: CurvyId;
-    currencyId: number;
-    exitCurrencyId?: number;
-    coinType?: string;
-  }): Promise<HexString>;
-  generateExitPortal(args: {
-    curvyId: CurvyId;
-    currencyId: number;
     exitNetworkId?: number;
-    exitAddress?: string;
     exitCurrencyId?: number;
     coinType?: string;
   }): Promise<HexString>;

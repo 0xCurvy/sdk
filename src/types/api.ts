@@ -256,9 +256,9 @@ type InsertEntryPortalRequestBody = {
 type InsertExitPortalRequestBody = {
   curvyId: CurvyId;
   currencyId: number;
+  exitAddress: string;
   coinType?: string;
   exitNetworkId?: number;
-  exitAddress?: string;
   exitCurrencyId?: number;
 };
 
