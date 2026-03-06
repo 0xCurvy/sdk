@@ -1,4 +1,4 @@
-import type { CurvyIntent } from "@/planner/plan"
+import type { CurvyIntent } from "@/planner/plan";
 import { generatePlan } from "@/planner/planner";
 import { CurvySDK } from "@/sdk";
 import type { BalanceEntry, EvmSignatureData } from "@/types";
@@ -111,7 +111,7 @@ async function executeForEnvironment(envName: string, signatureRaw: string, pass
 async function main() {
   console.log("=== Daily Send Funds Script ===");
 
-  const stagingSignature = process.env.TESTING_STAGING_SIGNATURE; 
+  const stagingSignature = undefined; 
   const stagingPassword = process.env.TESTING_STAGING_PASSWORD;
   const productionSignature = process.env.TESTING_PRODUCTION_SIGNATURE; 
   const productionPassword = process.env.TESTING_PRODUCTION_PASSWORD;
