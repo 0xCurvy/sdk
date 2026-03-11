@@ -1,5 +1,7 @@
 import {
   type AggregationRequest,
+  type CurvyCommandData,
+  type CurvyIntent,
   generateAggregationHash,
   type HexString,
   type InputNote,
@@ -10,7 +12,6 @@ import {
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
-import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
 import { Note } from "@/types/note";
 import { pollForCriteria } from "@/utils/helpers";
 
@@ -90,16 +91,23 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
   }
 
   async estimateFees() {
+    if (this.estimate) return this.estimate;
+
     const curvyFeeInCurrency = (this.grossAmount * BigInt(this.network.aggregationCircuitConfig!.groupFee)) / 1000n;
     const gasFeeInCurrency = 0n;
 
     this.estimate = {
-      ...this.estimate,
       curvyFeeInCurrency,
       gasFeeInCurrency,
-    };
+    } as never;
 
-    const netAmount = this.#intent && this.#intent.amount < this.netAmount ? this.#intent.amount : this.netAmount;
+    // TODO Think if this is the right way to handle change (taking it from the change amount if possible)
+    // const netAmount = this.#intent && this.#intent.amount < this.netAmount ? this.#intent.amount : this.netAmount;
+
+    const netAmount =
+      this.#intent && this.#intent.amount < this.netAmount
+        ? this.#intent.amount - curvyFeeInCurrency - gasFeeInCurrency
+        : this.netAmount;
 
     this.estimate.note = await this.generateNewNote(this.recipient, this.input[0].vaultTokenId, netAmount);
 
@@ -124,9 +132,11 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
 
     let changeOrDummyOutputNote: Note;
 
-    // Only generate a real note if change exists AND covers the fees
-    const changeAmount =
-      this.#intent && this.#intent.amount < this.netAmount ? this.netAmount - this.#intent.amount : 0n;
+    // TODO Think if this is the right way to handle change (taking it from the change amount if possible)
+    // const changeAmount =
+    //   this.#intent && this.#intent.amount < this.netAmount ? this.netAmount - this.#intent.amount : 0n;
+
+    const changeAmount = this.netAmount - this.estimate.note.balance!.amount;
     if (changeAmount) {
       changeOrDummyOutputNote = await this.generateNewNote(
         this.senderCurvyId!, // Estimate will fail earlier if senderCurvyId is null, if called somehow generateNewNote will throw
@@ -134,7 +144,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
         changeAmount,
       );
     } else {
-      // If there is no change or it does not cover the fees, then we create a dummy note
+      // If there is no change, then we create a dummy note
       changeOrDummyOutputNote = Note.random({
         balance: {
           amount: "0",
