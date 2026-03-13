@@ -1,5 +1,5 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { CurvyPlan, CurvyPlanExecution } from "@/planner/plan";
+import type { CurvyPlan, CurvyPlanExecution } from "@/planner/type";
 import type { RawAnnouncement } from "@/types/api";
 import type { ExtractValues } from "@/types/helper";
 

@@ -1,6 +1,6 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
-import type { CurvyCommandData } from "@/planner/plan";
+import type { CurvyCommandData } from "@/planner/type";
 import type { Note, NoteBalanceEntry } from "@/types";
 import type { DeepNonNullable } from "@/types/helper";
 import { balanceEntryToNote } from "@/utils";

@@ -2,7 +2,7 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommand, CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
 import { AggregatorWithdrawCommand } from "@/planner/commands/aggregator/aggregator-withdraw";
-import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
+import type { CurvyCommandData, CurvyIntent } from "@/planner/type";
 
 export interface ICommandFactory {
   createCommand(

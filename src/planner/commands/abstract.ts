@@ -1,6 +1,6 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { type CurvyId, type CurvyPublicKeys, type HexString, isValidCurvyId, type Network } from "@/types";
-import type { CurvyCommandData } from "../plan";
+import type { CurvyCommandData } from "../type";
 
 export interface CurvyCommandEstimate {
   curvyFeeInCurrency: bigint;
