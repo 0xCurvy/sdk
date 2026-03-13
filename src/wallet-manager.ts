@@ -395,7 +395,7 @@ class WalletManager implements IWalletManager {
     this.#startJwtRefreshInterval();
   }
 
-  async addWallet(wallet: CurvyWallet, skipBearerTokenUpdate = false, skipScan = false) {
+  async addWallet(wallet: CurvyWallet, skipBearerTokenUpdate = false, _skipScan = false) {
     this.#wallets.set(wallet.id, wallet);
 
     await this.setActiveWallet(wallet, skipBearerTokenUpdate);

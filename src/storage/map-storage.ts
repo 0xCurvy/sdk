@@ -12,7 +12,6 @@ import {
   type CurvyWalletData,
   type MinifiedCurvyAddress,
   type SaBalanceEntry,
-  type VaultBalanceEntry,
 } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, NoteBalanceEntry, TotalBalance } from "@/types/storage";
 import { bytesToDecimalString, decimalStringToBytes } from "@/utils/decimal-conversions";
@@ -285,7 +284,7 @@ export class MapStorage implements StorageInterface {
     }
 
     let notes: NoteBalanceEntry[] | undefined;
-    let addresses: (SaBalanceEntry | VaultBalanceEntry)[] | undefined;
+    let addresses: SaBalanceEntry[] | undefined;
 
     for (const entry of balanceEntries) {
       switch (entry.type) {
@@ -294,8 +293,7 @@ export class MapStorage implements StorageInterface {
           else notes.push(entry);
           break;
         }
-        case BALANCE_TYPE.SA:
-        case BALANCE_TYPE.VAULT: {
+        case BALANCE_TYPE.SA: {
           if (!addresses) addresses = [entry];
           else addresses.push(entry);
           break;
@@ -353,7 +351,7 @@ export class MapStorage implements StorageInterface {
     }
   }
 
-  async updateAddressBalances(walletId: string, entries: (SaBalanceEntry | VaultBalanceEntry)[]): Promise<void> {
+  async updateAddressBalances(walletId: string, entries: SaBalanceEntry[]): Promise<void> {
     const sources = [...new Set(entries.map((e) => e.source))];
 
     const oldBalanceEntriesOfSources: BalanceEntry[] = [];
@@ -475,7 +473,6 @@ export class MapStorage implements StorageInterface {
     options: BalanceSourcesOptions = {
       sortByTypeRanking: {
         [BALANCE_TYPE.NOTE]: 1,
-        [BALANCE_TYPE.VAULT]: 2,
         [BALANCE_TYPE.SA]: 3,
       },
       sortByBalance: "desc",

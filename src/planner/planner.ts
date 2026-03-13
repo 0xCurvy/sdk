@@ -1,143 +1,340 @@
-import { v4 as uuidV4 } from "uuid";
-import type { CurvyIntent, CurvyPlan, CurvyPlanFlowControl, GeneratePlanReturnType } from "@/planner/plan";
-import { BALANCE_TYPE, type BalanceEntry } from "@/types";
-import { isHexString } from "@/types/helper";
+import type { StorageInterface } from "@/interfaces";
+import type { IBalanceScanner } from "@/interfaces/balance-scanner";
+import type { ICurvyEventEmitter } from "@/interfaces/events";
+import type { ICurvySDK } from "@/interfaces/sdk";
+import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
+import type { ICommandFactory } from "@/planner/commands/factory";
+import type {
+  CurvyCommandData,
+  CurvyIntent,
+  CurvyPlan,
+  CurvyPlanData,
+  CurvyPlanEstimation,
+  CurvyPlanExecution,
+  CurvyPlanWait,
+  DraftCommand,
+  DraftPlan,
+  EstimatedCommand,
+  EstimatedPlan,
+  IntentEstimation,
+} from "@/planner/type";
+import { generatePlan } from "@/planner/utils";
+import type { BalanceEntry } from "@/types";
+import { pollForCriteria } from "@/utils";
+import { toSlug } from "@/utils/helpers";
 
-const generatePlanToUpgradeAddressToNote = (balanceEntry: BalanceEntry): CurvyPlan => {
-  // If is note, just return it
-  if (balanceEntry.type === BALANCE_TYPE.NOTE) {
-    return {
-      type: "data",
-      data: balanceEntry,
-    };
-  }
-
-  // TODO Refactor this file and leave only note balances
-  throw new Error("Only note balances allowed");
+// Internal types
+type PlanWalkSuccessResult = {
+  success: true;
+  data?: CurvyCommandData;
+  estimate?: CurvyCommandEstimate;
+  estimatedPlan?: EstimatedPlan;
+  items?: PlanWalkResult[];
 };
 
-const generateAggregationPlan = (items: CurvyPlan[], intent: CurvyIntent): CurvyPlan => {
-  // TODO IMPORTANT : Make maxInputs dynamic based on aggregator capabilities
-  const maxInputs = 2;
+type PlanWalkFailureResult = {
+  success: false;
+  error: unknown;
+  items?: PlanWalkResult[];
+};
 
-  // If we have just one sub plan, just aggregate it
-  if (items.length === 1) {
-    return {
-      type: "serial",
-      items: [
-        items[0],
-        {
-          type: "command",
-          id: uuidV4(),
-          name: "aggregator-aggregate",
-          intent,
-        },
-      ],
-    };
+type PlanWalkResult = PlanWalkSuccessResult | PlanWalkFailureResult;
+
+type PlanNodeHandlers<C extends DraftCommand> = {
+  command: (plan: C, input: CurvyCommandData) => Promise<PlanWalkResult>;
+  data: (plan: CurvyPlanData, input?: CurvyCommandData) => Promise<PlanWalkResult>;
+  wait: (plan: CurvyPlanWait, input?: CurvyCommandData) => Promise<PlanWalkResult>;
+};
+
+// Utility functions
+
+function accumulateEstimate(target: CurvyCommandEstimate, source?: CurvyCommandEstimate): void {
+  const { gasFeeInCurrency = 0n, curvyFeeInCurrency = 0n, bridgeFeeInCurrency = 0n } = source || {};
+  target.gasFeeInCurrency += gasFeeInCurrency;
+  target.curvyFeeInCurrency += curvyFeeInCurrency;
+  if (bridgeFeeInCurrency)
+    if (!target.bridgeFeeInCurrency) target.bridgeFeeInCurrency = bridgeFeeInCurrency;
+    else target.bridgeFeeInCurrency += bridgeFeeInCurrency;
+}
+
+function mergeEstimates(results: PlanWalkResult[]): CurvyCommandEstimate {
+  const merged: CurvyCommandEstimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
+  for (const result of results) {
+    if (result.success) accumulateEstimate(merged, result.estimate);
+  }
+  return merged;
+}
+
+export class Planner {
+  private commandFactory: ICommandFactory;
+  private eventEmitter: ICurvyEventEmitter;
+  readonly #balanceScanner: IBalanceScanner;
+  readonly #storage: StorageInterface;
+
+  constructor(
+    commandFactory: ICommandFactory,
+    eventEmitter: ICurvyEventEmitter,
+    balanceScanner: IBalanceScanner,
+    storage: StorageInterface,
+  ) {
+    this.commandFactory = commandFactory;
+    this.eventEmitter = eventEmitter;
+    this.#balanceScanner = balanceScanner;
+    this.#storage = storage;
   }
 
-  while (items.length > 1) {
-    const nextLevel = [];
+  /**
+   * Generic plan tree walker. Handles parallel/serial flow control uniformly,
+   * delegating leaf nodes (command, data, wait) to the provided handlers.
+   */
+  async #walkPlan<C extends DraftCommand>(
+    plan: CurvyPlan<C>,
+    handlers: PlanNodeHandlers<C>,
+    input?: CurvyCommandData,
+  ): Promise<PlanWalkResult> {
+    // Parallel flow control
+    if (plan.type === "parallel") {
+      const results = await Promise.all(plan.items.map((item) => this.#walkPlan(item, handlers, undefined)));
+      const success = results.every((r) => r.success);
 
-    for (let i = 0; i < items.length; i += maxInputs) {
-      const children = items.slice(i, i + maxInputs);
+      this.eventEmitter.emitPlanExecutionProgress({
+        plan,
+        result: { success, items: results } as CurvyPlanExecution,
+      });
 
-      const nextLevelItems: CurvyPlan[] = [];
+      if (success) {
+        const hasEstimatedPlans = results[0]?.estimatedPlan !== undefined;
 
-      if (children.length === 1) {
-        nextLevelItems.push(children[0]);
-      } else {
-        nextLevelItems.push(
-          {
-            type: "parallel",
-            items: children,
-          },
-          {
-            type: "command",
-            id: uuidV4(),
-            name: "aggregator-aggregate",
-          },
-        );
+        return {
+          success: true,
+          ...(hasEstimatedPlans && {
+            estimatedPlan: {
+              type: "parallel" as const,
+              name: plan.name,
+              description: plan.description,
+              items: results.map((r) => r.estimatedPlan!),
+            },
+          }),
+          items: results,
+          estimate: mergeEstimates(results),
+          data: results.filter((r) => r.data !== undefined).map((r) => r.data) as BalanceEntry[],
+        };
       }
 
-      nextLevel.push({
-        type: "serial",
-        items: nextLevelItems,
-      });
+      return {
+        success: false,
+        items: results,
+        error: results.filter((r) => !r.success).map((r) => (r as PlanWalkFailureResult).error),
+      };
     }
 
-    items = nextLevel as CurvyPlan[]; // Move up one level
-  }
+    // Serial flow control
+    if (plan.type === "serial") {
+      const results: PlanWalkSuccessResult[] = [];
 
-  const aggregationPlan = items[0] as CurvyPlanFlowControl;
+      if (plan.items.length === 0) {
+        throw new Error("No items in serial node!");
+      }
 
-  if (aggregationPlan.items.length !== 2) {
-    throw new Error("Unexpected number of items in aggregation plan");
-  }
+      let data = input;
+      const estimate: CurvyCommandEstimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
 
-  if (aggregationPlan.items[1].type !== "command" || aggregationPlan.items[1].name !== "aggregator-aggregate") {
-    throw new Error("Last item in aggregation plan is not an aggregation command");
-  }
+      for (const item of plan.items) {
+        const result = await this.#walkPlan(item, handlers, data);
+        if (!result.success) {
+          return {
+            success: false,
+            error: result.error,
+            items: results,
+          };
+        }
 
-  // We pass the intent to the last aggregation.
-  // The aggregator-aggregate will use the intent's amount as a signal for how much to keep as change
-  // And if the `intent.toAddress` is a Curvy handle, it will use it to derive recipients new Note.
-  aggregationPlan.items[1].intent = intent;
+        results.push(result);
 
-  return aggregationPlan;
-};
+        accumulateEstimate(estimate, result.estimate);
+        data = result.data;
+      }
 
-export const generatePlan = (balances: BalanceEntry[], intent: CurvyIntent): GeneratePlanReturnType => {
-  const plansToUpgradeNecessaryAddressesToNotes: CurvyPlan[] = [];
+      const hasEstimatedPlans = results[0]?.estimatedPlan !== undefined;
 
-  let remainingAmount = intent.amount;
-
-  let i = 0;
-  for (; i < balances.length; i++) {
-    const balanceEntry = balances[i];
-
-    if (remainingAmount <= 0n) {
-      // Success! We are done with the plan
-      break;
+      return {
+        success: true,
+        ...(hasEstimatedPlans && {
+          estimatedPlan: {
+            type: "serial" as const,
+            name: plan.name,
+            description: plan.description,
+            items: results.map((r) => r.estimatedPlan!),
+          },
+        }),
+        data,
+        estimate,
+        items: results,
+      };
     }
 
-    // Deduct the current address balance from the remaining amount
-    remainingAmount -= balanceEntry.balance;
+    // Leaf nodes — delegate to handlers
+    if (plan.type === "command") {
+      if (!input) {
+        throw new Error("Input is required for command node!");
+      }
+      return handlers.command(plan, input);
+    }
 
-    plansToUpgradeNecessaryAddressesToNotes.push(generatePlanToUpgradeAddressToNote(balanceEntry));
+    if (plan.type === "data") {
+      return handlers.data(plan, input);
+    }
+
+    if (plan.type === "wait") {
+      return handlers.wait(plan, input);
+    }
+
+    throw new Error(`Unrecognized type for plan node: ${(plan as CurvyPlan).type}`);
   }
 
-  if (remainingAmount > 0n) {
-    // We weren't successful, there's still some amount remaining.
-    throw new Error("Insufficient balance to cover the intended amount");
-  }
+  async #estimateRecursively(plan: DraftPlan, input?: CurvyCommandData): Promise<CurvyPlanEstimation> {
+    return this.#walkPlan(
+      plan,
+      {
+        command: async (node, nodeInput) => {
+          try {
+            const command = this.commandFactory.createCommand(node.id, node.name, nodeInput, node.intent);
 
-  // FUTURE TODO: Skip unnecessary aggregation (if exact amount)
+            const estimate = await command.estimateFees();
+            const data = await command.getResultingBalanceEntry();
 
-  // All we have to do now is batch all the serial plans inside the planLeadingUpToAggregation
-  // into aggregator supported batch sizes
+            const estimatedCommand: EstimatedCommand = { ...node, estimate };
 
-  let plan: CurvyPlan;
-  const aggregationPlan = generateAggregationPlan(plansToUpgradeNecessaryAddressesToNotes, intent);
-
-  // If we are sending to EOA, push two more commands
-  // to move funds from Aggregator to CSUC to EOA
-  if (isHexString(intent.recipient)) {
-    plan = {
-      type: "serial",
-      items: [
-        aggregationPlan,
-        {
-          type: "command",
-          id: uuidV4(),
-          name: "aggregator-withdraw",
-          intent,
+            return { success: true, estimatedPlan: estimatedCommand, estimate, data };
+          } catch (error) {
+            return { success: false, error };
+          }
         },
-      ],
-    };
-  } else {
-    plan = aggregationPlan;
+        data: async (node) => {
+          return { success: true, estimatedPlan: node, data: node.data };
+        },
+        wait: async (node, nodeInput) => {
+          return { success: true, estimatedPlan: node, data: nodeInput };
+        },
+      },
+      input,
+    ) as Promise<CurvyPlanEstimation>;
   }
 
-  return { plan, usedBalances: balances.slice(0, i) };
-};
+  async #executeRecursively(plan: EstimatedPlan, input?: CurvyCommandData): Promise<CurvyPlanExecution> {
+    return this.#walkPlan(
+      plan,
+      {
+        command: async (node, nodeInput) => {
+          try {
+            const command = this.commandFactory.createCommand(
+              node.id,
+              node.name,
+              nodeInput,
+              node.intent,
+              node.estimate,
+            );
+
+            const data = await command.execute();
+
+            await this.#storage.removeSpentBalanceEntries(Array.isArray(nodeInput) ? nodeInput : [nodeInput]);
+            this.eventEmitter.emitPlanCommandExecutionProgress({ commandId: node.id });
+
+            return { success: true, estimate: node.estimate, data };
+          } catch (error) {
+            return { success: false, error };
+          }
+        },
+        data: async (node) => {
+          return { success: true, data: node.data };
+        },
+        wait: async (node, nodeInput) => {
+          try {
+            await pollForCriteria(() => node.condition(), Boolean, 30, 10000);
+
+            this.eventEmitter.emitPlanCommandExecutionProgress({ commandId: node.id });
+
+            return { success: true, data: nodeInput };
+          } catch {
+            return {
+              success: false,
+              error: new Error(`Timeout: ${node.name} condition was not met within the expected time.`),
+            };
+          }
+        },
+      },
+      input,
+    ) as Promise<CurvyPlanExecution>;
+  }
+
+  // Public functions
+  async execute(sdk: ICurvySDK, plan: EstimatedPlan): Promise<CurvyPlanExecution> {
+    this.eventEmitter.emitPlanExecutionStarted({ plan });
+
+    const activeWalletId = sdk.walletManager.activeWallet.id;
+
+    this.#balanceScanner.pauseBalanceRefreshForWallet(activeWalletId);
+
+    const result = await this.#executeRecursively(plan, undefined);
+
+    this.#balanceScanner.resumeBalanceRefreshForWallet(activeWalletId);
+
+    if (result.success) {
+      this.eventEmitter.emitPlanExecutionComplete({ plan, result });
+    } else {
+      this.eventEmitter.emitPlanExecutionError({ plan, result });
+    }
+
+    if (!result.success) {
+      console.error(result);
+      throw result.error;
+    }
+
+    return result;
+  }
+
+  async estimate(
+    sdk: ICurvySDK,
+    intent: CurvyIntent,
+    opts?: {
+      balances?: BalanceEntry[];
+    },
+  ): Promise<IntentEstimation> {
+    const balances =
+      opts?.balances ??
+      (await sdk.storage.getBalanceSources(
+        sdk.walletManager.activeWallet.id,
+        intent.currency.contractAddress,
+        toSlug(intent.network.name),
+      ));
+    const { plan: draftPlan, usedBalances } = generatePlan(sdk, balances, intent);
+
+    const result = await this.#estimateRecursively(draftPlan, undefined);
+
+    if (!result.success) {
+      console.error(`Plan estimation failed: ${result.error}`);
+      throw result.error;
+    }
+
+    if (!result.data) {
+      throw new Error("Estimation resulted in no data, expected a single BalanceEntry.");
+    }
+
+    if (Array.isArray(result.data)) {
+      throw new Error("Estimation resulted in multiple data entries, expected a single BalanceEntry.");
+    }
+
+    if (!result.estimate) {
+      throw new Error("Estimation resulted in no estimate data.");
+    }
+
+    return {
+      plan: result.estimatedPlan,
+      usedBalances,
+      gas: result.estimate.gasFeeInCurrency,
+      curvyFee: result.estimate.curvyFeeInCurrency,
+      bridgeFee: result.estimate.bridgeFeeInCurrency,
+      effectiveAmount: result.data.balance,
+    };
+  }
+}

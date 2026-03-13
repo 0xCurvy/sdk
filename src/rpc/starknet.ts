@@ -363,14 +363,6 @@ class StarknetRpc extends Rpc {
       }
     }
   }
-
-  async signRawTransaction(_privateKey: HexString, _txRequest: unknown): Promise<string> {
-    throw new Error("Raw transaction signing is not supported on Starknet");
-  }
-
-  async signMessage(_privateKey: HexString, _params: unknown): Promise<string> {
-    throw new Error("Message signing is not supported on Starknet");
-  }
 }
 
 export { StarknetRpc };

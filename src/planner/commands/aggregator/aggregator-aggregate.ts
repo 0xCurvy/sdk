@@ -1,18 +1,11 @@
-import {
-  type AggregationRequest,
-  type CurvyCommandData,
-  type CurvyIntent,
-  generateAggregationHash,
-  type HexString,
-  type InputNote,
-  isValidCurvyId,
-  noteToBalanceEntry,
-  type OutputNote,
-} from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
-import { Note } from "@/types/note";
+import type { CurvyCommandData, CurvyIntent } from "@/planner/type";
+import { type AggregationRequest, type HexString, isValidCurvyId } from "@/types";
+import { type InputNote, Note, type OutputNote } from "@/types/note";
+import { noteToBalanceEntry } from "@/utils";
+import { generateAggregationHash } from "@/utils/aggregator";
 import { pollForCriteria } from "@/utils/helpers";
 
 interface CurvyCommandEstimateWithNote extends CurvyCommandEstimate {
@@ -79,7 +72,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     const rawSignature = await this.sdk.walletManager.signMessageWithBabyJubjub(msgHash);
     const signature = {
       S: BigInt(rawSignature.S),
-      R8: rawSignature.R8.map((r) => BigInt(r)),
+      R8: rawSignature.R8.map((r: any) => BigInt(r)),
     };
 
     return {

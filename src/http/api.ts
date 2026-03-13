@@ -2,12 +2,9 @@ import type { Groth16Proof } from "snarkjs";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
 import type {
-  GetMetaTransactionStatusReturnType,
   InsertEntryPortalRequestBody,
   InsertExitPortalRequestBody,
   InsertPortalReturnType,
-  MetaTransactionEstimationRequestBody,
-  MetaTransactionSubmitBody,
   SubmitNoteOwnershipProofReturnType,
 } from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
@@ -224,51 +221,6 @@ class ApiClient extends HttpClient implements IApiClient {
         method: "GET",
         path: `/aggregator/request-status/${requestId}/status`,
       });
-    },
-  };
-
-  metaTransaction = {
-    SubmitTransaction: async (body: MetaTransactionSubmitBody) => {
-      await this.request<null>({
-        method: "POST",
-        path: `/meta-transaction/submit`,
-        body,
-      });
-    },
-
-    GetStatus: async (requestId: string) => {
-      return (
-        await this.request<{ data: { metaTransactionStatus: GetMetaTransactionStatusReturnType } }>({
-          method: "GET",
-          path: `/meta-transaction/status/${requestId}`,
-        })
-      ).data.metaTransactionStatus;
-    },
-
-    EstimateGas: async (body: MetaTransactionEstimationRequestBody) => {
-      const { id, gasFeeInCurrency, bridgeFeeInCurrency, exitBridgeCurrency, bridgeEstimateAmount } = (
-        await this.request<{
-          data: {
-            id: string;
-            gasFeeInCurrency: string;
-            bridgeFeeInCurrency?: string;
-            exitBridgeCurrency?: string;
-            bridgeEstimateAmount?: string;
-          };
-        }>({
-          method: "POST",
-          path: `/meta-transaction/estimate`,
-          body,
-        })
-      ).data;
-
-      return {
-        id,
-        gasFeeInCurrency: BigInt(gasFeeInCurrency ?? "0"),
-        bridgeFeeInCurrency: bridgeFeeInCurrency ? BigInt(bridgeFeeInCurrency) : undefined,
-        exitBridgeCurrency,
-        bridgeEstimateAmount,
-      };
     },
   };
 }

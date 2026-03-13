@@ -1,8 +1,7 @@
 import { expect, test } from "vitest";
-import type { CurvyIntent } from "@/planner/plan";
-import { generatePlan } from "@/planner/planner";
+import type { CurvyIntent } from "@/planner/type";
 import { CurvySDK } from "@/sdk";
-import { type BalanceEntry, CURVY_EVENT_TYPES, type Currency, type Network } from "@/types";
+import { CURVY_EVENT_TYPES, type Currency, type Network } from "@/types";
 import { parseDecimal } from "@/utils";
 
 const LocalnetGeneratedValues = {
@@ -19,17 +18,13 @@ const LocalnetGeneratedValues = {
 };
 
 let curvySDK: CurvySDK;
-let activeWalletId: string;
 let network: Network;
 let currency: Currency;
-let balances: BalanceEntry[];
 
 const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
-  const { plan } = generatePlan(balances, intent);
+  const estimation = await curvySDK.estimate(intent);
 
-  const estimation = await curvySDK.estimatePlan(plan);
-
-  const result = await curvySDK.executePlan(estimation.plan);
+  const result = await curvySDK.execute(estimation.plan);
 
   return result.success;
 };
@@ -43,8 +38,6 @@ async function setup() {
   await curvySDK.walletManager.addWalletWithSignature("evm", JSON.parse(decodeURIComponent(signature)));
 
   expect(curvySDK.walletManager.wallets).toHaveLength(1);
-
-  activeWalletId = curvySDK.walletManager.activeWallet.id;
 
   let syncComplete = false;
   curvySDK.on(CURVY_EVENT_TYPES.SYNC_COMPLETE, async (event) => {
@@ -85,12 +78,6 @@ async function setup() {
   if (!currency) {
     console.log("Currency not found");
   }
-
-  balances = await curvySDK.storage.getBalanceSources(
-    activeWalletId,
-    currency!.contractAddress,
-    network!.name.replace(" ", "-").toLowerCase(),
-  );
 }
 
 test("Inclusion proof bug", async () => {

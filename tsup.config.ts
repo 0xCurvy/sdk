@@ -2,15 +2,13 @@ import { defineConfig, type Options } from "tsup";
 
 export default defineConfig((_) => {
   const baseConfig: Options = {
-    entry: ["./src/exports/*.[jt]s"],
+    entry: ["./src/index.ts"],
     format: ["esm"],
     target: "es2024",
     platform: "neutral",
     treeshake: "recommended",
     sourcemap: true,
     minify: true,
-    bundle: true,
-    splitting: false,
     esbuildOptions: (options) => {
       options.assetNames = "[name]";
       options.loader = {
@@ -21,12 +19,12 @@ export default defineConfig((_) => {
   };
 
   return [
-    { ...baseConfig, dts: false, clean: true, outDir: "dist/esm" },
+    { ...baseConfig, dts: false, clean: true, outDir: "dist/_esm" },
     {
       ...baseConfig,
       dts: { only: true },
       clean: false,
-      outDir: "dist/types",
+      outDir: "dist/_types",
       esbuildOptions: undefined,
     },
   ];

@@ -1,14 +1,15 @@
+import { getQuote } from "@lifi/sdk";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
 import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
-import type { CurvyCommandData, CurvyIntent } from "@/planner/plan";
+import type { CurvyCommandData, CurvyIntent } from "@/planner/type";
 import {
   BALANCE_TYPE,
   type HexString,
   type InputNote,
   isHexString,
   Note,
-  type VaultBalanceEntry,
+  type SaBalanceEntry,
   type WithdrawRequest,
 } from "@/types";
 import { generateWithdrawalHash } from "@/utils/aggregator";
@@ -74,7 +75,7 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
     const rawSignature = await this.sdk.walletManager.signMessageWithBabyJubjub(messageHash);
     const signature = {
       S: BigInt(rawSignature.S),
-      R8: rawSignature.R8.map((r) => BigInt(r)),
+      R8: rawSignature.R8.map((r: any) => BigInt(r)),
     };
 
     return {
@@ -91,26 +92,74 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
       gasFeeInCurrency: 0n,
     };
 
+    if (this.#intent.type === "external-transfer" && this.#intent.exitNetwork) {
+      const exitNetworkCurrencyAddress = this.#intent.exitNetwork.currencies.find(
+        (c) => c.id === this.#intent.currency?.id,
+      )?.contractAddress;
+
+      if (!exitNetworkCurrencyAddress) {
+        throw new Error("Couldn't find exit currency on the specified exit network");
+      }
+
+      const quote = await getQuote({
+        fromAddress: this.recipient,
+        fromChain: this.#intent.network.chainId,
+        toChain: this.#intent.exitNetwork.chainId,
+        fromToken: this.#intent.currency.contractAddress,
+        toToken: exitNetworkCurrencyAddress,
+        fromAmount: this.netAmount.toString(),
+      });
+
+      this.estimate.bridgeFeeInCurrency =
+        quote.estimate.feeCosts?.reduce((acc, curr) => acc + BigInt(curr.amount), 0n) ?? 0n;
+    }
+
+    if (this.#intent.type === "curvy-swap") {
+      const quote = await getQuote({
+        fromAddress: this.recipient,
+        fromChain: this.network.chainId,
+        toChain: this.network.chainId,
+        fromToken: this.#intent.currency.contractAddress,
+        toToken: this.#intent.exitCurrency.contractAddress,
+        fromAmount: this.netAmount.toString(),
+      });
+
+      this.estimate.bridgeFeeInCurrency =
+        quote.estimate.feeCosts?.reduce((acc, curr) => acc + BigInt(curr.amount), 0n) ?? 0n;
+
+      this.estimate.bridgeEstimateAmount = quote.estimate.toAmount;
+    }
+
     return this.estimate;
   }
 
   async getResultingBalanceEntry() {
-    const { networkSlug, environment, symbol, lastUpdated, currencyAddress, vaultTokenId, decimals, walletId } =
+    let { networkSlug, environment, symbol, lastUpdated, currencyAddress, vaultTokenId, decimals, walletId } =
       this.input[0];
 
+    let balance = this.netAmount;
+
+    if (this.#intent.type === "curvy-swap") {
+      symbol = this.#intent.exitCurrency.symbol;
+      currencyAddress = this.#intent.exitCurrency.contractAddress;
+      decimals = this.#intent.exitCurrency.decimals;
+      balance = BigInt(this.estimate!.bridgeEstimateAmount!);
+    }
+
     return {
-      type: BALANCE_TYPE.VAULT,
+      type: BALANCE_TYPE.SA,
       walletId,
       source: this.recipient,
       vaultTokenId: vaultTokenId,
       networkSlug,
       environment,
-      balance: this.netAmount,
+      balance,
       symbol,
       decimals,
       currencyAddress,
+      createdAt: Date.now().toString(),
       lastUpdated,
-    } satisfies VaultBalanceEntry;
+    } satisfies SaBalanceEntry;
   }
 
   async execute(): Promise<CurvyCommandData> {

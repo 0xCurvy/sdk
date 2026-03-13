@@ -15,12 +15,13 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
-import { CommandExecutor } from "@/planner/executor";
-import type { CurvyPlan } from "@/planner/plan";
+import { Planner } from "@/planner/planner";
+import type { CurvyIntent, EstimatedPlan } from "@/planner/type";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
 import type {
+  BalanceEntry,
   EvmSignatureData,
   GetStealthAddressReturnType,
   Network,
@@ -31,7 +32,7 @@ import type { CurvyAddress } from "@/types/address";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { Core } from "./core";
-import { deriveAddress } from "./utils/address";
+import { deriveAddress } from "./utils";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { WalletManager } from "./wallet-manager";
 
@@ -54,7 +55,7 @@ class CurvySDK implements ICurvySDK {
   #rpcClient: MultiRpc | undefined;
   #state: SdkState;
 
-  #commandExecutor: CommandExecutor | undefined;
+  #commandExecutor: Planner | undefined;
 
   readonly apiClient: IApiClient;
   readonly storage: StorageInterface;
@@ -127,7 +128,7 @@ class CurvySDK implements ICurvySDK {
       sdk.#core,
       sdk.#walletManager,
     );
-    sdk.#commandExecutor = new CommandExecutor(
+    sdk.#commandExecutor = new Planner(
       commandFactory ?? new CurvyCommandFactory(sdk),
       sdk.#emitter,
       sdk.#balanceScanner,
@@ -137,21 +138,21 @@ class CurvySDK implements ICurvySDK {
     return sdk;
   }
 
-  estimatePlan(plan: CurvyPlan) {
+  estimate = (intent: CurvyIntent, opts?: { balances?: BalanceEntry[] }) => {
     if (!this.#commandExecutor) {
       throw new Error("Command executor is not initialized!");
     }
 
-    return this.#commandExecutor.estimatePlan(plan);
-  }
+    return this.#commandExecutor.estimate(this, intent, opts);
+  };
 
-  executePlan(plan: CurvyPlan, walletId?: string) {
+  execute = (plan: EstimatedPlan) => {
     if (!this.#commandExecutor) {
       throw new Error("Command executor is not initialized!");
     }
 
-    return this.#commandExecutor.executePlan(plan, { walletId: walletId ?? this.walletManager.activeWallet.id });
-  }
+    return this.#commandExecutor.execute(this, plan);
+  };
 
   async #priceUpdate(_networks?: Array<Network>) {
     const networks = _networks ?? (await this.apiClient.network.GetNetworks());
@@ -283,7 +284,7 @@ class CurvySDK implements ICurvySDK {
     return address;
   }
 
-  async generateEntryPortal(args: { curvyId: CurvyId; coinType?: string }): Promise<HexString> {
+  async generateEntryPortal(args: { curvyId: CurvyId; coinType?: string; currencyId?: number }): Promise<HexString> {
     return this.apiClient.portal.insertEntryPortal(args).then(({ address }) => address);
   }
 
@@ -359,7 +360,6 @@ class CurvySDK implements ICurvySDK {
       await this.storage.storeCurvyWallet(wallet);
     }
 
-    await this.walletManager.rescanWallets();
     await this.refreshBalances();
   }
 }

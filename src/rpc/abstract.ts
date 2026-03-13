@@ -1,4 +1,3 @@
-import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTransaction";
 import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
@@ -40,9 +39,6 @@ abstract class Rpc {
   ): Promise<bigint | StarknetFeeEstimate>;
 
   abstract feeToAmount(feeEstimate: StarknetFeeEstimate | bigint): bigint;
-
-  abstract signRawTransaction(privateKey: HexString, txRequest: SignTransactionRequest): Promise<string>;
-  abstract signMessage(privateKey: HexString, typedData: any): Promise<string>;
 }
 
 export { Rpc };
