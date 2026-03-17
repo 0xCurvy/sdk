@@ -4,10 +4,9 @@ import type { ICore } from "@/interfaces/core";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
-import type { CurvyIntent, CurvyPlanExecution, EstimatedPlan, IntentEstimation } from "@/planner/type";
+import type { EstimatedPlan, Intent, IntentEstimation, PlanExecution } from "@/planner/type";
 import type { MultiRpc } from "@/rpc/multi";
 import type {
-  BalanceEntry,
   CurvyId,
   EvmSignatureData,
   ExtendedAnnouncement,
@@ -34,8 +33,8 @@ interface ICurvySDK {
   on: ICurvyEventEmitter["on"];
   off: ICurvyEventEmitter["off"];
 
-  estimate(intent: CurvyIntent, opts?: { balances?: BalanceEntry[] }): Promise<IntentEstimation>;
-  execute(plan: EstimatedPlan): Promise<CurvyPlanExecution>;
+  estimate(intent: Intent): Promise<IntentEstimation>;
+  execute(plan: EstimatedPlan): Promise<PlanExecution>;
 
   login(
     flavour: NETWORK_FLAVOUR_VALUES,

@@ -2,21 +2,21 @@ import type { StorageInterface } from "@/interfaces";
 import type { IBalanceScanner } from "@/interfaces/balance-scanner";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { ICurvySDK } from "@/interfaces/sdk";
-import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
+import type { CommandEstimate } from "@/planner/commands/abstract";
 import type { ICommandFactory } from "@/planner/commands/factory";
 import type {
-  CurvyCommandData,
-  CurvyIntent,
-  CurvyPlan,
-  CurvyPlanData,
-  CurvyPlanEstimation,
-  CurvyPlanExecution,
-  CurvyPlanWait,
+  CommandData,
   DraftCommand,
   DraftPlan,
   EstimatedCommand,
   EstimatedPlan,
+  Intent,
   IntentEstimation,
+  Plan,
+  PlanData,
+  PlanEstimation,
+  PlanExecution,
+  PlanWait,
 } from "@/planner/type";
 import { generatePlan } from "@/planner/utils";
 import type { BalanceEntry } from "@/types";
@@ -26,8 +26,8 @@ import { toSlug } from "@/utils/helpers";
 // Internal types
 type PlanWalkSuccessResult = {
   success: true;
-  data?: CurvyCommandData;
-  estimate?: CurvyCommandEstimate;
+  data?: CommandData;
+  estimate?: CommandEstimate;
   estimatedPlan?: EstimatedPlan;
   items?: PlanWalkResult[];
 };
@@ -41,14 +41,15 @@ type PlanWalkFailureResult = {
 type PlanWalkResult = PlanWalkSuccessResult | PlanWalkFailureResult;
 
 type PlanNodeHandlers<C extends DraftCommand> = {
-  command: (plan: C, input: CurvyCommandData) => Promise<PlanWalkResult>;
-  data: (plan: CurvyPlanData, input?: CurvyCommandData) => Promise<PlanWalkResult>;
-  wait: (plan: CurvyPlanWait, input?: CurvyCommandData) => Promise<PlanWalkResult>;
+  command: (plan: C, input: CommandData) => Promise<PlanWalkResult>;
+  data: (plan: PlanData, input?: CommandData) => Promise<PlanWalkResult>;
+  wait: (plan: PlanWait, input?: CommandData) => Promise<PlanWalkResult>;
 };
 
 // Utility functions
 
-function accumulateEstimate(target: CurvyCommandEstimate, source?: CurvyCommandEstimate): void {
+// Sums all estimates from serial nodes
+function accumulateEstimate(target: CommandEstimate, source?: CommandEstimate): void {
   const { gasFeeInCurrency = 0n, curvyFeeInCurrency = 0n, bridgeFeeInCurrency = 0n } = source || {};
   target.gasFeeInCurrency += gasFeeInCurrency;
   target.curvyFeeInCurrency += curvyFeeInCurrency;
@@ -57,8 +58,9 @@ function accumulateEstimate(target: CurvyCommandEstimate, source?: CurvyCommandE
     else target.bridgeFeeInCurrency += bridgeFeeInCurrency;
 }
 
-function mergeEstimates(results: PlanWalkResult[]): CurvyCommandEstimate {
-  const merged: CurvyCommandEstimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
+// Merges accumulated serial estimates for parallel nodes
+function mergeEstimates(results: PlanWalkResult[]): CommandEstimate {
+  const merged: CommandEstimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
   for (const result of results) {
     if (result.success) accumulateEstimate(merged, result.estimate);
   }
@@ -88,9 +90,9 @@ export class Planner {
    * delegating leaf nodes (command, data, wait) to the provided handlers.
    */
   async #walkPlan<C extends DraftCommand>(
-    plan: CurvyPlan<C>,
+    plan: Plan<C>,
     handlers: PlanNodeHandlers<C>,
-    input?: CurvyCommandData,
+    input?: CommandData,
   ): Promise<PlanWalkResult> {
     // Parallel flow control
     if (plan.type === "parallel") {
@@ -99,7 +101,7 @@ export class Planner {
 
       this.eventEmitter.emitPlanExecutionProgress({
         plan,
-        result: { success, items: results } as CurvyPlanExecution,
+        result: { success, items: results } as PlanExecution,
       });
 
       if (success) {
@@ -137,7 +139,7 @@ export class Planner {
       }
 
       let data = input;
-      const estimate: CurvyCommandEstimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
+      const estimate: CommandEstimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
 
       for (const item of plan.items) {
         const result = await this.#walkPlan(item, handlers, data);
@@ -189,10 +191,10 @@ export class Planner {
       return handlers.wait(plan, input);
     }
 
-    throw new Error(`Unrecognized type for plan node: ${(plan as CurvyPlan).type}`);
+    throw new Error(`Unrecognized type for plan node: ${(plan as Plan).type}`);
   }
 
-  async #estimateRecursively(plan: DraftPlan, input?: CurvyCommandData): Promise<CurvyPlanEstimation> {
+  async #estimateRecursively(plan: DraftPlan, input?: CommandData): Promise<PlanEstimation> {
     return this.#walkPlan(
       plan,
       {
@@ -218,10 +220,10 @@ export class Planner {
         },
       },
       input,
-    ) as Promise<CurvyPlanEstimation>;
+    ) as Promise<PlanEstimation>;
   }
 
-  async #executeRecursively(plan: EstimatedPlan, input?: CurvyCommandData): Promise<CurvyPlanExecution> {
+  async #executeRecursively(plan: EstimatedPlan, input?: CommandData): Promise<PlanExecution> {
     return this.#walkPlan(
       plan,
       {
@@ -264,11 +266,11 @@ export class Planner {
         },
       },
       input,
-    ) as Promise<CurvyPlanExecution>;
+    ) as Promise<PlanExecution>;
   }
 
   // Public functions
-  async execute(sdk: ICurvySDK, plan: EstimatedPlan): Promise<CurvyPlanExecution> {
+  async execute(sdk: ICurvySDK, plan: EstimatedPlan): Promise<PlanExecution> {
     this.eventEmitter.emitPlanExecutionStarted({ plan });
 
     const activeWalletId = sdk.walletManager.activeWallet.id;
@@ -293,20 +295,12 @@ export class Planner {
     return result;
   }
 
-  async estimate(
-    sdk: ICurvySDK,
-    intent: CurvyIntent,
-    opts?: {
-      balances?: BalanceEntry[];
-    },
-  ): Promise<IntentEstimation> {
-    const balances =
-      opts?.balances ??
-      (await sdk.storage.getBalanceSources(
-        sdk.walletManager.activeWallet.id,
-        intent.currency.contractAddress,
-        toSlug(intent.network.name),
-      ));
+  async estimate(sdk: ICurvySDK, intent: Intent): Promise<IntentEstimation> {
+    const balances = await sdk.storage.getBalanceSources(
+      sdk.walletManager.activeWallet.id,
+      intent.currency.contractAddress,
+      toSlug(intent.network.name),
+    );
     const { plan: draftPlan, usedBalances } = generatePlan(sdk, balances, intent);
 
     const result = await this.#estimateRecursively(draftPlan, undefined);

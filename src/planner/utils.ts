@@ -1,6 +1,6 @@
 import { v4 as uuidV4 } from "uuid";
 import type { ICurvySDK } from "@/interfaces/sdk";
-import type { CurvyIntent, CurvyPlanFlowControl, DraftPlan, GeneratePlanReturnType } from "@/planner/type";
+import type { DraftPlan, GeneratePlanReturnType, Intent, PlanFlowControl } from "@/planner/type";
 import type { BalanceEntry } from "@/types";
 import { isHexString } from "@/types/helper";
 import { hasBytecode } from "@/utils";
@@ -124,7 +124,7 @@ const selectOptimalBalances = (balances: BalanceEntry[], target: bigint): Balanc
   return selected;
 };
 
-const generateAggregationPlan = (items: DraftPlan[], intent: CurvyIntent): DraftPlan => {
+const generateAggregationPlan = (items: DraftPlan[], intent: Intent): DraftPlan => {
   const maxInputs = intent.network.aggregationCircuitConfig?.maxInputs;
 
   if (!maxInputs) {
@@ -184,7 +184,7 @@ const generateAggregationPlan = (items: DraftPlan[], intent: CurvyIntent): Draft
     items = nextLevel as DraftPlan[]; // Move up one level
   }
 
-  const aggregationPlan = items[0] as CurvyPlanFlowControl;
+  const aggregationPlan = items[0] as PlanFlowControl;
 
   if (aggregationPlan.items.length !== 2) {
     throw new Error("Unexpected number of items in aggregation plan");
@@ -202,7 +202,7 @@ const generateAggregationPlan = (items: DraftPlan[], intent: CurvyIntent): Draft
   return aggregationPlan;
 };
 
-export const generatePlan = (sdk: ICurvySDK, balances: BalanceEntry[], intent: CurvyIntent): GeneratePlanReturnType => {
+export const generatePlan = (sdk: ICurvySDK, balances: BalanceEntry[], intent: Intent): GeneratePlanReturnType => {
   const selectedBalances = selectOptimalBalances(balances, intent.amount);
 
   const inputDataNodes: DraftPlan[] = selectedBalances.map((balanceEntry) => ({
@@ -275,6 +275,7 @@ export const generatePlan = (sdk: ICurvySDK, balances: BalanceEntry[], intent: C
                 return isShieldPortalDeployed;
               }
 
+              // TODO add events on contract
               // If the shield portal is deployed, we wait for 10 seconds to allow the shield (commitDepositBatch) to complete.
               // This is a temporary solution until we implement events for aggregator actions
               await new Promise((res) => setTimeout(res, 10 * 10 ** 3));

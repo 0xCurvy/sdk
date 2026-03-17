@@ -1,5 +1,5 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { CurvyPlan, CurvyPlanExecution } from "@/planner/type";
+import type { Plan, PlanExecution } from "@/planner/type";
 import type { RawAnnouncement } from "@/types/api";
 import type { ExtractValues } from "@/types/helper";
 
@@ -100,12 +100,12 @@ export type {
 //#region Plan Execution events
 
 type PlanExecutionStartedEvent = {
-  plan: CurvyPlan;
+  plan: Plan;
 };
 
 type PlanExecutionProgressEvent = {
-  plan: CurvyPlan;
-  result: CurvyPlanExecution;
+  plan: Plan;
+  result: PlanExecution;
 };
 
 type PlanCommandExecutionProgressEvent = {

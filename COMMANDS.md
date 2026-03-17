@@ -12,7 +12,7 @@ Commands represent discrete, executable steps in a plan (estimate -> execute -> 
 - Concrete commands:
   - Aggregator
     - `AggregatorAggregateCommand`
-    - `AggregatorWithdrawToVaultCommand`
+    - `AggregatorWithdrawCommand`
 
 A factory (`CurvyCommandFactory`) instantiates concrete commands by name.
 
@@ -69,7 +69,7 @@ Concrete implementations:
   - Signs aggregation request (BabyJubjub) and submits via `apiClient.aggregator.SubmitAggregation`.
   - Polls for success, returns resulting note as `NoteBalanceEntry`.
 
-1) `AggregatorWithdrawToVaultCommand` (aggregator/aggregator-withdraw-to-vault.ts)
+1) `AggregatorWithdrawCommand` (aggregator/aggregator-withdraw.ts)
 
 - grossAmount: `inputNotesSum`.
 - estimateFees: curvy fee from `withdrawCircuitConfig.groupFee`; gas = 0; also stages a new stealth address (for Vault) via `generateNewStealthAddressForUser`.
@@ -88,7 +88,7 @@ File: planner/commands/factory.ts
 
 - `CurvyCommandFactory.createCommand(id, name, input, intent?, estimate?)` maps a string `name` to a specific class:
   - "aggregator-aggregate" → `AggregatorAggregateCommand` (optional `intent`)
-  - "aggregator-withdraw-to-vault" → `AggregatorWithdrawToVaultCommand`
+  - "aggregator-withdraw" → `AggregatorWithdrawCommand`
 
 Separation of concerns:
 

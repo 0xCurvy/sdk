@@ -1,16 +1,16 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
-import type { CurvyCommand, CurvyCommandEstimate } from "@/planner/commands/abstract";
+import type { CommandEstimate, CurvyCommand } from "@/planner/commands/abstract";
 import { AggregatorAggregateCommand } from "@/planner/commands/aggregator/aggregator-aggregate";
 import { AggregatorWithdrawCommand } from "@/planner/commands/aggregator/aggregator-withdraw";
-import type { CurvyCommandData, CurvyIntent } from "@/planner/type";
+import type { CommandData, Intent } from "@/planner/type";
 
 export interface ICommandFactory {
   createCommand(
     id: string,
     name: string,
-    input: CurvyCommandData,
-    intent?: CurvyIntent,
-    estimate?: CurvyCommandEstimate,
+    input: CommandData,
+    intent?: Intent,
+    estimate?: CommandEstimate,
   ): CurvyCommand;
 }
 
@@ -25,9 +25,9 @@ export class CurvyCommandFactory implements ICommandFactory {
   createCommand(
     id: string,
     name: string,
-    input: CurvyCommandData,
-    intent?: CurvyIntent,
-    estimate?: CurvyCommandEstimate,
+    input: CommandData,
+    intent?: Intent,
+    estimate?: CommandEstimate,
   ): CurvyCommand {
     switch (name) {
       case "aggregator-aggregate": {

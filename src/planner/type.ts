@@ -1,21 +1,21 @@
-import type { CurvyCommandEstimate } from "@/planner/commands/abstract.js";
+import type { CommandEstimate } from "@/planner/commands/abstract.js";
 import type { CurvyId } from "@/types/curvy.js";
 import type { HexString } from "@/types/helper.js";
 import type { BalanceEntry, Currency, CurvyPublicKeys, Network } from "@/types/index.js";
 
-export type CurvyBaseIntent = {
+export type BaseIntent = {
   amount: bigint;
   currency: Currency;
   network: Network;
 };
 
-export type CurvyTransferIntent = CurvyBaseIntent & {
+export type TransferIntent = BaseIntent & {
   type: "curvy-transfer";
   recipient: CurvyId;
   recipientPublicKeys?: never;
 };
 
-export type CurvySwapIntent = CurvyBaseIntent & {
+export type SwapIntent = BaseIntent & {
   type: "curvy-swap";
   recipient: HexString;
   recipientPublicKeys?: never;
@@ -23,20 +23,20 @@ export type CurvySwapIntent = CurvyBaseIntent & {
   exitCurrency: Currency;
 };
 
-export type ExternalTransferIntent = CurvyBaseIntent & {
+export type ExternalTransferIntent = BaseIntent & {
   type: "external-transfer";
   recipient: HexString;
   exitNetwork?: Network;
   recipientPublicKeys?: never;
 };
 
-export type SendToAnyoneIntent = CurvyBaseIntent & {
+export type SendToAnyoneIntent = BaseIntent & {
   type: "send-to-anyone";
   recipient?: never;
   recipientPublicKeys: CurvyPublicKeys;
 };
 
-export type CurvyIntent = CurvyTransferIntent | CurvySwapIntent | ExternalTransferIntent | SendToAnyoneIntent;
+export type Intent = TransferIntent | SwapIntent | ExternalTransferIntent | SendToAnyoneIntent;
 
 // --- Command variants ---
 
@@ -44,48 +44,44 @@ export type DraftCommand = {
   type: "command";
   id: string;
   name: string;
-  intent?: CurvyIntent;
+  intent?: Intent;
 };
 
 export type EstimatedCommand = DraftCommand & {
-  estimate: CurvyCommandEstimate;
+  estimate: CommandEstimate;
 };
 
-export type CurvyCommandData = BalanceEntry | BalanceEntry[];
+export type CommandData = BalanceEntry | BalanceEntry[];
 
 // --- Plan node types ---
 
-export type CurvyPlanData = {
+export type PlanData = {
   type: "data";
-  data: CurvyCommandData;
+  data: CommandData;
 };
 
-export type CurvyPlanWait = {
+export type PlanWait = {
   type: "wait";
   id: string;
   name: string;
   condition: () => Promise<boolean>;
 };
 
-export type CurvyPlanFlowControl<C extends DraftCommand = DraftCommand> = {
+export type PlanFlowControl<C extends DraftCommand = DraftCommand> = {
   type: "parallel" | "serial";
   name?: string;
   description?: string;
-  items: CurvyPlan<C>[];
+  items: Plan<C>[];
 };
 
 // --- Composite plan types ---
 
-export type CurvyPlan<C extends DraftCommand = DraftCommand> =
-  | CurvyPlanFlowControl<C>
-  | C
-  | CurvyPlanData
-  | CurvyPlanWait;
+export type Plan<C extends DraftCommand = DraftCommand> = PlanFlowControl<C> | C | PlanData | PlanWait;
 
-export type DraftPlan = CurvyPlan;
-export type EstimatedPlan = CurvyPlan<EstimatedCommand>;
+export type DraftPlan = Plan;
+export type EstimatedPlan = Plan<EstimatedCommand>;
 
-export const isCurvyPlanFlowControl = <C extends DraftCommand>(plan: CurvyPlan<C>): plan is CurvyPlanFlowControl<C> =>
+export const isPlanFlowControl = <C extends DraftCommand>(plan: Plan<C>): plan is PlanFlowControl<C> =>
   plan.type === "parallel" || plan.type === "serial";
 
 export type GeneratePlanReturnType = {
@@ -95,38 +91,38 @@ export type GeneratePlanReturnType = {
 
 // --- Estimation result types ---
 
-export type CurvyPlanSuccessfulEstimation = {
+export type PlanSuccessfulEstimation = {
   success: true;
   estimatedPlan: EstimatedPlan;
-  estimate?: CurvyCommandEstimate;
-  data?: CurvyCommandData;
-  items?: CurvyPlanEstimation[];
+  estimate?: CommandEstimate;
+  data?: CommandData;
+  items?: PlanEstimation[];
 };
 
-export type CurvyPlanUnsuccessfulEstimation = {
+export type PlanUnsuccessfulEstimation = {
   success: false;
   error: unknown;
-  items?: CurvyPlanEstimation[];
+  items?: PlanEstimation[];
 };
 
-export type CurvyPlanEstimation = CurvyPlanSuccessfulEstimation | CurvyPlanUnsuccessfulEstimation;
+export type PlanEstimation = PlanSuccessfulEstimation | PlanUnsuccessfulEstimation;
 
 // --- Execution result types ---
 
-export type CurvyPlanSuccessfulExecution = {
+export type PlanSuccessfulExecution = {
   success: true;
-  data?: CurvyCommandData;
-  items?: CurvyPlanExecution[];
-  estimate?: CurvyCommandEstimate;
+  data?: CommandData;
+  items?: PlanExecution[];
+  estimate?: CommandEstimate;
 };
 
-export type CurvyPlanUnsuccessfulExecution = {
+export type PlanUnsuccessfulExecution = {
   success: false;
   error: unknown;
-  items?: CurvyPlanExecution[];
+  items?: PlanExecution[];
 };
 
-export type CurvyPlanExecution = CurvyPlanSuccessfulExecution | CurvyPlanUnsuccessfulExecution;
+export type PlanExecution = PlanSuccessfulExecution | PlanUnsuccessfulExecution;
 
 export type IntentEstimation = {
   plan: EstimatedPlan;

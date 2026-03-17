@@ -1,8 +1,8 @@
 import { getQuote } from "@lifi/sdk";
 import type { ICurvySDK } from "@/interfaces/sdk";
-import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
+import type { CommandEstimate } from "@/planner/commands/abstract";
 import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
-import type { CurvyCommandData, CurvyIntent } from "@/planner/type";
+import type { CommandData, Intent } from "@/planner/type";
 import {
   BALANCE_TYPE,
   type HexString,
@@ -16,15 +16,9 @@ import { generateWithdrawalHash } from "@/utils/aggregator";
 import { pollForCriteria } from "@/utils/helpers";
 
 export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
-  readonly #intent: CurvyIntent;
+  readonly #intent: Intent;
 
-  constructor(
-    id: string,
-    sdk: ICurvySDK,
-    input: CurvyCommandData,
-    intent: CurvyIntent,
-    estimate?: CurvyCommandEstimate,
-  ) {
+  constructor(id: string, sdk: ICurvySDK, input: CommandData, intent: Intent, estimate?: CommandEstimate) {
     super(id, sdk, input, estimate);
     this.#intent = intent;
   }
@@ -92,6 +86,7 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
       gasFeeInCurrency: 0n,
     };
 
+    // If external transfer to another network then calculate bridge fee
     if (this.#intent.type === "external-transfer" && this.#intent.exitNetwork) {
       const exitNetworkCurrencyAddress = this.#intent.exitNetwork.currencies.find(
         (c) => c.id === this.#intent.currency?.id,
@@ -114,6 +109,7 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
         quote.estimate.feeCosts?.reduce((acc, curr) => acc + BigInt(curr.amount), 0n) ?? 0n;
     }
 
+    // If curvy swap then calculate bridge fee and estimate amount
     if (this.#intent.type === "curvy-swap") {
       const quote = await getQuote({
         fromAddress: this.recipient,
@@ -139,6 +135,7 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
 
     let balance = this.netAmount;
 
+    // If curvy swap then update resulting balance entry to reflect swap target currency
     if (this.#intent.type === "curvy-swap") {
       symbol = this.#intent.exitCurrency.symbol;
       currencyAddress = this.#intent.exitCurrency.contractAddress;
@@ -162,7 +159,7 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
     } satisfies SaBalanceEntry;
   }
 
-  async execute(): Promise<CurvyCommandData> {
+  async execute(): Promise<CommandData> {
     const withdrawRequest = await this.#createWithdrawRequest(
       this.inputNotes.map((note) => note.serializeInputNote()),
       this.recipient,

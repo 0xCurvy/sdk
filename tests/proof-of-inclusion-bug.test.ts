@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import type { CurvyIntent } from "@/planner/type";
+import type { Intent } from "@/planner/type";
 import { CurvySDK } from "@/sdk";
 import { CURVY_EVENT_TYPES, type Currency, type Network } from "@/types";
 import { parseDecimal } from "@/utils";
@@ -21,7 +21,7 @@ let curvySDK: CurvySDK;
 let network: Network;
 let currency: Currency;
 
-const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
+const doPlan = async (intent: Intent): Promise<boolean> => {
   const estimation = await curvySDK.estimate(intent);
 
   const result = await curvySDK.execute(estimation.plan);
@@ -86,7 +86,7 @@ test("Inclusion proof bug", async () => {
   const to = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
   const amount1 = parseDecimal("330", currency!);
 
-  const intent1: CurvyIntent = {
+  const intent1: Intent = {
     recipient: to,
     amount: amount1,
     currency: currency!,
@@ -106,7 +106,7 @@ test("Inclusion proof bug", async () => {
 
   const amount2 = parseDecimal("700", currency!);
 
-  const intent2: CurvyIntent = {
+  const intent2: Intent = {
     recipient: to,
     amount: amount2,
     currency: currency!,
@@ -123,7 +123,7 @@ test("Vault withdraw bug", async () => {
   const to = "0x6718a78b04FA537c58EbF88fE17A84248eD64542";
   const amount1 = parseDecimal("10", currency!);
 
-  const intent1: CurvyIntent = {
+  const intent1: Intent = {
     recipient: to,
     amount: amount1,
     currency: currency!,
