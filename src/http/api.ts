@@ -9,12 +9,8 @@ import type {
 } from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  CreateAnnouncementRequestBody,
-  CreateAnnouncementReturnType,
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
-  GetAnnouncementEncryptedMessageReturnType,
-  GetAnnouncementsResponse,
   GetCurvyIdByOwnerAddressResponse,
   NetworksWithCurrenciesResponse,
   RegisterCurvyIdRequestBody,
@@ -25,53 +21,12 @@ import type {
   SubmitAggregationReturnType,
   SubmitDepositReturnType,
   SubmitWithdrawReturnType,
-  UpdateAnnouncementEncryptedMessageRequestBody,
-  UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
 import type { CurvyId } from "@/types/curvy";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
     return this._updateBearerToken(bearer);
-  };
-
-  announcement = {
-    CreateAnnouncement: async (body: CreateAnnouncementRequestBody) => {
-      return await this.request<CreateAnnouncementReturnType>({
-        method: "POST",
-        path: "/announcement",
-        body,
-      });
-    },
-    GetAnnouncements: async (startTime?: number, endTime?: number, size?: number, offset?: number) => {
-      const queryParams: Record<string, string | number | boolean> = {};
-
-      if (size) queryParams.size = size;
-      if (offset) queryParams.offset = offset;
-      if (startTime) queryParams.startTime = startTime;
-      if (endTime) queryParams.endTime = endTime;
-
-      const result = await this.request<GetAnnouncementsResponse>({
-        method: "GET",
-        path: "/announcement",
-        queryParams,
-      });
-
-      return result.data;
-    },
-    UpdateAnnouncementEncryptedMessage: async (id: string, body: UpdateAnnouncementEncryptedMessageRequestBody) => {
-      return await this.request<UpdateAnnouncementEncryptedMessageReturnType>({
-        method: "PATCH",
-        path: `/announcement/${id}/encryptedMessage`,
-        body,
-      });
-    },
-    GetAnnouncementEncryptedMessage: async (id: string) => {
-      return await this.request<GetAnnouncementEncryptedMessageReturnType>({
-        method: "GET",
-        path: `/announcement/${id}/encryptedMessage`,
-      });
-    },
   };
 
   network = {

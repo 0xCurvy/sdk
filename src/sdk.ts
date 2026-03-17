@@ -16,12 +16,12 @@ import type { EstimatedPlan, Intent } from "@/planner/type";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type { EvmSignatureData, Network, RefreshOptions, StarknetSignatureData } from "@/types";
+import type { EvmSignatureData, Network, RefreshOptions } from "@/types";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
+import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
 import { Core } from "./core";
 import { deriveAddress } from "./utils";
-import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "./utils/network";
 import { WalletManager } from "./wallet-manager";
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
