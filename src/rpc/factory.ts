@@ -1,6 +1,5 @@
 import { NETWORK_FLAVOUR } from "@/constants/networks";
 import { EvmRpc } from "@/rpc/evm";
-import { StarknetRpc } from "@/rpc/starknet";
 import type { Network } from "@/types/api";
 import { MultiRpc } from "./multi";
 
@@ -8,8 +7,6 @@ function newRpc(network: Network) {
   switch (network.flavour) {
     case NETWORK_FLAVOUR.EVM:
       return new EvmRpc(network);
-    case NETWORK_FLAVOUR.STARKNET:
-      return new StarknetRpc(network);
     default:
       throw Error("Unknown network flavour");
   }

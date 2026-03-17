@@ -1,33 +1,11 @@
-import type { EstimateFee, GetTransactionReceiptResponse as StarknetTransactionReceipt } from "starknet";
 import type { TransactionReceipt as EvmTransactionReceipt } from "viem";
 import type { NETWORK_ENVIRONMENT_VALUES, NETWORKS } from "@/constants/networks";
-import type { RawAnnouncement } from "@/types/api";
 import type { HexString } from "@/types/helper";
-
-type StarknetFeeEstimate = {
-  deployFee: EstimateFee | undefined;
-  transactionFee: EstimateFee;
-};
-
-type CurvyFeeEstimate = {
-  raw: bigint;
-  fiat: number;
-  tokenMeta: {
-    symbol: string;
-    decimals: number;
-  };
-  estimation: StarknetFeeEstimate | bigint;
-};
-
-type RecipientData = {
-  address: HexString;
-  rawAnnouncement: RawAnnouncement;
-};
 
 type RpcCallReturnType = {
   txHash: string;
   txExplorerUrl: string;
-  receipt: EvmTransactionReceipt | StarknetTransactionReceipt;
+  receipt: EvmTransactionReceipt;
 };
 
 type RpcBalance = {
@@ -48,12 +26,4 @@ type VaultBalance = {
   balances: { balance: bigint; currencyAddress: string; vaultTokenId: bigint }[];
 };
 
-export type {
-  StarknetFeeEstimate,
-  CurvyFeeEstimate,
-  RecipientData,
-  RpcCallReturnType,
-  RpcBalance,
-  RpcBalances,
-  VaultBalance,
-};
+export type { RpcCallReturnType, RpcBalance, RpcBalances, VaultBalance };

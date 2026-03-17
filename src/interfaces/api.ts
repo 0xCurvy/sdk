@@ -1,12 +1,8 @@
 import type { Groth16Proof } from "snarkjs";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  CreateAnnouncementRequestBody,
-  CreateAnnouncementReturnType,
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
-  GetAnnouncementEncryptedMessageReturnType,
-  GetAnnouncementsReturnType,
   GetCurvyIdByOwnerAddressReturnType,
   GetNetworksReturnType,
   InsertEntryPortalRequestBody,
@@ -21,29 +17,12 @@ import type {
   SubmitDepositReturnType,
   SubmitNoteOwnershipProofReturnType,
   SubmitWithdrawReturnType,
-  UpdateAnnouncementEncryptedMessageRequestBody,
-  UpdateAnnouncementEncryptedMessageReturnType,
 } from "@/types/api";
 import type { CurvyId } from "@/types/curvy";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
   get bearerToken(): string | undefined;
-
-  announcement: {
-    CreateAnnouncement(body: CreateAnnouncementRequestBody): Promise<CreateAnnouncementReturnType>;
-    UpdateAnnouncementEncryptedMessage(
-      id: string,
-      body: UpdateAnnouncementEncryptedMessageRequestBody,
-    ): Promise<UpdateAnnouncementEncryptedMessageReturnType>;
-    GetAnnouncementEncryptedMessage(id: string): Promise<GetAnnouncementEncryptedMessageReturnType>;
-    GetAnnouncements(
-      startTime?: number,
-      endTime?: number,
-      size?: number,
-      offset?: number,
-    ): Promise<GetAnnouncementsReturnType>;
-  };
 
   network: {
     GetNetworks(): Promise<GetNetworksReturnType>;

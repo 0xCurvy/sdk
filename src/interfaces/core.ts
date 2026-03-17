@@ -1,4 +1,3 @@
-import type { RawAnnouncement } from "@/types/api";
 import type {
   CoreScanReturnType,
   CoreSendReturnType,
@@ -10,6 +9,11 @@ import type {
 } from "@/types/core";
 import type { StringifyBigInts } from "@/types/helper";
 import type { AuthenticatedNote, Note, PublicNote } from "@/types/note";
+
+type RawAnnouncement = {
+  viewTag: string;
+  ephemeralPublicKey: string;
+};
 
 interface ICore {
   generateKeyPairs(): Promise<CurvyKeyPairs>;
@@ -38,4 +42,4 @@ interface ICore {
   version(): string;
 }
 
-export type { ICore };
+export type { ICore, RawAnnouncement };

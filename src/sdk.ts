@@ -21,13 +21,7 @@ import type { EstimatedPlan, Intent } from "@/planner/type";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type {
-  EvmSignatureData,
-  GetStealthAddressReturnType,
-  Network,
-  RefreshOptions,
-  StarknetSignatureData,
-} from "@/types";
+import type { EvmSignatureData, Network, RefreshOptions, StarknetSignatureData } from "@/types";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { Core } from "./core";
@@ -263,42 +257,6 @@ class CurvySDK implements ICurvySDK {
     if (!address) throw new Error("Couldn't derive address!");
 
     return { address, recipientStealthPublicKey, viewTag, ephemeralPublicKey, network };
-  }
-
-  async generateAndRegisterNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: CurvyId) {
-    const stealthAddressData = await this.generateNewStealthAddressForUser(networkIdentifier, handle);
-
-    return this.registerStealthAddressForUser(stealthAddressData);
-  }
-
-  async registerStealthAddressForUser({
-    address,
-    recipientStealthPublicKey,
-    ephemeralPublicKey,
-    network,
-    viewTag,
-  }: GetStealthAddressReturnType) {
-    const response = await this.apiClient.announcement.CreateAnnouncement({
-      recipientStealthAddress: address,
-      recipientStealthPublicKey,
-      network_id: network.id,
-      ephemeralPublicKey,
-      viewTag: viewTag,
-    });
-
-    if (response.data?.message !== "Saved") throw new Error("Failed to register announcement");
-
-    return {
-      address,
-      announcementData: {
-        createdAt: new Date().toISOString(),
-        id: response.data.id,
-        networkFlavour: network.flavour,
-        viewTag,
-        ephemeralPublicKey,
-        publicKey: recipientStealthPublicKey,
-      },
-    };
   }
 
   async ensResolveCurvyId(curvyId: CurvyId, slip0044?: bigint): Promise<HexString> {

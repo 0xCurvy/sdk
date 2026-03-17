@@ -1,7 +1,6 @@
-import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import type { RpcBalance, RpcBalances, RpcCallReturnType, StarknetFeeEstimate } from "@/types/rpc";
+import type { RpcBalance, RpcBalances } from "@/types/rpc";
 
 abstract class Rpc {
   readonly #network: Network;
@@ -20,25 +19,6 @@ abstract class Rpc {
   abstract getBalances(stealthAddress: HexString): Promise<RpcBalances>;
 
   abstract getBalance(stealthAddress: HexString, symbol: string): Promise<RpcBalance>;
-
-  abstract sendToAddress(
-    _curvyAddress: CurvyAddress,
-    privateKey: HexString,
-    address: string,
-    amount: bigint,
-    currencyAddress: string,
-    fee?: StarknetFeeEstimate | bigint,
-  ): Promise<RpcCallReturnType>;
-
-  abstract estimateTransactionFee(
-    _curvyAddress: CurvyAddress,
-    privateKey: HexString,
-    address: string,
-    amount: bigint,
-    currencyAddress: string,
-  ): Promise<bigint | StarknetFeeEstimate>;
-
-  abstract feeToAmount(feeEstimate: StarknetFeeEstimate | bigint): bigint;
 }
 
 export { Rpc };

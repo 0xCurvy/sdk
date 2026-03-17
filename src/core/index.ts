@@ -2,8 +2,7 @@ import "./wasm-exec.js";
 
 import { buildEddsa, type Eddsa } from "circomlibjs";
 import { groth16 } from "snarkjs";
-import type { ICore } from "@/interfaces/core";
-import type { RawAnnouncement } from "@/types/api";
+import type { ICore, RawAnnouncement } from "@/interfaces/core";
 import type {
   CoreLegacyKeyPairs,
   CoreScanArgs,

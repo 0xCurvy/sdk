@@ -1,6 +1,5 @@
 // BARREL FILE FOR TYPE EXPORTS
 
-export * from "./address";
 export * from "./aggregator";
 export * from "./api";
 export * from "./core";

@@ -1,6 +1,6 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import { RawAnnouncement } from "@/interfaces/core";
 import type { Plan, PlanExecution } from "@/planner/type";
-import type { RawAnnouncement } from "@/types/api";
 import type { ExtractValues } from "@/types/helper";
 
 export const CURVY_EVENT_TYPES = {

@@ -1,12 +1,10 @@
-import { type Address, createPublicClient, createWalletClient, encodeFunctionData, erc20Abi, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { type Address, createPublicClient, createWalletClient, erc20Abi, http } from "viem";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { Rpc } from "@/rpc/abstract";
 import type { RpcBalance, RpcBalances } from "@/types";
-import type { CurvyAddress } from "@/types/address";
-import type { Network } from "@/types/api";
+import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { toSlug } from "@/utils/helpers";
 import {
@@ -15,6 +13,18 @@ import {
   extendClientFromNetwork,
   generateViemChainFromNetwork,
 } from "@/utils/rpc";
+
+type MulticallResult =
+  | {
+      error: Error;
+      result?: undefined;
+      status: "failure";
+    }
+  | {
+      error?: undefined;
+      result: bigint;
+      status: "success";
+    };
 
 class EvmRpc extends Rpc {
   readonly #publicClient: CurvyPublicClient;
@@ -46,76 +56,76 @@ class EvmRpc extends Rpc {
     return this.#walletClient;
   }
 
-  async getBalances(stealthAddress: HexString) {
-    const calls = this.network.currencies.map(({ nativeCurrency, contractAddress }) => {
-      if (nativeCurrency) {
+  async getBalances(address: HexString): Promise<RpcBalances> {
+    const calls = this.network.currencies.map((currency: Currency) => {
+      if (currency.nativeCurrency) {
         return {
           address: this.network.multiCallContractAddress as Address,
           abi: evmMulticall3Abi,
           functionName: "getEthBalance",
-          args: [stealthAddress as Address],
+          args: [address as Address],
         };
       }
 
       return {
-        address: contractAddress as Address,
+        address: currency.contractAddress as Address,
         abi: erc20Abi,
         functionName: "balanceOf",
-        args: [stealthAddress as Address],
+        args: [address as Address],
       };
     });
 
-    const tokenBalances = await this.#publicClient.multicall({ contracts: calls, allowFailure: true });
+    const tokenBalances = (await this.#publicClient.multicall({
+      contracts: calls,
+      allowFailure: true,
+    })) as MulticallResult[];
 
     const networkSlug = toSlug(this.network.name);
 
-    return tokenBalances
-      .map((tokenBalance, idx) => {
-        const { contractAddress: currencyAddress, symbol, decimals, vaultTokenId, id } = this.network.currencies[idx];
+    return tokenBalances.reduce<RpcBalances>((acc, tokenBalance, idx) => {
+      const currency = this.network.currencies[idx];
+      if (tokenBalance.status === "failure") {
+        console.log(`Couldn't get balance for token ${currency.contractAddress}: `, tokenBalance.error);
+        return acc;
+      }
 
-        if (tokenBalance.error) {
-          console.log(`Couldn't get balance for token ${currencyAddress}: `, tokenBalance.error);
-          return null;
-        }
+      const rpcBalance: RpcBalance = {
+        id: currency.id,
+        balance: tokenBalance.result,
+        currencyAddress: currency.contractAddress as HexString,
+        vaultTokenId: currency.vaultTokenId ? BigInt(currency.vaultTokenId) : null,
+        symbol: currency.symbol,
+        decimals: currency.decimals,
+        environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
+      };
 
-        return tokenBalance.result
-          ? {
-              id,
-              balance: BigInt(tokenBalance.result),
-              currencyAddress: currencyAddress as HexString,
-              vaultTokenId: vaultTokenId ? BigInt(vaultTokenId) : null,
-              symbol,
-              decimals,
-              environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
-            }
-          : null;
-      })
-      .filter(Boolean)
-      .reduce<RpcBalances>((res, rpcBalance) => {
-        if (!res[networkSlug]) res[networkSlug] = Object.create(null);
-        res[networkSlug]![rpcBalance.currencyAddress] = rpcBalance;
-        return res;
-      }, Object.create(null));
+      if (!acc[networkSlug]) {
+        acc[networkSlug] = {};
+      }
+      acc[networkSlug]![rpcBalance.currencyAddress] = rpcBalance;
+
+      return acc;
+    }, {});
   }
 
-  async getBalance(stealthAddress: HexString, symbol: string) {
-    const token = this.network.currencies.find((c) => c.symbol === symbol);
+  async getBalance(address: HexString, symbol: string): Promise<RpcBalance> {
+    const token = this.network.currencies.find((c: Currency) => c.symbol === symbol);
     if (!token) throw new Error(`Token ${symbol} not found.`);
 
-    const { contractAddress: currencyAddress, nativeCurrency, decimals, vaultTokenId, id } = token;
+    const { contractAddress: currencyAddress, nativeCurrency, decimals, vaultTokenId, id }: Currency = token;
 
     let balance: bigint;
 
     if (nativeCurrency) {
       balance = await getBalance(this.#publicClient, {
-        address: stealthAddress as Address,
+        address: address as Address,
       });
     } else {
       balance = await readContract(this.#publicClient, {
         address: currencyAddress as Address,
         abi: erc20Abi,
         functionName: "balanceOf",
-        args: [stealthAddress as Address],
+        args: [address as Address],
       });
     }
 
@@ -128,97 +138,6 @@ class EvmRpc extends Rpc {
       decimals,
       environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
     } satisfies RpcBalance;
-  }
-
-  async #prepareTx(privateKey: HexString, address: Address, amount: bigint, currencyAddress: HexString) {
-    const currency = this.network.currencies.find((c) => c.contractAddress === currencyAddress);
-    if (!currency) throw new Error(`Currency ${currencyAddress} not found.`);
-
-    const account = privateKeyToAccount(privateKey);
-
-    if (currency.nativeCurrency) {
-      const gasLimit = await this.#publicClient
-        .estimateGas({
-          account,
-          to: address,
-          value: amount,
-        })
-        .then((res) => res)
-        .catch(() => 21_000n);
-
-      return this.#walletClient.prepareTransactionRequest({
-        account,
-        to: address,
-        value: amount,
-        gas: gasLimit,
-      });
-    }
-
-    const data = encodeFunctionData({
-      abi: erc20Abi,
-      functionName: "transfer",
-      args: [address, amount],
-    });
-
-    const gasLimit = await this.#publicClient
-      .estimateContractGas({
-        account,
-        address: currencyAddress,
-        abi: erc20Abi,
-        functionName: "transfer",
-        args: [address, amount],
-      })
-      .then((res) => res)
-      .catch(() => 65_000n);
-
-    return this.#walletClient.prepareTransactionRequest({
-      account,
-      to: currencyAddress,
-      gas: gasLimit,
-      data,
-      value: 0n,
-    });
-  }
-
-  async sendToAddress(
-    _curvyAddress: CurvyAddress,
-    privateKey: HexString,
-    address: string,
-    amount: bigint,
-    currencyAddress: HexString,
-    _fee?: bigint,
-  ) {
-    const txRequest = await this.#prepareTx(privateKey, address as `0x${string}`, amount, currencyAddress);
-    const serializedTransaction = await this.#walletClient.signTransaction(txRequest);
-
-    const hash = await this.#walletClient.sendRawTransaction({ serializedTransaction });
-
-    const receipt = await this.provider.waitForTransactionReceipt({
-      hash,
-    });
-
-    const txExplorerUrl = `${this.network.blockExplorerUrl}/tx/${hash}`;
-
-    return {
-      txHash: hash,
-      txExplorerUrl,
-      receipt,
-    };
-  }
-
-  async estimateTransactionFee(
-    _curvyAddress: CurvyAddress,
-    privateKey: HexString,
-    address: Address,
-    amount: bigint,
-    currencyAddress: HexString,
-  ) {
-    const txRequest = await this.#prepareTx(privateKey, address, amount, currencyAddress);
-    return txRequest ? txRequest.maxFeePerGas * txRequest.gas : 0n;
-  }
-
-  feeToAmount(feeEstimate: bigint): bigint {
-    return feeEstimate;
   }
 }
 

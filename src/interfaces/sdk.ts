@@ -6,16 +6,7 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { EstimatedPlan, Intent, IntentEstimation, PlanExecution } from "@/planner/type";
 import type { MultiRpc } from "@/rpc/multi";
-import type {
-  BalanceEntry,
-  CurvyId,
-  EvmSignatureData,
-  ExtendedAnnouncement,
-  GetStealthAddressReturnType,
-  RefreshOptions,
-  StarknetSignatureData,
-  TotalBalance,
-} from "@/types";
+import type { BalanceEntry, CurvyId, EvmSignatureData, RefreshOptions, TotalBalance } from "@/types";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { NetworkFilter } from "@/utils/network";
@@ -45,12 +36,8 @@ interface ICurvySDK {
     networkSlug: string,
   ): Promise<BalanceEntry[]>;
 
-  login(signature: EvmSignatureData | StarknetSignatureData, flavour?: NETWORK_FLAVOUR_VALUES): Promise<CurvyWallet>;
-  register(
-    handle: CurvyId,
-    signature: EvmSignatureData | StarknetSignatureData,
-    flavour?: NETWORK_FLAVOUR_VALUES,
-  ): Promise<CurvyWallet>;
+  login(signature: EvmSignatureData, flavour?: NETWORK_FLAVOUR_VALUES): Promise<CurvyWallet>;
+  register(handle: CurvyId, signature: EvmSignatureData, flavour?: NETWORK_FLAVOUR_VALUES): Promise<CurvyWallet>;
 
   getNetwork(networkFilter?: NetworkFilter): Network;
   getNetworks(networkFilter?: NetworkFilter): Network[];
@@ -68,18 +55,6 @@ interface ICurvySDK {
     exitCurrencyId?: number;
     coinType?: string;
   }): Promise<HexString>;
-
-  generateNewStealthAddressForUser(
-    networkIdentifier: NetworkFilter,
-    handle: string,
-  ): Promise<GetStealthAddressReturnType>;
-  generateAndRegisterNewStealthAddressForUser(
-    networkIdentifier: NetworkFilter,
-    handle: string,
-  ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
-  registerStealthAddressForUser(
-    stealthAddressData: GetStealthAddressReturnType,
-  ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
 
   refreshBalances(options: RefreshOptions): Promise<void>;
 

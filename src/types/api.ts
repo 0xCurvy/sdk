@@ -13,21 +13,6 @@ import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import type { PublicNote } from "@/types/note";
 
-type _Announcement = {
-  createdAt: string;
-  id: string;
-  networkFlavour: NETWORK_FLAVOUR_VALUES;
-  viewTag: string;
-};
-
-type RawAnnouncement = _Announcement & {
-  ephemeralPublicKey: string;
-};
-
-type ExtendedAnnouncement = RawAnnouncement & {
-  publicKey: string;
-};
-
 type Currency = {
   id: number;
   name: string;
@@ -77,55 +62,6 @@ type Network = {
 // API Client Types
 //
 //////////////////////////////////////////////////////////////////////////////
-
-//#region Announcement
-type CreateAnnouncementRequestBody = {
-  ephemeralPublicKey: string;
-  network_id: number;
-  recipientStealthAddress: string;
-  recipientStealthPublicKey: string;
-  viewTag: string;
-};
-type CreateAnnouncementReturnType = {
-  data?: {
-    id: string;
-    message: string;
-  };
-  error?: string | null;
-};
-
-type GetAnnouncementsResponse = {
-  data: { announcements: Array<RawAnnouncement>; total: number };
-  error: string | null;
-};
-type GetAnnouncementsReturnType = {
-  announcements: Array<RawAnnouncement>;
-  total: number;
-};
-
-type UpdateAnnouncementEncryptedMessageRequestBody = {
-  encryptedMessage: string;
-  encryptedMessageSenderPublicKey: string;
-};
-type UpdateAnnouncementEncryptedMessageReturnType = {
-  data?: {
-    encryptedMessage: string;
-    encryptedMessageSenderPublicKey: string;
-  };
-  error?: string | null;
-};
-
-type GetAnnouncementEncryptedMessageReturnType = {
-  data?: {
-    encryptedMessage: string | null;
-    encryptedMessageSenderPublicKey: string | null;
-  };
-  error?: string | null;
-};
-
-//#endregion
-
-//#region Network
 
 type NetworksWithCurrenciesResponse = {
   data: Array<Network>;
@@ -245,15 +181,6 @@ type InsertPortalReturnType = {
 //#endregion
 
 export type {
-  CreateAnnouncementRequestBody,
-  CreateAnnouncementReturnType,
-  GetAnnouncementsResponse,
-  GetAnnouncementsReturnType,
-  RawAnnouncement,
-  ExtendedAnnouncement,
-  UpdateAnnouncementEncryptedMessageRequestBody,
-  UpdateAnnouncementEncryptedMessageReturnType,
-  GetAnnouncementEncryptedMessageReturnType,
   Network,
   Currency,
   NetworksWithCurrenciesResponse,

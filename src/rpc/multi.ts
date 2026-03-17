@@ -1,7 +1,7 @@
 import { normalize } from "viem/ens";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { EvmRpc } from "@/rpc/evm";
-import { type CurvyAddress, type CurvyId, type HexString, isHexString, type RpcBalances } from "@/types";
+import { type CurvyId, type HexString, isHexString, type RpcBalances } from "@/types";
 import type { AbortOptions } from "@/types/helper";
 import type { CurvyPublicClient } from "@/utils";
 import { toSlug } from "@/utils/helpers";
@@ -16,18 +16,16 @@ class MultiRpc {
   }
 
   async getBalances(
-    stealthAddress: HexString | CurvyAddress,
+    stealthAddress: HexString,
     networks?: string[],
     { signal: _ }: AbortOptions = {},
   ): Promise<RpcBalances> {
     const rpcs = this.#rpcArray.filter(
       (rpc) =>
-        (isHexString(stealthAddress) || rpc.network.flavour === stealthAddress.networkFlavour) &&
+        isHexString(stealthAddress) &&
         (!networks || networks.length === 0 || networks.includes(toSlug(rpc.network.name))),
     );
-    return Promise.all(
-      rpcs.map((rpc) => rpc.getBalances(isHexString(stealthAddress) ? stealthAddress : stealthAddress.address)),
-    ).then((results) => {
+    return Promise.all(rpcs.map((rpc) => rpc.getBalances(stealthAddress))).then((results) => {
       return Object.assign(Object.create(null), ...results);
     });
   }
