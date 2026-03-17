@@ -4,6 +4,7 @@ import type { ICore } from "@/interfaces/core";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
+import type { EstimatedPlan, Intent, IntentEstimation, PlanExecution } from "@/planner/type";
 import type { MultiRpc } from "@/rpc/multi";
 import type {
   CurvyId,
@@ -32,6 +33,9 @@ interface ICurvySDK {
   on: ICurvyEventEmitter["on"];
   off: ICurvyEventEmitter["off"];
 
+  estimate(intent: Intent): Promise<IntentEstimation>;
+  execute(plan: EstimatedPlan): Promise<PlanExecution>;
+
   login(
     flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
@@ -50,7 +54,7 @@ interface ICurvySDK {
 
   ensResolveCurvyId(handle: CurvyId, slip0044?: bigint): Promise<HexString>;
 
-  generateEntryPortal(args: { curvyId: CurvyId; coinType?: string }): Promise<HexString>;
+  generateEntryPortal(args: { curvyId: CurvyId; coinType?: string; currencyId?: number }): Promise<HexString>;
 
   generateExitPortal(args: {
     curvyId: CurvyId;

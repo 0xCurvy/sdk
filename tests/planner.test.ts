@@ -2,9 +2,9 @@
 
 import { expect } from "vitest";
 import { NETWORK_FLAVOUR, NETWORK_GROUP } from "@/constants/networks";
-import type { CurvyIntent } from "@/planner/plan";
+import type { Intent } from "@/planner/plan";
 import { generatePlan } from "@/planner/planner";
-import type { Currency, VaultBalanceEntry, Network, NoteBalanceEntry, SaBalanceEntry } from "@/types";
+import type { Currency, Network, NoteBalanceEntry, SaBalanceEntry, VaultBalanceEntry } from "@/types";
 
 const mockCurrency: Currency = {
   id: 0,
@@ -113,7 +113,7 @@ const generateMockNoteBalances = (...balances: bigint[]): NoteBalanceEntry[] => 
   });
 };
 
-const generateMockIntent = (amount: bigint, maxInputs: number, sendToCurvyName = false): CurvyIntent => {
+const generateMockIntent = (amount: bigint, maxInputs: number, sendToCurvyName = false): Intent => {
   const network = mockNetwork;
   network.aggregationCircuitConfig.maxInputs = maxInputs;
 
@@ -127,7 +127,7 @@ const generateMockIntent = (amount: bigint, maxInputs: number, sendToCurvyName =
 
 test("test for more than N aggregations", () => {
   const maxInputs = 2;
-  const intent: CurvyIntent = generateMockIntent(20n, maxInputs);
+  const intent: Intent = generateMockIntent(20n, maxInputs);
   const balances = generateMockNoteBalances(...Array(19).fill(1n), 2n);
 
   const { plan } = generatePlan(balances, intent) as any;
@@ -154,7 +154,7 @@ test("test for more than N aggregations", () => {
 
 test("should aggregate with one vault balance", () => {
   const maxInputs = 2;
-  const intent: CurvyIntent = generateMockIntent(1000000000000000000n, maxInputs);
+  const intent: Intent = generateMockIntent(1000000000000000000n, maxInputs);
   const balances = generateMockVaultBalances(9999944316399554532n);
 
   const { plan } = generatePlan(balances, intent);
@@ -177,7 +177,7 @@ test("should aggregate with one vault balance", () => {
 
 test("shouldn't do unnecessary aggregation when aggregating 3 notes", () => {
   const maxInputs = 2;
-  const intent: CurvyIntent = generateMockIntent(3n, maxInputs, true);
+  const intent: Intent = generateMockIntent(3n, maxInputs, true);
   const balances = generateMockNoteBalances(1n, 1n, 1n);
 
   const { plan } = generatePlan(balances, intent);
@@ -188,7 +188,7 @@ test("shouldn't do unnecessary aggregation when aggregating 3 notes", () => {
 
 test("should aggregate to curvy name from sa", () => {
   const maxInputs = 2;
-  const intent: CurvyIntent = generateMockIntent(3n, maxInputs, true);
+  const intent: Intent = generateMockIntent(3n, maxInputs, true);
   const balances = generateMockSABalances(10n);
 
   const { plan } = generatePlan(balances, intent);

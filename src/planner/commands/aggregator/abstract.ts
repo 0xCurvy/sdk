@@ -1,6 +1,6 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
-import { CurvyCommand, type CurvyCommandEstimate } from "@/planner/commands/abstract";
-import type { CurvyCommandData } from "@/planner/plan";
+import { type CommandEstimate, CurvyCommand } from "@/planner/commands/abstract";
+import type { CommandData } from "@/planner/type";
 import type { Note, NoteBalanceEntry } from "@/types";
 import type { DeepNonNullable } from "@/types/helper";
 import { balanceEntryToNote } from "@/utils";
@@ -10,7 +10,7 @@ export abstract class AbstractAggregatorCommand extends CurvyCommand {
   protected readonly inputNotes: Note[];
   protected readonly inputNotesSum: bigint;
 
-  constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+  constructor(id: string, sdk: ICurvySDK, input: CommandData, estimate?: CommandEstimate) {
     if (Array.isArray(input)) {
       const allAreNotes = input.every((addr) => addr.type === "note");
       if (!allAreNotes) {

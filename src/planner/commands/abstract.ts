@@ -1,8 +1,8 @@
 import type { ICurvySDK } from "@/interfaces/sdk";
 import { type CurvyId, type CurvyPublicKeys, type HexString, isValidCurvyId, type Network } from "@/types";
-import type { CurvyCommandData } from "../plan";
+import type { CommandData } from "../type";
 
-export interface CurvyCommandEstimate {
+export interface CommandEstimate {
   curvyFeeInCurrency: bigint;
   gasFeeInCurrency: bigint;
   bridgeFeeInCurrency?: bigint;
@@ -11,15 +11,15 @@ export interface CurvyCommandEstimate {
 
 export abstract class CurvyCommand {
   protected sdk: ICurvySDK;
-  protected readonly input: CurvyCommandData;
+  protected readonly input: CommandData;
   protected readonly senderCurvyId: CurvyId | null;
   protected readonly network: Network;
 
-  public estimate?: CurvyCommandEstimate;
+  public estimate?: CommandEstimate;
 
   readonly id: string;
 
-  protected constructor(id: string, sdk: ICurvySDK, input: CurvyCommandData, estimate?: CurvyCommandEstimate) {
+  protected constructor(id: string, sdk: ICurvySDK, input: CommandData, estimate?: CommandEstimate) {
     this.id = id;
     this.sdk = sdk;
     this.input = input;
@@ -36,10 +36,10 @@ export abstract class CurvyCommand {
   abstract get recipient(): HexString | CurvyId | CurvyPublicKeys;
   abstract get name(): string;
 
-  abstract estimateFees(): Promise<CurvyCommandEstimate>;
-  abstract getResultingBalanceEntry(executionData?: unknown): Promise<CurvyCommandData | undefined>;
+  abstract estimateFees(): Promise<CommandEstimate>;
+  abstract getResultingBalanceEntry(executionData?: unknown): Promise<CommandData | undefined>;
 
-  abstract execute(): Promise<CurvyCommandData | undefined>;
+  abstract execute(): Promise<CommandData | undefined>;
 
   abstract get grossAmount(): bigint;
   get netAmount(): bigint {

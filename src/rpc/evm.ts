@@ -1,5 +1,4 @@
 import { type Address, createPublicClient, createWalletClient, encodeFunctionData, erc20Abi, http } from "viem";
-import type { SignTransactionRequest } from "viem/_types/actions/wallet/signTransaction";
 import { privateKeyToAccount } from "viem/accounts";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
@@ -220,20 +219,6 @@ class EvmRpc extends Rpc {
 
   feeToAmount(feeEstimate: bigint): bigint {
     return feeEstimate;
-  }
-
-  async signRawTransaction(privateKey: HexString, txRequest: SignTransactionRequest) {
-    return this.#walletClient.signTransaction({
-      account: privateKeyToAccount(privateKey),
-      ...txRequest,
-    });
-  }
-
-  async signMessage(privateKey: HexString, typedData: any) {
-    return this.#walletClient.signTypedData({
-      account: privateKeyToAccount,
-      ...typedData,
-    });
   }
 }
 

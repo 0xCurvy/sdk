@@ -18,7 +18,7 @@ class MultiRpc {
   async getBalances(
     stealthAddress: HexString | CurvyAddress,
     networks?: string[],
-    { signal }: AbortOptions = {},
+    { signal: _ }: AbortOptions = {},
   ): Promise<RpcBalances> {
     const rpcs = this.#rpcArray.filter(
       (rpc) =>

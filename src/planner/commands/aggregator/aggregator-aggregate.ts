@@ -1,21 +1,14 @@
-import {
-  type AggregationRequest,
-  type CurvyCommandData,
-  type CurvyIntent,
-  generateAggregationHash,
-  type HexString,
-  type InputNote,
-  isValidCurvyId,
-  noteToBalanceEntry,
-  type OutputNote,
-} from "@/exports";
 import type { ICurvySDK } from "@/interfaces/sdk";
-import type { CurvyCommandEstimate } from "@/planner/commands/abstract";
+import type { CommandEstimate } from "@/planner/commands/abstract";
 import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
-import { Note } from "@/types/note";
+import type { CommandData, Intent } from "@/planner/type";
+import { type AggregationRequest, type HexString, isValidCurvyId } from "@/types";
+import { type InputNote, Note, type OutputNote } from "@/types/note";
+import { noteToBalanceEntry } from "@/utils";
+import { generateAggregationHash } from "@/utils/aggregator";
 import { pollForCriteria } from "@/utils/helpers";
 
-interface CurvyCommandEstimateWithNote extends CurvyCommandEstimate {
+interface CurvyCommandEstimateWithNote extends CommandEstimate {
   note: Note;
 }
 
@@ -24,15 +17,9 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
 
   // If intent is not provided, it means that we are aggregating funds from multiple notes
   // to meet the requirements of main aggregation
-  readonly #intent: CurvyIntent | undefined;
+  readonly #intent: Intent | undefined;
 
-  constructor(
-    id: string,
-    sdk: ICurvySDK,
-    input: CurvyCommandData,
-    intent?: CurvyIntent,
-    estimate?: CurvyCommandEstimate,
-  ) {
+  constructor(id: string, sdk: ICurvySDK, input: CommandData, intent?: Intent, estimate?: CommandEstimate) {
     super(id, sdk, input, estimate);
     this.#intent = intent;
   }
@@ -79,7 +66,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     const rawSignature = await this.sdk.walletManager.signMessageWithBabyJubjub(msgHash);
     const signature = {
       S: BigInt(rawSignature.S),
-      R8: rawSignature.R8.map((r) => BigInt(r)),
+      R8: rawSignature.R8.map((r: any) => BigInt(r)),
     };
 
     return {
@@ -114,7 +101,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     return this.estimate;
   }
 
-  async getResultingBalanceEntry(): Promise<CurvyCommandData> {
+  async getResultingBalanceEntry(): Promise<CommandData> {
     const { symbol, walletId, environment, networkSlug, decimals, currencyAddress } = this.input[0];
 
     return noteToBalanceEntry(this.estimate.note, {
@@ -127,7 +114,7 @@ export class AggregatorAggregateCommand extends AbstractAggregatorCommand {
     });
   }
 
-  async execute(): Promise<CurvyCommandData | undefined> {
+  async execute(): Promise<CommandData | undefined> {
     const token = this.input[0].vaultTokenId;
 
     let changeOrDummyOutputNote: Note;

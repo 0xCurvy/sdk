@@ -69,7 +69,7 @@ interface IWalletManager {
 
   getWalletById(id: string): Readonly<CurvyWallet | undefined>;
 
-  addWallet(wallet: CurvyWallet, skipBearerTokenUpdate?: boolean, skipScan?: boolean): Promise<void>;
+  addWallet(wallet: CurvyWallet, skipBearerTokenUpdate?: boolean): Promise<void>;
   removeWallet(walletId: string): Promise<void>;
 
   scanWallet(wallet: CurvyWallet): Promise<void>;

@@ -1,8 +1,7 @@
 import { expect, test } from "vitest";
-import type { CurvyIntent } from "@/planner/plan";
-import { generatePlan } from "@/planner/planner";
+import type { Intent } from "@/planner/type";
 import { CurvySDK } from "@/sdk";
-import { type BalanceEntry, CURVY_EVENT_TYPES, type Currency, type Network } from "@/types";
+import { CURVY_EVENT_TYPES, type Currency, type Network } from "@/types";
 import { parseDecimal } from "@/utils";
 
 const LocalnetGeneratedValues = {
@@ -19,17 +18,13 @@ const LocalnetGeneratedValues = {
 };
 
 let curvySDK: CurvySDK;
-let activeWalletId: string;
 let network: Network;
 let currency: Currency;
-let balances: BalanceEntry[];
 
-const doPlan = async (intent: CurvyIntent): Promise<boolean> => {
-  const { plan } = generatePlan(balances, intent);
+const doPlan = async (intent: Intent): Promise<boolean> => {
+  const estimation = await curvySDK.estimate(intent);
 
-  const estimation = await curvySDK.estimatePlan(plan);
-
-  const result = await curvySDK.executePlan(estimation.plan);
+  const result = await curvySDK.execute(estimation.plan);
 
   return result.success;
 };
@@ -43,8 +38,6 @@ async function setup() {
   await curvySDK.walletManager.addWalletWithSignature("evm", JSON.parse(decodeURIComponent(signature)));
 
   expect(curvySDK.walletManager.wallets).toHaveLength(1);
-
-  activeWalletId = curvySDK.walletManager.activeWallet.id;
 
   let syncComplete = false;
   curvySDK.on(CURVY_EVENT_TYPES.SYNC_COMPLETE, async (event) => {
@@ -85,12 +78,6 @@ async function setup() {
   if (!currency) {
     console.log("Currency not found");
   }
-
-  balances = await curvySDK.storage.getBalanceSources(
-    activeWalletId,
-    currency!.contractAddress,
-    network!.name.replace(" ", "-").toLowerCase(),
-  );
 }
 
 test("Inclusion proof bug", async () => {
@@ -99,7 +86,7 @@ test("Inclusion proof bug", async () => {
   const to = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
   const amount1 = parseDecimal("330", currency!);
 
-  const intent1: CurvyIntent = {
+  const intent1: Intent = {
     recipient: to,
     amount: amount1,
     currency: currency!,
@@ -119,7 +106,7 @@ test("Inclusion proof bug", async () => {
 
   const amount2 = parseDecimal("700", currency!);
 
-  const intent2: CurvyIntent = {
+  const intent2: Intent = {
     recipient: to,
     amount: amount2,
     currency: currency!,
@@ -136,7 +123,7 @@ test("Vault withdraw bug", async () => {
   const to = "0x6718a78b04FA537c58EbF88fE17A84248eD64542";
   const amount1 = parseDecimal("10", currency!);
 
-  const intent1: CurvyIntent = {
+  const intent1: Intent = {
     recipient: to,
     amount: amount1,
     currency: currency!,

@@ -4,29 +4,31 @@
   "version": "0.0.6",
   "repository": "https://github.com/0xCurvy/curvy-sdk",
   "type": "module",
-  "main": "dist/esm/index.js",
-  "types": "./dist/types/index.d.ts",
-  "typings": "./dist/types/index.d.ts",
+  "main": "./dist/_esm/index.js",
+  "module": "./dist/_esm/index.js",
+  "types": "./dist/_types/index.d.ts",
+  "typings": "./dist/_types/index.d.ts",
   "description": "A TypeScript/JavaScript SDK for interacting with the Curvy platform.",
   "publishConfig": {
     "access": "public"
   },
   "files": [
     "dist",
+    "src",
     "README.md",
     "LICENSE"
   ],
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/esm/index.js",
-      "default": "./dist/esm/index.js"
+      "types": "./dist/_types/index.d.ts",
+      "import": "./dist/_esm/index.js",
+      "default": "./dist/_esm/index.js"
     }
   },
   "scripts": {
     "build": "tsup",
     "watch": "tsup",
-    "build:example": "tsup src/exports/index.ts --format esm --dts --dts-resolve --clean --out-dir example/curvy-os/dist --platform browser --target es2022",
+    "build:example": "tsup src/index.ts --format esm --dts --dts-resolve --clean --out-dir example/curvy-os/dist --platform browser --target es2022",
     "clean": "rimraf dist .turbo",
     "check": "biome check --write src",
     "format": "biome format --write src",
