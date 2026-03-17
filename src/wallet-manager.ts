@@ -1,19 +1,14 @@
 import dayjs from "dayjs";
-import { ec, validateAndParseAddress } from "starknet";
 import { parseSignature, verifyTypedData } from "viem";
 import { JWT_REFRESH_INTERVAL } from "@/constants/intervals";
-import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import { CURVY_ID_REGEX } from "@/constants/regex";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
-import type { StarknetRpc } from "@/rpc";
-import type { MultiRpc } from "@/rpc/multi";
 import {
   type AdditionalWalletData,
   assertCurvyId,
-  assertIsStarkentSignatureData,
   type CurvyId,
   type CurvyKeyPairs,
   type CurvyPrivateKeys,
@@ -21,7 +16,6 @@ import {
   type EvmSignTypedDataParameters,
   type HexString,
   isHexString,
-  isStarkentSignature,
   type Signature,
   type StarknetSignatureData,
   type StringifyBigInts,
@@ -34,7 +28,6 @@ import { CurvyWallet } from "@/wallet";
 
 class WalletManager implements IWalletManager {
   readonly #apiClient: IApiClient;
-  readonly #rpcClient: MultiRpc;
   readonly #storage: StorageInterface;
   readonly #core: ICore;
   readonly #wallets: Map<string, CurvyWallet>;
@@ -42,9 +35,8 @@ class WalletManager implements IWalletManager {
   #jwtRefreshInterval: NodeJS.Timeout | null;
   #activeWallet: Readonly<CurvyWallet> | null;
 
-  constructor(client: IApiClient, rpcClient: MultiRpc, storage: StorageInterface, core: ICore) {
+  constructor(client: IApiClient, storage: StorageInterface, core: ICore) {
     this.#apiClient = client;
-    this.#rpcClient = rpcClient;
     this.#wallets = new Map<string, CurvyWallet>();
     this.#storage = storage;
     this.#core = core;
@@ -65,97 +57,28 @@ class WalletManager implements IWalletManager {
     return Array.from(this.#wallets.values()).filter((wallet) => !wallet.isPartial);
   }
 
-  async #verifySignature(
-    flavour: NETWORK_FLAVOUR_VALUES,
-    signature: EvmSignatureData | StarknetSignatureData,
-  ): Promise<[r: string, s: string]> {
-    const { signatureParams, signingAddress, signatureResult } = signature;
-
-    switch (true) {
-      case NETWORK_FLAVOUR.EVM && isHexString(signatureResult): {
-        const signature = parseSignature(signatureResult);
-
-        const isValidSignature = verifyTypedData({
-          signature,
-          address: signingAddress,
-          ...(signatureParams as EvmSignTypedDataParameters),
-        });
-
-        if (!isValidSignature) {
-          throw new Error("Signature verification failed. Invalid signature.");
-        }
-
-        return [signature.r, signature.s];
-      }
-      case NETWORK_FLAVOUR.STARKNET && isStarkentSignature(signatureResult): {
-        assertIsStarkentSignatureData(signature);
-
-        const { signingWalletId, msgHash } = signature;
-
-        if (!signatureResult[0] || !signatureResult[1]) throw new Error("Signature failed - too few values.");
-
-        let r = "-1";
-        let s = "-1";
-        switch (signingWalletId) {
-          case "argentX": {
-            if (signatureResult.length === 2) {
-              [r, s] = signatureResult as [string, string];
-            }
-
-            if (signatureResult.length === 5) {
-              [r, s] = signatureResult.slice(3) as [string, string];
-            }
-            break;
-          }
-          case "braavos": {
-            if (signatureResult.length !== 3) {
-              throw new Error("Only braavos single signer account is supported.");
-            }
-
-            [r, s] = signatureResult.slice(1) as [string, string];
-            break;
-          }
-          default: {
-            throw new Error(`Unrecognized wallet type: ${signingWalletId}. Only argentX and braavos are supported.`);
-          }
-        }
-
-        if (r === "-1" || s === "-1") {
-          throw new Error("Signature verification failed - r or s is not defined.");
-        }
-
-        const signingPublicKey = await (
-          this.#rpcClient?.Network("Starknet") as StarknetRpc
-        ).getAccountPubKeyForSignatureVerification(signingWalletId, signingAddress);
-
-        const _msgHash = msgHash.replace("0x", "");
-        const paddedMsgHash = _msgHash.length % 2 === 0 ? _msgHash : `0${_msgHash}`;
-
-        let signatureIsValid = false;
-        for (let recoverBit = 0; recoverBit < 4; recoverBit++) {
-          try {
-            const signature = new ec.starkCurve.Signature(BigInt(r), BigInt(s)).addRecoveryBit(recoverBit);
-            const publicKeyCompressed = signature.recoverPublicKey(paddedMsgHash).toHex(true);
-            signatureIsValid = publicKeyCompressed.indexOf(signingPublicKey) !== -1;
-
-            if (signatureIsValid) {
-              break;
-            }
-          } catch (e) {
-            console.log("Error recovering public key", e, "recoverBit", recoverBit);
-          }
-        }
-
-        if (!signatureIsValid) {
-          throw new Error("Signature verification failed.");
-        }
-
-        return [r, s];
-      }
-      default: {
-        throw new Error(`Unrecognized network flavour: ${flavour}`);
-      }
+  async #verifySignature({
+    signatureParams,
+    signingAddress,
+    signatureResult,
+  }: EvmSignatureData): Promise<[r: string, s: string]> {
+    if (!isHexString(signatureResult)) {
+      throw new Error("Invalid signature result");
     }
+
+    const signature = parseSignature(signatureResult);
+
+    const isValidSignature = verifyTypedData({
+      signature,
+      address: signingAddress,
+      ...(signatureParams as EvmSignTypedDataParameters),
+    });
+
+    if (!isValidSignature) {
+      throw new Error("Signature verification failed. Invalid signature.");
+    }
+
+    return [signature.r, signature.s];
   }
 
   async #getUserDetails(userAddress: HexString) {
@@ -290,37 +213,24 @@ class WalletManager implements IWalletManager {
     return this.#registerAndAddWallet({ s, v }, handle, userAddress);
   }
 
-  async addWalletWithSignature(
-    signature: EvmSignatureData | StarknetSignatureData,
-    flavour: NETWORK_FLAVOUR_VALUES = NETWORK_FLAVOUR.EVM,
-  ) {
-    const [r_string, s_string] = await this.#verifySignature(flavour, signature);
+  async addWalletWithSignature(signature: EvmSignatureData | StarknetSignatureData) {
+    const [r_string, s_string] = await this.#verifySignature(signature);
     const { s, v } = computePrivateKeys(r_string, s_string);
     const keyPairs = await this.#core.getCurvyKeys(s, v);
 
-    const userAddress =
-      flavour === NETWORK_FLAVOUR.STARKNET
-        ? (validateAndParseAddress(signature.signingAddress) as HexString)
-        : signature.signingAddress;
+    const userAddress = signature.signingAddress;
 
     const { createdAt, curvyHandle } = await this.#preLoginChecks(keyPairs, userAddress);
 
     return this.#createAndAddWallet(curvyHandle, userAddress, createdAt, keyPairs);
   }
 
-  async registerWalletWithSignature(
-    handle: CurvyId,
-    signature: EvmSignatureData | StarknetSignatureData,
-    flavour: NETWORK_FLAVOUR_VALUES = NETWORK_FLAVOUR.EVM,
-  ) {
-    const userAddress =
-      flavour === NETWORK_FLAVOUR.STARKNET
-        ? (validateAndParseAddress(signature.signingAddress) as HexString)
-        : signature.signingAddress;
+  async registerWalletWithSignature(handle: CurvyId, signature: EvmSignatureData) {
+    const userAddress = signature.signingAddress;
 
     await this.#preRegistrationChecks(handle, userAddress);
 
-    const [r_string, s_string] = await this.#verifySignature(flavour, signature);
+    const [r_string, s_string] = await this.#verifySignature(signature);
     const { s, v } = computePrivateKeys(r_string, s_string);
 
     return this.#registerAndAddWallet({ s, v }, handle, userAddress);
