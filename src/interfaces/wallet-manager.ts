@@ -1,6 +1,5 @@
 import type { NETWORK_FLAVOUR, NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import type {
-  CurvyAddress,
   CurvyId,
   CurvyKeyPairs,
   EvmSignatureData,
@@ -28,39 +27,27 @@ interface IWalletManager {
   addWalletWithPasskey(prfValue: BufferSource, credId: ArrayBuffer): Promise<CurvyWallet>;
   registerWalletWithPasskey(handle: CurvyId, prfValue: BufferSource, credId: ArrayBuffer): Promise<CurvyWallet>;
 
+  addWalletWithSignature(signature: EvmSignatureData, flavour?: NETWORK_FLAVOUR["EVM"]): Promise<CurvyWallet>;
+  addWalletWithSignature(signature: StarknetSignatureData, flavour?: NETWORK_FLAVOUR["STARKNET"]): Promise<CurvyWallet>;
   addWalletWithSignature(
-    flavour: NETWORK_FLAVOUR["EVM"],
-    signature: EvmSignatureData,
-    password: string,
-  ): Promise<CurvyWallet>;
-  addWalletWithSignature(
-    flavour: NETWORK_FLAVOUR["STARKNET"],
-    signature: StarknetSignatureData,
-    password: string,
-  ): Promise<CurvyWallet>;
-  addWalletWithSignature(
-    flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
-    password: string,
+    flavour?: NETWORK_FLAVOUR_VALUES,
   ): Promise<CurvyWallet>;
 
   registerWalletWithSignature(
     handle: CurvyId,
-    flavour: NETWORK_FLAVOUR["EVM"],
     signature: EvmSignatureData,
-    password: string,
+    flavour?: NETWORK_FLAVOUR["EVM"],
   ): Promise<CurvyWallet>;
   registerWalletWithSignature(
     handle: CurvyId,
-    flavour: NETWORK_FLAVOUR["STARKNET"],
     signature: StarknetSignatureData,
-    password: string,
+    flavour?: NETWORK_FLAVOUR["STARKNET"],
   ): Promise<CurvyWallet>;
   registerWalletWithSignature(
     handle: CurvyId,
-    flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
-    password: string,
+    flavour?: NETWORK_FLAVOUR_VALUES,
   ): Promise<CurvyWallet>;
 
   hasWallet(id: string): boolean;
@@ -71,11 +58,6 @@ interface IWalletManager {
 
   addWallet(wallet: CurvyWallet, skipBearerTokenUpdate?: boolean): Promise<void>;
   removeWallet(walletId: string): Promise<void>;
-
-  scanWallet(wallet: CurvyWallet): Promise<void>;
-  rescanWallets(walletIds?: Array<string>): Promise<void>;
-
-  getAddressPrivateKey(address: CurvyAddress | HexString): Promise<HexString>;
 
   getBabyJubjubPublicKey(): Promise<string>;
   signMessageWithBabyJubjub(message: bigint): Promise<StringifyBigInts<Signature>>;

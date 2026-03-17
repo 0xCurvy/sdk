@@ -1,12 +1,5 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { ExtractValues, HexString } from "@/types/helper";
-
-const BALANCE_TYPE = {
-  SA: "sa",
-  NOTE: "note",
-} as const;
-type BALANCE_TYPE = typeof BALANCE_TYPE;
-type BALANCE_TYPE_VALUES = ExtractValues<BALANCE_TYPE>;
+import type { HexString } from "@/types/helper";
 
 type PriceData = {
   price: string;
@@ -25,7 +18,7 @@ type CurrencyMetadata = {
   environment: NETWORK_ENVIRONMENT_VALUES;
 };
 
-type BalanceEntryBase = {
+type GenericBalanceEntry = {
   walletId: string;
 
   networkSlug: string;
@@ -40,20 +33,10 @@ type BalanceEntryBase = {
   lastUpdated: number;
 };
 
-type SaBalanceEntry = BalanceEntryBase & {
-  source: HexString;
-  type: BALANCE_TYPE["SA"];
-  createdAt: string;
-};
-const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
-  return entry.type === BALANCE_TYPE.SA;
-};
-
-type NoteBalanceEntry = BalanceEntryBase & {
+type BalanceEntry = GenericBalanceEntry & {
   source: HexString;
   id: string;
 
-  type: BALANCE_TYPE["NOTE"];
   owner: {
     babyJubjubPublicKey: {
       x: string;
@@ -63,11 +46,6 @@ type NoteBalanceEntry = BalanceEntryBase & {
   };
   deliveryTag: { ephemeralKey: string; viewTag: string };
 };
-const isNoteBalanceEntry = (entry: BalanceEntry): entry is NoteBalanceEntry => {
-  return entry.type === BALANCE_TYPE.NOTE;
-};
-
-type BalanceEntry = SaBalanceEntry | NoteBalanceEntry;
 
 type TotalBalance = {
   walletId: string;
@@ -79,20 +57,4 @@ type TotalBalance = {
   lastUpdated: number;
 };
 
-type BalanceSourcesOptions = {
-  sortByTypeRanking: Record<BALANCE_TYPE_VALUES, number>;
-  sortByBalance?: "asc" | "desc";
-  fiatBalanceThreshold?: Partial<Record<BALANCE_TYPE_VALUES, number>>;
-};
-
-export type {
-  CurrencyMetadata,
-  PriceData,
-  BalanceEntry,
-  TotalBalance,
-  SaBalanceEntry,
-  NoteBalanceEntry,
-  BALANCE_TYPE_VALUES,
-  BalanceSourcesOptions,
-};
-export { isSaBalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };
+export type { CurrencyMetadata, PriceData, GenericBalanceEntry, BalanceEntry, TotalBalance };

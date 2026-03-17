@@ -1,8 +1,8 @@
 import dayjs from "dayjs";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import { BALANCE_TYPE, type HexString, Note, type NoteBalanceEntry } from "@/types";
+import { type BalanceEntry, type HexString, Note } from "@/types";
 
-function balanceEntryToNote({ balance, owner, deliveryTag, vaultTokenId }: NoteBalanceEntry): Note {
+function balanceEntryToNote({ balance, owner, deliveryTag, vaultTokenId }: BalanceEntry): Note {
   if (!vaultTokenId) {
     throw new Error("vaultTokenId is required to convert NoteBalanceEntry to Note");
   }
@@ -24,7 +24,7 @@ function noteToBalanceEntry(
     networkSlug: string;
     currencyAddress: HexString;
   },
-): NoteBalanceEntry {
+): BalanceEntry {
   if (!note.balance || !note.owner || !note.deliveryTag) {
     throw new Error("Note is not fully initialized");
   }
@@ -40,7 +40,6 @@ function noteToBalanceEntry(
     ...balanceEntryData,
     id: id.toString(),
     source: `0x${ownerHash.toString(16)}`,
-    type: BALANCE_TYPE.NOTE,
     vaultTokenId: token,
     balance: BigInt(amount),
     owner,

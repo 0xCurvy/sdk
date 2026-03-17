@@ -1,7 +1,7 @@
 import type { CommandEstimate } from "@/planner/commands/abstract.js";
 import type { CurvyId } from "@/types/curvy.js";
 import type { HexString } from "@/types/helper.js";
-import type { BalanceEntry, Currency, CurvyPublicKeys, Network } from "@/types/index.js";
+import type { BalanceEntry, Currency, CurvyPublicKeys, GenericBalanceEntry, Network } from "@/types/index.js";
 
 export type BaseIntent = {
   amount: bigint;
@@ -51,7 +51,7 @@ export type EstimatedCommand = DraftCommand & {
   estimate: CommandEstimate;
 };
 
-export type CommandData = BalanceEntry | BalanceEntry[];
+export type CommandData<T extends GenericBalanceEntry = BalanceEntry> = T | T[];
 
 // --- Plan node types ---
 

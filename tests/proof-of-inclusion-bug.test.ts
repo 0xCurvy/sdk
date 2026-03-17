@@ -59,7 +59,7 @@ async function setup() {
     balanceRefreshComplete = true;
   });
 
-  await curvySDK.refreshBalances({ scanAll: true });
+  await curvySDK.refreshBalances();
 
   while (!balanceRefreshComplete) {
     retries += 1;

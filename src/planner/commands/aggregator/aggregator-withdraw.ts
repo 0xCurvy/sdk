@@ -3,15 +3,7 @@ import type { ICurvySDK } from "@/interfaces/sdk";
 import type { CommandEstimate } from "@/planner/commands/abstract";
 import { AbstractAggregatorCommand } from "@/planner/commands/aggregator/abstract";
 import type { CommandData, Intent } from "@/planner/type";
-import {
-  BALANCE_TYPE,
-  type HexString,
-  type InputNote,
-  isHexString,
-  Note,
-  type SaBalanceEntry,
-  type WithdrawRequest,
-} from "@/types";
+import { type HexString, type InputNote, isHexString, Note, type WithdrawRequest } from "@/types";
 import { generateWithdrawalHash } from "@/utils/aggregator";
 import { pollForCriteria } from "@/utils/helpers";
 
@@ -144,9 +136,7 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
     }
 
     return {
-      type: BALANCE_TYPE.SA,
       walletId,
-      source: this.recipient,
       vaultTokenId: vaultTokenId,
       networkSlug,
       environment,
@@ -154,9 +144,8 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
       symbol,
       decimals,
       currencyAddress,
-      createdAt: Date.now().toString(),
       lastUpdated,
-    } satisfies SaBalanceEntry;
+    } as never;
   }
 
   async execute(): Promise<CommandData> {

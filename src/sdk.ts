@@ -4,6 +4,7 @@ import { PRICE_UPDATE_INTERVAL } from "@/constants/intervals";
 import {
   NETWORK_ENVIRONMENT,
   type NETWORK_ENVIRONMENT_VALUES,
+  NETWORK_FLAVOUR,
   type NETWORK_FLAVOUR_VALUES,
 } from "@/constants/networks";
 import { CurvyEventEmitter } from "@/events";
@@ -27,7 +28,6 @@ import type {
   RefreshOptions,
   StarknetSignatureData,
 } from "@/types";
-import type { CurvyAddress } from "@/types/address";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { Core } from "./core";
@@ -117,7 +117,7 @@ class CurvySDK implements ICurvySDK {
     await sdk.#priceUpdate(sdk.#networks);
     sdk.#startPriceIntervalUpdate();
 
-    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.#emitter, sdk.storage, sdk.#core);
+    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(
       sdk.rpcClient,
       sdk.#state.environment,
@@ -135,6 +135,32 @@ class CurvySDK implements ICurvySDK {
     );
 
     return sdk;
+  }
+
+  async getBalances(cached = true) {
+    if (!cached) {
+      await this.refreshBalances();
+    }
+
+    return this.storage.getBalances(this.walletManager.activeWallet.id, this.#state.environment);
+  }
+
+  async getTotals(cached = true) {
+    if (!cached) {
+      await this.refreshBalances();
+    }
+    return this.storage.getTotals(this.walletManager.activeWallet.id, this.#state.environment);
+  }
+
+  async getBalancesByCurrencyAndNetwork(cached = true, currencyAddress: HexString, networkSlug: string) {
+    if (!cached) {
+      await this.refreshBalances();
+    }
+    return this.storage.getBalancesByCurrencyAndNetwork(
+      this.walletManager.activeWallet.id,
+      currencyAddress,
+      networkSlug,
+    );
   }
 
   estimate = (intent: Intent) => {
@@ -163,17 +189,19 @@ class CurvySDK implements ICurvySDK {
     await this.storage.upsertPriceData(priceMap);
   }
 
-  async login(flavour: NETWORK_FLAVOUR_VALUES, signature: EvmSignatureData | StarknetSignatureData, password: string) {
-    return this.walletManager.addWalletWithSignature(flavour, signature, password);
+  async login(
+    signature: EvmSignatureData | StarknetSignatureData,
+    flavour: NETWORK_FLAVOUR_VALUES = NETWORK_FLAVOUR.EVM,
+  ) {
+    return this.walletManager.addWalletWithSignature(signature, flavour);
   }
 
   async register(
     handle: CurvyId,
-    flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
-    password: string,
+    flavour: NETWORK_FLAVOUR_VALUES = NETWORK_FLAVOUR.EVM,
   ) {
-    return this.walletManager.registerWalletWithSignature(handle, flavour, signature, password);
+    return this.walletManager.registerWalletWithSignature(handle, signature, flavour);
   }
 
   #startPriceIntervalUpdate({ runImmediately }: { runImmediately?: boolean } = { runImmediately: false }) {
@@ -336,17 +364,11 @@ class CurvySDK implements ICurvySDK {
     return this.#state.environment;
   }
 
-  async refreshAddressBalances(address: CurvyAddress) {
-    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
-
-    return this.#balanceScanner.scanAddressBalances(address);
-  }
-
-  async refreshBalances(options: RefreshOptions & { scanAll?: boolean; type?: "all" | "addresses" | "notes" } = {}) {
+  async refreshBalances(options: RefreshOptions = {}) {
     if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
 
     for (const wallet of this.walletManager.wallets) {
-      await this.#balanceScanner.scanWalletBalances(wallet.id, options);
+      await this.#balanceScanner.refreshWalletBalances(wallet.id, options);
     }
   }
 
@@ -356,7 +378,7 @@ class CurvySDK implements ICurvySDK {
     this.#startPriceIntervalUpdate({ runImmediately: true });
 
     for (const wallet of this.walletManager.wallets) {
-      await this.storage.storeCurvyWallet(wallet);
+      await this.storage.insertCurvyWallet(wallet);
     }
 
     await this.refreshBalances();

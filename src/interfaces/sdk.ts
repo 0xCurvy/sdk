@@ -7,14 +7,15 @@ import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { EstimatedPlan, Intent, IntentEstimation, PlanExecution } from "@/planner/type";
 import type { MultiRpc } from "@/rpc/multi";
 import type {
+  BalanceEntry,
   CurvyId,
   EvmSignatureData,
   ExtendedAnnouncement,
   GetStealthAddressReturnType,
   RefreshOptions,
   StarknetSignatureData,
+  TotalBalance,
 } from "@/types";
-import type { CurvyAddress } from "@/types/address";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { NetworkFilter } from "@/utils/network";
@@ -36,16 +37,19 @@ interface ICurvySDK {
   estimate(intent: Intent): Promise<IntentEstimation>;
   execute(plan: EstimatedPlan): Promise<PlanExecution>;
 
-  login(
-    flavour: NETWORK_FLAVOUR_VALUES,
-    signature: EvmSignatureData | StarknetSignatureData,
-    password: string,
-  ): Promise<CurvyWallet>;
+  getBalances(cached: boolean): Promise<BalanceEntry[]>;
+  getTotals(cached: boolean): Promise<TotalBalance[]>;
+  getBalancesByCurrencyAndNetwork(
+    cached: boolean,
+    currencyAddress: HexString,
+    networkSlug: string,
+  ): Promise<BalanceEntry[]>;
+
+  login(signature: EvmSignatureData | StarknetSignatureData, flavour?: NETWORK_FLAVOUR_VALUES): Promise<CurvyWallet>;
   register(
     handle: CurvyId,
-    flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
-    password: string,
+    flavour?: NETWORK_FLAVOUR_VALUES,
   ): Promise<CurvyWallet>;
 
   getNetwork(networkFilter?: NetworkFilter): Network;
@@ -77,8 +81,7 @@ interface ICurvySDK {
     stealthAddressData: GetStealthAddressReturnType,
   ): Promise<{ address: HexString; announcementData: ExtendedAnnouncement }>;
 
-  refreshAddressBalances(address: CurvyAddress): Promise<void>;
-  refreshBalances(options: RefreshOptions & { scanAll?: boolean; type: "addresses" | "notes" | "all" }): Promise<void>;
+  refreshBalances(options: RefreshOptions): Promise<void>;
 
   resetStorage(): Promise<void>;
 }

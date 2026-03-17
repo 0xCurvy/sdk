@@ -1,14 +1,11 @@
 import dayjs from "dayjs";
 import { ec, validateAndParseAddress } from "starknet";
 import { parseSignature, verifyTypedData } from "viem";
-import { AddressScanner } from "@/address-scanner";
 import { JWT_REFRESH_INTERVAL } from "@/constants/intervals";
 import { NETWORK_FLAVOUR, type NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import { CURVY_ID_REGEX } from "@/constants/regex";
-import type { IAddressScanner } from "@/interfaces/address-scanner";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
-import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { StarknetRpc } from "@/rpc";
@@ -17,7 +14,6 @@ import {
   type AdditionalWalletData,
   assertCurvyId,
   assertIsStarkentSignatureData,
-  type CurvyAddress,
   type CurvyId,
   type CurvyKeyPairs,
   type CurvyPrivateKeys,
@@ -42,24 +38,16 @@ class WalletManager implements IWalletManager {
   readonly #storage: StorageInterface;
   readonly #core: ICore;
   readonly #wallets: Map<string, CurvyWallet>;
-  readonly #addressScanner: IAddressScanner;
 
   #jwtRefreshInterval: NodeJS.Timeout | null;
   #activeWallet: Readonly<CurvyWallet> | null;
 
-  constructor(
-    client: IApiClient,
-    rpcClient: MultiRpc,
-    emitter: ICurvyEventEmitter,
-    storage: StorageInterface,
-    core: ICore,
-  ) {
+  constructor(client: IApiClient, rpcClient: MultiRpc, storage: StorageInterface, core: ICore) {
     this.#apiClient = client;
     this.#rpcClient = rpcClient;
     this.#wallets = new Map<string, CurvyWallet>();
     this.#storage = storage;
     this.#core = core;
-    this.#addressScanner = new AddressScanner(storage, core, client, emitter);
 
     this.#jwtRefreshInterval = null;
 
@@ -303,9 +291,8 @@ class WalletManager implements IWalletManager {
   }
 
   async addWalletWithSignature(
-    flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
-    password: string,
+    flavour: NETWORK_FLAVOUR_VALUES = NETWORK_FLAVOUR.EVM,
   ) {
     const [r_string, s_string] = await this.#verifySignature(flavour, signature);
     const { s, v } = computePrivateKeys(r_string, s_string);
@@ -318,14 +305,13 @@ class WalletManager implements IWalletManager {
 
     const { createdAt, curvyHandle } = await this.#preLoginChecks(keyPairs, userAddress);
 
-    return this.#createAndAddWallet(curvyHandle, userAddress, createdAt, keyPairs, { password });
+    return this.#createAndAddWallet(curvyHandle, userAddress, createdAt, keyPairs);
   }
 
   async registerWalletWithSignature(
     handle: CurvyId,
-    flavour: NETWORK_FLAVOUR_VALUES,
     signature: EvmSignatureData | StarknetSignatureData,
-    password: string,
+    flavour: NETWORK_FLAVOUR_VALUES = NETWORK_FLAVOUR.EVM,
   ) {
     const userAddress =
       flavour === NETWORK_FLAVOUR.STARKNET
@@ -337,7 +323,7 @@ class WalletManager implements IWalletManager {
     const [r_string, s_string] = await this.#verifySignature(flavour, signature);
     const { s, v } = computePrivateKeys(r_string, s_string);
 
-    return this.#registerAndAddWallet({ s, v }, handle, userAddress, { password });
+    return this.#registerAndAddWallet({ s, v }, handle, userAddress);
   }
 
   async addWalletWithPasskey(prfValue: BufferSource, credId?: ArrayBuffer) {
@@ -400,7 +386,7 @@ class WalletManager implements IWalletManager {
 
     await this.setActiveWallet(wallet, skipBearerTokenUpdate);
 
-    if (!wallet.isPartial) await this.#storage.storeCurvyWallet(wallet);
+    if (!wallet.isPartial) await this.#storage.insertCurvyWallet(wallet);
   }
 
   async removeWallet(walletId: string) {
@@ -422,19 +408,6 @@ class WalletManager implements IWalletManager {
     return;
   }
 
-  async scanWallet(wallet: CurvyWallet) {
-    if (wallet.isPartial) {
-      throw new Error("Cannot scan a partially initialized wallet!");
-    }
-    await this.#addressScanner.scan([wallet]);
-  }
-
-  async rescanWallets(walletIds?: Array<string>) {
-    const wallets = walletIds ? this.wallets.filter((wallet) => walletIds.includes(wallet.id)) : this.wallets;
-
-    await this.#addressScanner.scan(wallets);
-  }
-
   #startJwtRefreshInterval(): void {
     if (!this.#jwtRefreshInterval && this.#activeWallet && !this.#activeWallet.isPartial) {
       this.#jwtRefreshInterval = setInterval(async () => {
@@ -451,29 +424,6 @@ class WalletManager implements IWalletManager {
     }
     clearInterval(this.#jwtRefreshInterval);
     this.#jwtRefreshInterval = null;
-  }
-
-  async getAddressPrivateKey(_address: CurvyAddress | HexString) {
-    let address: CurvyAddress;
-
-    if (isHexString(_address)) {
-      address = await this.#storage.getCurvyAddress(_address);
-      if (!address) {
-        throw new Error(`Address ${_address} not found in storage!`);
-      }
-    } else address = _address;
-
-    const wallet = this.getWalletById(address.walletId);
-    if (!wallet) {
-      throw new Error(`Cannot send from address ${address.address} because it's wallet is not found!`);
-    }
-    const { s, v } = wallet.keyPairs;
-
-    const {
-      spendingPrivKeys: [privateKey],
-    } = await this.#core.scan(s, v, [address]);
-
-    return privateKey;
   }
 
   getBabyJubjubPublicKey(): Promise<string> {

@@ -296,7 +296,7 @@ export class Planner {
   }
 
   async estimate(sdk: ICurvySDK, intent: Intent): Promise<IntentEstimation> {
-    const balances = await sdk.storage.getBalanceSources(
+    const balances = await sdk.storage.getBalancesByCurrencyAndNetwork(
       sdk.walletManager.activeWallet.id,
       intent.currency.contractAddress,
       toSlug(intent.network.name),

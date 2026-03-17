@@ -1,22 +1,13 @@
 import type { MultiRpc } from "@/rpc/multi";
-import type { BalanceEntry, CurvyAddress } from "@/types";
+import type { BalanceEntry } from "@/types";
 
 interface IBalanceScanner {
-  scanWalletBalances(
+  refreshWalletBalances(
     walletId?: string,
     options?: {
       onProgress?: (entries: BalanceEntry[]) => void;
     },
   ): Promise<void>;
-
-  scanAddressBalances(
-    address: CurvyAddress,
-    options?: {
-      onProgress?: (entries: BalanceEntry[]) => void;
-    },
-  ): Promise<void>;
-
-  scanNoteBalances(walletId?: string, options?: { onProgress?: (entries: BalanceEntry[]) => void }): Promise<void>;
 
   pauseBalanceRefreshForWallet(walletId?: string): void;
   resumeBalanceRefreshForWallet(walletId?: string): void;
