@@ -3,7 +3,6 @@ import type { ExtractValues, HexString } from "@/types/helper";
 
 const BALANCE_TYPE = {
   SA: "sa",
-  VAULT: "vault",
   NOTE: "note",
 } as const;
 type BALANCE_TYPE = typeof BALANCE_TYPE;
@@ -50,14 +49,6 @@ const isSaBalanceEntry = (entry: BalanceEntry): entry is SaBalanceEntry => {
   return entry.type === BALANCE_TYPE.SA;
 };
 
-type VaultBalanceEntry = BalanceEntryBase & {
-  source: HexString;
-  type: BALANCE_TYPE["VAULT"];
-};
-const isVaultBalanceEntry = (entry: BalanceEntry): entry is VaultBalanceEntry => {
-  return entry.type === BALANCE_TYPE.VAULT;
-};
-
 type NoteBalanceEntry = BalanceEntryBase & {
   source: HexString;
   id: string;
@@ -76,7 +67,7 @@ const isNoteBalanceEntry = (entry: BalanceEntry): entry is NoteBalanceEntry => {
   return entry.type === BALANCE_TYPE.NOTE;
 };
 
-type BalanceEntry = SaBalanceEntry | VaultBalanceEntry | NoteBalanceEntry;
+type BalanceEntry = SaBalanceEntry | NoteBalanceEntry;
 
 type TotalBalance = {
   walletId: string;
@@ -99,10 +90,9 @@ export type {
   PriceData,
   BalanceEntry,
   TotalBalance,
-  VaultBalanceEntry,
   SaBalanceEntry,
   NoteBalanceEntry,
   BALANCE_TYPE_VALUES,
   BalanceSourcesOptions,
 };
-export { isSaBalanceEntry, isVaultBalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };
+export { isSaBalanceEntry, isNoteBalanceEntry, BALANCE_TYPE };

@@ -11,7 +11,6 @@ import type { AggregatorRequestStatus } from "@/types/aggregator";
 import type { CircuitConfig } from "@/types/core";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
-import type { MetaTransactionType } from "@/types/meta-transaction";
 import type { PublicNote } from "@/types/note";
 
 type _Announcement = {
@@ -222,35 +221,12 @@ export type {
 
 //#endregion
 
-//#region MetaTransaction
-
-type MetaTransactionEstimationRequestBody = {
-  type: MetaTransactionType;
-  fromAddress: string;
-  toAddress: string;
-  amount: string;
-  network: string;
-  exitNetwork?: string;
-  targetCurrency?: string;
-  currencyAddress: string;
-  ownerHash?: string;
-};
-
-type MetaTransactionSubmitBody = {
-  id: string;
-  signature: any;
-};
-
-type GetMetaTransactionStatusReturnType = "estimated" | "pending" | "completed" | "failed";
-
-export type { MetaTransactionEstimationRequestBody, GetMetaTransactionStatusReturnType, MetaTransactionSubmitBody };
-//#endregion
-
 //#region Portals
 
 type InsertEntryPortalRequestBody = {
   curvyId: CurvyId;
   coinType?: string;
+  currencyId?: number;
 };
 
 type InsertExitPortalRequestBody = {

@@ -7,7 +7,6 @@ import type {
   PriceData,
   SaBalanceEntry,
   ScanInfo,
-  VaultBalanceEntry,
 } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, NoteBalanceEntry, TotalBalance } from "@/types/storage";
 import type { CurvyWallet } from "@/wallet";
@@ -89,7 +88,7 @@ export interface StorageInterface {
    * @param walletId The ID of the wallet to update balances for.
    * @param entries The balance entries to update.
    */
-  updateAddressBalances(walletId: string, entries: (SaBalanceEntry | VaultBalanceEntry)[]): Promise<void>;
+  updateAddressBalances(walletId: string, entries: SaBalanceEntry[]): Promise<void>;
 
   /**
    * Removes balance entries that have been spent from the storage.

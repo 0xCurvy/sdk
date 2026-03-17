@@ -283,7 +283,7 @@ class WalletManager implements IWalletManager {
 
   async addPartialWallet(keyPairs: Partial<CurvyKeyPairs>) {
     const wallet = new CurvyWallet(keyPairs, null, null);
-    await this.addWallet(wallet, true, true);
+    await this.addWallet(wallet, true);
 
     return wallet;
   }
@@ -395,7 +395,7 @@ class WalletManager implements IWalletManager {
     this.#startJwtRefreshInterval();
   }
 
-  async addWallet(wallet: CurvyWallet, skipBearerTokenUpdate = false, skipScan = false) {
+  async addWallet(wallet: CurvyWallet, skipBearerTokenUpdate = false) {
     this.#wallets.set(wallet.id, wallet);
 
     await this.setActiveWallet(wallet, skipBearerTokenUpdate);

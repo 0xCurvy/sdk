@@ -12,6 +12,7 @@ import {
   type PublicActions,
   type WalletActions,
 } from "viem";
+import type { ICurvySDK } from "@/interfaces/sdk";
 import type { HexString } from "@/types";
 import type { Network } from "@/types/api";
 
@@ -166,10 +167,18 @@ const fromUint256 = (l: BigNumberish, h: BigNumberish): bigint => {
   return low + bhigh;
 };
 
+const hasBytecode = async (sdk: ICurvySDK, network: Network, address: HexString) => {
+  const client = sdk.rpcClient.Network(network.id).provider as CurvyPublicClient;
+
+  const bytecode = await client.getCode({ address });
+  return !!bytecode && bytecode !== "0x";
+};
+
 export {
   generateViemChainFromNetwork,
   fromUint256,
   extendClientFromNetwork,
+  hasBytecode,
   type CurvyPublicClient,
   type CurvyWalletClient,
 };
