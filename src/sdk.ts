@@ -1,12 +1,7 @@
 import { Buffer as BufferPolyfill } from "buffer";
 import { BalanceScanner } from "@/balance-scanner";
 import { PRICE_UPDATE_INTERVAL } from "@/constants/intervals";
-import {
-  NETWORK_ENVIRONMENT,
-  type NETWORK_ENVIRONMENT_VALUES,
-  NETWORK_FLAVOUR,
-  type NETWORK_FLAVOUR_VALUES,
-} from "@/constants/networks";
+import { NETWORK_ENVIRONMENT, type NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import type { IApiClient } from "@/interfaces/api";
@@ -21,13 +16,7 @@ import type { EstimatedPlan, Intent } from "@/planner/type";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
-import type {
-  EvmSignatureData,
-  GetStealthAddressReturnType,
-  Network,
-  RefreshOptions,
-  StarknetSignatureData,
-} from "@/types";
+import type { EvmSignatureData, GetStealthAddressReturnType, Network, RefreshOptions } from "@/types";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { Core } from "./core";
@@ -117,7 +106,7 @@ class CurvySDK implements ICurvySDK {
     await sdk.#priceUpdate(sdk.#networks);
     sdk.#startPriceIntervalUpdate();
 
-    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.rpcClient, sdk.storage, sdk.#core);
+    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.storage, sdk.#core);
     sdk.#balanceScanner = new BalanceScanner(
       sdk.rpcClient,
       sdk.#state.environment,
@@ -189,19 +178,12 @@ class CurvySDK implements ICurvySDK {
     await this.storage.upsertPriceData(priceMap);
   }
 
-  async login(
-    signature: EvmSignatureData | StarknetSignatureData,
-    flavour: NETWORK_FLAVOUR_VALUES = NETWORK_FLAVOUR.EVM,
-  ) {
-    return this.walletManager.addWalletWithSignature(signature, flavour);
+  async login(signature: EvmSignatureData) {
+    return this.walletManager.addWalletWithSignature(signature);
   }
 
-  async register(
-    handle: CurvyId,
-    signature: EvmSignatureData | StarknetSignatureData,
-    flavour: NETWORK_FLAVOUR_VALUES = NETWORK_FLAVOUR.EVM,
-  ) {
-    return this.walletManager.registerWalletWithSignature(handle, signature, flavour);
+  async register(handle: CurvyId, signature: EvmSignatureData) {
+    return this.walletManager.registerWalletWithSignature(handle, signature);
   }
 
   #startPriceIntervalUpdate({ runImmediately }: { runImmediately?: boolean } = { runImmediately: false }) {

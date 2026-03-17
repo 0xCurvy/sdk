@@ -1,4 +1,4 @@
-import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
@@ -13,7 +13,6 @@ import type {
   ExtendedAnnouncement,
   GetStealthAddressReturnType,
   RefreshOptions,
-  StarknetSignatureData,
   TotalBalance,
 } from "@/types";
 import type { Network } from "@/types/api";
@@ -45,12 +44,8 @@ interface ICurvySDK {
     networkSlug: string,
   ): Promise<BalanceEntry[]>;
 
-  login(signature: EvmSignatureData | StarknetSignatureData, flavour?: NETWORK_FLAVOUR_VALUES): Promise<CurvyWallet>;
-  register(
-    handle: CurvyId,
-    signature: EvmSignatureData | StarknetSignatureData,
-    flavour?: NETWORK_FLAVOUR_VALUES,
-  ): Promise<CurvyWallet>;
+  login(signature: EvmSignatureData): Promise<CurvyWallet>;
+  register(handle: CurvyId, signature: EvmSignatureData): Promise<CurvyWallet>;
 
   getNetwork(networkFilter?: NetworkFilter): Network;
   getNetworks(networkFilter?: NetworkFilter): Network[];
