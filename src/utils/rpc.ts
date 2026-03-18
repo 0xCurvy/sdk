@@ -1,17 +1,4 @@
-import type { BigNumberish } from "starknet";
-import {
-  type Account,
-  type Address,
-  type Chain,
-  type ChainFormatters,
-  type Client,
-  defineChain,
-  extendSchema,
-  type HttpTransport,
-  type ParseAccount,
-  type PublicActions,
-  type WalletActions,
-} from "viem";
+import { type Chain, type Client, defineChain, type HttpTransport, type PublicClient, type WalletClient } from "viem";
 import type { ICurvySDK } from "@/interfaces/sdk";
 import type { HexString } from "@/types";
 import type { Network } from "@/types/api";
@@ -28,35 +15,12 @@ type CurvyClientData = {
 };
 type CurvyClientConfiguration = CurvyClientActions & CurvyClientData;
 
-type CurvyViemChain = Chain<ChainFormatters, CurvyClientConfiguration>;
+type CurvyPublicClient = PublicClient<HttpTransport, Chain> & CurvyClientConfiguration;
+type CurvyWalletClient = WalletClient<HttpTransport, Chain> & CurvyClientConfiguration;
 
-type CurvyPublicClientExtension = PublicActions<HttpTransport, CurvyViemChain> & CurvyClientConfiguration;
-type CurvyWalletClientExtension = WalletActions<CurvyViemChain> & CurvyClientConfiguration;
-
-type CurvyPublicClient = Client<
-  HttpTransport,
-  CurvyViemChain,
-  Account | undefined,
-  undefined,
-  CurvyPublicClientExtension
->;
-type CurvyWalletClient = Client<
-  HttpTransport,
-  CurvyViemChain,
-  ParseAccount<Account | Address | undefined>,
-  undefined,
-  CurvyWalletClientExtension
->;
-
-const getUniversalResolverAddress = (network: Network) => {
-  switch (network.group) {
-    case "Ethereum":
-      return { address: "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe" } as const;
-    case "Localnet":
-      return { address: "0x59b670e9fA9D0A427751Af201D676719a970857b" } as const;
-    default:
-      return undefined;
-  }
+//@TODO:Handle better, through .env var, with this being the default value
+const getUniversalResolverAddress = () => {
+  return "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe";
 };
 
 const generateViemChainFromNetwork = (network: Network) => {
@@ -110,8 +74,9 @@ const generateViemChainFromNetwork = (network: Network) => {
       decimals,
     },
     contracts: {
-      ensUniversalResolver: getUniversalResolverAddress(network),
-
+      ensUniversalResolver: {
+        address: getUniversalResolverAddress() as HexString,
+      },
       multicall3: {
         address: multiCallContractAddress as HexString,
       },
@@ -127,15 +92,7 @@ const generateViemChainFromNetwork = (network: Network) => {
       portalFactoryContractAddress,
       vaultContractVersion,
     },
-    extendSchema: extendSchema<CurvyClientConfiguration>(),
     testnet,
-  }).extend({
-    aggregatorContractAddress,
-    vaultContractAddress,
-    tokenBridgeContractAddress,
-    tokenMoverContractAddress,
-    portalFactoryContractAddress,
-    vaultContractVersion,
   });
 };
 
@@ -159,14 +116,6 @@ const extendClientFromNetwork = (network: Network, _client: Client) => {
   };
 };
 
-const fromUint256 = (l: BigNumberish, h: BigNumberish): bigint => {
-  const low = BigInt(l);
-  const high = BigInt(h);
-
-  const bhigh = high << 128n;
-  return low + bhigh;
-};
-
 const hasBytecode = async (sdk: ICurvySDK, network: Network, address: HexString) => {
   const client = sdk.rpcClient.Network(network.id).provider as CurvyPublicClient;
 
@@ -176,7 +125,6 @@ const hasBytecode = async (sdk: ICurvySDK, network: Network, address: HexString)
 
 export {
   generateViemChainFromNetwork,
-  fromUint256,
   extendClientFromNetwork,
   hasBytecode,
   type CurvyPublicClient,

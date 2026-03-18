@@ -12,7 +12,6 @@ export type {
   SyncProgressEvent,
   SyncStartedEvent,
 } from "@/types/events";
-export * from "./constants/networks";
 export * from "./contracts/evm/abi";
 export { Core } from "./core";
 export * from "./errors";

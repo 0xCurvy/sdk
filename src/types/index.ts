@@ -11,7 +11,6 @@ export {
   type ExtractValues,
   type HexString,
   isHexString,
-  isStarkentSignature,
   isStringArray,
   type Prettify,
   type StringifyBigInts,

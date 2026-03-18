@@ -1,4 +1,3 @@
-import type { TOKENS } from "@/constants/networks";
 import type { Network } from "@/types/api";
 import type { CurrencyMetadata } from "@/types/storage";
 import { toSlug } from "@/utils/helpers";
@@ -69,7 +68,7 @@ const networksToPriceData = (networks: Network[]) => {
       res.set(symbol, { price, decimals });
     }
     return res;
-  }, new Map<TOKENS, { price: string; decimals: number }>());
+  }, new Map<string, { price: string; decimals: number }>());
 };
 
 const networksToCurrencyMetadata = (networks: Network[]) => {

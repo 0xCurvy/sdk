@@ -1,4 +1,4 @@
-import type { NETWORK_ENVIRONMENT_VALUES, TOKENS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { CurvyWalletData, HexString, PriceData } from "@/types";
 import type { BalanceEntry, CurrencyMetadata, TotalBalance } from "@/types/storage";
 import type { CurvyWallet } from "@/wallet";
@@ -18,16 +18,16 @@ export interface StorageInterface {
    */
   getCurrencyMetadata(addressOrId: string | bigint, networkSlug: string): Promise<CurrencyMetadata>;
 
-  upsertPriceData(data: Map<TOKENS, PriceData>): Promise<void>;
+  upsertPriceData(data: Map<string, PriceData>): Promise<void>;
   /**
    * Gets the price data for a specific token.
    * @param token
    */
-  getCurrencyPrice(token: TOKENS): Promise<PriceData>;
+  getCurrencyPrice(token: string): Promise<PriceData>;
   /**
    * Gets the price feed for all supported tokens.
    */
-  getPriceFeed(): Promise<Map<TOKENS, PriceData>>;
+  getPriceFeed(): Promise<Map<string, PriceData>>;
 
   /**
    * Updates the balances and total balances for a given wallet based on the provided balance entries.

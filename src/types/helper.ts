@@ -1,5 +1,3 @@
-import type { Signature as StarknetSignature } from "starknet";
-
 type ExtractKeys<T> = T extends { [key: string]: unknown } ? keyof T : never;
 type ExtractValues<T> = T extends { [key: string]: unknown } ? T[keyof T] : never;
 type Prettify<T> = { [key in keyof T]: T[key] } & unknown;
@@ -18,10 +16,6 @@ function assertHexString(value: unknown): asserts value is HexString {
 
 const isStringArray = (value: unknown): value is string[] => {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
-};
-
-const isStarkentSignature = (value: unknown): value is StarknetSignature => {
-  return isStringArray(value);
 };
 
 type StringifyBigInts<T> = Prettify<
@@ -43,4 +37,4 @@ type AbortOptions = {
 };
 
 export type { ExtractKeys, ExtractValues, HexString, Prettify, Tuple, StringifyBigInts, DeepNonNullable, AbortOptions };
-export { isHexString, isStringArray, isStarkentSignature, assertHexString };
+export { isHexString, isStringArray, assertHexString };

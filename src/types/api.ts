@@ -6,7 +6,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-import type { NETWORK_FLAVOUR_VALUES, NETWORK_GROUP_VALUES } from "@/constants/networks";
+import type { NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import type { AggregatorRequestStatus } from "@/types/aggregator";
 import type { CircuitConfig } from "@/types/core";
 import type { CurvyId } from "@/types/curvy";
@@ -30,7 +30,7 @@ type Currency = {
 type Network = {
   id: number;
   name: string;
-  group: NETWORK_GROUP_VALUES;
+  group: string; // @TODO: remove
   testnet: boolean;
   slip0044: number;
   flavour: NETWORK_FLAVOUR_VALUES;

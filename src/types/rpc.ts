@@ -1,5 +1,5 @@
 import type { TransactionReceipt as EvmTransactionReceipt } from "viem";
-import type { NETWORK_ENVIRONMENT_VALUES, NETWORKS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { HexString } from "@/types/helper";
 
 type RpcCallReturnType = {
@@ -18,7 +18,7 @@ type RpcBalance = {
   environment: NETWORK_ENVIRONMENT_VALUES;
 };
 
-type RpcBalances = Partial<Record<NETWORKS, Partial<Record<HexString, RpcBalance>>>>;
+type RpcBalances = Partial<Record<string, Partial<Record<HexString, RpcBalance>>>>;
 
 type VaultBalance = {
   network: string;

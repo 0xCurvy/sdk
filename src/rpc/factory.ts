@@ -8,7 +8,7 @@ function newRpc(network: Network) {
     case NETWORK_FLAVOUR.EVM:
       return new EvmRpc(network);
     default:
-      throw Error("Unknown network flavour");
+      throw Error(`Unknown network flavour: ${network.flavour}`);
   }
 }
 

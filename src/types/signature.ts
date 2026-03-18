@@ -1,16 +1,14 @@
-import type { ArraySignatureType as StarknetSignature, TypedData } from "starknet";
 import type { SignTypedDataParameters } from "viem";
 import type { HexString } from "@/types/helper";
 
-type StarknetSignTypedDataParameters = TypedData;
 type EvmSignTypedDataParameters = Omit<SignTypedDataParameters, "account">;
 
-type CurvySignatureParameters = EvmSignTypedDataParameters | StarknetSignTypedDataParameters;
+type CurvySignatureParameters = EvmSignTypedDataParameters;
 
 type SignatureData = {
   signingAddress: HexString;
   signatureParams: CurvySignatureParameters;
-  signatureResult: HexString | StarknetSignature;
+  signatureResult: HexString;
 };
 
 type EvmSignatureData = SignatureData;
@@ -26,7 +24,6 @@ function assertIsStarkentSignatureData(
 }
 
 export type {
-  StarknetSignTypedDataParameters,
   EvmSignTypedDataParameters,
   CurvySignatureParameters,
   SignatureData,

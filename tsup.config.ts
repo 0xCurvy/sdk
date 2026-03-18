@@ -1,6 +1,8 @@
 import { defineConfig, type Options } from "tsup";
 
 export default defineConfig((_) => {
+  const isProd = process.env.NODE_ENV === "production";
+
   const baseConfig: Options = {
     entry: ["./src/index.ts"],
     format: ["esm"],
@@ -8,7 +10,7 @@ export default defineConfig((_) => {
     platform: "neutral",
     treeshake: "recommended",
     sourcemap: true,
-    minify: true,
+    minify: isProd,
     esbuildOptions: (options) => {
       options.assetNames = "[name]";
       options.loader = {
