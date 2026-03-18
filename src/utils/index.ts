@@ -1,14 +1,13 @@
 // BARREL FILE FOR UTILITY EXPORTS
 
-export { deriveAddress } from "./address";
+export * from "./address";
+export * from "./aggregator";
 export * from "./balance";
 export * from "./common";
 export * from "./currency";
 export * from "./decimal-conversions";
 export * from "./encryption";
-export * from "./aggregator";
+export { getAuthenticationSignatureParams, pollForCriteria, shaDigest } from "./helpers";
 export * from "./network";
 export * from "./poseidon-hash";
-
-export { getAuthenticationSignatureParams, pollForCriteria, shaDigest } from "./helpers";
 export { type CurvyPublicClient, type CurvyWalletClient, generateViemChainFromNetwork, hasBytecode } from "./rpc";
