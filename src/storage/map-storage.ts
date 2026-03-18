@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration.js";
 import merge from "lodash.merge";
-import type { NETWORK_ENVIRONMENT_VALUES, TOKENS } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import { StorageError } from "@/errors";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { CurvyWalletData } from "@/types";
@@ -15,7 +15,7 @@ export class MapStorage implements StorageInterface {
   readonly #currencyMetadata = new Map<string, CurrencyMetadata>();
   readonly #balances = new Map<string, BalanceEntry>();
   readonly #totalBalances = new Map<string, TotalBalance>();
-  #priceStorage = new Map<TOKENS, { price: string; decimals: number }>();
+  #priceStorage = new Map<string, { price: string; decimals: number }>();
 
   async upsertCurrencyMetadata(metadata: Map<string, CurrencyMetadata>) {
     this.#currencyMetadata.clear();
@@ -94,7 +94,7 @@ export class MapStorage implements StorageInterface {
     return wallet;
   }
 
-  async upsertPriceData(data: Map<TOKENS, { price: string; decimals: number }>) {
+  async upsertPriceData(data: Map<string, { price: string; decimals: number }>) {
     this.#priceStorage.clear();
 
     for (const [key, value] of data.entries()) {
@@ -102,7 +102,7 @@ export class MapStorage implements StorageInterface {
     }
   }
 
-  async getCurrencyPrice(token: TOKENS) {
+  async getCurrencyPrice(token: string) {
     const price = this.#priceStorage.get(token);
     if (!price) {
       throw new StorageError(`Price for token ${token} not found`);

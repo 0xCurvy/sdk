@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
-import { Network } from "@/types";
-import { NETWORK_FLAVOUR, NETWORK_GROUP } from "@/constants/networks";
+import { NETWORK_FLAVOUR } from "@/constants/networks";
+import type { Network } from "@/types";
 import { filterNetworks } from "@/utils/network";
 
 const fillerFields = {
-  group: NETWORK_GROUP.ETHEREUM,
+  group: "Ethereum",
   slip0044: 0,
   flavour: NETWORK_FLAVOUR.EVM,
   multiCallContractAddress: "",
@@ -12,7 +12,7 @@ const fillerFields = {
   chainId: "",
   blockExplorerUrl: "",
   rpcUrl: "",
-  currencies: []
+  currencies: [],
 };
 
 const networks: Network[] = [
@@ -20,20 +20,20 @@ const networks: Network[] = [
     id: 1,
     name: "Ethereum Sepolia",
     testnet: true,
-    ...fillerFields
+    ...fillerFields,
   },
   {
     id: 2,
     name: "Starknet Sepolia",
     testnet: true,
-    ...fillerFields
+    ...fillerFields,
   },
   {
     id: 3,
     name: "Ethereum",
     testnet: false,
-    ...fillerFields
-  }
+    ...fillerFields,
+  },
 ];
 
 test("should filter with slug format", () => {
@@ -46,14 +46,16 @@ test("should filter with slug format", () => {
 });
 
 test("should filter by id", () => {
-  const successfulIdsForMessage=  ['"1"', "1", "1.0"];
+  const successfulIdsForMessage = ['"1"', "1", "1.0"];
   for (const [index, id] of ["1", 1, 1.0].entries()) {
     const filteredTestnets = filterNetworks(networks, id);
     expect(filteredTestnets, `${successfulIdsForMessage[index]} should have matched one network`).toHaveLength(1);
-    expect(filteredTestnets[0].id, `${successfulIdsForMessage[index]} should have matched network with id 1`).toEqual(1);
+    expect(filteredTestnets[0].id, `${successfulIdsForMessage[index]} should have matched network with id 1`).toEqual(
+      1,
+    );
   }
 
-  const unsuccessfulIdsForMessage=  ['"100"', "100", "100.0"];
+  const unsuccessfulIdsForMessage = ['"100"', "100", "100.0"];
   for (const [index, id] of ["100", 100, 100.0].entries()) {
     const filteredTestnets = filterNetworks(networks, id);
     expect(filteredTestnets, `${unsuccessfulIdsForMessage[index]} should not match a network`).toHaveLength(0);
@@ -70,6 +72,5 @@ test("should filter testnets and mainnets", () => {
   expect(filteredMainnets).toHaveLength(1);
   expect(filteredMainnets[0]).toEqual(networks[2]);
 });
-
 
 // TODO: Add test for filtering with array of numbers / strings and callback and undefined
