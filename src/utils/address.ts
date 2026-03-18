@@ -6,6 +6,21 @@ import { starknetAccountAbi } from "@/contracts/starknet/abi/account";
 import type { HexString } from "@/types/helper";
 import { decimalStringToHex } from "./decimal-conversions";
 
+/**
+ * Checks if a given recipient string is a valid address format based on the network flavour.
+ *  * Supports EVM (40 hex characters)
+ */
+const isValidAddressFormat = (recipient: string, flavour?: NETWORK_FLAVOUR_VALUES): recipient is HexString => {
+  switch (flavour) {
+    case NETWORK_FLAVOUR.EVM: {
+      return /^0x[a-fA-F0-9]{40}$/.test(recipient);
+    }
+    default: {
+      return /^0x[a-fA-F0-9]{40}$/.test(recipient);
+    }
+  }
+};
+
 const deriveAddress = (rawPubKey?: string, flavour?: NETWORK_FLAVOUR_VALUES) => {
   if (!rawPubKey || !flavour) {
     throw new Error("Couldn't derive address! Missing public key or network flavour.");
@@ -70,4 +85,4 @@ const hash = (_values: bigint[]) => {
   return `0${hashed.padStart(MAX_OUTPUT_LENGTH / 4, "0")}`;
 };
 
-export { deriveAddress, computePrivateKeys, hash };
+export { deriveAddress, computePrivateKeys, hash, isValidAddressFormat };
