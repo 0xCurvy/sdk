@@ -25,6 +25,7 @@ type Currency = {
   contractAddress: HexString;
   nativeCurrency: boolean;
   vaultTokenId: string | null;
+  bridgeNetworkIdToCurrencyIdMap: Record<number, number>;
 };
 
 type Network = {

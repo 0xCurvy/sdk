@@ -80,8 +80,10 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
 
     // If external transfer to another network then calculate bridge fee
     if (this.#intent.type === "external-transfer" && this.#intent.exitNetwork) {
+      const destinationCurrencyId =
+        this.#intent.currency?.bridgeNetworkIdToCurrencyIdMap?.[this.#intent.exitNetwork.id];
       const exitNetworkCurrencyAddress = this.#intent.exitNetwork.currencies.find(
-        (c) => c.id === this.#intent.currency?.id,
+        (c) => c.id === destinationCurrencyId,
       )?.contractAddress;
 
       if (!exitNetworkCurrencyAddress) {
