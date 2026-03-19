@@ -3,6 +3,7 @@
   "license": "MIT",
   "version": "0.0.6",
   "repository": "https://github.com/0xCurvy/curvy-sdk",
+  "packageManager": "pnpm@10.12.1",
   "type": "module",
   "main": "./dist/_esm/index.js",
   "module": "./dist/_esm/index.js",
