@@ -50,6 +50,7 @@
   "dependencies": {
     "@lifi/sdk": "^3.13.6",
     "@noble/secp256k1": "^2.3.0",
+    "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "circomlibjs": "^0.1.7",
     "dayjs": "^1.11.13",
