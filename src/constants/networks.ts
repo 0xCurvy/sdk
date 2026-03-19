@@ -19,6 +19,7 @@ type NETWORK_GROUP_VALUES = ExtractValues<NETWORK_GROUP> | (string & {});
 const NETWORK_FLAVOUR = {
   EVM: "evm",
   STARKNET: "starknet",
+  SOLANA: "solana",
 } as const;
 type NETWORK_FLAVOUR = typeof NETWORK_FLAVOUR;
 type NETWORK_FLAVOUR_VALUES = ExtractValues<NETWORK_FLAVOUR>;
@@ -55,6 +56,18 @@ const STARKNET_TESTNETS = {
 type STARKNET_TESTNETS = typeof STARKNET_TESTNETS;
 type STARKNET_TESTNETS_VALUES = ExtractValues<STARKNET_TESTNETS>;
 
+const SOLANA_MAINNETS = {
+  SOLANA: "solana",
+} as const;
+type SOLANA_MAINNETS = typeof SOLANA_MAINNETS;
+type SOLANA_MAINNETS_VALUES = ExtractValues<SOLANA_MAINNETS>;
+
+const SOLANA_TESTNETS = {
+  SOLANA_DEVNET: "solana-devnet",
+} as const;
+type SOLANA_TESTNETS = typeof SOLANA_TESTNETS;
+type SOLANA_TESTNETS_VALUES = ExtractValues<SOLANA_TESTNETS>;
+
 //#endregion
 
 //#region FLAVOUR CONSTANTS -> Change required when adding new flavours
@@ -71,14 +84,22 @@ const STARKNET_NETWORKS = {
 };
 type STARKNET_NETWORKS = STARKNET_MAINNETS_VALUES | STARKNET_TESTNETS_VALUES;
 
+const SOLANA_NETWORKS = {
+  ...SOLANA_MAINNETS,
+  ...SOLANA_TESTNETS,
+};
+type SOLANA_NETWORKS = SOLANA_MAINNETS_VALUES | SOLANA_TESTNETS_VALUES;
+
 const NETWORK_FLAVOUR_MAP: Map<NETWORKS, NETWORK_FLAVOUR_VALUES> = new Map([
   ...Object.values(EVM_NETWORKS).map((network) => [network, NETWORK_FLAVOUR.EVM] as const),
   ...Object.values(STARKNET_NETWORKS).map((network) => [network, NETWORK_FLAVOUR.STARKNET] as const),
+  ...Object.values(SOLANA_NETWORKS).map((network) => [network, NETWORK_FLAVOUR.SOLANA] as const),
 ]);
 
 const SUPPORTED_MAINNETS = {
   ...EVM_MAINNETS,
   ...STARKNET_MAINNETS,
+  ...SOLANA_MAINNETS,
 } as const;
 type SUPPORTED_MAINNETS = typeof SUPPORTED_MAINNETS;
 type SUPPORTED_MAINNETS_VALUES = ExtractValues<SUPPORTED_MAINNETS>;
@@ -86,6 +107,7 @@ type SUPPORTED_MAINNETS_VALUES = ExtractValues<SUPPORTED_MAINNETS>;
 const SUPPORTED_TESTNETS = {
   ...EVM_TESTNETS,
   ...STARKNET_TESTNETS,
+  ...SOLANA_TESTNETS,
 } as const;
 type SUPPORTED_TESTNETS = typeof SUPPORTED_TESTNETS;
 type SUPPORTED_TESTNETS_VALUES = ExtractValues<SUPPORTED_TESTNETS>;
