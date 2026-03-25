@@ -97,6 +97,7 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
         fromToken: this.#intent.currency.contractAddress,
         toToken: exitNetworkCurrencyAddress,
         fromAmount: this.netAmount.toString(),
+        allowBridges: ["gasZipBridge", "relaydepository", "across"],
       });
 
       this.estimate.bridgeFeeInCurrency =
@@ -112,6 +113,7 @@ export class AggregatorWithdrawCommand extends AbstractAggregatorCommand {
         fromToken: this.#intent.currency.contractAddress,
         toToken: this.#intent.exitCurrency.contractAddress,
         fromAmount: this.netAmount.toString(),
+        allowBridges: ["gasZipBridge", "relaydepository", "across"],
       });
 
       this.estimate.bridgeFeeInCurrency =
