@@ -178,9 +178,7 @@ export class MapStorage implements StorageInterface {
   }
 
   async updateBalanceEntries(walletId: string, networkSlug: string, entries: BalanceEntry[]): Promise<void> {
-    if (entries.length === 0) return;
-
-    if (!entries.every((e) => e.networkSlug === networkSlug || e.walletId === walletId)) {
+    if (entries.length > 0 && !entries.every((e) => e.networkSlug === networkSlug || e.walletId === walletId)) {
       throw new Error("All entries must match the provided walletId and networkSlug");
     }
 
@@ -190,6 +188,8 @@ export class MapStorage implements StorageInterface {
         oldNoteEntries.push(entry);
       }
     }
+
+    if (entries.length === 0 && oldNoteEntries.length === 0) return;
 
     const newNoteIdSet = new Set(entries.map((e) => e.id));
     const entriesToDelete = oldNoteEntries.filter((oldEntry) => !newNoteIdSet.has(oldEntry.id));
