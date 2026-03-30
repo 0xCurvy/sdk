@@ -62,8 +62,8 @@ export class SessionKeystore extends Emittery<SessionKeystoreEvents> {
 
   /** Pending phase-2 callback: writes share B to sessionStorage. */
   #pendingFinalize: (() => void) | null = null;
-  /** Bound reference so we can remove the listeners on destroy. */
-  #finalizeHandler: (() => void) | null = null;
+  /** AbortController to remove pagehide/unload listeners on destroy. */
+  #abortController: AbortController | null = null;
 
   constructor(opts: SessionKeystoreOptions = {}) {
     super();
@@ -95,9 +95,9 @@ export class SessionKeystore extends Emittery<SessionKeystoreEvents> {
 
     // Phase 2: finalize on pagehide (preferred) with unload fallback.
     // Both may fire — #finalize() is idempotent.
-    this.#finalizeHandler = () => this.#finalize();
-    window.addEventListener("pagehide", this.#finalizeHandler);
-    window.addEventListener("unload", this.#finalizeHandler);
+    this.#abortController = new AbortController();
+    window.addEventListener("pagehide", () => this.#finalize(), { signal: this.#abortController.signal });
+    window.addEventListener("unload", () => this.#finalize(), { signal: this.#abortController.signal });
   }
 
   // -------------------------------------------------------------------------
@@ -277,11 +277,8 @@ export class SessionKeystore extends Emittery<SessionKeystoreEvents> {
   async destroy(): Promise<void> {
     this.clear();
     if (typeof window !== "undefined") {
-      if (this.#finalizeHandler) {
-        window.removeEventListener("pagehide", this.#finalizeHandler);
-        window.removeEventListener("unload", this.#finalizeHandler);
-        this.#finalizeHandler = null;
-      }
+      this.#abortController?.abort();
+      this.#abortController = null;
       window.sessionStorage.removeItem(this.#storageKey);
     }
     this.#pendingFinalize = null;
