@@ -1,6 +1,8 @@
 import type { Groth16Proof } from "snarkjs";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
+  DeployPortalForRecoveryReturnType,
+  FundRecoveryGasReturnType,
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
   GetCurvyIdByOwnerAddressReturnType,
@@ -8,6 +10,7 @@ import type {
   InsertEntryPortalRequestBody,
   InsertExitPortalRequestBody,
   InsertPortalReturnType,
+  RecoverablePortal,
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,
   ResolveCurvyIdReturnType,
@@ -19,6 +22,7 @@ import type {
   SubmitWithdrawReturnType,
 } from "@/types/api";
 import type { CurvyId } from "@/types/curvy";
+import type { HexString } from "@/types/helper";
 
 interface IApiClient {
   updateBearerToken(newBearerToken: string | undefined): void;
@@ -31,6 +35,9 @@ interface IApiClient {
   portal: {
     insertEntryPortal(body: InsertEntryPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
     insertExitPortal(body: InsertExitPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
+    getRecoverablePortals(): Promise<RecoverablePortal[]>;
+    deployForRecovery(portalId: number): Promise<DeployPortalForRecoveryReturnType["data"]>;
+    fundRecoveryGas(portalId: number, recoveryAddress: HexString): Promise<FundRecoveryGasReturnType["data"]>;
   };
 
   user: {

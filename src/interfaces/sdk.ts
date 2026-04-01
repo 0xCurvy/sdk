@@ -7,7 +7,7 @@ import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { EstimatedPlan, Intent, IntentEstimation, PlanExecution } from "@/planner/type";
 import type { MultiRpc } from "@/rpc/multi";
 import type { BalanceEntry, CurvyId, EvmSignatureData, RefreshOptions, TotalBalance } from "@/types";
-import type { Network } from "@/types/api";
+import type { Network, RecoverablePortal, RecoveryStage } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { NetworkFilter } from "@/utils/network";
 import type { CurvyWallet } from "@/wallet";
@@ -57,6 +57,13 @@ interface ICurvySDK {
   }): Promise<HexString>;
 
   refreshBalances(options: RefreshOptions): Promise<void>;
+
+  getRecoverablePortals(): Promise<RecoverablePortal[]>;
+  recoverPortal(args: {
+    portal: RecoverablePortal;
+    destinationAddress: HexString;
+    onProgress?: (stage: RecoveryStage) => void;
+  }): Promise<HexString>;
 
   resetStorage(): Promise<void>;
 }

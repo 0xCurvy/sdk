@@ -17,11 +17,13 @@ import type { MultiRpc } from "@/rpc/multi";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
 import type { CurvyKeyPairs, EvmSignatureData, Network, RefreshOptions } from "@/types";
+import type { RecoverablePortal, RecoveryStage } from "@/types/api";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
 import { CurvyWallet } from "@/wallet";
 import { Core } from "./core";
+import { PortalRecovery } from "./portal-recovery";
 import { deriveAddress } from "./utils";
 import { WalletManager } from "./wallet-manager";
 
@@ -46,6 +48,7 @@ class CurvySDK implements ICurvySDK {
   #state: SdkState;
 
   #planner: Planner | undefined;
+  #portalRecovery: PortalRecovery | undefined;
 
   readonly apiClient: ApiClient;
   readonly storage: StorageInterface;
@@ -139,6 +142,7 @@ class CurvySDK implements ICurvySDK {
       sdk.#balanceScanner,
       sdk.storage,
     );
+    sdk.#portalRecovery = new PortalRecovery(sdk.#core, sdk.apiClient, sdk.rpcClient, sdk.#networks);
 
     // Attempt session restore: if the keystore has keypairs from a previous page load,
     // re-create accounts by combining keypairs (from keystore) with metadata (from storage).
@@ -368,6 +372,32 @@ class CurvySDK implements ICurvySDK {
     for (const wallet of this.walletManager.wallets) {
       await this.#balanceScanner.refreshWalletBalances(wallet.id, options);
     }
+  }
+
+  async getRecoverablePortals(): Promise<RecoverablePortal[]> {
+    if (!this.#portalRecovery) throw new Error("Portal recovery is not initialized!");
+    return this.#portalRecovery.getRecoverablePortals();
+  }
+
+  async recoverPortal(args: {
+    portal: RecoverablePortal;
+    destinationAddress: HexString;
+    onProgress?: (stage: RecoveryStage) => void;
+  }): Promise<HexString> {
+    if (!this.#portalRecovery) throw new Error("Portal recovery is not initialized!");
+
+    const { s, v } = this.walletManager.activeWallet.keyPairs;
+    if (!s || !v) {
+      throw new Error("Active wallet has no private keys available for recovery.");
+    }
+
+    return this.#portalRecovery.recoverPortal({
+      portal: args.portal,
+      destinationAddress: args.destinationAddress,
+      spendingPrivateKey: s,
+      viewingPrivateKey: v,
+      onProgress: args.onProgress,
+    });
   }
 
   async resetStorage() {

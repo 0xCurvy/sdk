@@ -333,7 +333,7 @@ export const aggregatorAlphaAbi = [
     name: "curvyVault",
     outputs: [
       {
-        internalType: "contract ICurvyVaultV2",
+        internalType: "contract ICurvyVaultV3",
         name: "",
         type: "address",
       },
