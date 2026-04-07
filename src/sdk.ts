@@ -142,7 +142,7 @@ class CurvySDK implements ICurvySDK {
       sdk.#balanceScanner,
       sdk.storage,
     );
-    sdk.#portalRecovery = new PortalRecovery(sdk.#core, sdk.apiClient, sdk.rpcClient, sdk.#networks);
+    sdk.#portalRecovery = new PortalRecovery(sdk.#core, sdk.rpcClient, sdk.#networks);
 
     // Attempt session restore: if the keystore has keypairs from a previous page load,
     // re-create accounts by combining keypairs (from keystore) with metadata (from storage).

@@ -2,7 +2,6 @@ import { type Address, createWalletClient, getContract, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { getBalance } from "viem/actions";
 import { portalAbi } from "@/contracts/evm/abi/portal";
-import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { MultiRpc } from "@/rpc/multi";
 import type { Network, RecoverablePortal, RecoveryStage } from "@/types/api";
@@ -13,13 +12,11 @@ const NATIVE_ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as const
 
 class PortalRecovery {
   readonly #core: ICore;
-  readonly #apiClient: IApiClient;
   readonly #rpcClient: MultiRpc;
   readonly #networks: Network[];
 
-  constructor(core: ICore, apiClient: IApiClient, rpcClient: MultiRpc, networks: Network[]) {
+  constructor(core: ICore, rpcClient: MultiRpc, networks: Network[]) {
     this.#core = core;
-    this.#apiClient = apiClient;
     this.#rpcClient = rpcClient;
     this.#networks = networks;
   }
@@ -60,30 +57,10 @@ class PortalRecovery {
     const publicClient = rpc.provider;
 
     // Step 2: Ensure the Portal contract is deployed at the expected address
-    const bytecode = await publicClient.getCode({ address: portal.contractAddress as Address });
-    const isDeployed = !!bytecode && bytecode !== "0x";
 
-    if (!isDeployed) {
-      const deployResult: DeployPortalForRecoveryReturnType["data"] = await this.#apiClient.portal.deployForRecovery(
-        portal.id,
-      );
-      onProgress?.({ step: "deploying_portal", txHash: deployResult.transactionHash });
-
-      // Wait for the deployment transaction to be confirmed
-      await publicClient.waitForTransactionReceipt({ hash: deployResult.transactionHash });
-    }
-
-    // Step 3: Ensure the recovery account has gas
     const recoveryBalance = await getBalance(publicClient, { address: recoveryAccount.address });
     if (recoveryBalance === 0n) {
-      const fundResult: FundRecoveryGasReturnType["data"] = await this.#apiClient.portal.fundRecoveryGas(
-        portal.id,
-        recoveryAccount.address as HexString,
-      );
-      onProgress?.({ step: "funding_gas", txHash: fundResult.transactionHash });
-
-      // Wait for the funding transaction to be confirmed
-      await publicClient.waitForTransactionReceipt({ hash: fundResult.transactionHash });
+      throw new Error("Recovery account has no gas. Please fund the recovery account with gas.");
     }
 
     // Step 4: Submit the portal.recover() transaction signed by the derived recovery account
