@@ -1,7 +1,9 @@
 import { Buffer as BufferPolyfill } from "buffer";
+import { getAddress } from "viem";
 import { BalanceScanner } from "@/balance-scanner";
 import { PRICE_UPDATE_INTERVAL } from "@/constants/intervals";
 import { NETWORK_ENVIRONMENT, type NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import { portalFactoryAbi } from "@/contracts/evm/abi/portal-factory";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import type { ICore } from "@/interfaces/core";
@@ -12,14 +14,16 @@ import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { Planner } from "@/planner/planner";
 import type { EstimatedPlan, Intent } from "@/planner/type";
+import type { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
-import type { CurvyKeyPairs, EvmSignatureData, Network, RefreshOptions } from "@/types";
+import type { CurvyKeyPairs, EvmSignatureData, MatchedPortalRecord, Network, RefreshOptions } from "@/types";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
+import { poseidonHash } from "@/utils/poseidon-hash";
 import { CurvyWallet } from "@/wallet";
 import { Core } from "./core";
 import { deriveAddress } from "./utils";
@@ -139,7 +143,6 @@ class CurvySDK implements ICurvySDK {
       sdk.#balanceScanner,
       sdk.storage,
     );
-
     // Attempt session restore: if the keystore has keypairs from a previous page load,
     // re-create accounts by combining keypairs (from keystore) with metadata (from storage).
     if (sdk.#keystore && sdk.#keystore.size > 0) {
@@ -360,6 +363,96 @@ class CurvySDK implements ICurvySDK {
     await this.#setActiveNetworks(isTestnet);
 
     return this.#state.environment;
+  }
+
+  async findPortal(address: HexString, network: Network): Promise<MatchedPortalRecord | null> {
+    const wallet = this.walletManager.activeWallet;
+
+    if (!network.portalFactoryContractAddress) {
+      throw new Error(`Provided network ${network.name} does not have PortalFactory contract deployed.`);
+    }
+
+    const rpc = this.rpcClient.Network(network.id) as EvmRpc;
+    const factoryAddress = network.portalFactoryContractAddress as HexString;
+    const checksummedTarget = getAddress(address, +network.chainId);
+
+    const BATCH_SIZE = 200;
+    let offset = 0;
+    let total = Number.POSITIVE_INFINITY;
+
+    while (offset < total) {
+      const result = await this.apiClient.portal.getPortalRecords({ offset, size: BATCH_SIZE });
+      total = result.total;
+
+      if (result.portals.length === 0) break;
+
+      // Scan batch of portals using `core.scan()`
+      const scanData = result.portals.map((p) => ({
+        ephemeralPublicKey: p.ephemeralKey,
+        viewTag: p.viewTag,
+      }));
+
+      const { spendingPubKeys } = await this.#core.scan(wallet.keyPairs.s, wallet.keyPairs.v, scanData);
+
+      const [bjjX, bjjY] = wallet.keyPairs.babyJubjubPublicKey.split(".");
+
+      const matched: { index: number; spendingPubKey: string; recoveryAddress: HexString; ownerHash: string }[] = [];
+      for (let i = 0; i < spendingPubKeys.length; i++) {
+        if (spendingPubKeys[i] === "") continue;
+
+        const spendingPubKey = spendingPubKeys[i];
+        const recoveryAddress = deriveAddress(spendingPubKey, "evm");
+
+        const sharedSecret = spendingPubKey.split(".")[0];
+        const ownerHash = poseidonHash([BigInt(bjjX), BigInt(bjjY), BigInt(sharedSecret)]).toString();
+
+        matched.push({ index: i, spendingPubKey, recoveryAddress, ownerHash });
+      }
+
+      if (matched.length === 0) {
+        offset += result.portals.length;
+        continue;
+      }
+
+      // For matched portals from the batch, use multicall to find portal addresses
+      const contracts = matched.map(({ index, recoveryAddress, ownerHash }) => {
+        const portal = result.portals[index];
+        if (portal.type === "entry") {
+          return {
+            abi: portalFactoryAbi,
+            address: factoryAddress,
+            functionName: "getEntryPortalAddress" as const,
+            args: [BigInt(ownerHash), recoveryAddress],
+          };
+        }
+        return {
+          abi: portalFactoryAbi,
+          address: factoryAddress,
+          functionName: "getExitPortalAddress" as const,
+          args: [portal.exitAddress as HexString, BigInt(portal.exitChainId), recoveryAddress],
+        };
+      });
+
+      const multicallResults = await rpc.provider.multicall({ contracts });
+
+      for (let j = 0; j < multicallResults.length; j++) {
+        const { result: derivedAddress, status } = multicallResults[j];
+        if (status !== "success" || !derivedAddress) continue;
+
+        if (getAddress(derivedAddress as string) !== checksummedTarget) continue;
+
+        const { index, recoveryAddress } = matched[j];
+        return {
+          ...result.portals[index],
+          contractAddress: derivedAddress as HexString,
+          recoveryAddress,
+        };
+      }
+
+      offset += result.portals.length;
+    }
+
+    return null;
   }
 
   async refreshBalances(options: RefreshOptions = {}) {
