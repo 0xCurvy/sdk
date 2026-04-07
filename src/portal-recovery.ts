@@ -5,13 +5,7 @@ import { portalAbi } from "@/contracts/evm/abi/portal";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { MultiRpc } from "@/rpc/multi";
-import type {
-  DeployPortalForRecoveryReturnType,
-  FundRecoveryGasReturnType,
-  Network,
-  RecoverablePortal,
-  RecoveryStage,
-} from "@/types/api";
+import type { Network, RecoverablePortal, RecoveryStage } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { generateViemChainFromNetwork } from "@/utils/rpc";
 
@@ -28,10 +22,6 @@ class PortalRecovery {
     this.#apiClient = apiClient;
     this.#rpcClient = rpcClient;
     this.#networks = networks;
-  }
-
-  async getRecoverablePortals(): Promise<RecoverablePortal[]> {
-    return this.#apiClient.portal.getRecoverablePortals();
   }
 
   async recoverPortal(args: {

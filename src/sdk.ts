@@ -374,11 +374,6 @@ class CurvySDK implements ICurvySDK {
     }
   }
 
-  async getRecoverablePortals(): Promise<RecoverablePortal[]> {
-    if (!this.#portalRecovery) throw new Error("Portal recovery is not initialized!");
-    return this.#portalRecovery.getRecoverablePortals();
-  }
-
   async recoverPortal(args: {
     portal: RecoverablePortal;
     destinationAddress: HexString;

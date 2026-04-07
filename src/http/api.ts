@@ -9,14 +9,10 @@ import type {
 } from "@/types";
 import type { AggregationRequest, DepositRequest, WithdrawRequest } from "@/types/aggregator";
 import type {
-  DeployPortalForRecoveryReturnType,
-  FundRecoveryGasReturnType,
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
   GetCurvyIdByOwnerAddressResponse,
-  GetRecoverablePortalsReturnType,
   NetworksWithCurrenciesResponse,
-  RecoverablePortal,
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,
   ResolveCurvyIdReturnType,
@@ -27,7 +23,6 @@ import type {
   SubmitWithdrawReturnType,
 } from "@/types/api";
 import type { CurvyId } from "@/types/curvy";
-import type { HexString } from "@/types/helper";
 
 class ApiClient extends HttpClient implements IApiClient {
   updateBearerToken = (bearer: string | undefined) => {
@@ -61,34 +56,6 @@ class ApiClient extends HttpClient implements IApiClient {
           method: "POST",
           path: `/portal/exit`,
           body: body,
-        })
-      ).data;
-    },
-    getRecoverablePortals: async (): Promise<RecoverablePortal[]> => {
-      return (
-        await this.request<GetRecoverablePortalsReturnType>({
-          method: "GET",
-          path: "/portal/recoverable",
-        })
-      ).data;
-    },
-    deployForRecovery: async (portalId: number): Promise<DeployPortalForRecoveryReturnType["data"]> => {
-      return (
-        await this.request<DeployPortalForRecoveryReturnType>({
-          method: "POST",
-          path: `/portal/${portalId}/deploy`,
-        })
-      ).data;
-    },
-    fundRecoveryGas: async (
-      portalId: number,
-      recoveryAddress: HexString,
-    ): Promise<FundRecoveryGasReturnType["data"]> => {
-      return (
-        await this.request<FundRecoveryGasReturnType>({
-          method: "POST",
-          path: `/portal/${portalId}/fund-gas`,
-          body: { recoveryAddress },
         })
       ).data;
     },

@@ -202,18 +202,6 @@ type RecoverablePortal = {
   recoveryStealthAddress: HexString;
 };
 
-type GetRecoverablePortalsReturnType = {
-  data: RecoverablePortal[];
-};
-
-type DeployPortalForRecoveryReturnType = {
-  data: { transactionHash: HexString };
-};
-
-type FundRecoveryGasReturnType = {
-  data: { transactionHash: HexString };
-};
-
 type RecoveryStage =
   | { step: "deriving_key" }
   | { step: "deploying_portal"; txHash: HexString }
@@ -242,9 +230,6 @@ export type {
   InsertPortalReturnType,
   RecoverablePortal,
   RecoverablePortalFailureReason,
-  GetRecoverablePortalsReturnType,
-  DeployPortalForRecoveryReturnType,
-  FundRecoveryGasReturnType,
   RecoveryStage,
 };
 

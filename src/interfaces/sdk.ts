@@ -58,7 +58,6 @@ interface ICurvySDK {
 
   refreshBalances(options: RefreshOptions): Promise<void>;
 
-  getRecoverablePortals(): Promise<RecoverablePortal[]>;
   recoverPortal(args: {
     portal: RecoverablePortal;
     destinationAddress: HexString;
