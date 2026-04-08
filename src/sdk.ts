@@ -19,7 +19,14 @@ import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
-import type { CurvyKeyPairs, EvmSignatureData, MatchedPortalRecord, Network, RefreshOptions } from "@/types";
+import type {
+  CurvyKeyPairs,
+  EvmSignatureData,
+  MatchedPortalRecord,
+  Network,
+  RecoveryStage,
+  RefreshOptions,
+} from "@/types";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
@@ -369,6 +376,14 @@ class CurvySDK implements ICurvySDK {
     return this.#state.environment;
   }
 
+  async refreshBalances(options: RefreshOptions = {}) {
+    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
+
+    for (const wallet of this.walletManager.wallets) {
+      await this.#balanceScanner.refreshWalletBalances(wallet.id, options);
+    }
+  }
+
   async findPortal(address: HexString, network: Network): Promise<MatchedPortalRecord | null> {
     const wallet = this.walletManager.activeWallet;
 
@@ -459,16 +474,10 @@ class CurvySDK implements ICurvySDK {
     return null;
   }
 
-  async refreshBalances(options: RefreshOptions = {}) {
-    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
-
-    for (const wallet of this.walletManager.wallets) {
-      await this.#balanceScanner.refreshWalletBalances(wallet.id, options);
-    }
-  }
-
   async recoverPortal(args: {
-    portal: RecoverablePortal;
+    networkId: number;
+    tokenAddress: HexString;
+    portalAddress: HexString;
     destinationAddress: HexString;
     onProgress?: (stage: RecoveryStage) => void;
   }): Promise<HexString> {
@@ -479,9 +488,23 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Active wallet has no private keys available for recovery.");
     }
 
+    // Resolve network
+    const network = this.#networks.find((n) => n.id === args.networkId);
+    if (!network) {
+      throw new Error(`Network with id ${args.networkId} not found.`);
+    }
+
+    // Find portal by address
+    const matchedPortal = await this.findPortal(args.portalAddress, network);
+    if (!matchedPortal) {
+      throw new Error("Portal not found or does not belong to this wallet.");
+    }
+
     return this.#portalRecovery.recoverPortal({
-      portal: args.portal,
+      portal: matchedPortal,
       destinationAddress: args.destinationAddress,
+      networkId: args.networkId,
+      tokenAddress: args.tokenAddress,
       spendingPrivateKey: s,
       viewingPrivateKey: v,
       onProgress: args.onProgress,

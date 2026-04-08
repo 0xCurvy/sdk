@@ -1,5 +1,5 @@
 export * from "@/constants/networks";
-export type { RecoverablePortal, RecoverablePortalFailureReason, RecoveryStage } from "@/types/api";
+export type { RecoveryStage } from "@/types/api";
 export type {
   BalanceRefreshCompleteEvent,
   BalanceRefreshProgressEvent,

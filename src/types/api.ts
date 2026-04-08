@@ -197,34 +197,11 @@ type GetPortalRecordsReturnType = {
   total: number;
 };
 
-//#endregion
-
-//#region Portal Recovery
-
-type RecoverablePortalFailureReason = "shielding_failed" | "compliance_failed" | "bridge_failed";
-
-type RecoverablePortal = {
-  id: number;
-  contractAddress: HexString;
-  tokenAddress: HexString;
-  tokenSymbol: string;
-  tokenDecimals: number;
-  amount: string;
-  failureReason: RecoverablePortalFailureReason;
-  fundedAt: string;
-  fundedNetworkId: number;
-  networkSlug: string;
-  ephemeralKey: string;
-  viewTag: string;
-  ownerHash: string;
-  recoveryStealthAddress: HexString;
-};
-
 type RecoveryStage =
   | { step: "deriving_key" }
-  | { step: "deploying_portal"; txHash: HexString }
-  | { step: "funding_gas"; txHash: HexString }
-  | { step: "submitting_recovery"; txHash: HexString }
+  | { step: "waiting_for_gas"; recoveryAddress: HexString }
+  | { step: "deploying_recovery_portal" }
+  | { step: "submitting_transaction" }
   | { step: "complete"; txHash: HexString }
   | { step: "failed"; error: string };
 
@@ -249,8 +226,6 @@ export type {
   PortalRecord,
   MatchedPortalRecord,
   GetPortalRecordsReturnType,
-  RecoverablePortal,
-  RecoverablePortalFailureReason,
   RecoveryStage,
 };
 
