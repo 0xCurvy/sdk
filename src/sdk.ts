@@ -1,5 +1,6 @@
 import { Buffer as BufferPolyfill } from "buffer";
-import { getAddress } from "viem";
+import { type Address, getAddress } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { BalanceScanner } from "@/balance-scanner";
 import { PRICE_UPDATE_INTERVAL } from "@/constants/intervals";
 import { NETWORK_ENVIRONMENT, type NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
@@ -19,21 +20,13 @@ import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
-import type {
-  CurvyKeyPairs,
-  EvmSignatureData,
-  MatchedPortalRecord,
-  Network,
-  RecoveryStage,
-  RefreshOptions,
-} from "@/types";
+import type { CurvyKeyPairs, EvmSignatureData, MatchedPortalRecord, Network, RefreshOptions } from "@/types";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
 import { poseidonHash } from "@/utils/poseidon-hash";
 import { CurvyWallet } from "@/wallet";
 import { Core } from "./core";
-import { PortalRecovery } from "./portal-recovery";
 import { deriveAddress } from "./utils";
 import { WalletManager } from "./wallet-manager";
 
@@ -58,7 +51,6 @@ class CurvySDK implements ICurvySDK {
   #state: SdkState;
 
   #planner: Planner | undefined;
-  #portalRecovery: PortalRecovery | undefined;
 
   readonly apiClient: ApiClient;
   readonly storage: StorageInterface;
@@ -152,7 +144,6 @@ class CurvySDK implements ICurvySDK {
       sdk.#balanceScanner,
       sdk.storage,
     );
-    sdk.#portalRecovery = new PortalRecovery(sdk.#core, sdk.rpcClient, sdk.#networks);
 
     // Attempt session restore: if the keystore has keypairs from a previous page load,
     // re-create accounts by combining keypairs (from keystore) with metadata (from storage).
@@ -416,6 +407,7 @@ class CurvySDK implements ICurvySDK {
       const [bjjX, bjjY] = wallet.keyPairs.babyJubjubPublicKey.split(".");
 
       const matched: { index: number; spendingPubKey: string; recoveryAddress: HexString; ownerHash: string }[] = [];
+
       for (let i = 0; i < spendingPubKeys.length; i++) {
         if (spendingPubKeys[i] === "") continue;
 
@@ -458,7 +450,7 @@ class CurvySDK implements ICurvySDK {
         const { result: derivedAddress, status } = multicallResults[j];
         if (status !== "success" || !derivedAddress) continue;
 
-        if (getAddress(derivedAddress as string) !== checksummedTarget) continue;
+        if (getAddress(derivedAddress, +network.chainId) !== checksummedTarget) continue;
 
         const { index, recoveryAddress } = matched[j];
         return {
@@ -477,38 +469,78 @@ class CurvySDK implements ICurvySDK {
   async recoverPortal(args: {
     networkId: number;
     tokenAddress: HexString;
-    portalAddress: HexString;
+    portalRecord: MatchedPortalRecord;
     destinationAddress: HexString;
-    onProgress?: (stage: RecoveryStage) => void;
   }): Promise<HexString> {
-    if (!this.#portalRecovery) throw new Error("Portal recovery is not initialized!");
-
     const { s, v } = this.walletManager.activeWallet.keyPairs;
     if (!s || !v) {
       throw new Error("Active wallet has no private keys available for recovery.");
     }
 
-    // Resolve network
-    const network = this.#networks.find((n) => n.id === args.networkId);
+    const { portalRecord, destinationAddress, networkId, tokenAddress } = args;
+
+    const { spendingPrivKeys } = await this.#core.scan(s, v, [
+      {
+        ephemeralPublicKey: portalRecord.ephemeralKey,
+        viewTag: portalRecord.viewTag,
+      },
+    ]);
+
+    const recoveryPrivateKey = spendingPrivKeys[0];
+    if (!recoveryPrivateKey) {
+      throw new Error("Failed to derive recovery private key: no matching key found for the given announcement.");
+    }
+
+    const recoveryAccount = privateKeyToAccount(recoveryPrivateKey);
+
+    // Resolve the network on which the portal is deployed
+    const network = this.#networks.find((n) => n.id === networkId);
     if (!network) {
-      throw new Error(`Network with id ${args.networkId} not found.`);
+      throw new Error(`Network with id ${networkId} not found.`);
     }
 
-    // Find portal by address
-    const matchedPortal = await this.findPortal(args.portalAddress, network);
-    if (!matchedPortal) {
-      throw new Error("Portal not found or does not belong to this wallet.");
+    const rpc = this.rpcClient.Network(network.id) as EvmRpc;
+
+    const publicClient = rpc.provider;
+
+    if (!network.portalFactoryContractAddress) {
+      throw new Error(`Network ${network.name} does not have PortalFactory contract deployed.`);
     }
 
-    return this.#portalRecovery.recoverPortal({
-      portal: matchedPortal,
-      destinationAddress: args.destinationAddress,
-      networkId: args.networkId,
-      tokenAddress: args.tokenAddress,
-      spendingPrivateKey: s,
-      viewingPrivateKey: v,
-      onProgress: args.onProgress,
-    });
+    let deployRecoveryTxHash: HexString;
+    if (portalRecord.type === "entry") {
+      deployRecoveryTxHash = await rpc.walletClient.writeContract({
+        account: recoveryAccount,
+        abi: portalFactoryAbi,
+        address: network.portalFactoryContractAddress as HexString,
+        functionName: "deployRecoveryEntryPortal",
+        args: [
+          BigInt(portalRecord.ownerHash),
+          portalRecord.recoveryAddress as Address,
+          tokenAddress as Address,
+          destinationAddress as Address,
+        ],
+      });
+    } else {
+      deployRecoveryTxHash = await rpc.walletClient.writeContract({
+        abi: portalFactoryAbi,
+        account: recoveryAccount,
+        address: network.portalFactoryContractAddress as HexString,
+        functionName: "deployRecoveryExitPortal",
+        args: [
+          portalRecord.exitAddress as Address,
+          BigInt(portalRecord.exitChainId),
+          portalRecord.recoveryAddress as Address,
+          tokenAddress as Address,
+          destinationAddress as Address,
+        ],
+      });
+    }
+
+    // Wait for confirmation
+    await publicClient.waitForTransactionReceipt({ hash: deployRecoveryTxHash });
+
+    return deployRecoveryTxHash as HexString;
   }
 
   async resetStorage() {
