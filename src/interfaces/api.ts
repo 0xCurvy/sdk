@@ -5,6 +5,7 @@ import type {
   GetAllNotesReturnType,
   GetCurvyIdByOwnerAddressReturnType,
   GetNetworksReturnType,
+  GetPortalRecordsReturnType,
   InsertEntryPortalRequestBody,
   InsertExitPortalRequestBody,
   InsertPortalReturnType,
@@ -31,6 +32,12 @@ interface IApiClient {
   portal: {
     insertEntryPortal(body: InsertEntryPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
     insertExitPortal(body: InsertExitPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
+    getPortalRecords(params?: {
+      offset?: number;
+      size?: number;
+      startTime?: number;
+      endTime?: number;
+    }): Promise<GetPortalRecordsReturnType>;
   };
 
   user: {
