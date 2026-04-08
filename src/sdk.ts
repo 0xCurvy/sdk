@@ -19,13 +19,21 @@ import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
-import type { CurvyKeyPairs, EvmSignatureData, MatchedPortalRecord, Network, RefreshOptions } from "@/types";
+import type {
+  CurvyKeyPairs,
+  EvmSignatureData,
+  MatchedPortalRecord,
+  Network,
+  RecoveryStage,
+  RefreshOptions,
+} from "@/types";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
 import { poseidonHash } from "@/utils/poseidon-hash";
 import { CurvyWallet } from "@/wallet";
 import { Core } from "./core";
+import { PortalRecovery } from "./portal-recovery";
 import { deriveAddress } from "./utils";
 import { WalletManager } from "./wallet-manager";
 
@@ -50,6 +58,7 @@ class CurvySDK implements ICurvySDK {
   #state: SdkState;
 
   #planner: Planner | undefined;
+  #portalRecovery: PortalRecovery | undefined;
 
   readonly apiClient: ApiClient;
   readonly storage: StorageInterface;
@@ -143,6 +152,8 @@ class CurvySDK implements ICurvySDK {
       sdk.#balanceScanner,
       sdk.storage,
     );
+    sdk.#portalRecovery = new PortalRecovery(sdk.#core, sdk.rpcClient, sdk.#networks);
+
     // Attempt session restore: if the keystore has keypairs from a previous page load,
     // re-create accounts by combining keypairs (from keystore) with metadata (from storage).
     if (sdk.#keystore && sdk.#keystore.size > 0) {
@@ -365,6 +376,14 @@ class CurvySDK implements ICurvySDK {
     return this.#state.environment;
   }
 
+  async refreshBalances(options: RefreshOptions = {}) {
+    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
+
+    for (const wallet of this.walletManager.wallets) {
+      await this.#balanceScanner.refreshWalletBalances(wallet.id, options);
+    }
+  }
+
   async findPortal(address: HexString, network: Network): Promise<MatchedPortalRecord | null> {
     const wallet = this.walletManager.activeWallet;
 
@@ -455,12 +474,41 @@ class CurvySDK implements ICurvySDK {
     return null;
   }
 
-  async refreshBalances(options: RefreshOptions = {}) {
-    if (!this.#balanceScanner) throw new Error("Balance scanner not initialized!");
+  async recoverPortal(args: {
+    networkId: number;
+    tokenAddress: HexString;
+    portalAddress: HexString;
+    destinationAddress: HexString;
+    onProgress?: (stage: RecoveryStage) => void;
+  }): Promise<HexString> {
+    if (!this.#portalRecovery) throw new Error("Portal recovery is not initialized!");
 
-    for (const wallet of this.walletManager.wallets) {
-      await this.#balanceScanner.refreshWalletBalances(wallet.id, options);
+    const { s, v } = this.walletManager.activeWallet.keyPairs;
+    if (!s || !v) {
+      throw new Error("Active wallet has no private keys available for recovery.");
     }
+
+    // Resolve network
+    const network = this.#networks.find((n) => n.id === args.networkId);
+    if (!network) {
+      throw new Error(`Network with id ${args.networkId} not found.`);
+    }
+
+    // Find portal by address
+    const matchedPortal = await this.findPortal(args.portalAddress, network);
+    if (!matchedPortal) {
+      throw new Error("Portal not found or does not belong to this wallet.");
+    }
+
+    return this.#portalRecovery.recoverPortal({
+      portal: matchedPortal,
+      destinationAddress: args.destinationAddress,
+      networkId: args.networkId,
+      tokenAddress: args.tokenAddress,
+      spendingPrivateKey: s,
+      viewingPrivateKey: v,
+      onProgress: args.onProgress,
+    });
   }
 
   async resetStorage() {

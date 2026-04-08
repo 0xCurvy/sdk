@@ -197,6 +197,14 @@ type GetPortalRecordsReturnType = {
   total: number;
 };
 
+type RecoveryStage =
+  | { step: "deriving_key" }
+  | { step: "waiting_for_gas"; recoveryAddress: HexString }
+  | { step: "deploying_recovery_portal" }
+  | { step: "submitting_transaction" }
+  | { step: "complete"; txHash: HexString }
+  | { step: "failed"; error: string };
+
 //#endregion
 
 export type {
@@ -218,6 +226,7 @@ export type {
   PortalRecord,
   MatchedPortalRecord,
   GetPortalRecordsReturnType,
+  RecoveryStage,
 };
 
 //#endregion

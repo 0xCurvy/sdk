@@ -1,4 +1,5 @@
 export * from "@/constants/networks";
+export type { RecoveryStage } from "@/types/api";
 export type {
   BalanceRefreshCompleteEvent,
   BalanceRefreshProgressEvent,

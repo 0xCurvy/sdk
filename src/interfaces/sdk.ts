@@ -14,7 +14,7 @@ import type {
   RefreshOptions,
   TotalBalance,
 } from "@/types";
-import type { Network } from "@/types/api";
+import type { Network, RecoveryStage } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type { NetworkFilter } from "@/utils/network";
 import type { CurvyWallet } from "@/wallet";
@@ -66,6 +66,13 @@ interface ICurvySDK {
   refreshBalances(options: RefreshOptions): Promise<void>;
 
   findPortal(contractAddress: HexString, network: Network): Promise<MatchedPortalRecord | null>;
+  recoverPortal(args: {
+    networkId: number;
+    tokenAddress: HexString;
+    portalAddress: HexString;
+    destinationAddress: HexString;
+    onProgress?: (stage: RecoveryStage) => void;
+  }): Promise<HexString>;
 
   resetStorage(): Promise<void>;
 }
