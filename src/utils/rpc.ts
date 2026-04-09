@@ -31,6 +31,8 @@ const generateViemChainFromNetwork = (network: Network) => {
     Polygon: { name: "POL", symbol: "POL", decimals: 18 },
     Bsc: { name: "BNB", symbol: "BNB", decimals: 18 },
     Gnosis: { name: "xDAI", symbol: "xDAI", decimals: 18 },
+    // https://github.com/wevm/viem/blob/0cb1b2ec035b92be6f44df346c7ca8944e876ad8/src/chains/definitions/tempo.ts#L14-L18
+    Tempo: { name: "USD", symbol: "USD", decimals: 6 },
   } as const;
 
   const { name, symbol, decimals } =

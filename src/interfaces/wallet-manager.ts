@@ -15,8 +15,8 @@ interface IWalletManager {
   ): Promise<CurvyWallet>;
   registerWalletWithPrivateKeys(s: string, v: string, handle: CurvyId, ownerAddress: HexString): Promise<CurvyWallet>;
 
-  addWalletWithPasskey(prfValue: BufferSource, credId: ArrayBuffer): Promise<CurvyWallet>;
-  registerWalletWithPasskey(handle: CurvyId, prfValue: BufferSource, credId: ArrayBuffer): Promise<CurvyWallet>;
+  addWalletWithPasskey(prfValue: BufferSource, credId?: ArrayBuffer): Promise<CurvyWallet>;
+  registerWalletWithPasskey(handle: CurvyId, prfValue: BufferSource, credId?: ArrayBuffer): Promise<CurvyWallet>;
 
   addWalletWithSignature(signature: EvmSignatureData): Promise<CurvyWallet>;
   registerWalletWithSignature(handle: CurvyId, signature: EvmSignatureData): Promise<CurvyWallet>;

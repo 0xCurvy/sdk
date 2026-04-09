@@ -4,7 +4,6 @@ import { PRICE_UPDATE_INTERVAL } from "@/constants/intervals";
 import { NETWORK_ENVIRONMENT, type NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
-import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { ICurvySDK } from "@/interfaces/sdk";
@@ -15,11 +14,13 @@ import { Planner } from "@/planner/planner";
 import type { EstimatedPlan, Intent } from "@/planner/type";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
+import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
-import type { EvmSignatureData, Network, RefreshOptions } from "@/types";
+import type { CurvyKeyPairs, EvmSignatureData, Network, RefreshOptions } from "@/types";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
+import { CurvyWallet } from "@/wallet";
 import { Core } from "./core";
 import { deriveAddress } from "./utils";
 import { WalletManager } from "./wallet-manager";
@@ -38,6 +39,7 @@ class CurvySDK implements ICurvySDK {
   #walletManager: IWalletManager | undefined;
   #balanceScanner: BalanceScanner | undefined;
   #priceRefreshInterval: NodeJS.Timeout | undefined;
+  #keystore: SessionKeystore | null = null;
 
   #networks: Network[];
   #rpcClient: MultiRpc | undefined;
@@ -45,7 +47,7 @@ class CurvySDK implements ICurvySDK {
 
   #planner: Planner | undefined;
 
-  readonly apiClient: IApiClient;
+  readonly apiClient: ApiClient;
   readonly storage: StorageInterface;
 
   on: ICurvyEventEmitter["on"];
@@ -93,6 +95,7 @@ class CurvySDK implements ICurvySDK {
     storage?: StorageInterface,
     wasmUrl?: string,
     commandFactory?: ICommandFactory,
+    enableKeystore = false,
   ) {
     const core = new Core(wasmUrl);
 
@@ -106,7 +109,21 @@ class CurvySDK implements ICurvySDK {
     await sdk.#priceUpdate(sdk.#networks);
     sdk.#startPriceIntervalUpdate();
 
-    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.storage, sdk.#core);
+    if (enableKeystore && typeof window !== "undefined") {
+      sdk.#keystore = new SessionKeystore({ name: "curvy-keypairs" });
+      await sdk.#keystore.ready();
+
+      // Persist JWT to keystore on every token change (initial auth + refresh)
+      sdk.apiClient.setOnTokenChange((token) => {
+        if (token) {
+          sdk.#keystore!.set("__jwt__", token);
+        } else {
+          sdk.#keystore!.delete("__jwt__");
+        }
+      });
+    }
+
+    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.storage, sdk.#core, sdk.#keystore);
     sdk.#balanceScanner = new BalanceScanner(
       sdk.rpcClient,
       sdk.#state.environment,
@@ -123,6 +140,41 @@ class CurvySDK implements ICurvySDK {
       sdk.storage,
     );
 
+    // Attempt session restore: if the keystore has keypairs from a previous page load,
+    // re-create accounts by combining keypairs (from keystore) with metadata (from storage).
+    if (sdk.#keystore && sdk.#keystore.size > 0) {
+      // Restore JWT first — if available, we can skip the re-auth round trip
+      // (TOTP sign + POST /auth) when adding accounts.
+      const persistedJwt = sdk.#keystore.get("__jwt__");
+      const hasValidJwt = !!persistedJwt;
+      if (hasValidJwt) {
+        sdk.apiClient.updateBearerToken(persistedJwt);
+      }
+
+      for (const walletId of sdk.#keystore.keys()) {
+        if (walletId === "__jwt__") continue; // skip the JWT entry
+        try {
+          const raw = sdk.#keystore.get(walletId);
+          if (!raw) continue;
+          const keyPairs = JSON.parse(raw) as CurvyKeyPairs;
+          const accountData = await sdk.storage.getCurvyWalletDataById(walletId);
+          if (!accountData) continue;
+
+          const account = new CurvyWallet(
+            keyPairs,
+            accountData.curvyHandle,
+            accountData.ownerAddress as HexString,
+            accountData.createdAt,
+          );
+          // Skip bearer token update if we already restored the JWT from keystore.
+          // This avoids a full re-auth round trip (TOTP + signature).
+          await sdk.walletManager.addWallet(account, hasValidJwt);
+        } catch {
+          // Account restore failed (metadata missing, corrupt data, etc.) — skip silently.
+          // The user can re-authenticate to re-derive keypairs.
+        }
+      }
+    }
     return sdk;
   }
 
