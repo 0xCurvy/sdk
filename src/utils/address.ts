@@ -9,27 +9,43 @@ import { decimalStringToHex } from "./decimal-conversions";
  * Checks if a given recipient string is a valid address format based on the network flavour.
  *  * Supports EVM (40 hex characters)
  */
-const isValidAddressFormat = (recipient: string, flavour?: NETWORK_FLAVOUR_VALUES): recipient is HexString => {
+const isValidEvmAddress = (recipient: string): recipient is HexString => {
+  return /^0x[a-fA-F0-9]{40}$/.test(recipient);
+};
+
+const isValidSolanaAddress = (recipient: string): boolean => {
+  try {
+    const decoded = bs58.decode(recipient);
+    return decoded.length === 32;
+  } catch {
+    return false;
+  }
+};
+
+const isValidAddressFormat = (recipient: string, flavour?: NETWORK_FLAVOUR_VALUES): boolean => {
   switch (flavour) {
-    case NETWORK_FLAVOUR.EVM: {
-      return /^0x[a-fA-F0-9]{40}$/.test(recipient);
+    case NETWORK_FLAVOUR.SOLANA: {
+      return isValidSolanaAddress(recipient);
     }
+    case NETWORK_FLAVOUR.EVM:
     default: {
-      return /^0x[a-fA-F0-9]{40}$/.test(recipient);
+      return isValidEvmAddress(recipient);
     }
   }
 };
 
-const deriveAddress = (rawPubKey?: string, flavour?: NETWORK_FLAVOUR_VALUES) => {
+const deriveAddress = (rawPubKey?: string, flavour?: NETWORK_FLAVOUR_VALUES): string => {
   if (!rawPubKey || !flavour) {
     throw new Error("Couldn't derive address! Missing public key or network flavour.");
   }
 
-  const pubKey = decimalStringToHex(rawPubKey, false) as HexString;
-
   switch (flavour) {
     case NETWORK_FLAVOUR.EVM: {
+      const pubKey = decimalStringToHex(rawPubKey, false) as HexString;
       return publicKeyToAddress(pubKey);
+    }
+    case NETWORK_FLAVOUR.SOLANA: {
+      return deriveSolanaRecoveryPubkey(rawPubKey);
     }
     default: {
       throw new Error("Unknown network flavour when deriving address");

@@ -43,6 +43,7 @@ type Network = {
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   portalFactoryContractAddress?: string;
+  portalProgramAddress?: string;
   nativeCurrency: string | null; // TODO: Why is this string?
   chainId: string;
   blockExplorerUrl: string;
@@ -176,7 +177,7 @@ type InsertExitPortalRequestBody = {
 };
 
 type InsertPortalReturnType = {
-  data: { address: HexString };
+  data: { address: HexString; flavour: NETWORK_FLAVOUR_VALUES };
 };
 
 //#endregion

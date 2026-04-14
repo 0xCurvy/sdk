@@ -1,4 +1,4 @@
-import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
@@ -45,7 +45,11 @@ interface ICurvySDK {
 
   ensResolveCurvyId(handle: CurvyId, slip0044?: bigint): Promise<HexString>;
 
-  generateEntryPortal(args: { curvyId: CurvyId; coinType?: string; currencyId?: number }): Promise<HexString>;
+  generateEntryPortal(args: {
+    curvyId: CurvyId;
+    coinType?: string;
+    currencyId?: number;
+  }): Promise<{ address: HexString; flavour: NETWORK_FLAVOUR_VALUES }>;
 
   generateExitPortal(args: {
     curvyId: CurvyId;
@@ -54,7 +58,7 @@ interface ICurvySDK {
     exitNetworkId?: number;
     exitCurrencyId?: number;
     coinType?: string;
-  }): Promise<HexString>;
+  }): Promise<{ address: HexString; flavour: NETWORK_FLAVOUR_VALUES }>;
 
   refreshBalances(options: RefreshOptions): Promise<void>;
 

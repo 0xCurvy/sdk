@@ -1,7 +1,11 @@
 import { Buffer as BufferPolyfill } from "buffer";
 import { BalanceScanner } from "@/balance-scanner";
 import { PRICE_UPDATE_INTERVAL } from "@/constants/intervals";
-import { NETWORK_ENVIRONMENT, type NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import {
+  NETWORK_ENVIRONMENT,
+  type NETWORK_ENVIRONMENT_VALUES,
+  type NETWORK_FLAVOUR_VALUES,
+} from "@/constants/networks";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import type { ICore } from "@/interfaces/core";
@@ -309,8 +313,12 @@ class CurvySDK implements ICurvySDK {
     return address;
   }
 
-  async generateEntryPortal(args: { curvyId: CurvyId; coinType?: string; currencyId?: number }): Promise<HexString> {
-    return this.apiClient.portal.insertEntryPortal(args).then(({ address }) => address);
+  async generateEntryPortal(args: {
+    curvyId: CurvyId;
+    coinType?: string;
+    currencyId?: number;
+  }): Promise<{ address: HexString; flavour: NETWORK_FLAVOUR_VALUES }> {
+    return this.apiClient.portal.insertEntryPortal(args);
   }
 
   async generateExitPortal(args: {
@@ -320,8 +328,8 @@ class CurvySDK implements ICurvySDK {
     exitNetworkId?: number;
     exitCurrencyId?: number;
     coinType?: string;
-  }): Promise<HexString> {
-    return this.apiClient.portal.insertExitPortal(args).then(({ address }) => address);
+  }): Promise<{ address: HexString; flavour: NETWORK_FLAVOUR_VALUES }> {
+    return this.apiClient.portal.insertExitPortal(args);
   }
 
   async #setActiveNetworks(networkFilter: NetworkFilter) {
