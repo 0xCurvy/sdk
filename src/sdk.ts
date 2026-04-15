@@ -1,4 +1,6 @@
 import { Buffer as BufferPolyfill } from "buffer";
+import { type Address, getAddress } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { BalanceScanner } from "@/balance-scanner";
 import { PRICE_UPDATE_INTERVAL } from "@/constants/intervals";
 import {
@@ -6,6 +8,7 @@ import {
   type NETWORK_ENVIRONMENT_VALUES,
   type NETWORK_FLAVOUR_VALUES,
 } from "@/constants/networks";
+import { portalFactoryAbi } from "@/contracts/evm/abi/portal-factory";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import type { ICore } from "@/interfaces/core";
@@ -16,14 +19,23 @@ import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { Planner } from "@/planner/planner";
 import type { EstimatedPlan, Intent } from "@/planner/type";
+import { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
-import type { CurvyKeyPairs, EvmSignatureData, Network, RefreshOptions } from "@/types";
+import {
+  type CurvyKeyPairs,
+  type EvmSignatureData,
+  isHexString,
+  type MatchedPortalRecord,
+  type Network,
+  type RefreshOptions,
+} from "@/types";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
+import { poseidonHash } from "@/utils/poseidon-hash";
 import { CurvyWallet } from "@/wallet";
 import { Core } from "./core";
 import { deriveAddress } from "./utils";
@@ -279,30 +291,6 @@ class CurvySDK implements ICurvySDK {
     return filterNetworks(this.#networks, networkFilter);
   }
 
-  async generateNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: CurvyId) {
-    const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyId(handle);
-
-    if (!recipientDetails) {
-      throw new Error(`Handle ${handle} not found`);
-    }
-
-    const { spendingKey, viewingKey } = recipientDetails.publicKeys;
-
-    const {
-      spendingPubKey: recipientStealthPublicKey,
-      R: ephemeralPublicKey,
-      viewTag,
-    } = await this.#core.send(spendingKey, viewingKey);
-
-    const network = this.getNetwork(networkIdentifier);
-
-    const address = deriveAddress(recipientStealthPublicKey, network.flavour);
-
-    if (!address) throw new Error("Couldn't derive address!");
-
-    return { address, recipientStealthPublicKey, viewTag, ephemeralPublicKey, network };
-  }
-
   async ensResolveCurvyId(curvyId: CurvyId, slip0044?: bigint): Promise<HexString> {
     const address = await this.rpcClient.ensResolveCurvyId(curvyId, this.#state.environment, slip0044);
 
@@ -376,6 +364,183 @@ class CurvySDK implements ICurvySDK {
     for (const wallet of this.walletManager.wallets) {
       await this.#balanceScanner.refreshWalletBalances(wallet.id, options);
     }
+  }
+
+  async findPortal(address: HexString | (string & {}), network: Network): Promise<MatchedPortalRecord | null> {
+    if (!isHexString(address)) {
+      throw new Error(`Recovery only supported for EVM addresses. Solana support coming soon.`);
+    }
+
+    const wallet = this.walletManager.activeWallet;
+
+    if (!network.portalFactoryContractAddress) {
+      throw new Error(`Provided network ${network.name} does not have PortalFactory contract deployed.`);
+    }
+
+    const rpc = this.rpcClient.Network(network.id);
+
+    if (!(rpc instanceof EvmRpc)) {
+      throw new Error(`Unsupported network ${network.name}`);
+    }
+
+    const factoryAddress = network.portalFactoryContractAddress as HexString;
+    const checksummedTarget = getAddress(address, +network.chainId);
+
+    const BATCH_SIZE = 200;
+    let offset = 0;
+    let total = Number.POSITIVE_INFINITY;
+
+    while (offset < total) {
+      const result = await this.apiClient.portal.getPortalRecords({ offset, size: BATCH_SIZE });
+      total = result.total;
+
+      if (result.portals.length === 0) break;
+
+      // Scan batch of portals using `core.scan()`
+      const scanData = result.portals.map((p) => ({
+        ephemeralPublicKey: p.ephemeralKey,
+        viewTag: p.viewTag,
+      }));
+
+      const { spendingPubKeys } = await this.#core.scan(wallet.keyPairs.s, wallet.keyPairs.v, scanData);
+
+      const [bjjX, bjjY] = wallet.keyPairs.babyJubjubPublicKey.split(".");
+
+      const matched: { index: number; spendingPubKey: string; recoveryAddress: HexString; ownerHash: string }[] = [];
+
+      for (let i = 0; i < spendingPubKeys.length; i++) {
+        if (spendingPubKeys[i] === "") continue;
+
+        const spendingPubKey = spendingPubKeys[i];
+        const recoveryAddress = deriveAddress(spendingPubKey, "evm");
+
+        const sharedSecret = spendingPubKey.split(".")[0];
+        const ownerHash = poseidonHash([BigInt(bjjX), BigInt(bjjY), BigInt(sharedSecret)]).toString();
+
+        matched.push({ index: i, spendingPubKey, recoveryAddress, ownerHash });
+      }
+
+      if (matched.length === 0) {
+        offset += result.portals.length;
+        continue;
+      }
+
+      // For matched portals from the batch, use multicall to find portal addresses
+      const contracts = matched.map(({ index, recoveryAddress, ownerHash }) => {
+        const portal = result.portals[index];
+        if (portal.type === "entry") {
+          return {
+            abi: portalFactoryAbi,
+            address: factoryAddress,
+            functionName: "getEntryPortalAddress" as const,
+            args: [BigInt(ownerHash), recoveryAddress],
+          };
+        }
+        return {
+          abi: portalFactoryAbi,
+          address: factoryAddress,
+          functionName: "getExitPortalAddress" as const,
+          args: [portal.exitAddress as HexString, BigInt(portal.exitChainId), recoveryAddress],
+        };
+      });
+
+      const multicallResults = await rpc.provider.multicall({ contracts });
+
+      for (let j = 0; j < multicallResults.length; j++) {
+        const { result: derivedAddress, status } = multicallResults[j];
+        if (status !== "success" || !derivedAddress) continue;
+
+        if (getAddress(derivedAddress, +network.chainId) !== checksummedTarget) continue;
+
+        const { index, recoveryAddress } = matched[j];
+        return {
+          ...result.portals[index],
+          contractAddress: derivedAddress as HexString,
+          recoveryAddress,
+        };
+      }
+
+      offset += result.portals.length;
+    }
+
+    return null;
+  }
+
+  async recoverPortal(args: {
+    networkId: number;
+    tokenAddress: HexString;
+    portalRecord: MatchedPortalRecord;
+    destinationAddress: HexString;
+  }): Promise<HexString> {
+    const { s, v } = this.walletManager.activeWallet.keyPairs;
+    if (!s || !v) {
+      throw new Error("Active wallet has no private keys available for recovery.");
+    }
+
+    const { portalRecord, destinationAddress, networkId, tokenAddress } = args;
+
+    const { spendingPrivKeys } = await this.#core.scan(s, v, [
+      {
+        ephemeralPublicKey: portalRecord.ephemeralKey,
+        viewTag: portalRecord.viewTag,
+      },
+    ]);
+
+    const recoveryPrivateKey = spendingPrivKeys[0];
+    if (!recoveryPrivateKey) {
+      throw new Error("Failed to derive recovery private key: no matching key found for the given announcement.");
+    }
+
+    const recoveryAccount = privateKeyToAccount(recoveryPrivateKey);
+
+    // Resolve the network on which the portal is deployed
+    const network = this.#networks.find((n) => n.id === networkId);
+    if (!network) {
+      throw new Error(`Network with id ${networkId} not found.`);
+    }
+
+    const rpc = this.rpcClient.Network(network.id) as EvmRpc;
+
+    const publicClient = rpc.provider;
+
+    if (!network.portalFactoryContractAddress) {
+      throw new Error(`Network ${network.name} does not have PortalFactory contract deployed.`);
+    }
+
+    let deployRecoveryTxHash: HexString;
+    if (portalRecord.type === "entry") {
+      deployRecoveryTxHash = await rpc.walletClient.writeContract({
+        account: recoveryAccount,
+        abi: portalFactoryAbi,
+        address: network.portalFactoryContractAddress as HexString,
+        functionName: "deployRecoveryEntryPortal",
+        args: [
+          BigInt(portalRecord.ownerHash),
+          portalRecord.recoveryAddress as Address,
+          tokenAddress as Address,
+          destinationAddress as Address,
+        ],
+      });
+    } else {
+      deployRecoveryTxHash = await rpc.walletClient.writeContract({
+        abi: portalFactoryAbi,
+        account: recoveryAccount,
+        address: network.portalFactoryContractAddress as HexString,
+        functionName: "deployRecoveryExitPortal",
+        args: [
+          portalRecord.exitAddress as Address,
+          BigInt(portalRecord.exitChainId),
+          portalRecord.recoveryAddress as Address,
+          tokenAddress as Address,
+          destinationAddress as Address,
+        ],
+      });
+    }
+
+    // Wait for confirmation
+    await publicClient.waitForTransactionReceipt({ hash: deployRecoveryTxHash });
+
+    return deployRecoveryTxHash as HexString;
   }
 
   async resetStorage() {

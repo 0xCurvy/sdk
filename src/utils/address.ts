@@ -34,7 +34,9 @@ const isValidAddressFormat = (recipient: string, flavour?: NETWORK_FLAVOUR_VALUE
   }
 };
 
-const deriveAddress = (rawPubKey?: string, flavour?: NETWORK_FLAVOUR_VALUES): string => {
+function deriveAddress(rawPubKey?: string, flavour?: NETWORK_FLAVOUR["EVM"]): HexString;
+function deriveAddress(rawPubKey?: string, flavour?: NETWORK_FLAVOUR["SOLANA"]): string;
+function deriveAddress(rawPubKey?: string, flavour?: NETWORK_FLAVOUR_VALUES): string {
   if (!rawPubKey || !flavour) {
     throw new Error("Couldn't derive address! Missing public key or network flavour.");
   }
@@ -51,7 +53,7 @@ const deriveAddress = (rawPubKey?: string, flavour?: NETWORK_FLAVOUR_VALUES): st
       throw new Error("Unknown network flavour when deriving address");
     }
   }
-};
+}
 
 /**
  * Derive a Solana recovery pubkey (base58) from a SECP256k1 stealth public key.

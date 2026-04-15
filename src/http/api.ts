@@ -12,6 +12,7 @@ import type {
   GetAggregatorRequestStatusReturnType,
   GetAllNotesReturnType,
   GetCurvyIdByOwnerAddressResponse,
+  GetPortalRecordsReturnType,
   NetworksWithCurrenciesResponse,
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,
@@ -58,6 +59,21 @@ class ApiClient extends HttpClient implements IApiClient {
           body: body,
         })
       ).data;
+    },
+    getPortalRecords: async (
+      params: { offset?: number; size?: number; startTime?: number; endTime?: number } = {},
+    ): Promise<GetPortalRecordsReturnType> => {
+      const queryParams: Record<string, string | number | boolean> = {};
+      if (params.offset !== undefined) queryParams.offset = params.offset;
+      if (params.size !== undefined) queryParams.size = params.size;
+      if (params.startTime !== undefined) queryParams.startTime = params.startTime;
+      if (params.endTime !== undefined) queryParams.endTime = params.endTime;
+
+      return await this.request<GetPortalRecordsReturnType>({
+        method: "GET",
+        path: "/portal",
+        queryParams,
+      });
     },
   };
 

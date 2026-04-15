@@ -180,6 +180,24 @@ type InsertPortalReturnType = {
   data: { address: HexString; flavour: NETWORK_FLAVOUR_VALUES };
 };
 
+type PortalRecord = {
+  id: number;
+  ephemeralKey: string;
+  viewTag: string;
+  createdAt: string;
+  updatedAt: string;
+} & ({ type: "entry"; ownerHash: string } | { type: "exit"; exitAddress: HexString; exitChainId: string });
+
+type MatchedPortalRecord = PortalRecord & {
+  contractAddress: HexString;
+  recoveryAddress: HexString;
+};
+
+type GetPortalRecordsReturnType = {
+  portals: PortalRecord[];
+  total: number;
+};
+
 //#endregion
 
 export type {
@@ -198,6 +216,9 @@ export type {
   InsertEntryPortalRequestBody,
   InsertExitPortalRequestBody,
   InsertPortalReturnType,
+  PortalRecord,
+  MatchedPortalRecord,
+  GetPortalRecordsReturnType,
 };
 
 //#endregion
