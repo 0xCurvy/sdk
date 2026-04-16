@@ -26,6 +26,10 @@ import type {
 import type { CurvyId } from "@/types/curvy";
 
 class ApiClient extends HttpClient implements IApiClient {
+  constructor(apiBaseUrl?: string, customFetch?: typeof globalThis.fetch) {
+    super(apiBaseUrl, customFetch);
+  }
+
   updateBearerToken = (bearer: string | undefined) => {
     return this._updateBearerToken(bearer);
   };
