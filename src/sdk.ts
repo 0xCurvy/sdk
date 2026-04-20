@@ -1,3 +1,9 @@
+import {
+  type Instruction,
+  isAddress as isSolanaAddress,
+  type Address as SolanaAddress,
+  address as toSolanaAddress,
+} from "@solana/kit";
 import { Buffer as BufferPolyfill } from "buffer";
 import { type Address, getAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -6,6 +12,7 @@ import { PRICE_UPDATE_INTERVAL } from "@/constants/intervals";
 import {
   NETWORK_ENVIRONMENT,
   type NETWORK_ENVIRONMENT_VALUES,
+  NETWORK_FLAVOUR,
   type NETWORK_FLAVOUR_VALUES,
 } from "@/constants/networks";
 import { portalFactoryAbi } from "@/contracts/evm/abi/portal-factory";
@@ -22,7 +29,20 @@ import type { EstimatedPlan, Intent } from "@/planner/type";
 import { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
+import { SolanaRpc, type SolanaSigner } from "@/rpc/solana";
 import { SessionKeystore } from "@/session-keystore";
+import {
+  buildRecoverSolInstruction,
+  buildRecoverSplInstruction,
+  deriveAssociatedTokenAddress,
+  derivePortalMetaPda,
+  deriveRecoveryIdentifier,
+  deriveVaultPda,
+  NATIVE_SOL_MINT,
+  ownerHashToBytes,
+  signSolRecovery,
+  signSplRecovery,
+} from "@/solana";
 import { MapStorage } from "@/storage/map-storage";
 import {
   type CurvyKeyPairs,
@@ -40,6 +60,11 @@ import { CurvyWallet } from "@/wallet";
 import { Core } from "./core";
 import { deriveAddress } from "./utils";
 import { WalletManager } from "./wallet-manager";
+
+// Re-export the kit-based `SolanaSigner` interface alongside the SDK so
+// consumers (the frontend, external apps) can import it from the top-level
+// SDK barrel without needing to reach into `@/rpc/solana`.
+export type { SolanaSigner };
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -367,10 +392,16 @@ class CurvySDK implements ICurvySDK {
   }
 
   async findPortal(address: HexString | (string & {}), network: Network): Promise<MatchedPortalRecord | null> {
-    if (!isHexString(address)) {
-      throw new Error(`Recovery only supported for EVM addresses. Solana support coming soon.`);
+    if (network.flavour === NETWORK_FLAVOUR.SOLANA) {
+      return this.#findSolanaPortal(address, network);
     }
+    if (!isHexString(address)) {
+      throw new Error(`EVM recovery requires a hex address; got "${address}".`);
+    }
+    return this.#findEvmPortal(address, network);
+  }
 
+  async #findEvmPortal(address: HexString, network: Network): Promise<MatchedPortalRecord | null> {
     const wallet = this.walletManager.activeWallet;
 
     if (!network.portalFactoryContractAddress) {
@@ -455,6 +486,7 @@ class CurvySDK implements ICurvySDK {
         const { index, recoveryAddress } = matched[j];
         return {
           ...result.portals[index],
+          flavour: "evm",
           contractAddress: derivedAddress as HexString,
           recoveryAddress,
         };
@@ -466,18 +498,89 @@ class CurvySDK implements ICurvySDK {
     return null;
   }
 
+  /**
+   * Locate a Solana entry-portal vault PDA among the user's portal records.
+   *
+   * Shares the same `core.scan` pass as EVM — the recovery key is the derived
+   * secp256k1 private key. The difference is the on-chain identity: Solana
+   * derives a `recoveryIdentifier` (hash of the compressed secp256k1 pubkey)
+   * and builds the vault address via `PublicKey.findProgramAddressSync` with
+   * `[PORTAL_SEED, ownerHash, recoveryIdentifier]`.
+   *
+   * Solana only supports entry portals today — exit-portal rows are skipped.
+   */
+  async #findSolanaPortal(targetBase58: string, network: Network): Promise<MatchedPortalRecord | null> {
+    if (!network.portalProgramAddress) {
+      throw new Error(`Network ${network.name} does not have a Solana portal program address configured.`);
+    }
+
+    if (!isSolanaAddress(targetBase58)) {
+      throw new Error(`Invalid Solana address: ${targetBase58}`);
+    }
+
+    const wallet = this.walletManager.activeWallet;
+    const programAddress: SolanaAddress = toSolanaAddress(network.portalProgramAddress);
+    const targetVault: SolanaAddress = targetBase58;
+
+    const BATCH_SIZE = 200;
+    let offset = 0;
+    let total = Number.POSITIVE_INFINITY;
+
+    while (offset < total) {
+      const result = await this.apiClient.portal.getPortalRecords({ offset, size: BATCH_SIZE });
+      total = result.total;
+
+      if (result.portals.length === 0) break;
+
+      const scanData = result.portals.map((p) => ({
+        ephemeralPublicKey: p.ephemeralKey,
+        viewTag: p.viewTag,
+      }));
+
+      const { spendingPrivKeys } = await this.#core.scan(wallet.keyPairs.s, wallet.keyPairs.v, scanData);
+
+      for (let i = 0; i < spendingPrivKeys.length; i++) {
+        const privKey = spendingPrivKeys[i];
+        if (!privKey) continue;
+
+        const portal = result.portals[i];
+        // Solana supports entry-portal recovery only. Exit portals have no
+        // ownerHash and their PDA derivation doesn't apply.
+        if (portal.type !== "entry") continue;
+
+        const { recoveryIdentifier } = await deriveRecoveryIdentifier(privKey);
+        const ownerHashBytes = ownerHashToBytes(portal.ownerHash);
+        const [vaultPda] = await deriveVaultPda(programAddress, ownerHashBytes, recoveryIdentifier);
+
+        if (vaultPda !== targetVault) continue;
+
+        return {
+          ...portal,
+          flavour: "solana",
+          contractAddress: vaultPda,
+          recoveryPubKey: recoveryIdentifier,
+        };
+      }
+
+      offset += result.portals.length;
+    }
+
+    return null;
+  }
+
   async recoverPortal(args: {
     networkId: number;
-    tokenAddress: HexString;
+    tokenAddress: HexString | (string & {});
     portalRecord: MatchedPortalRecord;
-    destinationAddress: HexString;
-  }): Promise<HexString> {
+    destinationAddress: HexString | (string & {});
+    solanaSigner?: SolanaSigner;
+  }): Promise<string> {
     const { s, v } = this.walletManager.activeWallet.keyPairs;
     if (!s || !v) {
       throw new Error("Active wallet has no private keys available for recovery.");
     }
 
-    const { portalRecord, destinationAddress, networkId, tokenAddress } = args;
+    const { portalRecord, networkId } = args;
 
     const { spendingPrivKeys } = await this.#core.scan(s, v, [
       {
@@ -491,16 +594,45 @@ class CurvySDK implements ICurvySDK {
       throw new Error("Failed to derive recovery private key: no matching key found for the given announcement.");
     }
 
-    const recoveryAccount = privateKeyToAccount(recoveryPrivateKey);
-
-    // Resolve the network on which the portal is deployed
     const network = this.#networks.find((n) => n.id === networkId);
     if (!network) {
       throw new Error(`Network with id ${networkId} not found.`);
     }
 
-    const rpc = this.rpcClient.Network(network.id) as EvmRpc;
+    if (portalRecord.flavour === "solana") {
+      if (!args.solanaSigner) {
+        throw new Error("Solana recovery requires a connected Solana wallet signer.");
+      }
+      return this.#recoverSolanaPortal({
+        network,
+        portalRecord,
+        recoveryPrivateKey,
+        mintAddress: args.tokenAddress,
+        destinationAddress: args.destinationAddress,
+        signer: args.solanaSigner,
+      });
+    }
 
+    return this.#recoverEvmPortal({
+      network,
+      portalRecord,
+      recoveryPrivateKey,
+      tokenAddress: args.tokenAddress as HexString,
+      destinationAddress: args.destinationAddress as HexString,
+    });
+  }
+
+  async #recoverEvmPortal(args: {
+    network: Network;
+    portalRecord: Extract<MatchedPortalRecord, { flavour: "evm" }>;
+    recoveryPrivateKey: HexString;
+    tokenAddress: HexString;
+    destinationAddress: HexString;
+  }): Promise<HexString> {
+    const { network, portalRecord, recoveryPrivateKey, tokenAddress, destinationAddress } = args;
+
+    const recoveryAccount = privateKeyToAccount(recoveryPrivateKey);
+    const rpc = this.rpcClient.Network(network.id) as EvmRpc;
     const publicClient = rpc.provider;
 
     if (!network.portalFactoryContractAddress) {
@@ -537,10 +669,100 @@ class CurvySDK implements ICurvySDK {
       });
     }
 
-    // Wait for confirmation
     await publicClient.waitForTransactionReceipt({ hash: deployRecoveryTxHash });
 
-    return deployRecoveryTxHash as HexString;
+    return deployRecoveryTxHash;
+  }
+
+  /**
+   * Submit a `recover_sol` or `recover_spl` transaction.
+   *
+   * Unlike EVM recovery, the fee payer is the user's connected Solana wallet
+   * (there is no per-portal recovery address that needs its own gas). The
+   * secp256k1 signature embedded in the instruction data is what authorizes
+   * the funds to move to `destinationAddress`.
+   */
+  async #recoverSolanaPortal(args: {
+    network: Network;
+    portalRecord: Extract<MatchedPortalRecord, { flavour: "solana" }>;
+    recoveryPrivateKey: HexString;
+    mintAddress: string;
+    destinationAddress: string;
+    signer: SolanaSigner;
+  }): Promise<string> {
+    const { network, portalRecord, recoveryPrivateKey, mintAddress, destinationAddress, signer } = args;
+
+    if (!network.portalProgramAddress) {
+      throw new Error(`Network ${network.name} does not have a Solana portal program address configured.`);
+    }
+    if (portalRecord.type !== "entry") {
+      throw new Error("Solana recovery supports entry portals only.");
+    }
+
+    const rpc = this.rpcClient.Network(network.id);
+    if (!(rpc instanceof SolanaRpc)) {
+      throw new Error(`Network ${network.name} is not a Solana RPC — got ${rpc.constructor.name}.`);
+    }
+
+    const programAddress: SolanaAddress = toSolanaAddress(network.portalProgramAddress);
+    const recipient: SolanaAddress = toSolanaAddress(destinationAddress);
+    const payer: SolanaAddress = toSolanaAddress(signer.address);
+    const { recoveryIdentifier } = await deriveRecoveryIdentifier(recoveryPrivateKey);
+    const ownerHashBytes = ownerHashToBytes(portalRecord.ownerHash);
+    const [vaultPda] = await deriveVaultPda(programAddress, ownerHashBytes, recoveryIdentifier);
+    const [portalMetaPda] = await derivePortalMetaPda(programAddress, ownerHashBytes, recoveryIdentifier);
+
+    const isNativeSol = mintAddress === NATIVE_SOL_MINT;
+
+    let instruction: Instruction | undefined;
+    if (isNativeSol) {
+      const { signature, recoveryId } = await signSolRecovery({
+        secpPrivKey: recoveryPrivateKey.slice(2),
+        programAddress,
+        ownerHash: ownerHashBytes,
+        recoveryIdentifier,
+        recipient,
+      });
+      instruction = buildRecoverSolInstruction({
+        programAddress,
+        payer,
+        vault: vaultPda,
+        recipient,
+        portalMeta: portalMetaPda,
+        ownerHash: ownerHashBytes,
+        recoveryIdentifier,
+        recoveryId,
+        signature,
+      });
+    } else {
+      const mint: SolanaAddress = toSolanaAddress(mintAddress);
+      const { signature, recoveryId } = await signSplRecovery({
+        secpPrivKey: recoveryPrivateKey.slice(2),
+        programAddress,
+        ownerHash: ownerHashBytes,
+        recoveryIdentifier,
+        recipient,
+        mint,
+      });
+      const vaultTokenAccount = await deriveAssociatedTokenAddress(mint, vaultPda);
+      const recipientTokenAccount = await deriveAssociatedTokenAddress(mint, recipient);
+      instruction = buildRecoverSplInstruction({
+        programAddress,
+        payer,
+        vault: vaultPda,
+        vaultTokenAccount,
+        recipientTokenAccount,
+        recipient,
+        mint,
+        portalMeta: portalMetaPda,
+        ownerHash: ownerHashBytes,
+        recoveryIdentifier,
+        recoveryId,
+        signature,
+      });
+    }
+
+    return rpc.sendTransactionWithSigner(instruction, signer);
   }
 
   async resetStorage() {

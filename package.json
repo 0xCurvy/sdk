@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@lifi/sdk": "^3.13.6",
+    "@noble/hashes": "^2.2.0",
     "@noble/secp256k1": "^2.3.0",
     "@solana-program/system": "^0.12.0",
     "@solana-program/token": "^0.13.0",

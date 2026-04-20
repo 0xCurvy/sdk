@@ -1,6 +1,23 @@
-import { type Address, address, createSolanaRpc, type SolanaRpcApi, type Rpc as SolanaRpcClient } from "@solana/kit";
+import {
+  type Address,
+  address,
+  appendTransactionMessageInstruction,
+  type Base64EncodedWireTransaction,
+  compileTransaction,
+  createSolanaRpc,
+  createTransactionMessage,
+  getBase64Decoder,
+  type Instruction,
+  pipe,
+  type Signature,
+  type SolanaRpcApi,
+  type Rpc as SolanaRpcClient,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+} from "@solana/kit";
 import { findAssociatedTokenPda, TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
+import { NATIVE_SOL_MINT } from "@/constants/solana";
 import { Rpc } from "@/rpc/abstract";
 import type { RpcBalance, RpcBalances } from "@/types";
 import type { Currency, Network } from "@/types/api";
@@ -8,11 +25,28 @@ import type { HexString } from "@/types/helper";
 import { toSlug } from "@/utils/helpers";
 
 /**
- * Native SOL placeholder address (System Program ID).
- * SPL token mints don't exist for native SOL; we use this sentinel together
- * with `nativeCurrency=true` on the network row to identify native balances.
+ * Minimal Solana signer shape used by `sendTransactionWithSigner`.
+ *
+ * Intentionally kit-agnostic *and* wallet-adapter-agnostic: the SDK compiles
+ * a transaction message to raw bytes and hands those bytes to the caller's
+ * `signTransaction`, expecting the fully-signed wire-format bytes back. The
+ * frontend is responsible for whatever ceremony is needed to get the wallet
+ * to sign (it can deserialize into a `VersionedTransaction`, hand it to
+ * `@solana/wallet-adapter-react`, and serialize the result).
+ *
+ * This keeps `@solana/web3.js` out of the SDK bundle entirely — kit handles
+ * every tx-building concern on this side of the boundary.
  */
-const NATIVE_SOL_MINT = "11111111111111111111111111111111";
+type SolanaSigner = {
+  /** Base58 Solana address that will be the fee payer. */
+  readonly address: string;
+  /**
+   * Sign a compiled transaction message. Input is the raw kit-compiled
+   * `messageBytes`. Output must be the full serialized signed wire
+   * transaction (signatures || message), ready for `sendTransaction`.
+   */
+  signTransaction(messageBytes: Uint8Array): Promise<Uint8Array>;
+};
 
 /**
  * Solana RPC adapter — the Solana counterpart of `EvmRpc`.
@@ -37,6 +71,67 @@ class SolanaRpc extends Rpc {
   /** Underlying `@solana/kit` RPC client — the Solana equivalent of viem's PublicClient. */
   get provider() {
     return this.#rpc;
+  }
+
+  /**
+   * Build, hand off for signing, submit, and confirm a single-instruction tx.
+   * Returns the transaction signature (base58).
+   *
+   * The full transaction lifecycle lives here in `@solana/kit` — only the
+   * signing step is delegated out to `signer.signTransaction`, which receives
+   * raw compiled-message bytes and returns the serialized signed wire tx.
+   */
+  async sendTransactionWithSigner(instruction: Instruction, signer: SolanaSigner): Promise<Signature> {
+    const payerAddress = address(signer.address);
+
+    const { value: latestBlockhash } = await this.#rpc.getLatestBlockhash({ commitment: "confirmed" }).send();
+
+    const txMessage = pipe(
+      createTransactionMessage({ version: 0 }),
+      (m) => setTransactionMessageFeePayer(payerAddress, m),
+      (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+      (m) => appendTransactionMessageInstruction(instruction, m),
+    );
+
+    const compiled = compileTransaction(txMessage);
+    const signedWireBytes = await signer.signTransaction(compiled.messageBytes as unknown as Uint8Array);
+
+    // `@solana/kit` speaks base64 when encoding wire transactions for
+    // `sendTransaction`; we decode the signer's raw bytes into a base64
+    // string via the kit codec to keep everything kit-typed.
+    const base64Wire = getBase64Decoder().decode(signedWireBytes) as Base64EncodedWireTransaction;
+    const signature = await this.#rpc
+      .sendTransaction(base64Wire, { encoding: "base64", preflightCommitment: "confirmed" })
+      .send();
+
+    await this.#waitForSignatureConfirmation(signature, latestBlockhash.lastValidBlockHeight);
+    return signature;
+  }
+
+  /**
+   * Poll until the signature is confirmed or the blockhash expires. Cheaper
+   * than wiring up `sendAndConfirmTransactionFactory` (which needs a WS
+   * subscription) and fine for the low-throughput recovery path.
+   */
+  async #waitForSignatureConfirmation(signature: Signature, lastValidBlockHeight: bigint): Promise<void> {
+    const pollIntervalMs = 1_000;
+    for (;;) {
+      const { value } = await this.#rpc.getSignatureStatuses([signature]).send();
+      const status = value[0];
+      if (status) {
+        if (status.err) {
+          throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
+        }
+        if (status.confirmationStatus === "confirmed" || status.confirmationStatus === "finalized") {
+          return;
+        }
+      }
+      const currentHeight = await this.#rpc.getBlockHeight({ commitment: "confirmed" }).send();
+      if (currentHeight > lastValidBlockHeight) {
+        throw new Error("Transaction blockhash expired before confirmation");
+      }
+      await new Promise((r) => setTimeout(r, pollIntervalMs));
+    }
   }
 
   /**
@@ -179,4 +274,4 @@ class SolanaRpc extends Rpc {
   }
 }
 
-export { SolanaRpc };
+export { SolanaRpc, type SolanaSigner };

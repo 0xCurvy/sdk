@@ -188,10 +188,21 @@ type PortalRecord = {
   updatedAt: string;
 } & ({ type: "entry"; ownerHash: string } | { type: "exit"; exitAddress: HexString; exitChainId: string });
 
-type MatchedPortalRecord = PortalRecord & {
+type MatchedEvmPortal = PortalRecord & {
+  flavour: "evm";
   contractAddress: HexString;
   recoveryAddress: HexString;
 };
+
+type MatchedSolanaPortal = PortalRecord & {
+  flavour: "solana";
+  // Solana vault PDA (base58). Widened from HexString because Solana addresses are not hex.
+  contractAddress: string;
+  // Base58 recovery identifier pubkey — the on-chain PDA seed used with ownerHash.
+  recoveryPubKey: string;
+};
+
+type MatchedPortalRecord = MatchedEvmPortal | MatchedSolanaPortal;
 
 type GetPortalRecordsReturnType = {
   portals: PortalRecord[];
