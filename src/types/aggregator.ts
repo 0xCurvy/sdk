@@ -29,6 +29,7 @@ const AGGREGATOR_ACTIONS = {
   DEPOSIT: "deposit",
   AGGREGATION: "aggregation",
   WITHDRAWAL: "withdrawal",
+  FEE_WITHDRAWAL: "fee-withdrawal",
 } as const;
 type AGGREGATOR_ACTIONS = typeof AGGREGATOR_ACTIONS;
 export { AGGREGATOR_ACTIONS };
