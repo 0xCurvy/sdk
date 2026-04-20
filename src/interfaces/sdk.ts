@@ -6,6 +6,7 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { EstimatedPlan, Intent, IntentEstimation, PlanExecution } from "@/planner/type";
 import type { MultiRpc } from "@/rpc/multi";
+import type { SolanaSigner } from "@/rpc/solana";
 import type {
   BalanceEntry,
   CurvyId,
@@ -69,13 +70,14 @@ interface ICurvySDK {
 
   refreshBalances(options: RefreshOptions): Promise<void>;
 
-  findPortal(contractAddress: HexString, network: Network): Promise<MatchedPortalRecord | null>;
+  findPortal(contractAddress: HexString | (string & {}), network: Network): Promise<MatchedPortalRecord | null>;
   recoverPortal(args: {
     networkId: number;
-    tokenAddress: HexString;
+    tokenAddress: HexString | (string & {});
     portalRecord: MatchedPortalRecord;
-    destinationAddress: HexString;
-  }): Promise<HexString>;
+    destinationAddress: HexString | (string & {});
+    solanaSigner?: SolanaSigner;
+  }): Promise<string>;
 
   resetStorage(): Promise<void>;
 }
