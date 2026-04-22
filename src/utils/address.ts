@@ -1,3 +1,4 @@
+import { isAddress } from "@solana/kit";
 import bs58 from "bs58";
 import { concat, keccak256, sha256 } from "viem";
 import { publicKeyToAddress } from "viem/accounts";
@@ -13,19 +14,10 @@ const isValidEvmAddress = (recipient: string): recipient is HexString => {
   return /^0x[a-fA-F0-9]{40}$/.test(recipient);
 };
 
-const isValidSolanaAddress = (recipient: string): boolean => {
-  try {
-    const decoded = bs58.decode(recipient);
-    return decoded.length === 32;
-  } catch {
-    return false;
-  }
-};
-
 const isValidAddressFormat = (recipient: string, flavour?: NETWORK_FLAVOUR_VALUES): boolean => {
   switch (flavour) {
     case NETWORK_FLAVOUR.SOLANA: {
-      return isValidSolanaAddress(recipient);
+      return isAddress(recipient);
     }
     case NETWORK_FLAVOUR.EVM:
     default: {
