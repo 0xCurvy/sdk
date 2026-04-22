@@ -1,7 +1,8 @@
 import { normalize } from "viem/ens";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { EvmRpc } from "@/rpc/evm";
-import { type CurvyId, type HexString, isHexString, type RpcBalances } from "@/types";
+import { SolanaRpc } from "@/rpc/solana";
+import { type CurvyId, isHexString, type RpcBalances } from "@/types";
 import type { AbortOptions } from "@/types/helper";
 import type { CurvyPublicClient } from "@/utils";
 import { toSlug } from "@/utils/helpers";
@@ -15,16 +16,28 @@ class MultiRpc {
     this.#rpcArray = rpcs;
   }
 
+  /**
+   * Fetch balances for the given stealth address across one or more networks.
+   *
+   * The stealth address can be either EVM hex (`0x...`) or Solana base58 — we
+   * route to the matching `Rpc` implementation per network. When no `networks`
+   * filter is provided we infer compatible RPCs from the address format so a
+   * caller passing a hex address never accidentally hits the Solana RPC (and
+   * vice versa).
+   */
   async getBalances(
-    stealthAddress: HexString,
+    stealthAddress: string,
     networks?: string[],
     { signal: _ }: AbortOptions = {},
   ): Promise<RpcBalances> {
-    const rpcs = this.#rpcArray.filter(
-      (rpc) =>
-        isHexString(stealthAddress) &&
-        (!networks || networks.length === 0 || networks.includes(toSlug(rpc.network.name))),
-    );
+    const addressIsHex = isHexString(stealthAddress);
+    const rpcs = this.#rpcArray.filter((rpc) => {
+      // Each rpc only handles addresses native to its network flavour.
+      const flavourMatches = rpc instanceof SolanaRpc ? !addressIsHex : addressIsHex;
+      if (!flavourMatches) return false;
+      // Optional explicit network filter (slugs).
+      return !networks || networks.length === 0 || networks.includes(toSlug(rpc.network.name));
+    });
     return Promise.all(rpcs.map((rpc) => rpc.getBalances(stealthAddress))).then((results) => {
       return Object.assign(Object.create(null), ...results);
     });

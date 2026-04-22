@@ -1,4 +1,4 @@
-import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import type { NETWORK_ENVIRONMENT_VALUES, NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
@@ -6,6 +6,7 @@ import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
 import type { EstimatedPlan, Intent, IntentEstimation, PlanExecution } from "@/planner/type";
 import type { MultiRpc } from "@/rpc/multi";
+import type { SolanaSigner } from "@/rpc/solana";
 import type {
   BalanceEntry,
   CurvyId,
@@ -52,7 +53,11 @@ interface ICurvySDK {
 
   ensResolveCurvyId(handle: CurvyId, slip0044?: bigint): Promise<HexString>;
 
-  generateEntryPortal(args: { curvyId: CurvyId; coinType?: string; currencyId?: number }): Promise<HexString>;
+  generateEntryPortal(args: {
+    curvyId: CurvyId;
+    coinType?: string;
+    currencyId?: number;
+  }): Promise<{ address: HexString; flavour: NETWORK_FLAVOUR_VALUES }>;
 
   generateExitPortal(args: {
     curvyId: CurvyId;
@@ -61,17 +66,18 @@ interface ICurvySDK {
     exitNetworkId?: number;
     exitCurrencyId?: number;
     coinType?: string;
-  }): Promise<HexString>;
+  }): Promise<{ address: HexString; flavour: NETWORK_FLAVOUR_VALUES }>;
 
   refreshBalances(options: RefreshOptions): Promise<void>;
 
-  findPortal(contractAddress: HexString, network: Network): Promise<MatchedPortalRecord | null>;
+  findPortal(contractAddress: HexString | (string & {}), network: Network): Promise<MatchedPortalRecord | null>;
   recoverPortal(args: {
     networkId: number;
-    tokenAddress: HexString;
+    tokenAddress: HexString | (string & {});
     portalRecord: MatchedPortalRecord;
-    destinationAddress: HexString;
-  }): Promise<HexString>;
+    destinationAddress: HexString | (string & {});
+    solanaSigner?: SolanaSigner;
+  }): Promise<string>;
 
   resetStorage(): Promise<void>;
 }
