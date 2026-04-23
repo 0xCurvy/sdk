@@ -28,6 +28,7 @@ export {
   RECOVER_SPL_DISC,
   RECOVERY_DOMAIN,
   RELAY_PROGRAM_ID,
+  SOLANA_ONCHAIN_DECIMALS,
   WSOL_MINT,
 } from "@/constants/solana";
 export type { AcrossQuoteParams, SolanaPortalBalance } from "@/types/solana";
