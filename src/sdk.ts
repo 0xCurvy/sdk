@@ -94,9 +94,14 @@ class CurvySDK implements ICurvySDK {
   on: ICurvyEventEmitter["on"];
   off: ICurvyEventEmitter["off"];
 
-  private constructor(core: Core, apiBaseUrl?: string, storage: StorageInterface = new MapStorage()) {
+  private constructor(
+    core: Core,
+    apiBaseUrl?: string,
+    storage: StorageInterface = new MapStorage(),
+    customFetch?: typeof globalThis.fetch,
+  ) {
     this.#core = core;
-    this.apiClient = new ApiClient(apiBaseUrl);
+    this.apiClient = new ApiClient(apiBaseUrl, customFetch);
     this.#emitter = new CurvyEventEmitter();
     this.#networks = [];
     this.storage = storage;
@@ -137,10 +142,11 @@ class CurvySDK implements ICurvySDK {
     wasmUrl?: string,
     commandFactory?: ICommandFactory,
     enableKeystore = false,
+    customFetch?: typeof globalThis.fetch,
   ) {
     const core = new Core(wasmUrl);
 
-    const sdk = new CurvySDK(core, apiBaseUrl, storage);
+    const sdk = new CurvySDK(core, apiBaseUrl, storage, customFetch);
 
     sdk.#networks = await sdk.apiClient.network.GetNetworks();
     await sdk.storage.upsertCurrencyMetadata(networksToCurrencyMetadata(sdk.#networks));
