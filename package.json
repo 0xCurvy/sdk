@@ -1,7 +1,7 @@
 {
   "name": "@0xcurvy/curvy-sdk",
   "license": "MIT",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "repository": "https://github.com/0xCurvy/curvy-sdk",
   "packageManager": "pnpm@10.12.1",
   "type": "module",
