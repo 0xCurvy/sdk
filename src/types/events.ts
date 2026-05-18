@@ -1,5 +1,5 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import { RawAnnouncement } from "@/interfaces/core";
+import type { RawAnnouncement } from "@/interfaces/core";
 import type { Plan, PlanExecution } from "@/planner/type";
 import type { ExtractValues } from "@/types/helper";
 

@@ -6,6 +6,7 @@ import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { IWalletManager } from "@/interfaces/wallet-manager";
+import type { SessionKeystore } from "@/session-keystore";
 import {
   type AdditionalWalletData,
   assertCurvyId,
@@ -31,16 +32,17 @@ class WalletManager implements IWalletManager {
   readonly #storage: StorageInterface;
   readonly #core: ICore;
   readonly #wallets: Map<string, CurvyWallet>;
+  readonly #keystore: SessionKeystore | null;
 
   #jwtRefreshInterval: NodeJS.Timeout | null;
   #activeWallet: Readonly<CurvyWallet> | null;
 
-  constructor(client: IApiClient, storage: StorageInterface, core: ICore) {
+  constructor(client: IApiClient, storage: StorageInterface, core: ICore, keyStore: SessionKeystore | null = null) {
     this.#apiClient = client;
     this.#wallets = new Map<string, CurvyWallet>();
     this.#storage = storage;
     this.#core = core;
-
+    this.#keystore = keyStore;
     this.#jwtRefreshInterval = null;
 
     this.#activeWallet = null;
@@ -296,7 +298,10 @@ class WalletManager implements IWalletManager {
 
     await this.setActiveWallet(wallet, skipBearerTokenUpdate);
 
-    if (!wallet.isPartial) await this.#storage.insertCurvyWallet(wallet);
+    if (!wallet.isPartial) {
+      await this.#storage.insertCurvyWallet(wallet);
+      this.#keystore?.set(wallet.id, JSON.stringify(wallet.keyPairs));
+    }
   }
 
   async removeWallet(walletId: string) {
@@ -307,6 +312,7 @@ class WalletManager implements IWalletManager {
     this.#stopJwtRefreshInterval();
     this.#apiClient.updateBearerToken(undefined);
     this.#wallets.delete(walletId);
+    this.#keystore?.delete(walletId);
 
     if (this.#wallets.size > 0) {
       const wallet = this.#wallets.values().next().value;

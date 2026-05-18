@@ -13,15 +13,24 @@ type RequestOptions = {
 
 class HttpClient {
   #bearerToken?: string;
+  #onTokenChange?: (token: string | undefined) => void;
+  readonly #fetch: typeof globalThis.fetch;
   protected readonly apiBaseUrl: string;
 
-  constructor(apiBaseUrl?: string) {
+  constructor(apiBaseUrl?: string, customFetch?: typeof globalThis.fetch) {
     this.apiBaseUrl = apiBaseUrl || "https://api.curvy.box";
+    this.#fetch = customFetch ?? globalThis.fetch.bind(globalThis);
+  }
+
+  /** Register a callback that fires whenever the bearer token changes. */
+  setOnTokenChange(callback: ((token: string | undefined) => void) | undefined): void {
+    this.#onTokenChange = callback;
   }
 
   // Method to update the bearer token (for token refresh scenarios)
   protected _updateBearerToken(bearer: string | undefined): void {
     this.#bearerToken = bearer;
+    this.#onTokenChange?.(bearer);
   }
 
   get bearerToken(): string | undefined {
@@ -62,7 +71,7 @@ class HttpClient {
         }
       }
 
-      const response = await fetch(url.toString(), {
+      const response = await this.#fetch(url.toString(), {
         method,
         headers: this.getHeaders(),
         body: body ? jsonStringify(body) : undefined,

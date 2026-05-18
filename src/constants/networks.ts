@@ -2,6 +2,7 @@ import type { ExtractValues } from "@/types/helper";
 
 const NETWORK_FLAVOUR = {
   EVM: "evm",
+  SOLANA: "solana",
 } as const;
 type NETWORK_FLAVOUR = typeof NETWORK_FLAVOUR;
 type NETWORK_FLAVOUR_VALUES = ExtractValues<NETWORK_FLAVOUR>;

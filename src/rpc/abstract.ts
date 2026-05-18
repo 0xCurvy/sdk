@@ -1,5 +1,4 @@
 import type { Network } from "@/types/api";
-import type { HexString } from "@/types/helper";
 import type { RpcBalance, RpcBalances } from "@/types/rpc";
 
 abstract class Rpc {
@@ -16,9 +15,15 @@ abstract class Rpc {
   // biome-ignore lint/suspicious/noExplicitAny: Different networks have different provider types
   abstract get provider(): any;
 
-  abstract getBalances(stealthAddress: HexString): Promise<RpcBalances>;
+  /**
+   * Stealth address format depends on the network flavour:
+   *   - EVM: `0x`-prefixed 20-byte hex
+   *   - Solana: 32-byte base58
+   * The string union keeps both supported under a single signature.
+   */
+  abstract getBalances(stealthAddress: string): Promise<RpcBalances>;
 
-  abstract getBalance(stealthAddress: HexString, symbol: string): Promise<RpcBalance>;
+  abstract getBalance(stealthAddress: string, symbol: string): Promise<RpcBalance>;
 }
 
 export { Rpc };

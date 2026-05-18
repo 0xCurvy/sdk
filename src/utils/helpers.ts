@@ -1,6 +1,7 @@
 import { getAddress } from "viem";
 import { getSignatureParams as evmGetSignatureParams } from "@/constants/evm";
 import type { EvmSignTypedDataParameters } from "@/types";
+import { sleep } from "@/utils/common";
 
 const isNode = typeof process !== "undefined" && process.versions != null && process.versions.node != null;
 const textEncoder = new TextEncoder();
@@ -38,23 +39,31 @@ function encode(message: string) {
  *
  * @param pollFunction
  * @param pollCriteria
- * @param {number} [maxRetries=120] - Maximum number of retries
- * @param {number} [delayMs=10_000] - Delay between retries in milliseconds
+ * @param {number} [pollAttempts=120] - Maximum number of retries
+ * @param {number} [pollDelay=10_000] - Delay between retries in milliseconds
+ * @param {(pollAttempt: number, error: unknown) => boolean} [shouldRetry] - Optional function to determine if a retry should be attempted after an error
  */
 async function pollForCriteria<T>(
   pollFunction: () => Promise<T>,
   pollCriteria: (res: T) => boolean,
-  maxRetries = 120,
-  delayMs = 10000,
+  pollAttempts = 120,
+  pollDelay = 10000,
+  shouldRetry?: (pollAttempt: number, error: unknown) => boolean,
 ): Promise<T> {
-  for (let i = 0; i < maxRetries; i++) {
-    const res = await pollFunction();
+  for (let pollAttempt = 0; pollAttempt < pollAttempts; pollAttempt++) {
+    try {
+      const res = await pollFunction();
 
-    if (pollCriteria(res)) {
-      return res;
+      if (pollCriteria(res)) {
+        return res;
+      }
+    } catch (error) {
+      if (!shouldRetry?.(pollAttempt, error)) {
+        throw error;
+      }
     }
 
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    await sleep(pollDelay);
   }
 
   throw new Error(`Polling failed!`);

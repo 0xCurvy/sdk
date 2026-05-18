@@ -1,10 +1,23 @@
+import {
+  type Instruction,
+  isAddress as isSolanaAddress,
+  type Address as SolanaAddress,
+  address as toSolanaAddress,
+} from "@solana/kit";
 import { Buffer as BufferPolyfill } from "buffer";
+import { type Address, getAddress } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { BalanceScanner } from "@/balance-scanner";
 import { PRICE_UPDATE_INTERVAL } from "@/constants/intervals";
-import { NETWORK_ENVIRONMENT, type NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import {
+  NETWORK_ENVIRONMENT,
+  type NETWORK_ENVIRONMENT_VALUES,
+  NETWORK_FLAVOUR,
+  type NETWORK_FLAVOUR_VALUES,
+} from "@/constants/networks";
+import { portalFactoryAbi } from "@/contracts/evm/abi/portal-factory";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
-import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { ICurvySDK } from "@/interfaces/sdk";
@@ -13,16 +26,45 @@ import type { IWalletManager } from "@/interfaces/wallet-manager";
 import { CurvyCommandFactory, type ICommandFactory } from "@/planner/commands/factory";
 import { Planner } from "@/planner/planner";
 import type { EstimatedPlan, Intent } from "@/planner/type";
+import { EvmRpc } from "@/rpc/evm";
 import { newMultiRpc } from "@/rpc/factory";
 import type { MultiRpc } from "@/rpc/multi";
+import { SolanaRpc, type SolanaSigner } from "@/rpc/solana";
+import { SessionKeystore } from "@/session-keystore";
+import {
+  buildRecoverSolInstruction,
+  buildRecoverSplInstruction,
+  deriveAssociatedTokenAddress,
+  derivePortalMetaPda,
+  deriveRecoveryIdentifier,
+  deriveVaultPda,
+  NATIVE_SOL_MINT,
+  ownerHashToBytes,
+  signSolRecovery,
+  signSplRecovery,
+} from "@/solana";
 import { MapStorage } from "@/storage/map-storage";
-import type { EvmSignatureData, Network, RefreshOptions } from "@/types";
+import {
+  type CurvyKeyPairs,
+  type EvmSignatureData,
+  isHexString,
+  type MatchedPortalRecord,
+  type Network,
+  type RefreshOptions,
+} from "@/types";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import { filterNetworks, type NetworkFilter, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
+import { poseidonHash } from "@/utils/poseidon-hash";
+import { CurvyWallet } from "@/wallet";
 import { Core } from "./core";
 import { deriveAddress } from "./utils";
 import { WalletManager } from "./wallet-manager";
+
+// Re-export the kit-based `SolanaSigner` interface alongside the SDK so
+// consumers (the frontend, external apps) can import it from the top-level
+// SDK barrel without needing to reach into `@/rpc/solana`.
+export type { SolanaSigner };
 
 // biome-ignore lint/suspicious/noExplicitAny: Augment globalThis to include Buffer polyfill
 (globalThis as any).Buffer ??= BufferPolyfill;
@@ -38,6 +80,7 @@ class CurvySDK implements ICurvySDK {
   #walletManager: IWalletManager | undefined;
   #balanceScanner: BalanceScanner | undefined;
   #priceRefreshInterval: NodeJS.Timeout | undefined;
+  #keystore: SessionKeystore | null = null;
 
   #networks: Network[];
   #rpcClient: MultiRpc | undefined;
@@ -45,15 +88,20 @@ class CurvySDK implements ICurvySDK {
 
   #planner: Planner | undefined;
 
-  readonly apiClient: IApiClient;
+  readonly apiClient: ApiClient;
   readonly storage: StorageInterface;
 
   on: ICurvyEventEmitter["on"];
   off: ICurvyEventEmitter["off"];
 
-  private constructor(core: Core, apiBaseUrl?: string, storage: StorageInterface = new MapStorage()) {
+  private constructor(
+    core: Core,
+    apiBaseUrl?: string,
+    storage: StorageInterface = new MapStorage(),
+    customFetch?: typeof globalThis.fetch,
+  ) {
     this.#core = core;
-    this.apiClient = new ApiClient(apiBaseUrl);
+    this.apiClient = new ApiClient(apiBaseUrl, customFetch);
     this.#emitter = new CurvyEventEmitter();
     this.#networks = [];
     this.storage = storage;
@@ -93,10 +141,12 @@ class CurvySDK implements ICurvySDK {
     storage?: StorageInterface,
     wasmUrl?: string,
     commandFactory?: ICommandFactory,
+    enableKeystore = false,
+    customFetch?: typeof globalThis.fetch,
   ) {
     const core = new Core(wasmUrl);
 
-    const sdk = new CurvySDK(core, apiBaseUrl, storage);
+    const sdk = new CurvySDK(core, apiBaseUrl, storage, customFetch);
 
     sdk.#networks = await sdk.apiClient.network.GetNetworks();
     await sdk.storage.upsertCurrencyMetadata(networksToCurrencyMetadata(sdk.#networks));
@@ -106,7 +156,21 @@ class CurvySDK implements ICurvySDK {
     await sdk.#priceUpdate(sdk.#networks);
     sdk.#startPriceIntervalUpdate();
 
-    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.storage, sdk.#core);
+    if (enableKeystore && typeof window !== "undefined") {
+      sdk.#keystore = new SessionKeystore({ name: "curvy-keypairs" });
+      await sdk.#keystore.ready();
+
+      // Persist JWT to keystore on every token change (initial auth + refresh)
+      sdk.apiClient.setOnTokenChange((token) => {
+        if (token) {
+          sdk.#keystore!.set("__jwt__", token);
+        } else {
+          sdk.#keystore!.delete("__jwt__");
+        }
+      });
+    }
+
+    sdk.#walletManager = new WalletManager(sdk.apiClient, sdk.storage, sdk.#core, sdk.#keystore);
     sdk.#balanceScanner = new BalanceScanner(
       sdk.rpcClient,
       sdk.#state.environment,
@@ -123,6 +187,41 @@ class CurvySDK implements ICurvySDK {
       sdk.storage,
     );
 
+    // Attempt session restore: if the keystore has keypairs from a previous page load,
+    // re-create accounts by combining keypairs (from keystore) with metadata (from storage).
+    if (sdk.#keystore && sdk.#keystore.size > 0) {
+      // Restore JWT first — if available, we can skip the re-auth round trip
+      // (TOTP sign + POST /auth) when adding accounts.
+      const persistedJwt = sdk.#keystore.get("__jwt__");
+      const hasValidJwt = !!persistedJwt;
+      if (hasValidJwt) {
+        sdk.apiClient.updateBearerToken(persistedJwt);
+      }
+
+      for (const walletId of sdk.#keystore.keys()) {
+        if (walletId === "__jwt__") continue; // skip the JWT entry
+        try {
+          const raw = sdk.#keystore.get(walletId);
+          if (!raw) continue;
+          const keyPairs = JSON.parse(raw) as CurvyKeyPairs;
+          const accountData = await sdk.storage.getCurvyWalletDataById(walletId);
+          if (!accountData) continue;
+
+          const account = new CurvyWallet(
+            keyPairs,
+            accountData.curvyHandle,
+            accountData.ownerAddress as HexString,
+            accountData.createdAt,
+          );
+          // Skip bearer token update if we already restored the JWT from keystore.
+          // This avoids a full re-auth round trip (TOTP + signature).
+          await sdk.walletManager.addWallet(account, hasValidJwt);
+        } catch {
+          // Account restore failed (metadata missing, corrupt data, etc.) — skip silently.
+          // The user can re-authenticate to re-derive keypairs.
+        }
+      }
+    }
     return sdk;
   }
 
@@ -223,30 +322,6 @@ class CurvySDK implements ICurvySDK {
     return filterNetworks(this.#networks, networkFilter);
   }
 
-  async generateNewStealthAddressForUser(networkIdentifier: NetworkFilter, handle: CurvyId) {
-    const { data: recipientDetails } = await this.apiClient.user.ResolveCurvyId(handle);
-
-    if (!recipientDetails) {
-      throw new Error(`Handle ${handle} not found`);
-    }
-
-    const { spendingKey, viewingKey } = recipientDetails.publicKeys;
-
-    const {
-      spendingPubKey: recipientStealthPublicKey,
-      R: ephemeralPublicKey,
-      viewTag,
-    } = await this.#core.send(spendingKey, viewingKey);
-
-    const network = this.getNetwork(networkIdentifier);
-
-    const address = deriveAddress(recipientStealthPublicKey, network.flavour);
-
-    if (!address) throw new Error("Couldn't derive address!");
-
-    return { address, recipientStealthPublicKey, viewTag, ephemeralPublicKey, network };
-  }
-
   async ensResolveCurvyId(curvyId: CurvyId, slip0044?: bigint): Promise<HexString> {
     const address = await this.rpcClient.ensResolveCurvyId(curvyId, this.#state.environment, slip0044);
 
@@ -257,8 +332,12 @@ class CurvySDK implements ICurvySDK {
     return address;
   }
 
-  async generateEntryPortal(args: { curvyId: CurvyId; coinType?: string; currencyId?: number }): Promise<HexString> {
-    return this.apiClient.portal.insertEntryPortal(args).then(({ address }) => address);
+  async generateEntryPortal(args: {
+    curvyId: CurvyId;
+    coinType?: string;
+    currencyId?: number;
+  }): Promise<{ address: HexString; flavour: NETWORK_FLAVOUR_VALUES }> {
+    return this.apiClient.portal.insertEntryPortal(args);
   }
 
   async generateExitPortal(args: {
@@ -268,8 +347,8 @@ class CurvySDK implements ICurvySDK {
     exitNetworkId?: number;
     exitCurrencyId?: number;
     coinType?: string;
-  }): Promise<HexString> {
-    return this.apiClient.portal.insertExitPortal(args).then(({ address }) => address);
+  }): Promise<{ address: HexString; flavour: NETWORK_FLAVOUR_VALUES }> {
+    return this.apiClient.portal.insertExitPortal(args);
   }
 
   async #setActiveNetworks(networkFilter: NetworkFilter) {
@@ -316,6 +395,380 @@ class CurvySDK implements ICurvySDK {
     for (const wallet of this.walletManager.wallets) {
       await this.#balanceScanner.refreshWalletBalances(wallet.id, options);
     }
+  }
+
+  async findPortal(address: HexString | (string & {}), network: Network): Promise<MatchedPortalRecord | null> {
+    if (network.flavour === NETWORK_FLAVOUR.SOLANA) {
+      return this.#findSolanaPortal(address, network);
+    }
+    if (!isHexString(address)) {
+      throw new Error(`EVM recovery requires a hex address; got "${address}".`);
+    }
+    return this.#findEvmPortal(address, network);
+  }
+
+  async #findEvmPortal(address: HexString, network: Network): Promise<MatchedPortalRecord | null> {
+    const wallet = this.walletManager.activeWallet;
+
+    if (!network.portalFactoryContractAddress) {
+      throw new Error(`Provided network ${network.name} does not have PortalFactory contract deployed.`);
+    }
+
+    const rpc = this.rpcClient.Network(network.id);
+
+    if (!(rpc instanceof EvmRpc)) {
+      throw new Error(`Unsupported network ${network.name}`);
+    }
+
+    const factoryAddress = network.portalFactoryContractAddress as HexString;
+    const checksummedTarget = getAddress(address, +network.chainId);
+
+    const BATCH_SIZE = 200;
+    let offset = 0;
+    let total = Number.POSITIVE_INFINITY;
+
+    while (offset < total) {
+      const result = await this.apiClient.portal.getPortalRecords({ offset, size: BATCH_SIZE });
+      total = result.total;
+
+      if (result.portals.length === 0) break;
+
+      // Scan batch of portals using `core.scan()`
+      const scanData = result.portals.map((p) => ({
+        ephemeralPublicKey: p.ephemeralKey,
+        viewTag: p.viewTag,
+      }));
+
+      const { spendingPubKeys } = await this.#core.scan(wallet.keyPairs.s, wallet.keyPairs.v, scanData);
+
+      const [bjjX, bjjY] = wallet.keyPairs.babyJubjubPublicKey.split(".");
+
+      const matched: { index: number; spendingPubKey: string; recoveryAddress: HexString; ownerHash: string }[] = [];
+
+      for (let i = 0; i < spendingPubKeys.length; i++) {
+        if (spendingPubKeys[i] === "") continue;
+
+        const spendingPubKey = spendingPubKeys[i];
+        const recoveryAddress = deriveAddress(spendingPubKey, "evm");
+
+        const sharedSecret = spendingPubKey.split(".")[0];
+        const ownerHash = poseidonHash([BigInt(bjjX), BigInt(bjjY), BigInt(sharedSecret)]).toString();
+
+        matched.push({ index: i, spendingPubKey, recoveryAddress, ownerHash });
+      }
+
+      if (matched.length === 0) {
+        offset += result.portals.length;
+        continue;
+      }
+
+      // For matched portals from the batch, use multicall to find portal addresses
+      const contracts = matched.map(({ index, recoveryAddress, ownerHash }) => {
+        const portal = result.portals[index];
+        if (portal.type === "entry") {
+          return {
+            abi: portalFactoryAbi,
+            address: factoryAddress,
+            functionName: "getEntryPortalAddress" as const,
+            args: [BigInt(ownerHash), recoveryAddress],
+          };
+        }
+        return {
+          abi: portalFactoryAbi,
+          address: factoryAddress,
+          functionName: "getExitPortalAddress" as const,
+          args: [portal.exitAddress as HexString, BigInt(portal.exitChainId), recoveryAddress],
+        };
+      });
+
+      const multicallResults = await rpc.provider.multicall({ contracts });
+
+      for (let j = 0; j < multicallResults.length; j++) {
+        const { result: derivedAddress, status } = multicallResults[j];
+        if (status !== "success" || !derivedAddress) continue;
+
+        if (getAddress(derivedAddress, +network.chainId) !== checksummedTarget) continue;
+
+        const { index, recoveryAddress } = matched[j];
+        return {
+          ...result.portals[index],
+          flavour: "evm",
+          contractAddress: derivedAddress as HexString,
+          recoveryAddress,
+        };
+      }
+
+      offset += result.portals.length;
+    }
+
+    return null;
+  }
+
+  /**
+   * Locate a Solana entry-portal vault PDA among the user's portal records.
+   *
+   * Shares the same `core.scan` pass as EVM — the recovery key is the derived
+   * secp256k1 private key. The difference is the on-chain identity: Solana
+   * derives a `recoveryIdentifier` (hash of the compressed secp256k1 pubkey)
+   * and builds the vault address via `PublicKey.findProgramAddressSync` with
+   * `[PORTAL_SEED, ownerHash, recoveryIdentifier]`.
+   *
+   * Solana only supports entry portals today — exit-portal rows are skipped.
+   */
+  async #findSolanaPortal(targetBase58: string, network: Network): Promise<MatchedPortalRecord | null> {
+    if (!network.portalProgramAddress) {
+      throw new Error(`Network ${network.name} does not have a Solana portal program address configured.`);
+    }
+
+    if (!isSolanaAddress(targetBase58)) {
+      throw new Error(`Invalid Solana address: ${targetBase58}`);
+    }
+
+    const wallet = this.walletManager.activeWallet;
+    const programAddress: SolanaAddress = toSolanaAddress(network.portalProgramAddress);
+    const targetVault: SolanaAddress = targetBase58;
+
+    const BATCH_SIZE = 200;
+    let offset = 0;
+    let total = Number.POSITIVE_INFINITY;
+
+    while (offset < total) {
+      const result = await this.apiClient.portal.getPortalRecords({ offset, size: BATCH_SIZE });
+      total = result.total;
+
+      if (result.portals.length === 0) break;
+
+      const scanData = result.portals.map((p) => ({
+        ephemeralPublicKey: p.ephemeralKey,
+        viewTag: p.viewTag,
+      }));
+
+      const { spendingPrivKeys } = await this.#core.scan(wallet.keyPairs.s, wallet.keyPairs.v, scanData);
+
+      for (let i = 0; i < spendingPrivKeys.length; i++) {
+        const privKey = spendingPrivKeys[i];
+        if (!privKey) continue;
+
+        const portal = result.portals[i];
+        // Solana supports entry-portal recovery only. Exit portals have no
+        // ownerHash and their PDA derivation doesn't apply.
+        if (portal.type !== "entry") continue;
+
+        const { recoveryIdentifier } = await deriveRecoveryIdentifier(privKey);
+        const ownerHashBytes = ownerHashToBytes(portal.ownerHash);
+        const [vaultPda] = await deriveVaultPda(programAddress, ownerHashBytes, recoveryIdentifier);
+
+        if (vaultPda !== targetVault) continue;
+
+        return {
+          ...portal,
+          flavour: "solana",
+          contractAddress: vaultPda,
+          recoveryPubKey: recoveryIdentifier,
+        };
+      }
+
+      offset += result.portals.length;
+    }
+
+    return null;
+  }
+
+  async recoverPortal(args: {
+    networkId: number;
+    tokenAddress: HexString | (string & {});
+    portalRecord: MatchedPortalRecord;
+    destinationAddress: HexString | (string & {});
+    solanaSigner?: SolanaSigner;
+  }): Promise<string> {
+    const { s, v } = this.walletManager.activeWallet.keyPairs;
+    if (!s || !v) {
+      throw new Error("Active wallet has no private keys available for recovery.");
+    }
+
+    const { portalRecord, networkId } = args;
+
+    const { spendingPrivKeys } = await this.#core.scan(s, v, [
+      {
+        ephemeralPublicKey: portalRecord.ephemeralKey,
+        viewTag: portalRecord.viewTag,
+      },
+    ]);
+
+    const recoveryPrivateKey = spendingPrivKeys[0];
+    if (!recoveryPrivateKey) {
+      throw new Error("Failed to derive recovery private key: no matching key found for the given announcement.");
+    }
+
+    const network = this.#networks.find((n) => n.id === networkId);
+    if (!network) {
+      throw new Error(`Network with id ${networkId} not found.`);
+    }
+
+    if (portalRecord.flavour === "solana") {
+      if (!args.solanaSigner) {
+        throw new Error("Solana recovery requires a connected Solana wallet signer.");
+      }
+      return this.#recoverSolanaPortal({
+        network,
+        portalRecord,
+        recoveryPrivateKey,
+        mintAddress: args.tokenAddress,
+        destinationAddress: args.destinationAddress,
+        signer: args.solanaSigner,
+      });
+    }
+
+    return this.#recoverEvmPortal({
+      network,
+      portalRecord,
+      recoveryPrivateKey,
+      tokenAddress: args.tokenAddress as HexString,
+      destinationAddress: args.destinationAddress as HexString,
+    });
+  }
+
+  async #recoverEvmPortal(args: {
+    network: Network;
+    portalRecord: Extract<MatchedPortalRecord, { flavour: "evm" }>;
+    recoveryPrivateKey: HexString;
+    tokenAddress: HexString;
+    destinationAddress: HexString;
+  }): Promise<HexString> {
+    const { network, portalRecord, recoveryPrivateKey, tokenAddress, destinationAddress } = args;
+
+    const recoveryAccount = privateKeyToAccount(recoveryPrivateKey);
+    const rpc = this.rpcClient.Network(network.id) as EvmRpc;
+    const publicClient = rpc.provider;
+
+    if (!network.portalFactoryContractAddress) {
+      throw new Error(`Network ${network.name} does not have PortalFactory contract deployed.`);
+    }
+
+    let deployRecoveryTxHash: HexString;
+    if (portalRecord.type === "entry") {
+      deployRecoveryTxHash = await rpc.walletClient.writeContract({
+        account: recoveryAccount,
+        abi: portalFactoryAbi,
+        address: network.portalFactoryContractAddress as HexString,
+        functionName: "deployRecoveryEntryPortal",
+        args: [
+          BigInt(portalRecord.ownerHash),
+          portalRecord.recoveryAddress as Address,
+          tokenAddress as Address,
+          destinationAddress as Address,
+        ],
+      });
+    } else {
+      deployRecoveryTxHash = await rpc.walletClient.writeContract({
+        abi: portalFactoryAbi,
+        account: recoveryAccount,
+        address: network.portalFactoryContractAddress as HexString,
+        functionName: "deployRecoveryExitPortal",
+        args: [
+          portalRecord.exitAddress as Address,
+          BigInt(portalRecord.exitChainId),
+          portalRecord.recoveryAddress as Address,
+          tokenAddress as Address,
+          destinationAddress as Address,
+        ],
+      });
+    }
+
+    await publicClient.waitForTransactionReceipt({ hash: deployRecoveryTxHash });
+
+    return deployRecoveryTxHash;
+  }
+
+  /**
+   * Submit a `recover_sol` or `recover_spl` transaction.
+   *
+   * Unlike EVM recovery, the fee payer is the user's connected Solana wallet
+   * (there is no per-portal recovery address that needs its own gas). The
+   * secp256k1 signature embedded in the instruction data is what authorizes
+   * the funds to move to `destinationAddress`.
+   */
+  async #recoverSolanaPortal(args: {
+    network: Network;
+    portalRecord: Extract<MatchedPortalRecord, { flavour: "solana" }>;
+    recoveryPrivateKey: HexString;
+    mintAddress: string;
+    destinationAddress: string;
+    signer: SolanaSigner;
+  }): Promise<string> {
+    const { network, portalRecord, recoveryPrivateKey, mintAddress, destinationAddress, signer } = args;
+
+    if (!network.portalProgramAddress) {
+      throw new Error(`Network ${network.name} does not have a Solana portal program address configured.`);
+    }
+    if (portalRecord.type !== "entry") {
+      throw new Error("Solana recovery supports entry portals only.");
+    }
+
+    const rpc = this.rpcClient.Network(network.id);
+    if (!(rpc instanceof SolanaRpc)) {
+      throw new Error(`Network ${network.name} is not a Solana RPC — got ${rpc.constructor.name}.`);
+    }
+
+    const programAddress: SolanaAddress = toSolanaAddress(network.portalProgramAddress);
+    const recipient: SolanaAddress = toSolanaAddress(destinationAddress);
+    const payer: SolanaAddress = toSolanaAddress(signer.address);
+    const { recoveryIdentifier } = await deriveRecoveryIdentifier(recoveryPrivateKey);
+    const ownerHashBytes = ownerHashToBytes(portalRecord.ownerHash);
+    const [vaultPda] = await deriveVaultPda(programAddress, ownerHashBytes, recoveryIdentifier);
+    const [portalMetaPda] = await derivePortalMetaPda(programAddress, ownerHashBytes, recoveryIdentifier);
+
+    const isNativeSol = mintAddress === NATIVE_SOL_MINT;
+
+    let instruction: Instruction | undefined;
+    if (isNativeSol) {
+      const { signature, recoveryId } = await signSolRecovery({
+        secpPrivKey: recoveryPrivateKey.slice(2),
+        programAddress,
+        ownerHash: ownerHashBytes,
+        recoveryIdentifier,
+        recipient,
+      });
+      instruction = buildRecoverSolInstruction({
+        programAddress,
+        payer,
+        vault: vaultPda,
+        recipient,
+        portalMeta: portalMetaPda,
+        ownerHash: ownerHashBytes,
+        recoveryIdentifier,
+        recoveryId,
+        signature,
+      });
+    } else {
+      const mint: SolanaAddress = toSolanaAddress(mintAddress);
+      const { signature, recoveryId } = await signSplRecovery({
+        secpPrivKey: recoveryPrivateKey.slice(2),
+        programAddress,
+        ownerHash: ownerHashBytes,
+        recoveryIdentifier,
+        recipient,
+        mint,
+      });
+      const vaultTokenAccount = await deriveAssociatedTokenAddress(mint, vaultPda);
+      const recipientTokenAccount = await deriveAssociatedTokenAddress(mint, recipient);
+      instruction = buildRecoverSplInstruction({
+        programAddress,
+        payer,
+        vault: vaultPda,
+        vaultTokenAccount,
+        recipientTokenAccount,
+        recipient,
+        mint,
+        portalMeta: portalMetaPda,
+        ownerHash: ownerHashBytes,
+        recoveryIdentifier,
+        recoveryId,
+        signature,
+      });
+    }
+
+    return rpc.sendTransactionWithSigner(instruction, signer);
   }
 
   async resetStorage() {

@@ -43,6 +43,7 @@ type Network = {
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
   portalFactoryContractAddress?: string;
+  portalProgramAddress?: string;
   nativeCurrency: string | null; // TODO: Why is this string?
   chainId: string;
   blockExplorerUrl: string;
@@ -176,7 +177,36 @@ type InsertExitPortalRequestBody = {
 };
 
 type InsertPortalReturnType = {
-  data: { address: HexString };
+  data: { address: HexString; flavour: NETWORK_FLAVOUR_VALUES };
+};
+
+type PortalRecord = {
+  id: number;
+  ephemeralKey: string;
+  viewTag: string;
+  createdAt: string;
+  updatedAt: string;
+} & ({ type: "entry"; ownerHash: string } | { type: "exit"; exitAddress: HexString; exitChainId: string });
+
+type MatchedEvmPortal = PortalRecord & {
+  flavour: "evm";
+  contractAddress: HexString;
+  recoveryAddress: HexString;
+};
+
+type MatchedSolanaPortal = PortalRecord & {
+  flavour: "solana";
+  // Solana vault PDA (base58). Widened from HexString because Solana addresses are not hex.
+  contractAddress: string;
+  // Base58 recovery identifier pubkey — the on-chain PDA seed used with ownerHash.
+  recoveryPubKey: string;
+};
+
+type MatchedPortalRecord = MatchedEvmPortal | MatchedSolanaPortal;
+
+type GetPortalRecordsReturnType = {
+  portals: PortalRecord[];
+  total: number;
 };
 
 //#endregion
@@ -197,6 +227,9 @@ export type {
   InsertEntryPortalRequestBody,
   InsertExitPortalRequestBody,
   InsertPortalReturnType,
+  PortalRecord,
+  MatchedPortalRecord,
+  GetPortalRecordsReturnType,
 };
 
 //#endregion
