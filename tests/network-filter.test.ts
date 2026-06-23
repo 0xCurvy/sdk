@@ -60,6 +60,10 @@ test("should filter by id", () => {
     const filteredTestnets = filterNetworks(networks, id);
     expect(filteredTestnets, `${unsuccessfulIdsForMessage[index]} should not match a network`).toHaveLength(0);
   }
+
+  for (const id of ["1abc", "0x1", "1.5", Number.NaN, Number.POSITIVE_INFINITY]) {
+    expect(filterNetworks(networks, id as string | number), `${id} should be treated as a network name`).toHaveLength(0);
+  }
 });
 
 test("should filter testnets and mainnets", () => {
