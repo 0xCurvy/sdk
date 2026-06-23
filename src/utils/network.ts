@@ -22,7 +22,10 @@ export function filterNetworks(networks: Network[], networkFilter: NetworkFilter
     return networks;
   }
 
-  const isNumber = (item: string | number): item is number => typeof item === "number" || !Number.isNaN(Number(item));
+  const isNumber = (item: string | number): item is number => {
+    if (typeof item === "number") return Number.isFinite(item);
+    return /^\d+(?:\.0+)?$/.test(item);
+  };
 
   return networks.filter((network) => {
     // Is NetworkFilter an array?
@@ -43,6 +46,9 @@ export function filterNetworks(networks: Network[], networkFilter: NetworkFilter
       // NetworkFilter is a number (or number string)
     } else if (isNumber(networkFilter)) {
       return Number(networkFilter) === network.id;
+      // Invalid numeric filters cannot match a network
+    } else if (typeof networkFilter === "number") {
+      return false;
       // NetworkFilter is a regular string
     } else {
       return toSlug(networkFilter) === toSlug(network.name);
