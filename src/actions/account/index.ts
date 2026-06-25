@@ -1,0 +1,12 @@
+export { type AddAccountParameters, addAccount } from "./addAccount";
+export { type AddPartialAccountParameters, addPartialAccount } from "./addPartialAccount";
+export { type GetAccountByIdParameters, getAccountById } from "./getAccountById";
+export { type GetAccountsParameters, getAccounts } from "./getAccounts";
+export { type GetActiveAccountParameters, getActiveAccount } from "./getActiveAccount";
+export { type GetBabyJubjubPublicKeyParameters, getBabyJubjubPublicKey } from "./getBabyJubjubPublicKey";
+export { type HasAccountParameters, hasAccount } from "./hasAccount";
+export { type HasActiveAccountParameters, hasActiveAccount } from "./hasActiveAccount";
+export { type SetActiveAccountParameters, setActiveAccount } from "./setActiveAccount";
+export { type SignMessageWithBabyJubjubParameters, signMessageWithBabyJubjub } from "./signMessageWithBabyJubjub";
+export { type WatchAccountsParameters, watchAccounts } from "./watchAccounts";
+export { type WatchActiveAccountParameters, watchActiveAccount } from "./watchActiveAccount";

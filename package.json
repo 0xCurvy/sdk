@@ -1,0 +1,255 @@
+{
+  "name": "@0xcurvy/curvy-sdk",
+  "license": "Apache-2.0",
+  "version": "0.0.7",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xCurvy/curvy-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/0xCurvy/sdk/issues"
+  },
+  "homepage": "https://www.curvy.box",
+  "keywords": [
+    "curvy",
+    "sdk",
+    "typescript",
+    "blockchain",
+    "web3",
+    "defi",
+    "cross-chain",
+    "ethereum",
+    "zk",
+    "zero-knowledge"
+  ],
+  "packageManager": "pnpm@10.12.1",
+  "type": "module",
+  "//sideEffects": "core/wasm-exec.js installs the Go WASM runtime (globalThis.Go). Core.#initWasm loads it via a DYNAMIC import so it survives consumer tree-shaking regardless of chunk naming; this carve-out is belt-and-suspenders for bundlers that still honor it. Everything else is side-effect-free.",
+  "sideEffects": [
+    "**/wasm-exec.js"
+  ],
+  "main": "./dist/_cjs/index.cjs",
+  "module": "./dist/_esm/index.js",
+  "types": "./dist/_types/index.d.ts",
+  "typings": "./dist/_types/index.d.ts",
+  "description": "A TypeScript/JavaScript SDK for interacting with the Curvy protocol.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/_types/index.d.ts",
+        "default": "./dist/_esm/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/index.d.cts",
+        "default": "./dist/_cjs/index.cjs"
+      }
+    },
+    "./actions": {
+      "import": {
+        "types": "./dist/_types/actions/index.d.ts",
+        "default": "./dist/_esm/actions/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/actions/index.d.cts",
+        "default": "./dist/_cjs/actions/index.cjs"
+      }
+    },
+    "./config": {
+      "import": {
+        "types": "./dist/_types/config/index.d.ts",
+        "default": "./dist/_esm/config/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/config/index.d.cts",
+        "default": "./dist/_cjs/config/index.cjs"
+      }
+    },
+    "./utils": {
+      "import": {
+        "types": "./dist/_types/utils/index.d.ts",
+        "default": "./dist/_esm/utils/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/utils/index.d.cts",
+        "default": "./dist/_cjs/utils/index.cjs"
+      }
+    },
+    "./gas": {
+      "import": {
+        "types": "./dist/_types/gas/index.d.ts",
+        "default": "./dist/_esm/gas/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/gas/index.d.cts",
+        "default": "./dist/_cjs/gas/index.cjs"
+      }
+    },
+    "./note": {
+      "import": {
+        "types": "./dist/_types/note/index.d.ts",
+        "default": "./dist/_esm/note/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/note/index.d.cts",
+        "default": "./dist/_cjs/note/index.cjs"
+      }
+    },
+    "./proving": {
+      "import": {
+        "types": "./dist/_types/proving/index.d.ts",
+        "default": "./dist/_esm/proving/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/proving/index.d.cts",
+        "default": "./dist/_cjs/proving/index.cjs"
+      }
+    },
+    "./solana": {
+      "import": {
+        "types": "./dist/_types/solana/index.d.ts",
+        "default": "./dist/_esm/solana/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/solana/index.d.cts",
+        "default": "./dist/_cjs/solana/index.cjs"
+      }
+    },
+    "./rpc": {
+      "import": {
+        "types": "./dist/_types/rpc/index.d.ts",
+        "default": "./dist/_esm/rpc/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/rpc/index.d.cts",
+        "default": "./dist/_cjs/rpc/index.cjs"
+      }
+    },
+    "./core": {
+      "import": {
+        "types": "./dist/_types/core/index.d.ts",
+        "default": "./dist/_esm/core/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/core/index.d.cts",
+        "default": "./dist/_cjs/core/index.cjs"
+      }
+    },
+    "./http": {
+      "import": {
+        "types": "./dist/_types/http/index.d.ts",
+        "default": "./dist/_esm/http/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/http/index.d.cts",
+        "default": "./dist/_cjs/http/index.cjs"
+      }
+    },
+    "./storage": {
+      "import": {
+        "types": "./dist/_types/storage/index.d.ts",
+        "default": "./dist/_esm/storage/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/storage/index.d.cts",
+        "default": "./dist/_cjs/storage/index.cjs"
+      }
+    },
+    "./storage/idb": {
+      "import": {
+        "types": "./dist/_types/storage/idb/index.d.ts",
+        "default": "./dist/_esm/storage/idb/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/storage/idb/index.d.cts",
+        "default": "./dist/_cjs/storage/idb/index.cjs"
+      }
+    },
+    "./errors": {
+      "import": {
+        "types": "./dist/_types/errors.d.ts",
+        "default": "./dist/_esm/errors.js"
+      },
+      "require": {
+        "types": "./dist/_types/errors.d.cts",
+        "default": "./dist/_cjs/errors.cjs"
+      }
+    },
+    "./types": {
+      "import": {
+        "types": "./dist/_types/types/index.d.ts",
+        "default": "./dist/_esm/types/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/types/index.d.cts",
+        "default": "./dist/_cjs/types/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsup && bash scripts/postbuild.sh",
+    "build:publish": "rimraf dist && CURVY_SDK_PUBLISH=1 tsup && bash scripts/postbuild.sh",
+    "watch": "tsup --watch",
+    "build:example": "tsup src/index.ts --format esm --dts --dts-resolve --clean --out-dir example/curvy-os/dist --platform browser --target es2022",
+    "clean": "rimraf dist .turbo",
+    "check": "biome check --write src",
+    "format": "biome format --write src",
+    "lint": "biome lint --write src",
+    "check:packages": "pnpm up --latest --interactive",
+    "prepublishOnly": "pnpm run build:publish",
+    "test": "vitest run src",
+    "test:build": "publint --strict && attw --pack --profile node16",
+    "prepare": "pnpm run build"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.3",
+    "@total-typescript/ts-reset": "^0.6.1",
+    "@types/lodash.merge": "^4.6.9",
+    "@types/snarkjs": "^0.7.9",
+    "fake-indexeddb": "^6.0.0",
+    "publint": "^0.3.21",
+    "rimraf": "^6.0.1",
+    "tsup": "8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "3.1.4"
+  },
+  "dependencies": {
+    "@lifi/sdk": "^3.13.6",
+    "@noble/hashes": "^2.2.0",
+    "@noble/secp256k1": "^2.3.0",
+    "@solana-program/system": "^0.12.0",
+    "@solana-program/token": "^0.13.0",
+    "@solana/kit": "^6.8.0",
+    "@zk-kit/baby-jubjub": "^1.0.3",
+    "@zk-kit/eddsa-poseidon": "^1.1.0",
+    "@zk-kit/imt": "2.0.0-beta.8",
+    "bs58": "^6.0.0",
+    "buffer": "^6.0.3",
+    "dayjs": "^1.11.13",
+    "dexie": "^4.0.11",
+    "dnum": "^2.15.0",
+    "emittery": "^1.2.0",
+    "ethers": "^6.14.4",
+    "lodash.merge": "^4.6.2",
+    "poseidon-lite": "^0.2.1",
+    "snarkjs": "^0.7.5",
+    "uuid": "^13.0.0",
+    "viem": "^2.50.4"
+  },
+  "lint-staged": {
+    "*": [
+      "biome check --write ./src"
+    ]
+  },
+  "engines": {
+    "node": ">=22.16"
+  }
+}

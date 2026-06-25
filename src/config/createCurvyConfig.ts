@@ -1,0 +1,158 @@
+import { v4 as uuidv4 } from "uuid";
+import { restoreSession } from "@/actions/auth/restoreSession";
+import { NETWORK_ENVIRONMENT } from "@/constants/networks";
+import { Core } from "@/core";
+import { CurvyEventEmitter } from "@/events";
+import { ApiClient } from "@/http/api";
+import { MerkleTree, snarkjsProver } from "@/proving";
+import { newMultiRpc } from "@/rpc/factory";
+import { SessionKeystore } from "@/session-keystore";
+import { MapStorage } from "@/storage/map-storage";
+import type { CurvyKeyPairs } from "@/types/core";
+import { defaultTimerProvider, filterNetworks, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
+import { setCurvyConfig } from "./global";
+import { startPriceRefresh } from "./priceRefresh";
+import { createStore } from "./store";
+import type { CreateCurvyConfigParameters, CurvyConfig, CurvyConfigInternal, CurvyState } from "./types";
+
+/**
+ * Create a `CurvyConfig` — the functional successor to `CurvySDK.init`.
+ *
+ * Builds the live IO subsystems (WASM core, API client, storage, event
+ * emitter, optional keystore), seeds currency/price metadata, derives the
+ * active networks for the chosen environment, and starts the price-refresh
+ * timer. The returned config is also registered as the ambient global so
+ * actions can be called without passing `config` (see `getCurvyConfig`).
+ *
+ * Remember to call `config.destroy()` (or `destroyConfig`) on teardown —
+ * the price/JWT timers leak otherwise.
+ *
+ * @example
+ * const config = await createCurvyConfig({ environment: "mainnet" });
+ * const balances = await getBalances(); // uses the ambient config
+ */
+export async function createCurvyConfig(parameters: CreateCurvyConfigParameters = {}): Promise<CurvyConfig> {
+  const {
+    environment,
+    apiBaseUrl,
+    metadataBaseUrl,
+    indexerBaseUrl,
+    relayerBaseUrl,
+    storage = new MapStorage(),
+    wasmUrl,
+    wasmModule,
+    core = new Core(wasmUrl, wasmModule),
+    enableKeystore = false,
+    customFetch,
+    timerProvider = defaultTimerProvider(),
+    notesSyncEngine = "global",
+    prover,
+    circuitKeysBaseUrl,
+  } = parameters;
+
+  const api = new ApiClient(apiBaseUrl, customFetch, { metadataBaseUrl, indexerBaseUrl, relayerBaseUrl });
+  const emitter = new CurvyEventEmitter();
+  api.setOnUnauthorized(() => emitter.emitUnauthorized({ statusCode: 401 }));
+
+  const store = createStore<CurvyState>({
+    status: "initializing",
+    environment: NETWORK_ENVIRONMENT.MAINNET,
+    networks: [],
+    activeNetworks: [],
+    accounts: {},
+    activeAccountId: null,
+    scan: { status: "idle", progress: 0 },
+  });
+
+  const internal: CurvyConfigInternal = {
+    timers: {},
+    timerProvider,
+    scanLocks: new Map(),
+    rpcCache: new Map(),
+    notesTree: new MerkleTree({ depth: 30 }),
+    notesTrees: new Map(),
+  };
+
+  // The keyring: raw keypairs (ephemeral, in-memory), keyed by account id.
+  // Populated by auth/account actions; the browser keystore rehydrates it on
+  // refresh via restoreSession. Account metadata lives in `state.accounts`.
+  const keyring = new Map<string, CurvyKeyPairs>();
+
+  let keystore: SessionKeystore | null = null;
+  if (enableKeystore && typeof window !== "undefined") {
+    keystore = new SessionKeystore({ name: "curvy-keypairs" });
+    await keystore.ready();
+    // Persist the JWT to the keystore under the magic `__jwt__` key on every
+    // token change (initial auth + refresh). Per-account keypairs are co-tenants
+    // in the same store; iteration must skip this key (see actions/auth/session).
+    api.setOnTokenChange((token) => {
+      if (token) keystore?.set("__jwt__", token);
+      else keystore?.delete("__jwt__");
+    });
+  }
+
+  const networks = await api.network.GetNetworks();
+  await storage.upsertCurrencyMetadata(networksToCurrencyMetadata(networks));
+
+  const isTestnet = environment === NETWORK_ENVIRONMENT.TESTNET;
+  const activeNetworks = filterNetworks(networks, isTestnet);
+  if (activeNetworks.length === 0) {
+    throw new Error(`No ${isTestnet ? "testnet" : "mainnet"} networks available after filtering.`);
+  }
+  const resolvedEnvironment = activeNetworks.some((network) => network.testnet)
+    ? NETWORK_ENVIRONMENT.TESTNET
+    : NETWORK_ENVIRONMENT.MAINNET;
+
+  store.setState({ networks, activeNetworks, environment: resolvedEnvironment, status: "ready" });
+
+  const priceData = networksToPriceData(networks);
+  if (priceData.size > 0) await storage.upsertPriceData(priceData);
+
+  const config: CurvyConfig = {
+    uid: uuidv4(),
+    core,
+    api,
+    storage,
+    emitter,
+    keystore,
+    keyring,
+    store,
+    get state() {
+      return store.getState();
+    },
+    setState: store.setState,
+    subscribe: store.subscribe,
+    notesSyncEngine,
+    // Default prover: snarkjs (compute-only). Inject a `prover` (rapidsnark, an
+    // RN native module, an MV3 offscreen delegate) to override. Artifacts are
+    // resolved per-network from each network's CircuitConfig, not from the prover.
+    prover: prover ?? snarkjsProver,
+    circuitKeysBaseUrl,
+    getRpc() {
+      const env = store.getState().environment;
+      const cached = internal.rpcCache.get(env);
+      if (cached) return cached;
+      const rpc = newMultiRpc(store.getState().activeNetworks);
+      internal.rpcCache.set(env, rpc);
+      return rpc;
+    },
+    async destroy() {
+      internal.timers.price?.cancel();
+      internal.timers.jwtRefresh?.cancel();
+      internal.timers = {};
+      api.setOnTokenChange(undefined);
+      api.setOnUnauthorized(undefined);
+    },
+    _internal: internal,
+  };
+
+  startPriceRefresh(config);
+
+  setCurvyConfig(config);
+
+  // Browser-only: rehydrate accounts + JWT from the keystore so a page refresh
+  // doesn't force re-authentication. No-op in Node (keystore is null).
+  await restoreSession({ config });
+
+  return config;
+}

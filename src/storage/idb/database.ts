@@ -1,0 +1,101 @@
+import Dexie, { type Table } from "dexie";
+import { DEFAULT_DB_NAME } from "@/constants/db";
+import type { CurvyAccountData } from "@/types";
+import type {
+  BalanceEntry,
+  CommittedLogKind,
+  CurrencyMetadata,
+  LiveShardRecord,
+  NotesCheckpoint,
+  PriceData,
+  SerializedNoteWitness,
+  TotalBalance,
+  TxHistoryEntry,
+} from "@/types/storage";
+
+/** One row of a chunked committed log (leaf or nullifier ids, decimal strings). */
+export type CommittedLogChunk = {
+  networkSlug: string;
+  kind: CommittedLogKind;
+  chunkIndex: number;
+  items: string[];
+};
+
+/** One row of a network's chunked completed-shard-roots log (decimal strings). */
+export type ShardRootsChunk = {
+  networkSlug: string;
+  chunkIndex: number;
+  items: string[];
+};
+
+/**
+ * Dexie schema for the Curvy SDK's IndexedDB storage. Subclass to add legacy
+ * migrations or extra tables; {@link IndexedDBStorage} exposes the instance via
+ * its `db` property for direct Dexie access.
+ *
+ * Note: `balance` / `vaultTokenId` are `bigint` and are stored (structured-clone
+ * handles bigint) but never used as index key paths — all keys are strings.
+ */
+export class CurvyDatabase extends Dexie {
+  accounts!: Table<CurvyAccountData, string>;
+  balances!: Table<BalanceEntry, [string, string, string, string]>;
+  totalBalances!: Table<TotalBalance, [string, string, string]>;
+  prices!: Table<PriceData, string>;
+  currencyMetadata!: Table<CurrencyMetadata, [string, string]>;
+  notesCheckpoints!: Table<NotesCheckpoint, [string, string]>;
+  committedLog!: Table<CommittedLogChunk, [string, string, number]>;
+  shardRoots!: Table<ShardRootsChunk, [string, number]>;
+  noteWitnesses!: Table<SerializedNoteWitness, [string, string]>;
+  liveShards!: Table<LiveShardRecord, string>;
+  txHistory!: Table<TxHistoryEntry, [string, string]>;
+
+  constructor(name = DEFAULT_DB_NAME) {
+    super(name);
+
+    this.version(1).stores({
+      accounts: "id",
+      balances:
+        "[accountId+currencyAddress+networkSlug+id], [accountId+currencyAddress+networkSlug], [accountId+networkSlug], [accountId+environment], accountId",
+      totalBalances: "[accountId+currencyAddress+networkSlug], [accountId+environment], accountId",
+      // Outbound primary key (PriceData has no id field — the token is the key).
+      prices: "",
+      currencyMetadata: "[address+networkSlug], networkSlug",
+    });
+
+    // v2 added a (now-removed) single-blob notes-tree store; superseded by v3.
+    this.version(2).stores({ notesTrees: "[networkSlug+environment]" });
+
+    // v3: per-network sync checkpoint (small, mutable) + the committed leaf/
+    // nullifier logs stored CHUNKED so a delta sync only rewrites the tail chunk.
+    // The `[networkSlug+kind]` index lets us read a whole log in chunk order.
+    this.version(3)
+      .stores({
+        notesTrees: null, // drop the superseded blob store
+        notesCheckpoints: "[networkSlug+environment]",
+        committedLog: "[networkSlug+kind+chunkIndex], [networkSlug+kind]",
+      })
+      .upgrade(() => {
+        // No data migration: committed logs are public chain data and re-sync
+        // cheaply from the indexer; the old blob (if any) is simply dropped.
+      });
+
+    // v4: the sharded notes-tree (lean profile) stores — completed-shard roots
+    // (chunked, like committedLog, so a delta only rewrites the tail chunk), the
+    // per-owned-note witness state (keyed by [networkSlug+noteId]), and the single
+    // mutable live shard (one row per network). All derivable from chain data, so
+    // no migration is needed.
+    this.version(4).stores({
+      shardRoots: "[networkSlug+chunkIndex], networkSlug",
+      noteWitnesses: "[networkSlug+noteId], networkSlug",
+      liveShards: "networkSlug",
+    });
+
+    // v5: account-scoped transaction history, reconstructed from the synced chain
+    // feeds. Keyed by [accountId+id] (the deterministic id makes a re-sync an
+    // upsert); the accountId and [accountId+networkSlug] indexes back the
+    // per-account / per-network reads. Chain-derived, so no migration is needed.
+    this.version(5).stores({
+      txHistory: "[accountId+id], accountId, [accountId+networkSlug]",
+    });
+  }
+}

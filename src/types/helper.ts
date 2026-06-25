@@ -1,0 +1,40 @@
+type ExtractKeys<T> = T extends { [key: string]: unknown } ? keyof T : never;
+type ExtractValues<T> = T extends { [key: string]: unknown } ? T[keyof T] : never;
+type Prettify<T> = { [key in keyof T]: T[key] } & unknown;
+type Tuple<T, N extends number, R extends T[] = []> = R["length"] extends N ? R : Tuple<T, N, [...R, T]>;
+
+type HexString = `0x${string}`;
+const isHexString = (value: unknown): value is HexString => {
+  return typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value);
+};
+
+function assertHexString(value: unknown): asserts value is HexString {
+  if (!isHexString(value)) {
+    throw new Error(`Value ${value} is not a valid hex string`);
+  }
+}
+
+const isStringArray = (value: unknown): value is string[] => {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+};
+
+type StringifyBigInts<T> = Prettify<
+  T extends bigint
+    ? string
+    : T extends (infer U)[]
+      ? StringifyBigInts<U>[]
+      : T extends object
+        ? { [K in keyof T]: StringifyBigInts<T[K]> }
+        : T
+>;
+
+type DeepNonNullable<T> = {
+  [K in keyof T]: T[K] extends object ? DeepNonNullable<NonNullable<T[K]>> : NonNullable<T[K]>;
+};
+
+type AbortOptions = {
+  signal?: AbortSignal;
+};
+
+export type { ExtractKeys, ExtractValues, HexString, Prettify, Tuple, StringifyBigInts, DeepNonNullable, AbortOptions };
+export { isHexString, isStringArray, assertHexString };

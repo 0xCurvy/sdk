@@ -1,0 +1,22 @@
+{
+	"compilerOptions": {
+		"baseUrl": "./",
+		"paths": {
+			"@/*": ["src/*"]
+		},
+		"target": "ESNext",
+		"module": "ESNext",
+		"strict": true,
+		"esModuleInterop": true,
+		"moduleResolution": "node",
+		"skipLibCheck": true,
+		"noUnusedLocals": true,
+		"noImplicitAny": true,
+        "noImplicitOverride": true,
+        "noEmit": true,
+		"outDir": "dist",
+		"resolveJsonModule": true,
+
+		"types": ["vitest/globals"]
+	}
+}
