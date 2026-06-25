@@ -84,6 +84,11 @@ export const aggregatorAlphaV2Abi = [
   },
   {
     inputs: [],
+    name: "InvalidGasFeeRoot",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "InvalidInitialization",
     type: "error",
   },
@@ -115,6 +120,11 @@ export const aggregatorAlphaV2Abi = [
   {
     inputs: [],
     name: "NetAmountNonPositive",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "NotCurvyVault",
     type: "error",
   },
   {
@@ -213,6 +223,11 @@ export const aggregatorAlphaV2Abi = [
   },
   {
     inputs: [],
+    name: "UnknownGasFeeRoot",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "UnknownReferencedRoot",
     type: "error",
   },
@@ -230,6 +245,19 @@ export const aggregatorAlphaV2Abi = [
     inputs: [],
     name: "WithdrawalVerifierNotConfigured",
     type: "error",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "root",
+        type: "uint256",
+      },
+    ],
+    name: "CommitmentGasFeeRootUpdated",
+    type: "event",
   },
   {
     anonymous: false,
@@ -460,6 +488,19 @@ export const aggregatorAlphaV2Abi = [
   },
   {
     inputs: [],
+    name: "GAS_TREE_DEPTH",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "OPERATOR_ROLE",
     outputs: [
       {
@@ -607,6 +648,19 @@ export const aggregatorAlphaV2Abi = [
   },
   {
     inputs: [],
+    name: "commitmentFeeRoot",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "currentNoteIndex",
     outputs: [
       {
@@ -679,19 +733,6 @@ export const aggregatorAlphaV2Abi = [
       },
     ],
     name: "feeNotePublicKey",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "gasFee",
     outputs: [
       {
         internalType: "uint256",
@@ -1070,6 +1111,19 @@ export const aggregatorAlphaV2Abi = [
     inputs: [
       {
         internalType: "uint256",
+        name: "root",
+        type: "uint256",
+      },
+    ],
+    name: "setCommitmentGasFeeRoot",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
         name: "x",
         type: "uint256",
       },
@@ -1080,24 +1134,6 @@ export const aggregatorAlphaV2Abi = [
       },
     ],
     name: "setFeeNotePublicKey",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "_protocolFeePerThousand",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "_gasFee",
-        type: "uint256",
-      },
-    ],
-    name: "setFees",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -1121,6 +1157,19 @@ export const aggregatorAlphaV2Abi = [
       },
     ],
     name: "setPendingNotesCommitmentVerifier",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "_protocolFeePerThousand",
+        type: "uint256",
+      },
+    ],
+    name: "setProtocolFees",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",

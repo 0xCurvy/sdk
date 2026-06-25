@@ -2,15 +2,17 @@ import { Note } from "@/note";
 import { poseidonHash } from "@/utils/hash/poseidonHash";
 import { ephemeralPubKey, pubFromPrivateKey, sign } from "./babyJubjub";
 import { encryptAmountToken } from "./balanceCipher";
-import type {
-  AggregationCircuitInputs,
-  EncryptedNoteDataBus,
-  NoteBus,
-  NoteInclusionProofBus,
-  SignatureBus,
-  WithdrawCircuitInputs,
+import {
+  type AggregationCircuitInputs,
+  type EncryptedNoteDataBus,
+  GAS_FEE_TREE_DEPTH,
+  type NoteBus,
+  type NoteInclusionProofBus,
+  type SignatureBus,
+  type WithdrawCircuitInputs,
 } from "./circuitInputs";
-import type { InclusionProof, MerkleTree } from "./merkleTree";
+import type { InclusionProof } from "./merkleTree";
+import { MerkleTree } from "./merkleTree";
 import { generateRandomBigInt } from "./utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -176,7 +178,11 @@ export const flattenAggregationCircuitInputs = (a: AggregationCircuitInputs) => 
   encryptedNoteData: a.encryptedNoteData.map(flatEncrypted),
   notesRoot: a.notesRoot,
   protocolFeePerThousand: a.protocolFeePerThousand,
+  // gasFee is now PRIVATE (pinned by Merkle inclusion under commitPendingNotesGasFeeRoot);
+  // gasFeeSiblings is the path, leaf index = inputNotes[0].token (derived in-circuit).
   gasFee: a.gasFee,
+  gasFeeSiblings: a.gasFeeSiblings,
+  commitPendingNotesGasFeeRoot: a.commitPendingNotesGasFeeRoot,
   feeNotePublicKey: a.feeNotePublicKey,
 });
 
@@ -263,9 +269,17 @@ export type AggregationFromNotesParams = {
   /** Owner of the protocol fee note; must equal the on-chain feeNotePublicKey (the
    *  aggregation circuit takes it as a public input and the contract checks equality). */
   feeNotePublicKey: [bigint, bigint];
-  /** Must equal the on-chain protocolFeePerThousand / gasFee (contract asserts equality). */
+  /** Must equal the on-chain protocolFeePerThousand (contract asserts equality). */
   protocolFeePerThousand: bigint;
+  /** The per-token batch gas fee in the inputs' token base units. Now PRIVATE in-circuit and
+   *  pinned by Merkle inclusion: it MUST equal the committed gas-fee tree leaf at index = token
+   *  (the contract accepts the proof's root rather than this value). */
   gasFee: bigint;
+  /** The per-token commitment gas-fee tree (leaf[tokenId] = cost, depth = GAS_FEE_TREE_DEPTH),
+   *  built from the on-chain `getCommitmentGasCosts()` table. The builder proves leaf inclusion at
+   *  index = the inputs' token. When omitted, a synthetic single-entry tree is built from `gasFee`
+   *  (fine for self-contained circuit tests, but its root won't match a deployed contract). */
+  gasFeeTree?: MerkleTree;
   /** The committed notes tree — omit when `supplied` is set. */
   notesTree?: MerkleTree;
   /** Lean-profile alternative: pre-built proofs (e.g. from ShardedNotesTree.witness), all at one root. */
@@ -325,12 +339,14 @@ export const buildAggregationWitnessBundle = async ({
   feeNotePublicKey,
   protocolFeePerThousand,
   gasFee,
+  gasFeeTree,
   notesTree,
   supplied,
   sealChange,
   sealFee,
   maxInputs,
   maxOutputs,
+  treeDepth,
 }: AggregationFromNotesParams): Promise<AggregationWitnessBundle> => {
   // Same as withdrawal: every input slot must be a real committed leaf.
   if (inputNotes.length !== maxInputs) {
@@ -447,6 +463,19 @@ export const buildAggregationWitnessBundle = async ({
   const signingHash = poseidonHash([outputNoteHash, encryptedNoteDataHash]);
   const signature = sign(signingHash, ownerBjjPrivateKeyHex);
 
+  // Per-token gas fee: prove (token -> gasFee) membership in the gas-fee tree. The circuit
+  // takes the leaf index = inputNotes[0].token (derived internally) and the leaf value = the
+  // private gasFee, and verifies inclusion under the public commitPendingNotesGasFeeRoot. The
+  // tree leaf at index = token MUST equal gasFee (else the on-chain root won't match).
+  const tokenIndex = Number(token);
+  const gasTree = gasFeeTree ?? buildSyntheticGasFeeTree(tokenIndex, gasFee);
+  const gasFeeProof = gasTree.createInclusionProofAtIndex(tokenIndex);
+  if (gasFeeProof.leaf !== gasFee) {
+    throw new Error(
+      `aggregation: gasFee (${gasFee}) does not match the committed per-token cost (${gasFeeProof.leaf}) for token ${token}`,
+    );
+  }
+
   const witness: AggregationCircuitInputs = {
     inputNotes: allInputs.map(noteBus),
     inputNoteInclusionProofs,
@@ -458,9 +487,22 @@ export const buildAggregationWitnessBundle = async ({
     notesRoot,
     protocolFeePerThousand,
     gasFee,
+    gasFeeSiblings: gasFeeProof.siblings,
+    commitPendingNotesGasFeeRoot: gasFeeProof.root,
     feeNotePublicKey,
   };
   return { witness, outputNotes, feeNote };
+};
+
+/**
+ * Synthesize a depth-`GAS_FEE_TREE_DEPTH` gas-fee tree holding `gasFee` at index `tokenIndex`
+ * (zeros elsewhere) for self-contained circuit tests that prove against their own root.
+ * Real flows pass the actual committed tree built from `getCommitmentGasCosts()`.
+ */
+const buildSyntheticGasFeeTree = (tokenIndex: number, gasFee: bigint): MerkleTree => {
+  const leaves = new Array<bigint>(tokenIndex + 1).fill(0n);
+  leaves[tokenIndex] = gasFee;
+  return MerkleTree.fromOrderedLeaves({ depth: GAS_FEE_TREE_DEPTH }, leaves);
 };
 
 /**

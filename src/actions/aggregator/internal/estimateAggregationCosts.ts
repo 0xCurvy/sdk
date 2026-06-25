@@ -62,8 +62,10 @@ export async function estimateAggregationCosts(
   const network = config.state.networks.find((n) => n.slug === networkSlug);
   if (!network) throw new Error(`estimateAggregationCosts: unknown network "${networkSlug}"`);
 
-  const { protocolFeePerThousand, gasFee } = await fetchAggregatorFees(config, networkSlug);
-  const protocolFee = gasFee + (spentToOthers * protocolFeePerThousand) / 1000n;
+  const { protocolFeePerThousand, commitmentGasCosts } = await fetchAggregatorFees(config, networkSlug);
+  // Per-token batch gas fee (commitment leg) for this token + the proportional protocol fee.
+  const tokenGasFee = commitmentGasCosts[Number(token)] ?? 0n;
+  const protocolFee = tokenGasFee + (spentToOthers * protocolFeePerThousand) / 1000n;
 
   // Operator's current view (keys + gas), if a paymaster is running. Best-effort:
   // a missing endpoint just means "no paymaster" — size nothing, submit yourself.
@@ -109,7 +111,7 @@ export async function estimateAggregationCosts(
     gasPriceWei,
     submitAggregationGasUnits,
     protocolFeePerThousand,
-    gasFee,
+    gasFee: tokenGasFee,
     clientBufferBps,
   };
 }

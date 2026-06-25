@@ -51,6 +51,36 @@ export class MerkleTree {
     return tree;
   }
 
+  /**
+   * Build an index-addressed tree from an ordered leaf array where leaf VALUES may
+   * repeat (unlike {@link fromLeaves}, which dedups by value for unique note ids).
+   * Use this when the position carries the meaning — e.g. the per-token gas-fee tree
+   * where leaf[tokenId] = gas cost and two tokens may legitimately share a cost.
+   * Inclusion proofs must be taken via {@link createInclusionProofAtIndex}.
+   */
+  static fromOrderedLeaves({ depth }: MerkleTreeParams, leaves: bigint[]): MerkleTree {
+    const tree = new MerkleTree({ depth });
+    // Copy: the IMT constructor ADOPTS the array as its internal leaf level.
+    tree.tree = new IMT(hashFn, depth, ZERO_VALUE, ARITY, [...leaves]);
+    tree.currentIndex = leaves.length;
+    // reverseIndex intentionally left empty — this tree is addressed by position.
+    return tree;
+  }
+
+  /**
+   * Inclusion proof for the leaf at `index`, regardless of its value (values may
+   * repeat). Counterpart to {@link createInclusionProof}, which looks up by value.
+   */
+  createInclusionProofAtIndex(index: number): InclusionProof {
+    const rawProof = this.tree.createProof(index);
+    return {
+      siblings: rawProof.siblings.map((sib) => BigInt(sib[0])),
+      index,
+      leaf: BigInt(rawProof.leaf as unknown as bigint),
+      root: this.root(),
+    };
+  }
+
   insert(value: bigint): void {
     if (this.reverseIndex.has(value)) {
       throw new Error(`Leaf ${value} already exists in the tree`);

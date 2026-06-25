@@ -8,6 +8,11 @@
 // siblings, Poseidon-hashed). SMT-based v1 multi-request circuits are no
 // longer wired and the matching types have been removed.
 
+// Depth of the per-token gas-fee Merkle tree — INDEPENDENT of the notes `treeDepth` (30).
+// Kept shallow so its root commits at most 2^GAS_FEE_TREE_DEPTH tokens and can be recomputed
+// cheaply on-chain in setCommitmentGasCosts. MUST match the circuit's `gasTreeDepth` param.
+export const GAS_FEE_TREE_DEPTH = 5;
+
 // circom `bus Note()`: { owner: { ownerBabyJub[2], sharedSecret }, amount, token }
 export type NoteBus = {
   owner: {
@@ -41,7 +46,10 @@ export type EncryptedNoteDataBus = {
 // Witness for VerifySingleAggregationNoHashing(maxInputs, maxOutputs, treeDepth).
 // Public IO of the underlying circuit (snarkjs returns these as publicSignals):
 //   [nullifiers..., outputNoteIds..., encryptedNoteData..., notesRoot,
-//    protocolFeePerThousand, gasFee, feeNotePublicKey.x, feeNotePublicKey.y]
+//    protocolFeePerThousand, commitPendingNotesGasFeeRoot, feeNotePublicKey.x,
+//    feeNotePublicKey.y]
+// gasFee is now PRIVATE (pinned by Merkle inclusion under commitPendingNotesGasFeeRoot),
+// so it no longer appears in publicSignals; its old slot now carries the root.
 export type AggregationCircuitInputs = {
   inputNotes: NoteBus[];
   inputNoteInclusionProofs: NoteInclusionProofBus[];
@@ -52,7 +60,13 @@ export type AggregationCircuitInputs = {
   encryptedNoteData: EncryptedNoteDataBus[];
   notesRoot: bigint;
   protocolFeePerThousand: bigint;
+  // PRIVATE: the per-token batch gas fee (token base units). Must equal the gas-fee tree
+  // leaf at index = inputNotes[0].token.
   gasFee: bigint;
+  // PRIVATE: Merkle path of `gasFee` (leaf) at index = token in the gas-fee tree.
+  gasFeeSiblings: bigint[];
+  // PUBLIC: root of the per-token commitment gas-fee tree (occupies gasFee's old slot).
+  commitPendingNotesGasFeeRoot: bigint;
   feeNotePublicKey: [bigint, bigint];
 };
 
