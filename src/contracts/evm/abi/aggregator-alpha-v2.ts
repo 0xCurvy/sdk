@@ -488,19 +488,6 @@ export const aggregatorAlphaV2Abi = [
   },
   {
     inputs: [],
-    name: "GAS_TREE_DEPTH",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
     name: "OPERATOR_ROLE",
     outputs: [
       {

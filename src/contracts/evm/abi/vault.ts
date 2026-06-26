@@ -74,12 +74,22 @@ export const vaultAbi = [
   },
   {
     inputs: [],
+    name: "GasFeesLengthMismatch",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "InvalidDestinationAddress",
     type: "error",
   },
   {
     inputs: [],
     name: "InvalidFeeCollectorAddress",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidGasFeeRoot",
     type: "error",
   },
   {
@@ -178,8 +188,54 @@ export const vaultAbi = [
   },
   {
     inputs: [],
+    name: "UnknownGasFeeRoot",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "WithdrawalFeeNotSet",
     type: "error",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        components: [
+          {
+            internalType: "uint256",
+            name: "tokenId",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "portalDeployment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "pendingNoteCommitment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "withdrawal",
+            type: "uint256",
+          },
+        ],
+        indexed: false,
+        internalType: "struct CurvyTypes.GasFees[]",
+        name: "gasFees",
+        type: "tuple[]",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "root",
+        type: "uint256",
+      },
+    ],
+    name: "CommitmentGasCostsUpdated",
+    type: "event",
   },
   {
     anonymous: false,
@@ -447,6 +503,25 @@ export const vaultAbi = [
     type: "event",
   },
   {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256[]",
+        name: "tokenIds",
+        type: "uint256[]",
+      },
+      {
+        indexed: false,
+        internalType: "uint256[]",
+        name: "costs",
+        type: "uint256[]",
+      },
+    ],
+    name: "WithdrawalGasCostsUpdated",
+    type: "event",
+  },
+  {
     inputs: [],
     name: "AUTHORITY_ROLE",
     outputs: [
@@ -474,6 +549,19 @@ export const vaultAbi = [
   },
   {
     inputs: [],
+    name: "GAS_TREE_DEPTH",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "OPERATOR_ROLE",
     outputs: [
       {
@@ -493,19 +581,6 @@ export const vaultAbi = [
         internalType: "string",
         name: "",
         type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "__deprecated_transaction_fee",
-    outputs: [
-      {
-        internalType: "uint96",
-        name: "",
-        type: "uint96",
       },
     ],
     stateMutability: "view",
@@ -662,6 +737,19 @@ export const vaultAbi = [
   },
   {
     inputs: [],
+    name: "gasFeeUpdateBlock",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "getNumberOfTokens",
     outputs: [
       {
@@ -799,6 +887,47 @@ export const vaultAbi = [
     type: "function",
   },
   {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "tokenId",
+        type: "uint256",
+      },
+    ],
+    name: "perTokenGasFees",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "uint256",
+            name: "tokenId",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "portalDeployment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "pendingNoteCommitment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "withdrawal",
+            type: "uint256",
+          },
+        ],
+        internalType: "struct CurvyTypes.GasFees",
+        name: "fees",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [],
     name: "proxiableUUID",
     outputs: [
@@ -921,6 +1050,46 @@ export const vaultAbi = [
   {
     inputs: [
       {
+        components: [
+          {
+            internalType: "uint256",
+            name: "tokenId",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "portalDeployment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "pendingNoteCommitment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "withdrawal",
+            type: "uint256",
+          },
+        ],
+        internalType: "struct CurvyTypes.GasFees[]",
+        name: "gasFees",
+        type: "tuple[]",
+      },
+      {
+        internalType: "uint256",
+        name: "commitmentGasFeeRoot",
+        type: "uint256",
+      },
+    ],
+    name: "setPerTokenGasFees",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
         internalType: "bytes4",
         name: "interfaceId",
         type: "bytes4",
@@ -984,6 +1153,11 @@ export const vaultAbi = [
         internalType: "uint256",
         name: "amount",
         type: "uint256",
+      },
+      {
+        internalType: "address",
+        name: "gasFeeRecipient",
+        type: "address",
       },
     ],
     name: "withdraw",

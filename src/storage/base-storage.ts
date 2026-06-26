@@ -235,12 +235,28 @@ export abstract class BaseStorage implements StorageInterface {
     if (uniqueAccountIds.size > 1) {
       throw new StorageError("Tried to remove spent balance entries for multiple accounts at once");
     }
+    const accountId = balanceEntries[0].accountId;
 
-    await this.updateBalanceEntries(
-      balanceEntries[0].accountId,
-      balanceEntries[0].networkSlug,
-      balanceEntries.map((b) => ({ ...b, balance: 0n })),
-    );
+    // Remove ONLY the spent entries, preserving the account's other notes.
+    // `updateBalanceEntries` has FULL-REPLACEMENT semantics per (account, network):
+    // it deletes every existing entry absent from the set it is given. So we must
+    // pass the SURVIVORS (existing minus spent), NOT just the spent entries — the
+    // previous code passed only the spent ones, which deleted every OTHER note for
+    // the network (and left the spent note as a balance-0 zombie), wiping the wallet
+    // on each spend. The forward-only sync cursor can't re-discover those leaves, so
+    // the loss is permanent without a full re-scan. Group by network because
+    // `updateBalanceEntries` operates per (account, network).
+    const spentByNetwork = new Map<string, Set<string>>();
+    for (const entry of balanceEntries) {
+      const ids = spentByNetwork.get(entry.networkSlug) ?? new Set<string>();
+      ids.add(entry.id);
+      spentByNetwork.set(entry.networkSlug, ids);
+    }
+    for (const [networkSlug, spentIds] of spentByNetwork) {
+      const existing = await this._getBalancesByAccountAndNetwork(accountId, networkSlug);
+      const survivors = existing.filter((entry) => !spentIds.has(entry.id));
+      await this.updateBalanceEntries(accountId, networkSlug, survivors);
+    }
   }
 
   async updateBalanceEntries(accountId: string, networkSlug: string, entries: BalanceEntry[]): Promise<void> {

@@ -12,6 +12,7 @@ export { Note, type NoteParams } from "@/note";
 export * from "./babyJubjub";
 export * from "./balanceCipher";
 export * from "./circuitInputs";
+export * from "./circuitKeyCache";
 export * from "./groth16";
 export * from "./merkleTree";
 export * from "./pendingNotesCommitmentInputs";

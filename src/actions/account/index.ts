@@ -6,6 +6,7 @@ export { type GetActiveAccountParameters, getActiveAccount } from "./getActiveAc
 export { type GetBabyJubjubPublicKeyParameters, getBabyJubjubPublicKey } from "./getBabyJubjubPublicKey";
 export { type HasAccountParameters, hasAccount } from "./hasAccount";
 export { type HasActiveAccountParameters, hasActiveAccount } from "./hasActiveAccount";
+export { type RemoveAccountParameters, removeAccount } from "./removeAccount";
 export { type SetActiveAccountParameters, setActiveAccount } from "./setActiveAccount";
 export { type SignMessageWithBabyJubjubParameters, signMessageWithBabyJubjub } from "./signMessageWithBabyJubjub";
 export { type WatchAccountsParameters, watchAccounts } from "./watchAccounts";

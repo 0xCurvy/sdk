@@ -30,7 +30,7 @@ export * from "./note";
 // Planner & shared types
 export * from "./planner/types";
 export { describePlan } from "./planner/utils/describePlan";
-export { EvmRpc, MultiRpc, newMultiRpc, newRpc, SolanaRpc } from "./rpc";
+export { EvmRpc, hasBytecode, MultiRpc, newMultiRpc, newRpc, SolanaRpc } from "./rpc";
 export type { SolanaSigner } from "./rpc/solana";
 export * as solana from "./solana";
 export { MapStorage } from "./storage/map-storage";

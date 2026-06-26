@@ -3,8 +3,10 @@ import { buildWithdrawRequest } from "@/actions/aggregator/buildWithdrawRequest"
 import { relaySubmission } from "@/actions/aggregator/relaySubmission";
 import { waitForRelay } from "@/actions/aggregator/waitForRelay";
 import { getSpendWitnesses } from "@/actions/notes/getSpendWitnesses";
+import { vaultV2Abi } from "@/contracts/evm/abi";
 import { balanceEntryToNote, type Note } from "@/note";
 import type { CommandData, Intent } from "@/planner/types";
+import type { EvmRpc } from "@/rpc/evm";
 import { type HexString, isHexString } from "@/types";
 import type { DeepNonNullable } from "@/types/helper";
 import type { BalanceEntry } from "@/types/storage";
@@ -55,9 +57,32 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
   };
 
   const estimateFees = async (): Promise<CommandEstimate> => {
+    // Relayer gas reimbursement: the vault deducts the token's `GasFees.withdrawal` from the
+    // payout and transfers it DIRECTLY to the submitting EOA on-chain (not a note), so it must
+    // be reflected in the estimate or the user's payout is overstated. Best-effort (0 when
+    // unset/unreachable, as on devenv).
+    let gasFeeInCurrency = 0n;
+    try {
+      const vault = network.vaultContractAddress;
+      if (vault) {
+        const rpc = config.getRpc().Network(networkSlug) as EvmRpc;
+        const fees = await rpc.provider.readContract({
+          address: vault as HexString,
+          abi: vaultV2Abi,
+          functionName: "perTokenGasFees",
+          args: [BigInt(input[0].vaultTokenId)],
+        });
+        gasFeeInCurrency = (fees as { withdrawal: bigint }).withdrawal;
+      }
+    } catch {
+      // no vault / unreadable — leave relayer gas at 0
+    }
+
     estimate = {
+      // Withdrawal protocol fee (Curvy): mirrors the vault's on-chain `withdrawalFee`
+      // (0.2%); `groupFee` is the per-thousand rate (=2). Enforced on-chain by the vault.
       curvyFeeInCurrency: (inputNotesSum * BigInt(network.withdrawCircuitConfig!.groupFee)) / 1000n,
-      gasFeeInCurrency: 0n,
+      gasFeeInCurrency,
     };
 
     // External transfer to another network => calculate bridge fee.

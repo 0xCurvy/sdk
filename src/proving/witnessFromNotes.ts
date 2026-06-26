@@ -65,10 +65,12 @@ const encNoteData = async (n: Note): Promise<EncryptedNoteDataBus> => {
 
 const sameKey = (a: [bigint, bigint], b: { x: bigint; y: bigint }) => a[0] === b.x && a[1] === b.y;
 
-// The deployed circuit's VerifyInclusionProof `shouldSkip` is a no-op
-// (`computedRoot <== hashes[treeDepth]` unconditionally) and the caller asserts
-// `computedRoots[i] === notesRoot` for EVERY slot — so every input note, even a
-// zero-amount one, must be a real committed leaf with a genuine inclusion proof.
+// Genuine inclusion proof for a REAL committed note (must hash to the root). Zero-amount
+// pad slots are handled by `resolveInclusionProofs`: the AGGREGATION circuit's
+// VerifyInclusionProof skips them (`shouldSkip = isZeroAmount` → `0 === 0`), so they get a
+// dummy proof there and never reach this. (The WITHDRAWAL circuit re-asserts
+// `computedRoots[i] === notesRoot` for every slot, defeating the skip — so it never
+// skip-pads and only ever passes real notes here.)
 const inclusionProofFor = (notesTree: MerkleTree, note: Note): NoteInclusionProofBus => {
   const idx = notesTree.getIndex(note.id);
   if (idx === null) {
@@ -76,6 +78,13 @@ const inclusionProofFor = (notesTree: MerkleTree, note: Note): NoteInclusionProo
   }
   return { leafIndex: BigInt(idx), siblings: notesTree.createInclusionProof(note.id).siblings };
 };
+
+// A zero-amount pad slot the circuit skips: leaf index + siblings are unconstrained
+// (VerifyInclusionProof's check collapses to `0 === 0`), so any well-shaped proof works.
+const dummyInclusionProof = (treeDepth: number): NoteInclusionProofBus => ({
+  leafIndex: 0n,
+  siblings: Array.from({ length: treeDepth }, () => 0n),
+});
 
 /**
  * Pre-built inclusion proofs as an alternative to a live `MerkleTree` — the
@@ -99,27 +108,39 @@ const resolveInclusionProofs = (
   notes: Note[],
   notesTree: MerkleTree | undefined,
   supplied: SuppliedInclusionProofs | undefined,
+  treeDepth: number,
+  allowZeroSkip = false,
 ): { proofs: NoteInclusionProofBus[]; notesRoot: bigint } => {
+  // A zero-amount input slot is skipped by the AGGREGATION circuit (shouldSkip =
+  // isZeroAmount), so it needs no committed leaf — give it a dummy proof. The WITHDRAWAL
+  // circuit re-asserts the root for every slot (allowZeroSkip=false), so every note there
+  // — even a zero one — still requires a genuine proof.
+  const skippable = (n: Note) => allowZeroSkip && n.amount === 0n;
+
   if (supplied) {
-    if (supplied.proofs.length !== notes.length) {
-      throw new Error(`supplied inclusion proofs: expected ${notes.length}, got ${supplied.proofs.length}`);
+    // Supplied proofs cover the REAL (non-skippable) notes, in note order; the builder
+    // appends zero-amount pad slots after them, resolved to dummy proofs here.
+    const realCount = notes.filter((n) => !skippable(n)).length;
+    if (supplied.proofs.length !== realCount) {
+      throw new Error(`supplied inclusion proofs: expected ${realCount}, got ${supplied.proofs.length}`);
     }
-    notes.forEach((n, i) => {
-      const p = supplied.proofs[i];
+    let realIdx = 0;
+    const proofs = notes.map((n) => {
+      if (skippable(n)) return dummyInclusionProof(treeDepth);
+      const p = supplied.proofs[realIdx++];
       if (p.leaf !== n.id) {
-        throw new Error(`supplied inclusion proofs: proof ${i} is for leaf ${p.leaf}, but note ${i} has id ${n.id}`);
+        throw new Error(`supplied inclusion proofs: proof for leaf ${p.leaf}, but note has id ${n.id}`);
       }
       if (p.root !== supplied.notesRoot) {
-        throw new Error(`supplied inclusion proofs: proof ${i} was built against a different root than notesRoot`);
+        throw new Error("supplied inclusion proofs: a proof was built against a different root than notesRoot");
       }
+      return { leafIndex: BigInt(p.index), siblings: p.siblings };
     });
-    return {
-      proofs: supplied.proofs.map((p) => ({ leafIndex: BigInt(p.index), siblings: p.siblings })),
-      notesRoot: supplied.notesRoot,
-    };
+    return { proofs, notesRoot: supplied.notesRoot };
   }
   if (!notesTree) throw new Error("witness builder: provide either `notesTree` or `supplied` inclusion proofs");
-  return { proofs: notes.map((n) => inclusionProofFor(notesTree, n)), notesRoot: notesTree.root() };
+  const proofs = notes.map((n) => (skippable(n) ? dummyInclusionProof(treeDepth) : inclusionProofFor(notesTree, n)));
+  return { proofs, notesRoot: notesTree.root() };
 };
 
 // Zero-amount padding note. Used for BOTH input-slot padding (never emitted)
@@ -206,8 +227,10 @@ export type WithdrawalFromNotesParams = {
  * Build a `VerifySingleWithdrawalNoHashing(maxInputs, treeDepth)` witness from
  * real committed notes. Inclusion proofs come from the live committed tree, so
  * the witness `notesRoot` equals the on-chain `validNotesRoot` — no storage
- * seeding. Requires exactly `maxInputs` committed notes (the circuit verifies
- * inclusion for every slot; there is no working skip path).
+ * seeding. Accepts 1..maxInputs real committed notes: the circuit's
+ * `VerifyInclusionProof` is skip-aware (`shouldSkip = isZeroAmount` → the root
+ * constraint collapses to `0 === 0` for zero-amount slots, same as aggregation),
+ * so the builder zero-pads the unused slots — a single note IS spendable.
  */
 export const generateWithdrawalCircuitInputsFromNotes = async ({
   notes,
@@ -217,14 +240,13 @@ export const generateWithdrawalCircuitInputsFromNotes = async ({
   destinationAddress,
   tokenId,
   maxInputs,
+  treeDepth,
 }: WithdrawalFromNotesParams): Promise<WithdrawCircuitInputs> => {
-  // The deployed circuit asserts `computedRoots[i] === notesRoot` for EVERY slot
-  // (VerifyInclusionProof's shouldSkip is a no-op), so every input slot must be a
-  // real committed leaf — no zero-amount skip padding. Provide exactly maxInputs
-  // committed notes (a zero-amount note is fine, but it must be committed).
-  if (notes.length !== maxInputs) {
+  // 1..maxInputs real committed notes; the circuit zero-skips the padded slots
+  // (mirrors buildAggregationWitnessBundle). Only TOO MANY is unspendable here.
+  if (notes.length < 1 || notes.length > maxInputs) {
     throw new Error(
-      `withdrawal: the deployed circuit requires exactly maxInputs (${maxInputs}) real committed input notes; got ${notes.length}`,
+      `withdrawal: need 1..${maxInputs} real committed input notes (the circuit zero-pads the rest); got ${notes.length}`,
     );
   }
   const publicKey = pubFromPrivateKey(ownerBjjPrivateKeyHex);
@@ -235,13 +257,26 @@ export const generateWithdrawalCircuitInputsFromNotes = async ({
     }
   }
 
-  const { proofs: inputNoteInclusionProofs, notesRoot } = resolveInclusionProofs(notes, notesTree, supplied);
-  const totalAmount = notes.reduce((acc, n) => acc + n.amount, 0n);
-  const msg = poseidonHash([...notes.map((n) => n.nullifier), destinationAddress, totalAmount, tokenId]);
+  // Zero-pad the unused input slots up to maxInputs; `resolveInclusionProofs`
+  // (allowZeroSkip=true) gives the pads dummy proofs, and the circuit skips them.
+  const allInputs: Note[] = [...notes];
+  while (allInputs.length < maxInputs) allInputs.push(zeroPadNote(publicKey, tokenId));
+
+  const { proofs: inputNoteInclusionProofs, notesRoot } = resolveInclusionProofs(
+    allInputs,
+    notesTree,
+    supplied,
+    treeDepth,
+    true,
+  );
+  // totalAmount sums every slot (pads are 0); the signature commits ALL maxInputs
+  // nullifiers (incl. pads) because the circuit's outputHasher does.
+  const totalAmount = allInputs.reduce((acc, n) => acc + n.amount, 0n);
+  const msg = poseidonHash([...allInputs.map((n) => n.nullifier), destinationAddress, totalAmount, tokenId]);
   const signature = sign(msg, ownerBjjPrivateKeyHex);
 
   return {
-    inputNotes: notes.map(noteBus),
+    inputNotes: allInputs.map(noteBus),
     publicKey,
     inputNoteInclusionProofs,
     signature: { S: signature.S, R8: [signature.R8[0], signature.R8[1]] },
@@ -348,10 +383,12 @@ export const buildAggregationWitnessBundle = async ({
   maxOutputs,
   treeDepth,
 }: AggregationFromNotesParams): Promise<AggregationWitnessBundle> => {
-  // Same as withdrawal: every input slot must be a real committed leaf.
-  if (inputNotes.length !== maxInputs) {
+  // The aggregation circuit zero-pads unused input slots (VerifyInclusionProof skips
+  // zero-amount notes), so 1..maxInputs real committed notes are allowed — the builder
+  // pads the rest below. Only TOO MANY is unspendable here (fold the excess first).
+  if (inputNotes.length < 1 || inputNotes.length > maxInputs) {
     throw new Error(
-      `aggregation: the deployed circuit requires exactly maxInputs (${maxInputs}) real committed input notes; got ${inputNotes.length}`,
+      `aggregation: need 1..${maxInputs} real committed input notes (the circuit zero-pads the rest); got ${inputNotes.length}`,
     );
   }
   const token = inputNotes[0].token;
@@ -388,9 +425,19 @@ export const buildAggregationWitnessBundle = async ({
   }
 
   const totalInput = inputNotes.reduce((acc, n) => acc + n.amount, 0n);
-  const spentToOthers = recipientOutputNotes.reduce((acc, n) => acc + n.amount, 0n);
+  // All value routed to recipient slots (INCLUDING a self-directed carve-out note),
+  // used for change/conservation: change = inputs − recipients − fee, mirroring the
+  // circuit's `Σoutputs = Σinputs − feeNote.amount`.
+  const spentToRecipients = recipientOutputNotes.reduce((acc, n) => acc + n.amount, 0n);
+  // The protocol fee is charged ONLY on value LEAVING the sender. The circuit's
+  // `totalSpentValue` skips sender-owned outputs (the in-circuit `isSender` check), so
+  // exclude recipient notes the sender owns — e.g. a withdrawal carve-out's self note.
+  // Otherwise the SDK's feeNote amount wouldn't match the circuit and the proof fails.
+  const spentToOthers = recipientOutputNotes
+    .filter((n) => !sameKey(publicKey, n.owner.babyJubjubPublicKey))
+    .reduce((acc, n) => acc + n.amount, 0n);
   const feeAmount = gasFee + (spentToOthers * protocolFeePerThousand) / 1000n;
-  const change = totalInput - spentToOthers - feeAmount;
+  const change = totalInput - spentToRecipients - feeAmount;
   if (change < 0n) throw new Error(`aggregation: change negative (${change}); reduce outputs or fees`);
 
   const outputNotes: Note[] = [...recipientOutputNotes];
@@ -449,7 +496,13 @@ export const buildAggregationWitnessBundle = async ({
 
   const allInputs: Note[] = [...inputNotes];
   while (allInputs.length < maxInputs) allInputs.push(zeroPadNote(publicKey, token));
-  const { proofs: inputNoteInclusionProofs, notesRoot } = resolveInclusionProofs(allInputs, notesTree, supplied);
+  const { proofs: inputNoteInclusionProofs, notesRoot } = resolveInclusionProofs(
+    allInputs,
+    notesTree,
+    supplied,
+    treeDepth,
+    true,
+  );
 
   const encryptedNoteData = await Promise.all([...outputNotes, feeNote].map((n) => encNoteData(n)));
 

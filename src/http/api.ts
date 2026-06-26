@@ -2,15 +2,8 @@ import { APIError } from "@/errors";
 import { HttpClient } from "@/http/index";
 import type { IApiClient } from "@/interfaces/api";
 import type { InsertEntryPortalRequestBody, InsertExitPortalRequestBody, InsertPortalReturnType } from "@/types";
+import type { PaymasterInfo, RelaySubmitRequestBody, RelaySubmitReturnType } from "@/types/aggregator";
 import type {
-  AggregationRequest,
-  PaymasterInfo,
-  RelaySubmitRequestBody,
-  RelaySubmitReturnType,
-  WithdrawRequest,
-} from "@/types/aggregator";
-import type {
-  GetAggregatorRequestStatusReturnType,
   GetCurvyIdByOwnerAddressResponse,
   GetPortalRecordsReturnType,
   GetPortalStatusReturnType,
@@ -23,8 +16,6 @@ import type {
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,
   ResolveCurvyIdReturnType,
-  SubmitAggregationReturnType,
-  SubmitWithdrawReturnType,
 } from "@/types/api";
 import type { CurvyId } from "@/types/curvy";
 
@@ -33,15 +24,8 @@ class ApiClient extends HttpClient implements IApiClient {
   private readonly indexerBaseUrl?: string;
   private readonly relayerBaseUrl?: string;
 
-  constructor(
-    apiBaseUrl?: string,
-    customFetch?: typeof globalThis.fetch,
-    options: { metadataBaseUrl?: string; indexerBaseUrl?: string; relayerBaseUrl?: string } = {},
-  ) {
+  constructor(apiBaseUrl?: string, customFetch?: typeof globalThis.fetch) {
     super(apiBaseUrl, customFetch);
-    this.metadataBaseUrl = options.metadataBaseUrl;
-    this.indexerBaseUrl = options.indexerBaseUrl;
-    this.relayerBaseUrl = options.relayerBaseUrl;
   }
 
   updateBearerToken = (bearer: string | undefined) => {
@@ -52,7 +36,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetNetworks: async () => {
       const networks = await this.request<NetworksWithCurrenciesResponse>({
         method: "GET",
-        path: "/currency/latest",
+        path: "/metadata/currency/latest",
         retries: 2,
         baseUrl: this.metadataBaseUrl,
       });
@@ -116,7 +100,7 @@ class ApiClient extends HttpClient implements IApiClient {
     RegisterCurvyId: async (body: RegisterCurvyIdRequestBody) => {
       return await this.request<RegisterCurvyIdReturnType>({
         method: "POST",
-        path: "/user/register",
+        path: "/metadata/user/register",
         body,
         baseUrl: this.metadataBaseUrl,
       });
@@ -125,7 +109,7 @@ class ApiClient extends HttpClient implements IApiClient {
     ResolveCurvyId: async (username: string) => {
       return this.request<ResolveCurvyIdReturnType>({
         method: "GET",
-        path: `/user/resolve/${username}`,
+        path: `/metadata/user/resolve/${username}`,
         retries: 2,
         baseUrl: this.metadataBaseUrl,
       });
@@ -134,7 +118,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetCurvyIdByOwnerAddress: async (ownerAddress: string) => {
       const response = await this.request<GetCurvyIdByOwnerAddressResponse>({
         method: "GET",
-        path: `/user/check/${ownerAddress}`,
+        path: `/metadata/user/check/${ownerAddress}`,
         retries: 2,
         baseUrl: this.metadataBaseUrl,
       });
@@ -150,7 +134,7 @@ class ApiClient extends HttpClient implements IApiClient {
           nonce: string;
         }>({
           method: "GET",
-          path: "/auth/nonce",
+          path: "/metadata/auth/nonce",
           retries: 2,
           baseUrl: this.metadataBaseUrl,
         })
@@ -164,7 +148,7 @@ class ApiClient extends HttpClient implements IApiClient {
         }>({
           method: "POST",
           body,
-          path: "/auth",
+          path: "/metadata/auth",
           baseUrl: this.metadataBaseUrl,
         })
       ).token;
@@ -176,7 +160,7 @@ class ApiClient extends HttpClient implements IApiClient {
           token: string;
         }>({
           method: "GET",
-          path: "/auth/renew",
+          path: "/metadata/auth/renew",
           retries: 2,
           baseUrl: this.metadataBaseUrl,
         })
@@ -188,7 +172,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetMeta: async () => {
       return await this.request<GetSyncMetaReturnType>({
         method: "GET",
-        path: "/v3/sync/meta",
+        path: "/indexer/v3/sync/meta",
         retries: 2,
         baseUrl: this.indexerBaseUrl,
       });
@@ -197,7 +181,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetNotes: async (fromIndex: number, limit = 500) => {
       return await this.request<GetSyncNotesReturnType>({
         method: "GET",
-        path: "/v3/sync/notes",
+        path: "/indexer/v3/sync/notes",
         queryParams: { fromIndex, limit },
         retries: 2,
         baseUrl: this.indexerBaseUrl,
@@ -207,7 +191,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetNullifiers: async (fromIndex: number, limit = 500) => {
       return await this.request<GetSyncNullifiersReturnType>({
         method: "GET",
-        path: "/v3/sync/nullifiers",
+        path: "/indexer/v3/sync/nullifiers",
         queryParams: { fromIndex, limit },
         retries: 2,
         baseUrl: this.indexerBaseUrl,
@@ -217,36 +201,10 @@ class ApiClient extends HttpClient implements IApiClient {
     GetShardRoots: async (fromIndex: number, limit = 500) => {
       return await this.request<GetSyncShardRootsReturnType>({
         method: "GET",
-        path: "/v3/sync/shard-roots",
+        path: "/indexer/v3/sync/shard-roots",
         queryParams: { fromIndex, limit },
         retries: 2,
         baseUrl: this.indexerBaseUrl,
-      });
-    },
-  };
-
-  aggregator = {
-    SubmitAggregation: async (data: AggregationRequest) => {
-      return await this.request<SubmitAggregationReturnType>({
-        method: "POST",
-        path: "/aggregator/aggregation",
-        body: data,
-      });
-    },
-
-    SubmitWithdraw: async (data: WithdrawRequest) => {
-      return await this.request<SubmitWithdrawReturnType>({
-        method: "POST",
-        path: "/aggregator/withdraw",
-        body: data,
-      });
-    },
-
-    GetAggregatorRequestStatus: async (requestId: string) => {
-      return await this.request<GetAggregatorRequestStatusReturnType>({
-        method: "GET",
-        path: `/aggregator/request-status/${requestId}/status`,
-        retries: 2,
       });
     },
   };

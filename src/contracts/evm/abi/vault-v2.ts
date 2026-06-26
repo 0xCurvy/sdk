@@ -74,7 +74,7 @@ export const vaultV2Abi = [
   },
   {
     inputs: [],
-    name: "GasCostLengthMismatch",
+    name: "GasFeesLengthMismatch",
     type: "error",
   },
   {
@@ -200,16 +200,32 @@ export const vaultV2Abi = [
     anonymous: false,
     inputs: [
       {
+        components: [
+          {
+            internalType: "uint256",
+            name: "tokenId",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "portalDeployment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "pendingNoteCommitment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "withdrawal",
+            type: "uint256",
+          },
+        ],
         indexed: false,
-        internalType: "uint256[]",
-        name: "tokenIds",
-        type: "uint256[]",
-      },
-      {
-        indexed: false,
-        internalType: "uint256[]",
-        name: "costs",
-        type: "uint256[]",
+        internalType: "struct CurvyTypes.GasFees[]",
+        name: "gasFees",
+        type: "tuple[]",
       },
       {
         indexed: false,
@@ -533,6 +549,19 @@ export const vaultV2Abi = [
   },
   {
     inputs: [],
+    name: "GAS_TREE_DEPTH",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "OPERATOR_ROLE",
     outputs: [
       {
@@ -599,25 +628,6 @@ export const vaultV2Abi = [
     name: "collectFees",
     outputs: [],
     stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "commitmentGasCost",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
     type: "function",
   },
   {
@@ -720,6 +730,19 @@ export const vaultV2Abi = [
         internalType: "address",
         name: "",
         type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "gasFeeUpdateBlock",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
       },
     ],
     stateMutability: "view",
@@ -852,25 +875,53 @@ export const vaultV2Abi = [
   },
   {
     inputs: [],
-    name: "latestCommitmentGasCostUpdateBlock",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
     name: "owner",
     outputs: [
       {
         internalType: "address",
         name: "",
         type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "tokenId",
+        type: "uint256",
+      },
+    ],
+    name: "perTokenGasFees",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "uint256",
+            name: "tokenId",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "portalDeployment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "pendingNoteCommitment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "withdrawal",
+            type: "uint256",
+          },
+        ],
+        internalType: "struct CurvyTypes.GasFees",
+        name: "fees",
+        type: "tuple",
       },
     ],
     stateMutability: "view",
@@ -948,29 +999,6 @@ export const vaultV2Abi = [
   {
     inputs: [
       {
-        internalType: "uint256[]",
-        name: "tokenIds",
-        type: "uint256[]",
-      },
-      {
-        internalType: "uint256[]",
-        name: "costs",
-        type: "uint256[]",
-      },
-      {
-        internalType: "uint256",
-        name: "root",
-        type: "uint256",
-      },
-    ],
-    name: "setCommitmentGasFee",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
         internalType: "address",
         name: "curvyAggregator",
         type: "address",
@@ -1022,17 +1050,39 @@ export const vaultV2Abi = [
   {
     inputs: [
       {
-        internalType: "uint256[]",
-        name: "tokenIds",
-        type: "uint256[]",
+        components: [
+          {
+            internalType: "uint256",
+            name: "tokenId",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "portalDeployment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "pendingNoteCommitment",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "withdrawal",
+            type: "uint256",
+          },
+        ],
+        internalType: "struct CurvyTypes.GasFees[]",
+        name: "gasFees",
+        type: "tuple[]",
       },
       {
-        internalType: "uint256[]",
-        name: "costs",
-        type: "uint256[]",
+        internalType: "uint256",
+        name: "commitmentGasFeeRoot",
+        type: "uint256",
       },
     ],
-    name: "setWithdrawalGasFee",
+    name: "setPerTokenGasFees",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -1123,25 +1173,6 @@ export const vaultV2Abi = [
         internalType: "uint96",
         name: "",
         type: "uint96",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "withdrawalGasCost",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
       },
     ],
     stateMutability: "view",

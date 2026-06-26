@@ -38,11 +38,11 @@ export async function estimateIntent(parameters: EstimateIntentParameters): Prom
   );
 
   const { plan: draftPlan, usedBalances } = generatePlan(balances, intent, {
-    checkBytecode: (n, a) => hasBytecode(config, n, a),
+    checkBytecode: (n, a) => hasBytecode({ network: n, address: a, config }),
   });
 
   const result = await estimatePlanTree(config, draftPlan, undefined);
-
+  console.log(result);
   if (!result.success) {
     console.error(`Plan estimation failed: ${result.error}`);
     throw result.error;

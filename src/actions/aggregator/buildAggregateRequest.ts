@@ -3,6 +3,7 @@ import type { WithConfig } from "@/config/types";
 import type { Note } from "@/note";
 import type { SuppliedInclusionProofs } from "@/proving";
 import { GAS_FEE_TREE_DEPTH, MerkleTree } from "@/proving";
+import { loadCircuitKey } from "@/proving/circuitKeyCache";
 import { formatGroth16ProofForSolidity } from "@/proving/groth16";
 import { buildAggregationWitnessBundle, flattenAggregationCircuitInputs } from "@/proving/witnessFromNotes";
 import type { CurvyPublicKeys } from "@/types/core";
@@ -137,7 +138,15 @@ export async function buildAggregateRequest(
     treeDepth,
   });
 
-  const { proof, publicSignals } = await config.prover.prove(flattenAggregationCircuitInputs(witness), wasm, zkey);
+  const [wasmArtifact, zkeyArtifact] = await Promise.all([
+    loadCircuitKey(config.circuitKeyCache, wasm),
+    loadCircuitKey(config.circuitKeyCache, zkey),
+  ]);
+  const { proof, publicSignals } = await config.prover.prove(
+    flattenAggregationCircuitInputs(witness),
+    wasmArtifact,
+    zkeyArtifact,
+  );
   const signals = publicSignals.map(BigInt);
 
   return attachSubmissionSugar(config, {

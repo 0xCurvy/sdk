@@ -5,6 +5,7 @@ import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { NotesTreeView } from "@/note/notesTreeView";
 import type { MerkleTree } from "@/proving";
+import type { CircuitKeyCache } from "@/proving/circuitKeyCache";
 import type { Prover } from "@/proving/prover";
 import type { MultiRpc } from "@/rpc/multi";
 import type { SessionKeystore } from "@/session-keystore";
@@ -115,6 +116,14 @@ export type CurvyConfig = {
    */
   readonly circuitKeysBaseUrl?: string;
 
+  /**
+   * Persistent cache for downloaded circuit proving artifacts (wasm + zkey), so
+   * the (large) keys are fetched once instead of on every prove. Defaults to the
+   * Cache API in the browser and the filesystem on Node; undefined disables
+   * caching (the prover fetches the URL each time). See {@link CircuitKeyCache}.
+   */
+  readonly circuitKeyCache?: CircuitKeyCache;
+
   /** Stop timers + detach listeners. New, required lifecycle obligation. */
   destroy: () => Promise<void>;
 
@@ -162,6 +171,12 @@ export type CreateCurvyConfigParameters = {
   prover?: Prover;
   /** CDN/host base URL that `s3://` circuit-key paths are rewritten against (see `CurvyConfig.circuitKeysBaseUrl`). */
   circuitKeysBaseUrl?: string;
+  /**
+   * Cache for downloaded circuit proving artifacts. Omit for the platform default
+   * (Cache API in the browser, filesystem on Node); pass a custom
+   * {@link CircuitKeyCache}, or `false` to disable caching entirely.
+   */
+  circuitKeyCache?: CircuitKeyCache | false;
 };
 
 /**

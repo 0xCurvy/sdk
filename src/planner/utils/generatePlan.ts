@@ -19,19 +19,21 @@ export type GeneratePlanDeps = {
 };
 
 /**
- * Fold the selected input nodes down to EXACTLY `maxInputs` notes for a withdrawal.
+ * Fold the selected input nodes down to AT MOST `maxInputs` notes for a withdrawal.
  *
- * The v3 withdrawal circuit verifies inclusion of every input slot (no skip-pad),
- * so it needs exactly `maxInputs` real committed notes. We aggregate the excess —
- * the first `count - maxInputs + 1` notes are folded (to self) into one, and the
- * remaining `maxInputs - 1` notes pass through — so the resulting `parallel` node
- * yields exactly `maxInputs` committed balance entries for the withdraw command.
+ * The v3 withdrawal circuit is skip-aware (zero-amount input slots are skipped, same
+ * as aggregation), so the withdraw builder accepts 1..maxInputs real committed notes
+ * and zero-pads the rest. So 1..maxInputs notes pass straight through; only an EXCESS
+ * is folded — the first `count - maxInputs + 1` notes aggregate (to self) into one and
+ * the remaining `maxInputs - 1` pass through — yielding ≤ `maxInputs` committed balance
+ * entries for the withdraw command.
  */
 const foldToMaxInputs = (nodes: DraftPlan[], maxInputs: number): DraftPlan => {
-  if (nodes.length < maxInputs) {
-    throw new Error(`withdrawal needs at least ${maxInputs} committed input notes; selected ${nodes.length}`);
+  if (nodes.length < 1) {
+    throw new Error("withdrawal needs at least 1 committed input note; selected 0");
   }
-  if (nodes.length === maxInputs) {
+  if (nodes.length <= maxInputs) {
+    // 1..maxInputs real notes — the withdraw builder zero-pads the unused slots.
     return { type: "parallel", items: nodes };
   }
   const headCount = nodes.length - maxInputs + 1;
@@ -67,11 +69,22 @@ export const generatePlan = (
   let plan: DraftPlan;
 
   if (recipientIsHex) {
-    // Withdrawal: fold to exactly maxInputs committed notes, then pay out.
+    // The withdrawal circuit pays out the FULL amount of its input notes — it has
+    // no change output. `selectOptimalBalances` overshoots the target, so when the
+    // selected notes exceed `intent.amount` we must FIRST carve out exactly
+    // `intent.amount` into a self note (an aggregation; the remainder becomes change
+    // back to self), then withdraw that note — otherwise the overshoot would be paid
+    // to the recipient. An exact selection withdraws its notes directly.
+    const selectedSum = selectedBalances.reduce((sum, b) => sum + b.balance, 0n);
+    const inputStep =
+      selectedSum > intent.amount
+        ? generateAggregationPlan(inputDataNodes, maxInputs, intent)
+        : foldToMaxInputs(inputDataNodes, maxInputs);
+
     plan = {
       type: "serial",
       items: [
-        foldToMaxInputs(inputDataNodes, maxInputs),
+        inputStep,
         {
           type: "command",
           id: uuidV4(),

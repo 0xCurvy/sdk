@@ -2,6 +2,7 @@ import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import type { Note } from "@/note";
 import type { MerkleTree, SuppliedInclusionProofs } from "@/proving";
+import { loadCircuitKey } from "@/proving/circuitKeyCache";
 import { formatGroth16ProofForSolidity } from "@/proving/groth16";
 import { flattenWithdrawalCircuitInputs, generateWithdrawalCircuitInputsFromNotes } from "@/proving/witnessFromNotes";
 import { resolveCircuitArtifacts } from "../proving/internal/resolveCircuitArtifacts";
@@ -62,7 +63,15 @@ export async function buildWithdrawRequest(parameters: BuildWithdrawRequestParam
     treeDepth,
   });
 
-  const { proof, publicSignals } = await config.prover.prove(flattenWithdrawalCircuitInputs(witness), wasm, zkey);
+  const [wasmArtifact, zkeyArtifact] = await Promise.all([
+    loadCircuitKey(config.circuitKeyCache, wasm),
+    loadCircuitKey(config.circuitKeyCache, zkey),
+  ]);
+  const { proof, publicSignals } = await config.prover.prove(
+    flattenWithdrawalCircuitInputs(witness),
+    wasmArtifact,
+    zkeyArtifact,
+  );
   const signals = publicSignals.map(BigInt);
 
   return attachSubmissionSugar(config, {

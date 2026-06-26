@@ -4,7 +4,7 @@ import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { Core } from "@/core";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
-import { MerkleTree, snarkjsProver } from "@/proving";
+import { defaultCircuitKeyCache, MerkleTree, snarkjsProver } from "@/proving";
 import { newMultiRpc } from "@/rpc/factory";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
@@ -35,9 +35,6 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
   const {
     environment,
     apiBaseUrl,
-    metadataBaseUrl,
-    indexerBaseUrl,
-    relayerBaseUrl,
     storage = new MapStorage(),
     wasmUrl,
     wasmModule,
@@ -48,9 +45,10 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     notesSyncEngine = "global",
     prover,
     circuitKeysBaseUrl,
+    circuitKeyCache,
   } = parameters;
 
-  const api = new ApiClient(apiBaseUrl, customFetch, { metadataBaseUrl, indexerBaseUrl, relayerBaseUrl });
+  const api = new ApiClient(apiBaseUrl, customFetch);
   const emitter = new CurvyEventEmitter();
   api.setOnUnauthorized(() => emitter.emitUnauthorized({ statusCode: 401 }));
 
@@ -128,6 +126,9 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     // resolved per-network from each network's CircuitConfig, not from the prover.
     prover: prover ?? snarkjsProver,
     circuitKeysBaseUrl,
+    // Cache downloaded wasm/zkey so the large keys are fetched once, not per prove.
+    // `false` disables; otherwise use the caller's cache or the platform default.
+    circuitKeyCache: circuitKeyCache === false ? undefined : (circuitKeyCache ?? defaultCircuitKeyCache()),
     getRpc() {
       const env = store.getState().environment;
       const cached = internal.rpcCache.get(env);

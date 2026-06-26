@@ -1,6 +1,7 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import type { WithdrawCircuitInputs } from "@/proving/circuitInputs";
+import { loadCircuitKey } from "@/proving/circuitKeyCache";
 import type { ProofResult } from "@/proving/prover";
 import { flattenWithdrawalCircuitInputs } from "@/proving/witnessFromNotes";
 import { resolveCircuitArtifacts } from "./internal/resolveCircuitArtifacts";
@@ -28,5 +29,9 @@ export type ProveWithdrawalParameters = WithConfig<{
 export async function proveWithdrawal(parameters: ProveWithdrawalParameters): Promise<ProofResult> {
   const config = resolveConfig(parameters.config);
   const { wasm, zkey } = resolveCircuitArtifacts(config, "withdrawal", parameters.networkSlug);
-  return config.prover.prove(flattenWithdrawalCircuitInputs(parameters.witness), wasm, zkey);
+  const [wasmArtifact, zkeyArtifact] = await Promise.all([
+    loadCircuitKey(config.circuitKeyCache, wasm),
+    loadCircuitKey(config.circuitKeyCache, zkey),
+  ]);
+  return config.prover.prove(flattenWithdrawalCircuitInputs(parameters.witness), wasmArtifact, zkeyArtifact);
 }

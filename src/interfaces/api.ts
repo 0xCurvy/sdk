@@ -1,12 +1,5 @@
+import type { PaymasterInfo, RelaySubmitRequestBody, RelaySubmitReturnType } from "@/types/aggregator";
 import type {
-  AggregationRequest,
-  PaymasterInfo,
-  RelaySubmitRequestBody,
-  RelaySubmitReturnType,
-  WithdrawRequest,
-} from "@/types/aggregator";
-import type {
-  GetAggregatorRequestStatusReturnType,
   GetCurvyIdByOwnerAddressReturnType,
   GetNetworksReturnType,
   GetPortalRecordsReturnType,
@@ -21,8 +14,6 @@ import type {
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,
   ResolveCurvyIdReturnType,
-  SubmitAggregationReturnType,
-  SubmitWithdrawReturnType,
 } from "@/types/api";
 
 interface IApiClient {
@@ -68,12 +59,6 @@ interface IApiClient {
     GetNotes(fromIndex: number, limit?: number): Promise<GetSyncNotesReturnType>;
     GetNullifiers(fromIndex: number, limit?: number): Promise<GetSyncNullifiersReturnType>;
     GetShardRoots(fromIndex: number, limit?: number): Promise<GetSyncShardRootsReturnType>;
-  };
-
-  aggregator: {
-    SubmitWithdraw(data: WithdrawRequest): Promise<SubmitWithdrawReturnType>;
-    SubmitAggregation(data: AggregationRequest): Promise<SubmitAggregationReturnType>;
-    GetAggregatorRequestStatus(requestId: string): Promise<GetAggregatorRequestStatusReturnType>;
   };
 
   /**

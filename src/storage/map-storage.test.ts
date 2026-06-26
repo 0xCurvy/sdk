@@ -126,6 +126,21 @@ describe("MapStorage (BaseStorage business logic)", () => {
     expect(await s.getTotals("acc-1")).toHaveLength(0);
   });
 
+  it("removes ONLY the spent entries, preserving the account's other notes", async () => {
+    const s = new MapStorage();
+    const all = ["n0", "n1", "n2", "n3", "n4", "n5"].map((id) => makeEntry({ id, balance: 100n }));
+    await s.updateBalanceEntries("acc-1", "ethereum", all);
+
+    // Spend n2 — the other five notes MUST survive (regression: the old impl
+    // passed only the spent entry to updateBalanceEntries, deleting all others).
+    await s.removeSpentBalanceEntries([makeEntry({ id: "n2", balance: 100n })]);
+
+    const remaining = await s.getBalances("acc-1");
+    expect(remaining.map((e) => e.id).sort()).toEqual(["n0", "n1", "n3", "n4", "n5"]);
+    // Total reflects only the survivors (5 × 100).
+    expect((await s.getTotals("acc-1"))[0].totalBalance).toBe("500");
+  });
+
   it("looks up currency metadata by address and by bigint vault token id", async () => {
     const s = new MapStorage();
     await s.upsertCurrencyMetadata(new Map([["0xusdc-ethereum", meta]]));

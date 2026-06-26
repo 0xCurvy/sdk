@@ -1,10 +1,6 @@
 import { resolveConfig } from "@/config/global";
 import type { CurvyConfig } from "@/config/types";
-import type { ICurvyEventEmitter } from "@/interfaces/events";
-
-type OffParams = Parameters<ICurvyEventEmitter["off"]>;
-type OffEventName = OffParams[0];
-type OffListener = OffParams[1];
+import type { CURVY_EVENTS } from "@/types/events";
 
 /**
  * Unsubscribe a previously-registered listener. Delegates to `config.emitter.off`.
@@ -19,6 +15,10 @@ type OffListener = OffParams[1];
  * @example
  * off(CURVY_EVENT_TYPES.BALANCE_REFRESH_COMPLETE, listener);
  */
-export function off(eventName: OffEventName, listener: OffListener, config?: CurvyConfig): void {
+export function off<Name extends keyof CURVY_EVENTS>(
+  eventName: Name,
+  listener: (eventData: CURVY_EVENTS[Name]) => void | Promise<void>,
+  config?: CurvyConfig,
+): void {
   resolveConfig(config).emitter.off(eventName, listener);
 }

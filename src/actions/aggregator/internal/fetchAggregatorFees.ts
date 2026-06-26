@@ -11,10 +11,12 @@ import type { EvmRpc } from "@/rpc/evm";
  * here to guarantee a match.
  *
  * The per-token gas-fee table is no longer stored enumerably on-chain. The vault re-emits the
- * COMPLETE table (one cost per gas-fee-tree leaf) on every `setCommitmentGasFee`, and records the
- * block in `latestCommitmentGasCostUpdateBlock`. We reconstruct the full leaf set from that single
- * event — no historical replay — then the builder rebuilds the depth-`GAS_FEE_TREE_DEPTH` tree and
- * proves the inputs' token's leaf under the aggregator's `commitmentFeeRoot`.
+ * COMPLETE `GasFees[]` table on every `setPerTokenGasFees`, and records the block in
+ * `gasFeeUpdateBlock`. We reconstruct the full leaf set from that single event — no historical
+ * replay — then the builder rebuilds the depth-`GAS_FEE_TREE_DEPTH` tree and proves the inputs'
+ * token's leaf under the aggregator's `commitmentFeeRoot`. The aggregation gas-fee tree commits
+ * the COMMITMENT leg only, so each leaf is `GasFees.pendingNoteCommitment` (the deposit path
+ * additionally charges `portalDeployment`; withdrawals charge `GasFees.withdrawal`).
  */
 export async function fetchAggregatorFees(
   config: CurvyConfig,
@@ -57,7 +59,7 @@ export async function fetchAggregatorFees(
       args: [1n],
     }),
     rpc.provider.readContract({ address: aggregator, abi: aggregatorAlphaV2Abi, functionName: "commitmentFeeRoot" }),
-    rpc.provider.readContract({ address: vault, abi: vaultV2Abi, functionName: "latestCommitmentGasCostUpdateBlock" }),
+    rpc.provider.readContract({ address: vault, abi: vaultV2Abi, functionName: "gasFeeUpdateBlock" }),
   ]);
 
   // Full leaf set of the depth-GAS_FEE_TREE_DEPTH tree, default 0 for unset slots.
@@ -71,13 +73,17 @@ export async function fetchAggregatorFees(
       fromBlock: block,
       toBlock: block,
     });
-    // The latest update at this block carries the complete table; take the last matching log.
+    // The latest update at this block carries the complete GasFees[] table; take the last log.
+    // The aggregation gas-fee tree commits the COMMITMENT leg, so each leaf is the token's
+    // `pendingNoteCommitment` (portalDeployment is deposit-only; withdrawal is its own leg).
     const latest = logs[logs.length - 1];
-    const args = latest?.args as { tokenIds?: readonly bigint[]; costs?: readonly bigint[] } | undefined;
-    if (args?.tokenIds && args.costs) {
-      for (let i = 0; i < args.tokenIds.length; i += 1) {
-        const idx = Number(args.tokenIds[i]);
-        if (idx >= 0 && idx < commitmentGasCosts.length) commitmentGasCosts[idx] = BigInt(args.costs[i]);
+    const args = latest?.args as
+      | { gasFees?: readonly { tokenId: bigint; pendingNoteCommitment: bigint }[] }
+      | undefined;
+    if (args?.gasFees) {
+      for (const gf of args.gasFees) {
+        const idx = Number(gf.tokenId);
+        if (idx >= 0 && idx < commitmentGasCosts.length) commitmentGasCosts[idx] = BigInt(gf.pendingNoteCommitment);
       }
     }
   }

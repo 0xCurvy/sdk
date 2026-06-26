@@ -91,9 +91,12 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
   // self); intermediate self-folds keep everything (minus fees). `buildAggregateRequest`
   // adds the change + fee notes itself, so we only pass the recipient amount.
   const recipientAmount = (): bigint => {
-    if (intent && (isValidCurvyId(intent.recipient) || intent.recipientPublicKeys)) {
-      return intent.amount;
-    }
+    // The final, amount-bearing aggregate carves EXACTLY `intent.amount` into the
+    // output note — for a transfer/swap that's the recipient's note; for a
+    // withdrawal carve-out (hex recipient → `buildRecipientInput` falls back to
+    // self) it's a self note of `intent.amount` with the rest kept as change. Only
+    // an intent-less intermediate fold consumes everything into one self note.
+    if (intent) return intent.amount;
     return netAmount();
   };
 
@@ -110,7 +113,8 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
   const estimateFees = async (): Promise<CommandEstimate> => {
     if (estimate) return estimate;
 
-    const curvyFeeInCurrency = (grossAmount * BigInt(network.aggregationCircuitConfig!.groupFee)) / 1000n;
+    // Fallback (no paymaster/fees reachable): a coarse groupFee-based protocol estimate.
+    let curvyFeeInCurrency = (grossAmount * BigInt(network.aggregationCircuitConfig!.groupFee)) / 1000n;
 
     // Operator paymaster gas note, in the aggregation token. Best-effort: when no
     // paymaster is reachable or the token is unpriced, gas shows as 0 and execute
@@ -120,12 +124,27 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
     let operator: CurvyPublicKeys | undefined;
     let operatorFee = 0n;
     try {
-      const costs = await estimateAggregationCosts({ config, networkSlug, token: inputNotes[0].token });
+      // The protocol fee is charged ONLY on value LEAVING the sender. A self-fold or a
+      // withdrawal carve-out (recipient resolves to self) keeps the value in-house, so
+      // spentToOthers = 0 (mirrors the circuit + buildAggregationWitnessBundle).
+      const goesToOthers =
+        !!intent &&
+        (isValidCurvyId(intent.recipient) || !!intent.recipientPublicKeys) &&
+        intent.recipient !== senderCurvyId;
+      const spentToOthers = goesToOthers ? recipientAmount() : 0n;
+      const costs = await estimateAggregationCosts({
+        config,
+        networkSlug,
+        token: inputNotes[0].token,
+        spentToOthers,
+      });
       operator = costs.operator;
       operatorFee = costs.operatorFee;
-      gasFeeInCurrency = costs.operatorFee;
+      gasFeeInCurrency = costs.operatorFee; // relayer gas reimbursement (operatorNote)
+      // Curvy feeNote = commitment gas + protocol fee (on spentToOthers), as the contract enforces.
+      curvyFeeInCurrency = costs.protocolFee;
     } catch {
-      // no paymaster / unpriced token — leave gas at 0
+      // no paymaster / unpriced token — keep the groupFee fallback, relayer gas 0
     }
 
     estimate = {

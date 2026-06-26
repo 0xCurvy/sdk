@@ -1,6 +1,7 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import type { AggregationCircuitInputs } from "@/proving/circuitInputs";
+import { loadCircuitKey } from "@/proving/circuitKeyCache";
 import type { ProofResult } from "@/proving/prover";
 import { flattenAggregationCircuitInputs } from "@/proving/witnessFromNotes";
 import { resolveCircuitArtifacts } from "./internal/resolveCircuitArtifacts";
@@ -28,5 +29,9 @@ export type ProveAggregationParameters = WithConfig<{
 export async function proveAggregation(parameters: ProveAggregationParameters): Promise<ProofResult> {
   const config = resolveConfig(parameters.config);
   const { wasm, zkey } = resolveCircuitArtifacts(config, "aggregation", parameters.networkSlug);
-  return config.prover.prove(flattenAggregationCircuitInputs(parameters.witness), wasm, zkey);
+  const [wasmArtifact, zkeyArtifact] = await Promise.all([
+    loadCircuitKey(config.circuitKeyCache, wasm),
+    loadCircuitKey(config.circuitKeyCache, zkey),
+  ]);
+  return config.prover.prove(flattenAggregationCircuitInputs(parameters.witness), wasmArtifact, zkeyArtifact);
 }

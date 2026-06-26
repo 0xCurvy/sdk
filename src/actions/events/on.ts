@@ -1,10 +1,8 @@
 import { resolveConfig } from "@/config/global";
 import type { CurvyConfig } from "@/config/types";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
+import type { CURVY_EVENTS } from "@/types/events";
 
-type OnParams = Parameters<ICurvyEventEmitter["on"]>;
-type OnEventName = OnParams[0];
-type OnListener = OnParams[1];
 type Unsubscribe = ReturnType<ICurvyEventEmitter["on"]>;
 
 export type OnOptions = {
@@ -27,6 +25,10 @@ export type OnOptions = {
  * trailing options bag carries `config` and an optional `signal` for
  * abort-driven auto-cleanup (passed straight through to Emittery).
  *
+ * The generic over the event name narrows `eventData` to that event's payload
+ * (e.g. `BALANCE_REFRESH_PROGRESS` → `{ progress, environment? }`), mirroring the
+ * underlying typed emitter.
+ *
  * @example
  * const unsubscribe = on(CURVY_EVENT_TYPES.BALANCE_REFRESH_COMPLETE, (e) => {});
  * // later: unsubscribe();
@@ -35,7 +37,11 @@ export type OnOptions = {
  * // Auto-cleanup via AbortSignal — no manual off():
  * on(CURVY_EVENT_TYPES.BALANCE_REFRESH_COMPLETE, (e) => {}, { signal: controller.signal });
  */
-export function on(eventName: OnEventName, listener: OnListener, options: OnOptions = {}): Unsubscribe {
+export function on<Name extends keyof CURVY_EVENTS>(
+  eventName: Name,
+  listener: (eventData: CURVY_EVENTS[Name]) => void | Promise<void>,
+  options: OnOptions = {},
+): Unsubscribe {
   const { config, signal } = options;
   return resolveConfig(config).emitter.on(eventName, listener, { signal });
 }
