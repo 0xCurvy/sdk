@@ -100,10 +100,31 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
     return netAmount();
   };
 
+  // True when value LEAVES the sender (a real, non-self recipient) — mirrors the
+  // circuit's `isSender` check + buildAggregationWitnessBundle's `spentToOthers`.
+  // A self-fold (no intent) or a withdrawal carve-out (hex recipient → self) keeps
+  // the value in-house.
+  const goesToOthers = (): boolean =>
+    !!intent &&
+    (isValidCurvyId(intent.recipient) || !!intent.recipientPublicKeys) &&
+    intent.recipient !== senderCurvyId;
+
+  // The amount ACTUALLY delivered to the recipient output note at execute time.
+  // Normal case: exactly `intent.amount`, with the fees carved from the change-to-self.
+  // Send-all / no-headroom: degrade to fees-on-amount (recipient = gross − fees) so the
+  // change stays non-negative and the circuit's conservation check can't revert.
+  const deliveredRecipientAmount = (): bigint => {
+    invariant(estimate, "Command not estimated.");
+    if (!intent) return netAmount();
+    const fees = estimate.curvyFeeInCurrency + estimate.gasFeeInCurrency;
+    if (intent.amount + fees > grossAmount) return netAmount(); // == grossAmount − fees
+    return intent.amount;
+  };
+
   // The recipient in the form `buildAggregateRequest` accepts (handle → real ECDH
   // stealth delivery, so the recipient — including self — can DISCOVER the note).
   const buildRecipientInput = (): AggregateRecipientInput => {
-    const amount = recipientAmount();
+    const amount = deliveredRecipientAmount();
     if (intent && isValidCurvyId(intent.recipient)) return { amount, curvyId: intent.recipient };
     if (intent?.recipientPublicKeys) return { amount, publicKeys: intent.recipientPublicKeys };
     if (!senderCurvyId) throw new Error("Active account must have a Curvy Handle to aggregate to self.");
@@ -127,11 +148,7 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
       // The protocol fee is charged ONLY on value LEAVING the sender. A self-fold or a
       // withdrawal carve-out (recipient resolves to self) keeps the value in-house, so
       // spentToOthers = 0 (mirrors the circuit + buildAggregationWitnessBundle).
-      const goesToOthers =
-        !!intent &&
-        (isValidCurvyId(intent.recipient) || !!intent.recipientPublicKeys) &&
-        intent.recipient !== senderCurvyId;
-      const spentToOthers = goesToOthers ? recipientAmount() : 0n;
+      const spentToOthers = goesToOthers() ? recipientAmount() : 0n;
       const costs = await estimateAggregationCosts({
         config,
         networkSlug,
@@ -154,10 +171,18 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
       operatorFee,
     } as CurvyCommandEstimateWithNote;
 
-    const computedNetAmount =
-      intent && intent.amount < netAmount() ? intent.amount - curvyFeeInCurrency - gasFeeInCurrency : netAmount();
+    // The estimate's output note carries the amount the recipient actually RECEIVES
+    // (== execute's recipient note). Fees are accounted against the change-to-self, not
+    // re-deducted from the delivered amount, so the estimate's effectiveAmount matches
+    // what execute delivers (no double-attribution when there is change).
+    estimate.note = await generateNewNote(ctx, getRecipient(), input[0].vaultTokenId, deliveredRecipientAmount());
 
-    estimate.note = await generateNewNote(ctx, getRecipient(), input[0].vaultTokenId, computedNetAmount);
+    // Conservation: delivered recipient amount + fees must never exceed the inputs, else
+    // execute would revert with negative change. The send-all degrade guarantees this.
+    invariant(
+      deliveredRecipientAmount() + curvyFeeInCurrency + gasFeeInCurrency <= grossAmount,
+      "Aggregate estimate violates conservation (delivered amount + fees exceed inputs).",
+    );
 
     return estimate;
   };
@@ -226,7 +251,14 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
       throw new Error(`aggregation relay did not finalize (status: ${finalized.status})`);
     }
 
-    // outputNotes[0] is the recipient note; wait for it to settle, then return it.
+    // outputNotes[0] is the recipient note. When value LEAVES the sender we will never
+    // sync that note from our OWN storage (it belongs to the recipient), so don't hang
+    // ~120s polling for a note we'll never see — return the estimate-derived output
+    // entry instead. For a self-fold / withdrawal carve-out (recipient resolves to self)
+    // the note IS ours, so wait for it to commit + sync and return the spendable entry.
+    if (goesToOthers()) {
+      return getResultingBalanceEntry();
+    }
     const recipientNote = built.outputNotes?.[0];
     invariant(recipientNote, "buildAggregateRequest returned no output notes.");
     return awaitSyncedOutput(recipientNote.id);
