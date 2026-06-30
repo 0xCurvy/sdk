@@ -8,6 +8,7 @@ import type {
   CoreScanReturnType,
   CoreSendReturnType,
   CoreViewerScanArgs,
+  CoreViewerScanReturnType,
   CurvyKeyPairs,
   Signature,
 } from "@/types/core";
@@ -57,6 +58,13 @@ declare const __CURVY_ASSETS_REL__: string | undefined;
 const NODE_ASSETS_DIR = typeof __CURVY_ASSETS_REL__ === "string" ? __CURVY_ASSETS_REL__ : "../../assets";
 const NODE_CORE_WASM = `${NODE_ASSETS_DIR}/core/curvy-core-v1.0.2.wasm`;
 
+// The Go runtime installs `globalThis.Go` and `globalThis.curvy` as REALM
+// globals — there is no per-instance isolation. A second `Core` would share (and
+// on load clobber) the same runtime, so only one Core per realm is supported.
+// We track liveness to warn loudly on a second instantiation rather than pretend
+// isolation; `reset()` clears the flag so a fresh Core can re-init the runtime.
+let coreActive = false;
+
 class Core implements ICore {
   #wasmUrl: string | undefined;
   #wasmModule: WebAssembly.Module | null;
@@ -67,6 +75,15 @@ class Core implements ICore {
   #wasm: LazySingleton<WebAssembly.Instance>;
 
   constructor(wasmUrl?: string, wasmModule?: WebAssembly.Module) {
+    if (coreActive) {
+      console.warn(
+        "Core: a second Core instance was created in this realm. Core relies on the realm-global Go/curvy WASM " +
+          "runtime, which has no per-instance isolation — instances share (and on load clobber) one runtime. Use a " +
+          "single Core per realm.",
+      );
+    }
+    coreActive = true;
+
     this.#wasmUrl = wasmUrl;
     this.#wasmModule = wasmModule ?? null;
 
@@ -80,6 +97,10 @@ class Core implements ICore {
    */
   reset(): void {
     this.#wasm.reset();
+    // Release the single-Core-per-realm claim so the next instantiation (or a
+    // re-init after a torn-down service worker) can re-establish the runtime
+    // without a spurious warning.
+    coreActive = false;
   }
 
   /**
@@ -136,6 +157,23 @@ class Core implements ICore {
     const instance = (await WebAssembly.instantiate(wasmBuffer, go.importObject)).instance;
     go.run(instance);
     return instance;
+  }
+
+  // Normalize a spend private key returned by the WASM scan into a 0x-prefixed,
+  // 32-byte (64 hex char) HexString. The WASM may or may not 0x-prefix; an
+  // unguarded `slice(2)` silently corrupts an unprefixed key. Validate the shape
+  // and throw on anything unexpected rather than emitting a malformed key.
+  #normalizeSpendPrivKey(pk: string): HexString {
+    const hex = pk.startsWith("0x") ? pk.slice(2) : pk;
+    // The WASM scan emits an empty string for notes it could not derive a spend
+    // key for (viewer-only scans / notes owned by someone else); preserve the
+    // historical zero-key sentinel for that case. Only reject genuinely
+    // malformed non-empty keys (wrong length or non-hex) so an unprefixed/encoding
+    // change can't silently corrupt a real key.
+    if (hex.length > 64 || (hex.length > 0 && !/^[0-9a-fA-F]+$/.test(hex))) {
+      throw new Error(`Core: unexpected spend private key shape: "${pk}"`);
+    }
+    return `0x${hex.padStart(64, "0")}` as HexString;
   }
 
   async getBabyJubjubPublicKey(babyJubjubPrivateKey: string): Promise<string> {
@@ -267,9 +305,7 @@ class Core implements ICore {
 
     return {
       spendingPubKeys: spendingPubKeys ?? [],
-      spendingPrivKeys: (spendingPrivKeys ?? []).map(
-        (pk) => `0x${pk.slice(2).padStart(64, "0")}` as const satisfies HexString,
-      ),
+      spendingPrivKeys: (spendingPrivKeys ?? []).map((pk) => this.#normalizeSpendPrivKey(pk)),
     };
   }
 
@@ -282,18 +318,19 @@ class Core implements ICore {
 
     return {
       spendingPubKeys: spendingPubKeys ?? [],
-      spendingPrivKeys: (spendingPrivKeys ?? []).map(
-        (pk) => `0x${pk.slice(2).padStart(64, "0")}` as const satisfies HexString,
-      ),
+      spendingPrivKeys: (spendingPrivKeys ?? []).map((pk) => this.#normalizeSpendPrivKey(pk)),
     };
   }
 
   async viewerScan(v: string, S: string, announcements: RawAnnouncement[]) {
     await this.loadWasm();
 
+    // Viewer args are `{ v, K, Rs, viewTags }` — the shape the dedicated
+    // `curvy.viewerScan` export expects. `curvy.scan` expects `{ k, v, ... }`, so
+    // routing viewer args through it dropped the spend key. Use the right export.
     const input = JSON.stringify(this.#prepareViewerScanArgs(v, S, announcements));
 
-    const { spendingPubKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
+    const { spendingPubKeys } = JSON.parse(curvy.viewerScan(input)) as CoreViewerScanReturnType;
 
     return {
       spendingPubKeys: spendingPubKeys ?? [],
