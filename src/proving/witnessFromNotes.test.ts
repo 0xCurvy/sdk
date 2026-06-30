@@ -133,11 +133,9 @@ describe("buildAggregationWitnessBundle fee-note sealing (M4)", () => {
     expect(feeNote.ephemeralKey).toEqual([7n, 8n]);
   });
 
-  it("falls back to a random fee note when no sealer is provided", async () => {
-    const { feeNote } = await buildAggregationWitnessBundle({ ...baseParams, gasFee: 50n });
-    expect(feeNote.amount).toBe(50n);
-    // Owned by feeNotePublicKey but with a random (uncollectable) sharedSecret.
-    expect(feeNote.owner.babyJubjubPublicKey.x).toBe(1n);
-    expect(feeNote.owner.babyJubjubPublicKey.y).toBe(2n);
+  it("throws on a non-zero fee with no sealer (refuses to mint an uncollectable fee note)", async () => {
+    // COR-12: without `sealFee` the fee note would get a random sharedSecret and be
+    // permanently uncollectable, so a non-zero fee without a sealer must throw.
+    await expect(buildAggregationWitnessBundle({ ...baseParams, gasFee: 50n })).rejects.toThrow(/uncollectable/);
   });
 });

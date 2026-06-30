@@ -42,9 +42,7 @@ export async function estimateIntent(parameters: EstimateIntentParameters): Prom
   });
 
   const result = await estimatePlanTree(config, draftPlan, undefined);
-  console.log(result);
   if (!result.success) {
-    console.error(`Plan estimation failed: ${result.error}`);
     throw result.error;
   }
 

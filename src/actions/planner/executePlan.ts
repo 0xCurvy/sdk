@@ -31,6 +31,13 @@ export async function executePlan(parameters: ExecutePlanParameters): Promise<Pl
   if (!activeAccount) throw new NoActiveAccountError();
   const activeAccountId = activeAccount.id;
 
+  // Capture the PRIOR pause state so we restore it rather than unconditionally
+  // resuming: a nested executePlan (or any outer caller that paused) must keep its
+  // lock held when our inner scope finishes — clearing it would silently re-enable
+  // refresh while the outer plan is still executing. (Key mirrors pauseBalanceRefresh.)
+  const lockKey = `refresh-account-${activeAccountId}`;
+  const wasAlreadyPaused = config._internal.scanLocks.get(lockKey) === true;
+
   pauseBalanceRefresh({ accountId: activeAccountId, config });
 
   // try/finally: a structural throw from walkPlan (the `invariant` sites fire
@@ -40,7 +47,9 @@ export async function executePlan(parameters: ExecutePlanParameters): Promise<Pl
   try {
     result = await executePlanTree(config, plan, undefined);
   } finally {
-    resumeBalanceRefresh({ accountId: activeAccountId, config });
+    if (!wasAlreadyPaused) {
+      resumeBalanceRefresh({ accountId: activeAccountId, config });
+    }
   }
 
   if (result.success) {

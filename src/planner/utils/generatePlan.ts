@@ -76,8 +76,16 @@ export const generatePlan = (
     // back to self), then withdraw that note — otherwise the overshoot would be paid
     // to the recipient. An exact selection withdraws its notes directly.
     const selectedSum = selectedBalances.reduce((sum, b) => sum + b.balance, 0n);
+    // A fold is UNAVOIDABLE when the selection exceeds the withdrawal circuit's
+    // maxInputs: `foldToMaxInputs` would self-fold the excess WITHOUT carving the
+    // intent amount, and that fold burns a gas fee — so the surviving committed notes
+    // sum to LESS than `intent.amount` and the recipient is silently underpaid. Route
+    // such cases through the carve path too (even on an exact-sum selection): the final
+    // aggregation carves `intent.amount` into the recipient note (degrading to
+    // fees-on-amount when there's no headroom), so the deliverable is accurate.
+    const needsFold = inputDataNodes.length > maxInputs;
     const inputStep =
-      selectedSum > intent.amount
+      selectedSum > intent.amount || needsFold
         ? generateAggregationPlan(inputDataNodes, maxInputs, intent)
         : foldToMaxInputs(inputDataNodes, maxInputs);
 

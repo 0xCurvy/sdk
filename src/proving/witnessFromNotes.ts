@@ -66,11 +66,12 @@ const encNoteData = async (n: Note): Promise<EncryptedNoteDataBus> => {
 const sameKey = (a: [bigint, bigint], b: { x: bigint; y: bigint }) => a[0] === b.x && a[1] === b.y;
 
 // Genuine inclusion proof for a REAL committed note (must hash to the root). Zero-amount
-// pad slots are handled by `resolveInclusionProofs`: the AGGREGATION circuit's
-// VerifyInclusionProof skips them (`shouldSkip = isZeroAmount` → `0 === 0`), so they get a
-// dummy proof there and never reach this. (The WITHDRAWAL circuit re-asserts
-// `computedRoots[i] === notesRoot` for every slot, defeating the skip — so it never
-// skip-pads and only ever passes real notes here.)
+// pad slots are handled by `resolveInclusionProofs`: BOTH the AGGREGATION and the
+// WITHDRAWAL circuits are skip-aware — `VerifyInclusionProof` skips zero-amount slots
+// (`shouldSkip = isZeroAmount` → the root constraint collapses to `0 === 0`), so those
+// slots get a dummy proof and never reach this. Only REAL (non-zero) notes do.
+// DO NOT "fix" the dummy pad proofs into genuine ones: the withdrawal circuit skips
+// the pads exactly like aggregation (see generateWithdrawalCircuitInputsFromNotes).
 const inclusionProofFor = (notesTree: MerkleTree, note: Note): NoteInclusionProofBus => {
   const idx = notesTree.getIndex(note.id);
   if (idx === null) {
@@ -111,10 +112,10 @@ const resolveInclusionProofs = (
   treeDepth: number,
   allowZeroSkip = false,
 ): { proofs: NoteInclusionProofBus[]; notesRoot: bigint } => {
-  // A zero-amount input slot is skipped by the AGGREGATION circuit (shouldSkip =
-  // isZeroAmount), so it needs no committed leaf — give it a dummy proof. The WITHDRAWAL
-  // circuit re-asserts the root for every slot (allowZeroSkip=false), so every note there
-  // — even a zero one — still requires a genuine proof.
+  // A zero-amount input slot is skipped by BOTH the AGGREGATION and WITHDRAWAL circuits
+  // (shouldSkip = isZeroAmount), so it needs no committed leaf — give it a dummy proof.
+  // Both builders pass `allowZeroSkip=true` (the withdrawal circuit is skip-aware too),
+  // so zero-amount pad slots never require a genuine proof.
   const skippable = (n: Note) => allowZeroSkip && n.amount === 0n;
 
   if (supplied) {
@@ -335,10 +336,10 @@ export type AggregationFromNotesParams = {
    * collector reconstructs it from its OWN keys, so the sharedSecret must derive
    * from the fee collector's viewing key — which the bare SDK-direct path does not
    * have (the contract exposes only `feeNotePublicKey`). Wire this to the
-   * fee-collector-aware stealth delivery when those keys are in scope. When omitted,
-   * the fee note falls back to a random tuple (uncollectable for a non-zero fee), so
-   * supply it for any aggregation that charges a protocol fee. The sealed note MUST
-   * own `feeAmount` for `feeNotePublicKey` (validated below).
+   * fee-collector-aware stealth delivery when those keys are in scope. A zero fee needs
+   * no sealing (the fee note is a throwaway tuple); a NON-ZERO fee without `sealFee`
+   * THROWS rather than minting a permanently uncollectable fee note. The sealed note
+   * MUST own `feeAmount` for `feeNotePublicKey` (validated below).
    */
   sealFee?: (amount: bigint) => Promise<Note>;
   maxInputs: number;
@@ -473,6 +474,15 @@ export const buildAggregationWitnessBundle = async ({
   // it is omitted the fee note falls back to a random tuple — harmless for a zero
   // fee, but an uncollectable protocol fee for a non-zero one (set the on-chain
   // fee to 0, or supply `sealFee`/`feeRecipient` from operator config, to recover it).
+  // A non-zero protocol fee MUST be sealed to the fee collector, or it is emitted with a
+  // random sharedSecret and becomes permanently uncollectable. Refuse to silently mint
+  // dead value (the previous behaviour contradicted this function's own `sealFee` JSDoc).
+  if (feeAmount > 0n && !sealFee) {
+    throw new Error(
+      `aggregation: a non-zero protocol fee (${feeAmount}) requires \`sealFee\` (fee-collector stealth delivery); ` +
+        "without it the fee note is emitted with a random sharedSecret and is permanently uncollectable",
+    );
+  }
   let feeNote: Note;
   if (sealFee && feeAmount > 0n) {
     feeNote = await sealFee(feeAmount);
@@ -520,6 +530,15 @@ export const buildAggregationWitnessBundle = async ({
   // takes the leaf index = inputNotes[0].token (derived internally) and the leaf value = the
   // private gasFee, and verifies inclusion under the public commitPendingNotesGasFeeRoot. The
   // tree leaf at index = token MUST equal gasFee (else the on-chain root won't match).
+  // The gas-fee tree has 2^GAS_FEE_TREE_DEPTH leaves, indexed by token id. Validate
+  // BigInt-safe BEFORE narrowing to Number — otherwise an out-of-range token would
+  // silently alias onto another leaf (or overflow Number) and prove the wrong cost.
+  const maxTokens = 1n << BigInt(GAS_FEE_TREE_DEPTH);
+  if (token < 0n || token >= maxTokens) {
+    throw new Error(
+      `aggregation: token ${token} is out of range for the gas-fee tree (must be 0..2^${GAS_FEE_TREE_DEPTH}-1 = ${maxTokens - 1n})`,
+    );
+  }
   const tokenIndex = Number(token);
   const gasTree = gasFeeTree ?? buildSyntheticGasFeeTree(tokenIndex, gasFee);
   const gasFeeProof = gasTree.createInclusionProofAtIndex(tokenIndex);

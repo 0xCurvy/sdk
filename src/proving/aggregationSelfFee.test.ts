@@ -56,6 +56,16 @@ describe("aggregation self-recipient fee base (deployed circuit)", () => {
         { amount: 100_000n, ownerPub: otherPub, sharedSecret: 9n }, // other
       ],
       feeNotePublicKey: [feePub[0], feePub[1]],
+      // COR-12: a non-zero protocol fee must be sealed (collectable) or the bundle throws.
+      // This test exercises the fee-BASE math, so seal to feePub with a coherent tuple.
+      sealFee: async (amount: bigint) =>
+        new Note({
+          amount,
+          token: TOKEN,
+          owner: { babyJubjubPublicKey: { x: feePub[0], y: feePub[1] }, sharedSecret: 13n },
+          ephemeralKey: [0n, 0n],
+          viewTag: 0n,
+        }),
       protocolFeePerThousand: 5n, // 0.5%
       gasFee: 0n,
       notesTree: tree,

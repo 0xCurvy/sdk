@@ -1,4 +1,5 @@
-import { resolveConfig, type WithConfig } from "@/config";
+import { resolveConfig } from "@/config/global";
+import type { WithConfig } from "@/config/types";
 import type { PendingNotesCommitmentCircuitInputs } from "./circuitInputs";
 import { padArray, sha256BigInt } from "./utils";
 
@@ -34,6 +35,23 @@ export const generatePendingNotesCommitmentCircuitInputs = async ({
   const currentNotesRoot = notesTree.root();
   const currentNoteIndex = BigInt(notesTree.getCurrentIndex());
   const paddedIds = padArray([...pendingNoteIds], batchSize, 0n);
+
+  // Atomicity: `notesTree.insert` mutates the SHARED tree in place and throws on a
+  // duplicate leaf. Pre-validate every non-zero id is unique within the batch AND
+  // absent from the tree BEFORE inserting any of them, so the mutation is all-or-
+  // nothing — a mid-loop throw can never leave the tree in a corrupt partial state
+  // (the tree has no remove, so there is no rollback once an insert lands).
+  const seen = new Set<bigint>();
+  for (const noteId of paddedIds) {
+    if (noteId === 0n) continue;
+    if (seen.has(noteId)) {
+      throw new Error(`duplicate pendingNoteId ${noteId} in the batch`);
+    }
+    seen.add(noteId);
+    if (notesTree.getIndex(noteId) !== null) {
+      throw new Error(`pendingNoteId ${noteId} is already committed in the notes tree`);
+    }
+  }
 
   const zeroSiblings = (): bigint[] => new Array<bigint>(treeDepth).fill(0n);
   const siblings: bigint[][] = [];

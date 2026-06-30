@@ -6,9 +6,10 @@ import { LIFI_SOLANA_CHAIN_ID } from "@/constants/solana";
 import type { Currency, Network } from "@/types";
 
 // Bridge allowlists mirror the broadcaster's. Keep in sync with
-// packages/backend/src/portal-broadcaster/portal-broadcaster.ts — drift here
-// means our pre-deposit estimate disagrees with what the broadcaster actually
-// routes through, by potentially more than just a few bps.
+// packages/services/portal-broadcaster/src/broadcaster/portal-broadcaster.ts
+// (ALLOWED_LIFI_BRIDGES / ALLOWED_LIFI_SOLANA_EXIT_BRIDGES) — drift here means
+// our pre-deposit estimate disagrees with what the broadcaster actually routes
+// through, by potentially more than just a few bps.
 const LIFI_BRIDGES_EVM = ["gasZipBridge", "relaydepository", "across"];
 // Solana entries are constrained to bridges whose calldata layout the
 // on-chain extractor on the Solana side understands.
