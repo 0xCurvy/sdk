@@ -2,6 +2,7 @@ import type { PaymasterInfo, RelaySubmitRequestBody, RelaySubmitReturnType } fro
 import type {
   BridgeEstimateRequestBody,
   BridgeEstimateReturnType,
+  CurrencyPrice,
   GetCurvyIdByOwnerAddressReturnType,
   GetNetworksReturnType,
   GetPortalRecordsReturnType,
@@ -13,6 +14,7 @@ import type {
   InsertExitPortalRequestBody,
   InsertPortalReturnType,
   PortalStatusResponse,
+  ProtocolConfig,
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,
   ResolveCurvyIdReturnType,
@@ -24,6 +26,8 @@ interface IApiClient {
 
   network: {
     GetNetworks(): Promise<GetNetworksReturnType>;
+    GetPrices(): Promise<CurrencyPrice[]>;
+    GetProtocol(): Promise<ProtocolConfig>;
   };
 
   portal: {

@@ -15,6 +15,8 @@ import type {
   GetSyncShardRootsReturnType,
   NetworksWithCurrenciesResponse,
   PortalStatusResponse,
+  PricesResponse,
+  ProtocolResponse,
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,
   ResolveCurvyIdReturnType,
@@ -50,15 +52,41 @@ class ApiClient extends HttpClient implements IApiClient {
   };
 
   network = {
+    // Registry: identity, RPC routing, contract addresses, bridge maps, currencies.
+    // (Protocol-global proving/fee config now comes from GetProtocol, not per-network.)
     GetNetworks: async () => {
       const networks = await this.request<NetworksWithCurrenciesResponse>({
         method: "GET",
-        path: "/metadata/currency/latest",
+        path: "/metadata/networks",
         retries: 2,
         baseUrl: this.metadataBaseUrl,
       });
 
       return networks.data;
+    },
+
+    // Volatile currency price feed — cheap, the only thing the refresh timer polls.
+    GetPrices: async () => {
+      const prices = await this.request<PricesResponse>({
+        method: "GET",
+        path: "/metadata/prices",
+        retries: 2,
+        baseUrl: this.metadataBaseUrl,
+      });
+
+      return prices.data;
+    },
+
+    // Protocol-global proving config + fee collector (fetched once at bootstrap).
+    GetProtocol: async () => {
+      const protocol = await this.request<ProtocolResponse>({
+        method: "GET",
+        path: "/metadata/protocol",
+        retries: 2,
+        baseUrl: this.metadataBaseUrl,
+      });
+
+      return protocol.data;
     },
   };
 

@@ -52,17 +52,46 @@ type Network = {
   currencies: Array<Currency>;
   feeCollectorAddress?: string;
   /**
-   * The protocol fee collector's Curvy public keys (spend `S`, view `V`, and the
-   * BabyJubjub note-owner key) for vault-enabled networks. `aggregate` stealth-
-   * delivers the protocol fee note to these so the collector can spend it; the
-   * `babyJubjubPublicKey` MUST equal the aggregator's on-chain `feeNotePublicKey`.
-   * Served by metadata `/currency/latest`; consumed as `feeRecipient` by
-   * `buildAggregateRequest` when the caller omits it.
+   * Protocol-GLOBAL fields, NOT served on the `/networks` wire. `createCurvyConfig`
+   * fetches them once from `/protocol` and re-attaches them onto each vault-enabled
+   * network at bootstrap, so consumers keep reading them off the `Network` object.
+   * (The legacy `/currency/latest` blob still stamps them per-network inline.)
+   *
+   * `feeCollector` — the protocol fee collector's Curvy keys (spend `S`, view `V`,
+   *   BabyJubjub note-owner key); `aggregate` stealth-delivers the fee note to these,
+   *   and `babyJubjubPublicKey` MUST equal the aggregator's on-chain `feeNotePublicKey`.
+   * `*CircuitConfig` — ZK proving parameters tied to the deployed aggregator.
    */
-  feeCollector?: { S: string; V: string; babyJubjubPublicKey: string };
+  feeCollector?: FeeCollector;
   aggregationCircuitConfig?: CircuitConfig;
   withdrawCircuitConfig?: CircuitConfig;
   noteOwnershipCircuitConfig?: CircuitConfig;
+};
+
+/** The protocol fee collector's Curvy public keys (decimal `x.y` field-element pairs). */
+type FeeCollector = { S: string; V: string; babyJubjubPublicKey: string };
+
+/**
+ * Protocol-global config served by `GET /protocol` — proving parameters (identical
+ * across networks; tied to the deployed aggregator) + the fee collector. De-duplicated
+ * out of the per-network blob the legacy `/currency/latest` returned.
+ */
+type ProtocolConfig = {
+  proving: {
+    aggregation: CircuitConfig;
+    withdrawal: CircuitConfig;
+    noteOwnership: CircuitConfig;
+  };
+  feeCollector?: FeeCollector;
+};
+
+/** One row of the `GET /prices` poll feed — the volatile currency fields, denormalized. */
+type CurrencyPrice = {
+  id: number;
+  symbol: string;
+  price: string | null;
+  decimals: number;
+  updatedAt: string;
 };
 
 //#endregion
@@ -80,6 +109,17 @@ type NetworksWithCurrenciesResponse = {
   error: string | null;
 };
 type GetNetworksReturnType = Array<Network>;
+
+/** `GET /prices` envelope. */
+type PricesResponse = {
+  data: Array<CurrencyPrice>;
+  error: string | null;
+};
+/** `GET /protocol` envelope. */
+type ProtocolResponse = {
+  data: ProtocolConfig;
+  error: string | null;
+};
 
 //#endregion
 
@@ -338,7 +378,12 @@ type BridgeEstimate = {
 export type {
   Network,
   Currency,
+  FeeCollector,
+  ProtocolConfig,
+  CurrencyPrice,
   NetworksWithCurrenciesResponse,
+  PricesResponse,
+  ProtocolResponse,
   GetNetworksReturnType,
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,

@@ -9,7 +9,14 @@ import { newMultiRpc } from "@/rpc/factory";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
 import type { CurvyKeyPairs } from "@/types/core";
-import { defaultTimerProvider, filterNetworks, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
+import {
+  applyPrices,
+  applyProtocol,
+  defaultTimerProvider,
+  filterNetworks,
+  networksToCurrencyMetadata,
+  pricesToPriceData,
+} from "@/utils";
 import { setCurvyConfig } from "./global";
 import { startPriceRefresh } from "./priceRefresh";
 import { createStore } from "./store";
@@ -61,6 +68,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     environment: NETWORK_ENVIRONMENT.MAINNET,
     networks: [],
     activeNetworks: [],
+    protocol: null,
     accounts: {},
     activeAccountId: null,
     scan: { status: "idle", progress: 0 },
@@ -94,7 +102,16 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     });
   }
 
-  const networks = await api.network.GetNetworks();
+  // Split metadata: the registry (/networks), protocol-global config (/protocol), and the
+  // volatile price feed (/prices). Fetch in parallel, then re-attach protocol + merge prices
+  // onto the networks so downstream consumers keep reading both off the `Network` object.
+  const [networks, protocol, prices] = await Promise.all([
+    api.network.GetNetworks(),
+    api.network.GetProtocol(),
+    api.network.GetPrices(),
+  ]);
+  applyProtocol(networks, protocol);
+  applyPrices(networks, prices);
   await storage.upsertCurrencyMetadata(networksToCurrencyMetadata(networks));
 
   const isTestnet = environment === NETWORK_ENVIRONMENT.TESTNET;
@@ -106,9 +123,9 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     ? NETWORK_ENVIRONMENT.TESTNET
     : NETWORK_ENVIRONMENT.MAINNET;
 
-  store.setState({ networks, activeNetworks, environment: resolvedEnvironment, status: "ready" });
+  store.setState({ networks, activeNetworks, protocol, environment: resolvedEnvironment, status: "ready" });
 
-  const priceData = networksToPriceData(networks);
+  const priceData = pricesToPriceData(prices);
   if (priceData.size > 0) await storage.upsertPriceData(priceData);
 
   const config: CurvyConfig = {

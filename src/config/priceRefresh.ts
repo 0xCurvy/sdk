@@ -1,12 +1,16 @@
 import { PRICE_UPDATE_INTERVAL } from "@/constants/intervals";
-import { networksToPriceData } from "@/utils";
+import { pricesToPriceData } from "@/utils";
 import { invariant } from "@/utils/invariant";
 import type { CurvyConfig } from "./types";
 
-/** Fetch latest price data from the API into storage. */
+/**
+ * Poll the latest prices into storage. Hits the lean `/prices` feed (not the full
+ * `/networks` registry), so the recurring refresh is cheap and doesn't re-pull contract
+ * addresses + bridge maps every tick.
+ */
 export async function refreshPrices(config: CurvyConfig): Promise<void> {
-  const networks = await config.api.network.GetNetworks();
-  const priceData = networksToPriceData(networks);
+  const prices = await config.api.network.GetPrices();
+  const priceData = pricesToPriceData(prices);
   if (priceData.size === 0) {
     console.warn("Could not fetch any price data, skipping price update.");
     return;

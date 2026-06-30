@@ -10,7 +10,7 @@ import type { Prover } from "@/proving/prover";
 import type { MultiRpc } from "@/rpc/multi";
 import type { SessionKeystore } from "@/session-keystore";
 import type { CurvyAccountData } from "@/types/account";
-import type { Network } from "@/types/api";
+import type { Network, ProtocolConfig } from "@/types/api";
 import type { CurvyKeyPairs } from "@/types/core";
 import type { TimerHandle, TimerProvider } from "@/utils/timer";
 import type { Store } from "./store";
@@ -31,6 +31,12 @@ export type CurvyState = {
   environment: NETWORK_ENVIRONMENT_VALUES;
   networks: Network[];
   activeNetworks: Network[];
+  /**
+   * Protocol-global proving config + fee collector (from `GET /protocol`), fetched once
+   * at bootstrap. Also re-attached onto each vault-enabled network (so consumers can read
+   * it off the `Network`); kept here as the single canonical source. `null` until ready.
+   */
+  protocol: ProtocolConfig | null;
   accounts: Record<string, CurvyAccountData>;
   activeAccountId: string | null;
   scan: { status: ScanStatus; progress: number; accountId?: string };

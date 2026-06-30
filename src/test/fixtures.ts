@@ -79,7 +79,18 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
     get bearerToken() {
       return undefined;
     },
-    network: { GetNetworks: vi.fn(async () => []), ...overrides.network },
+    network: {
+      GetNetworks: vi.fn(async () => []),
+      GetPrices: vi.fn(async () => []),
+      GetProtocol: vi.fn(async () => ({
+        proving: {
+          aggregation: { treeDepth: 30, maxInputs: 2, maxOutputs: 3, batchSize: 5, groupFee: 1 },
+          withdrawal: { treeDepth: 30, maxInputs: 2, maxOutputs: 0, batchSize: 5, groupFee: 2 },
+          noteOwnership: { treeDepth: 0, maxInputs: 0, maxOutputs: 0, batchSize: 10, groupFee: 0 },
+        },
+      })),
+      ...overrides.network,
+    },
     portal: {
       insertEntryPortal: vi.fn(),
       insertExitPortal: vi.fn(),
