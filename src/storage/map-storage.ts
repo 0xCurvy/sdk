@@ -24,7 +24,11 @@ export class MapStorage extends BaseStorage {
   readonly #currencyMetadata = new Map<string, CurrencyMetadata>();
   readonly #notesCheckpoints = new Map<string, NotesCheckpoint>();
   readonly #logChunks = new Map<string, string[]>();
-  readonly #shardRootsChunks = new Map<string, string[]>();
+  // Per-network nested map (networkSlug → chunkIndex → items). A flat
+  // `${networkSlug}-${chunkIndex}` key matched by string-prefix collides across
+  // networks that share a prefix (e.g. "ethereum" vs "ethereum-sepolia"), so the
+  // outer key is matched by equality and chunks are scoped per network.
+  readonly #shardRootsChunks = new Map<string, Map<number, string[]>>();
   readonly #noteWitnesses = new Map<string, SerializedNoteWitness>();
   readonly #liveShards = new Map<string, LiveShardRecord>();
   readonly #txHistory = new Map<string, TxHistoryEntry>();
@@ -44,9 +48,6 @@ export class MapStorage extends BaseStorage {
   }
   #logChunkKey(networkSlug: string, kind: CommittedLogKind, chunkIndex: number): string {
     return `${networkSlug}-${kind}-${chunkIndex}`;
-  }
-  #shardRootsChunkKey(networkSlug: string, chunkIndex: number): string {
-    return `${networkSlug}-${chunkIndex}`;
   }
   #noteWitnessKey(networkSlug: string, noteId: string): string {
     return `${networkSlug}-${noteId}`;
@@ -155,18 +156,22 @@ export class MapStorage extends BaseStorage {
 
   // ── Sharded notes tree ──
   protected async _getShardRootsChunk(networkSlug: string, chunkIndex: number) {
-    return this.#shardRootsChunks.get(this.#shardRootsChunkKey(networkSlug, chunkIndex));
+    return this.#shardRootsChunks.get(networkSlug)?.get(chunkIndex);
   }
   protected async _putShardRootsChunk(networkSlug: string, chunkIndex: number, items: string[]) {
-    this.#shardRootsChunks.set(this.#shardRootsChunkKey(networkSlug, chunkIndex), [...items]);
+    let perNetwork = this.#shardRootsChunks.get(networkSlug);
+    if (!perNetwork) {
+      perNetwork = new Map<number, string[]>();
+      this.#shardRootsChunks.set(networkSlug, perNetwork);
+    }
+    perNetwork.set(chunkIndex, [...items]);
   }
   protected async _getAllShardRootsChunks(networkSlug: string) {
-    const prefix = `${networkSlug}-`;
-    const chunks: Array<{ index: number; items: string[] }> = [];
-    for (const [key, items] of this.#shardRootsChunks) {
-      if (key.startsWith(prefix)) chunks.push({ index: Number(key.slice(prefix.length)), items });
-    }
-    return chunks.sort((a, b) => a.index - b.index).map((c) => c.items);
+    const perNetwork = this.#shardRootsChunks.get(networkSlug);
+    if (!perNetwork) return [];
+    return Array.from(perNetwork.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([, items]) => items);
   }
   protected async _getNoteWitnesses(networkSlug: string) {
     return Array.from(this.#noteWitnesses.values()).filter((w) => w.networkSlug === networkSlug);
@@ -217,7 +222,7 @@ export class MapStorage extends BaseStorage {
       currencyMetadata: this.#currencyMetadata.size,
       notesCheckpoints: this.#notesCheckpoints.size,
       logChunks: this.#logChunks.size,
-      shardRootsChunks: this.#shardRootsChunks.size,
+      shardRootsChunks: Array.from(this.#shardRootsChunks.values()).reduce((n, m) => n + m.size, 0),
       noteWitnesses: this.#noteWitnesses.size,
       liveShards: this.#liveShards.size,
       txHistory: this.#txHistory.size,
