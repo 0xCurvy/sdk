@@ -103,7 +103,7 @@ export async function buildAggregateRequest(
     recipientNotes.push(operatorNote);
   }
   // Stealth-deliver the change note back to the sender (discoverable on rescan).
-  const { changeRecipient, feeRecipient } = parameters;
+  const { changeRecipient } = parameters;
   const sealChange = changeRecipient
     ? (amount: bigint) =>
         config.core.sendNote(changeRecipient.S, changeRecipient.V, {
@@ -112,6 +112,22 @@ export async function buildAggregateRequest(
           token,
         })
     : undefined;
+  // Resolve the protocol fee collector: caller-provided `feeRecipient` wins, otherwise
+  // fall back to the active network's metadata-served `feeCollector`. When a fee is
+  // actually charged the resolved key MUST equal the aggregator's on-chain
+  // `feeNotePublicKey` — otherwise the sealed fee note would be owned by the wrong key
+  // (and the witness builder refuses to mint an uncollectable fee note when none resolves).
+  const feeRecipient =
+    parameters.feeRecipient ?? config.state.activeNetworks.find((n) => n.slug === networkSlug)?.feeCollector;
+  if ((protocolFeePerThousand > 0n || tokenGasFee > 0n) && feeRecipient) {
+    const [feeX, feeY] = feeRecipient.babyJubjubPublicKey.split(".");
+    if (BigInt(feeX) !== feeNotePublicKey[0] || BigInt(feeY) !== feeNotePublicKey[1]) {
+      throw new Error(
+        "buildAggregateRequest: fee-collector key mismatch — feeRecipient.babyJubjubPublicKey does not equal the " +
+          "aggregator's on-chain feeNotePublicKey. Ensure the network's fee-collector config matches the deployed key.",
+      );
+    }
+  }
   // Stealth-deliver the protocol fee note to the fee collector (so it's spendable).
   const sealFee = feeRecipient
     ? (amount: bigint) =>

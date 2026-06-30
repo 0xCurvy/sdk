@@ -51,6 +51,15 @@ type Network = {
   rpcUrl: string;
   currencies: Array<Currency>;
   feeCollectorAddress?: string;
+  /**
+   * The protocol fee collector's Curvy public keys (spend `S`, view `V`, and the
+   * BabyJubjub note-owner key) for vault-enabled networks. `aggregate` stealth-
+   * delivers the protocol fee note to these so the collector can spend it; the
+   * `babyJubjubPublicKey` MUST equal the aggregator's on-chain `feeNotePublicKey`.
+   * Served by metadata `/currency/latest`; consumed as `feeRecipient` by
+   * `buildAggregateRequest` when the caller omits it.
+   */
+  feeCollector?: { S: string; V: string; babyJubjubPublicKey: string };
   aggregationCircuitConfig?: CircuitConfig;
   withdrawCircuitConfig?: CircuitConfig;
   noteOwnershipCircuitConfig?: CircuitConfig;
