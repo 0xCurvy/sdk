@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { normalizePrivateKey } from "@/utils/encryption/normalizePrivateKey";
 
 /**
  * Signs an EIP-191 personal message with the given spending private key and
@@ -9,7 +10,7 @@ import { ethers } from "ethers";
  * // sig === signMessage("hello", "59c6...690d") // deterministic
  */
 const signMessage = (message: string, spendingPrivateKey: string): string => {
-  const signer = new ethers.Wallet(`0x${spendingPrivateKey}`); // Use Wallet instead of SigningKey
+  const signer = new ethers.Wallet(`0x${normalizePrivateKey(spendingPrivateKey)}`); // Use Wallet instead of SigningKey
   const signature = signer.signingKey.sign(ethers.hashMessage(message));
 
   return signature.serialized;

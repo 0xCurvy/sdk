@@ -18,7 +18,7 @@ import { poseidonHash } from "@/utils/hash/poseidonHash";
  * // hash is a bigint, identical regardless of the order the two notes were passed in
  */
 const generateAggregationHash = (outputNotes: OutputNote[]) => {
-  const sortedOutputNotes = outputNotes.sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+  const sortedOutputNotes = [...outputNotes].sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
   const outputNotesHash = poseidonHash(sortedOutputNotes.map((note) => BigInt(note.id)));
   const ephemeralKeyHash = poseidonHash(
     sortedOutputNotes.map((note) => {

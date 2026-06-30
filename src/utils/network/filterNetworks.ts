@@ -26,12 +26,17 @@ export function filterNetworks(networks: Network[], networkFilter: NetworkFilter
   return networks.filter((network) => {
     // Is NetworkFilter an array?
     if (Array.isArray(networkFilter)) {
-      // Is NetworkFilter a number array?
+      // An empty filter array selects nothing.
+      if (networkFilter.length === 0) {
+        return false;
+      }
+      // Is NetworkFilter a number (or numeric-string) array?
       if (networkFilter.every((item) => isNumber(item))) {
-        return networkFilter.includes(network.id);
+        // Coerce both sides to numbers so numeric-string ids (e.g. ["1", "2"]) match.
+        return networkFilter.map(Number).includes(network.id);
       }
       // NetworkFilter must be a string array
-      else return networkFilter.map((n) => toSlug(n)).includes(toSlug(network.name));
+      else return networkFilter.map((n) => toSlug(String(n))).includes(toSlug(network.name));
 
       // NetworkFilter is a testnet boolean
     } else if (typeof networkFilter === "boolean") {

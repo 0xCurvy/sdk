@@ -1,36 +1,10 @@
 import { Buffer } from "buffer";
+import { deriveKey } from "@/utils/encryption/kdf";
 
-const PBDKF2_ITERATION_COUNT = 210000;
 const SALT_LENGTH = 32;
 const IV_LENGTH = 12;
-const DERIVATION_LENGTH = 256;
 
 const encode = (str: string) => new TextEncoder().encode(str);
-
-const derivePasswordBits = async (password: string, salt: Buffer<ArrayBuffer>) => {
-  const key = await crypto.subtle.importKey("raw", encode(password), { name: "PBKDF2", hash: "SHA-512" }, false, [
-    "deriveBits",
-  ]);
-  return await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt,
-      iterations: PBDKF2_ITERATION_COUNT,
-      hash: "SHA-512",
-    },
-    key,
-    DERIVATION_LENGTH,
-  );
-};
-
-const convertBitsToCryptoKey = async (derivedBits: ArrayBuffer) => {
-  return await crypto.subtle.importKey("raw", derivedBits, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
-};
-
-const deriveKey = async (password: string, salt: Buffer<ArrayBuffer>) => {
-  const derivedBits = await derivePasswordBits(password, salt);
-  return await convertBitsToCryptoKey(derivedBits);
-};
 
 const encrypt = async (plainText: string, password: string) => {
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));

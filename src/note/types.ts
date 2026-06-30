@@ -44,7 +44,9 @@ type OutputNote = {
     token: string;
   };
   deliveryTag: {
+    /** Ephemeral public key `R` as the DECIMAL `"x.y"` point string (base 10). */
     ephemeralKey: string;
+    /** View tag as zero-padded HEX (base 16, `viewTag.toString(16).padStart(2, "0")`). */
     viewTag: string;
   };
 };

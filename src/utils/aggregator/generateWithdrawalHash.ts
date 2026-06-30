@@ -20,7 +20,7 @@ import { poseidonHash } from "@/utils/hash/poseidonHash";
  * // hash is a bigint deterministic for the same notes + address
  */
 const generateWithdrawalHash = (inputNotes: InputNote[], destinationAddress: HexString) => {
-  const sortedInputNotes = inputNotes.sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+  const sortedInputNotes = [...inputNotes].sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
   const inputNotesHash = poseidonHash(sortedInputNotes.map((note) => BigInt(note.id)));
   return poseidonHash([inputNotesHash, BigInt(destinationAddress)]);
 };

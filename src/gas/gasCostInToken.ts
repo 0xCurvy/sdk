@@ -29,10 +29,13 @@ export function ceilDiv(numerator: bigint, denominator: bigint): bigint {
 
 /**
  * Parse a decimal USD price string (e.g. `"2500.50"`) into a fixed-point integer
- * scaled by `10^decimals`. Excess fractional digits are TRUNCATED (floor) — a
- * marginally lower price means a marginally higher token threshold, which is the
- * operator-safe direction. Throws on malformed input or a non-positive price (the
- * caller must treat an unpriced token as "cannot quote", not "free").
+ * scaled by `10^decimals`. Excess fractional digits are TRUNCATED (floor). This
+ * rounding is NOT inherently operator-safe: the native and token prices appear on
+ * opposite sides of the conversion ratio, so truncating both does not bias the
+ * result in a single direction. Protection against UNDER-charging the operator
+ * rests on the final {@link ceilDiv} plus the {@link addBps} buffer, not on this
+ * truncation. Throws on malformed input or a non-positive price (the caller must
+ * treat an unpriced token as "cannot quote", not "free").
  */
 export function parseUsdPrice(price: string, decimals: number = PRICE_DECIMALS): bigint {
   const trimmed = price.trim();

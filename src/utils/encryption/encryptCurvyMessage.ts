@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import { bytesToHex } from "viem";
 import { decimalStringToHex } from "@/utils/encoding";
 import { encryptData } from "@/utils/encryption";
+import { normalizePrivateKey } from "@/utils/encryption/normalizePrivateKey";
 
 type EncryptedCurvyMessage = {
   data: string;
@@ -34,7 +35,7 @@ const encryptCurvyMessage = async (
   const compressedBytes = point.toRawBytes(true);
   const compressedHex = bytesToHex(compressedBytes);
 
-  const _senderSAPrivateKey = `0x${senderSAPrivateKey.replace("0x", "").padStart(64, "0")}`;
+  const _senderSAPrivateKey = `0x${normalizePrivateKey(senderSAPrivateKey)}`;
   const signer = new ethers.Wallet(_senderSAPrivateKey);
 
   const password = signer.signingKey.computeSharedSecret(compressedHex);
