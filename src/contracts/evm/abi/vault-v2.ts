@@ -518,25 +518,6 @@ export const vaultV2Abi = [
     type: "event",
   },
   {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "uint256[]",
-        name: "tokenIds",
-        type: "uint256[]",
-      },
-      {
-        indexed: false,
-        internalType: "uint256[]",
-        name: "costs",
-        type: "uint256[]",
-      },
-    ],
-    name: "WithdrawalGasCostsUpdated",
-    type: "event",
-  },
-  {
     inputs: [],
     name: "AUTHORITY_ROLE",
     outputs: [

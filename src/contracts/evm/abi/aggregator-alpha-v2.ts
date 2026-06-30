@@ -42,6 +42,17 @@ export const aggregatorAlphaV2Abi = [
     type: "error",
   },
   {
+    inputs: [
+      {
+        internalType: "address",
+        name: "target",
+        type: "address",
+      },
+    ],
+    name: "ConfigAddressHasNoCode",
+    type: "error",
+  },
+  {
     inputs: [],
     name: "CurrentNoteTreeRootMismatch",
     type: "error",
