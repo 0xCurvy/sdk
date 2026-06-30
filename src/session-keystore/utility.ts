@@ -112,8 +112,15 @@ export const saveToWindowName = (name: string, data: string): void => {
 
 /**
  * Retrieve and **remove** the value stored under `name` in `window.name`.
- * The removal is intentional — each share is single-use to limit the exposure
- * window if an attacker reads `window.name` after the legitimate load.
+ *
+ * The removal-on-read clears the value during load, but it is NOT a durable
+ * "single-use" guarantee: `SessionKeystore` eagerly re-populates window.name on
+ * every mutation (and right after load), so a share is present again moments
+ * later. The XOR split (share A in window.name, share B in sessionStorage) only
+ * defends against CROSS-ORIGIN leakage of window.name across navigations — it
+ * does NOT protect against same-origin JS, which can read both shares and
+ * reconstruct the secret. Treat session secrets as readable by any same-origin
+ * code (e.g. a compromised dependency / XSS).
  */
 export const loadFromWindowName = (name: string): string | null => {
   const target = getWindowNameTarget();

@@ -10,8 +10,10 @@ export type LogoutParameters = WithConfig<{ accountId?: string }>;
  * active account id.
  *
  * Stops the JWT refresh timer, clears the bearer token, deletes the account's
- * keyring entry (and its metadata + keystore entry), then either makes the first
- * remaining account active (re-authenticating it) or clears `activeAccountId`.
+ * keyring entry (and its metadata + keystore entry), then activates the next
+ * remaining REGISTERED account (re-authenticating it) — preferring a full
+ * account over a partial (unauthenticated, handle-less) one. If only partials
+ * remain, `activeAccountId` is cleared.
  *
  * @example
  * await logout();             // active account
@@ -35,7 +37,11 @@ export async function logout(parameters: LogoutParameters = {}): Promise<void> {
     return { accounts: rest };
   });
 
-  const nextAccountId = config.keyring.keys().next().value;
+  // Prefer a registered account (one with a `state.accounts` entry) so logout
+  // never activates a partial (unauthenticated) account. Only fall back to
+  // clearing the active account when every remaining keyring entry is a partial.
+  const { accounts } = config.state;
+  const nextAccountId = [...config.keyring.keys()].find((id) => accounts[id] != null);
   if (nextAccountId) {
     await setActiveAccount({ config, accountId: nextAccountId });
     return;

@@ -316,6 +316,16 @@ export class SessionKeystore extends Emittery<SessionKeystoreEvents> {
     this.#clearTimeout(key);
     this.#store.delete(key);
     void this.emit("expired", { key });
+
+    // Re-persist after the purge. Without this, #pendingFinalize (and
+    // window.name) still hold the pre-expiry shares, so the expired secret is
+    // re-written to sessionStorage at pagehide and survives the next refresh.
+    this.#writeShare1();
+    // When the store empties, drop the persisted share B immediately rather than
+    // waiting for the deferred pagehide finalize.
+    if (this.#store.size === 0 && typeof window !== "undefined") {
+      window.sessionStorage.removeItem(this.#storageKey);
+    }
   }
 }
 

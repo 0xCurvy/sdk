@@ -31,9 +31,18 @@ export function startJwtRefresh(config: CurvyConfig): void {
 
   if (!config._internal.timers.jwtRefresh && isRegistered) {
     config._internal.timers.jwtRefresh = config._internal.timerProvider.setInterval(() => {
-      config.api.auth.RefreshBearerToken().then((token) => {
-        config.api.updateBearerToken(token);
-      });
+      // Fire-and-forget on a timer: a rejection here is unobserved and would
+      // surface as an unhandled rejection. Catch it, keep the previous token
+      // active, and emit so consumers can react (e.g. prompt re-auth).
+      config.api.auth
+        .RefreshBearerToken()
+        .then((token) => {
+          config.api.updateBearerToken(token);
+          config.emitter.emitJwtRefreshSuccess({});
+        })
+        .catch((error: unknown) => {
+          config.emitter.emitJwtRefreshError({ error: error instanceof Error ? error : new Error(String(error)) });
+        });
     }, JWT_REFRESH_INTERVAL);
   }
 }
