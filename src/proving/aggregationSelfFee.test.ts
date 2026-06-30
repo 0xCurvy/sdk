@@ -82,4 +82,52 @@ describe("aggregation self-recipient fee base (deployed circuit)", () => {
     const { proof, publicSignals } = await groth16.fullProve(flattenAggregationCircuitInputs(witness), WASM, ZKEY);
     expect(await groth16.verify(VKEY, publicSignals, proof)).toBe(true);
   }, 60_000);
+
+  // COR-8 regression: the old stray `protocolFeeQ <= 999` constraint made the circuit
+  // UNPROVABLE for any realistic fee. After removing it (and regenerating the key), a
+  // mainnet-scale fee must prove. 1e18 leaves the sender at 0.5% => 5e15 fee (Q far > 999).
+  it("proves a mainnet-scale protocol fee well above the old 999 cap", async () => {
+    const ownerPub = pubFromPrivateKey(OWNER_PRIV);
+    const otherPub: [bigint, bigint] = [ownerPub[0] + 1n, ownerPub[1] + 1n];
+    const feePub: [bigint, bigint] = [ownerPub[0] + 2n, ownerPub[1] + 2n];
+
+    const ownedInput = (amount: bigint, ss: bigint) =>
+      new Note({
+        amount,
+        token: TOKEN,
+        owner: { babyJubjubPublicKey: { x: ownerPub[0], y: ownerPub[1] }, sharedSecret: ss },
+        ephemeralKey: [0n, 0n],
+        viewTag: 0n,
+      });
+
+    const inputNotes = [ownedInput(1_500_000_000_000_000_000n, 1n), ownedInput(500_000_000_000_000_000n, 2n)];
+    const tree = new MerkleTree({ depth: DEPTH });
+    for (const n of inputNotes) tree.insert(n.id);
+
+    const { witness, feeNote } = await buildAggregationWitnessBundle({
+      inputNotes,
+      ownerBjjPrivateKeyHex: OWNER_PRIV,
+      recipients: [{ amount: 1_000_000_000_000_000_000n, ownerPub: otherPub, sharedSecret: 9n }],
+      feeNotePublicKey: [feePub[0], feePub[1]],
+      sealFee: async (amount: bigint) =>
+        new Note({
+          amount,
+          token: TOKEN,
+          owner: { babyJubjubPublicKey: { x: feePub[0], y: feePub[1] }, sharedSecret: 13n },
+          ephemeralKey: [0n, 0n],
+          viewTag: 0n,
+        }),
+      protocolFeePerThousand: 5n, // 0.5%
+      gasFee: 0n,
+      notesTree: tree,
+      maxInputs: 2,
+      maxOutputs: 3,
+      treeDepth: DEPTH,
+    });
+
+    expect(feeNote.amount).toBe(5_000_000_000_000_000n); // 1e18 * 5 / 1000
+
+    const { proof, publicSignals } = await groth16.fullProve(flattenAggregationCircuitInputs(witness), WASM, ZKEY);
+    expect(await groth16.verify(VKEY, publicSignals, proof)).toBe(true);
+  }, 60_000);
 });
