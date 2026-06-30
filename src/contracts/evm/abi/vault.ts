@@ -74,6 +74,11 @@ export const vaultAbi = [
   },
   {
     inputs: [],
+    name: "GasFeeTooLarge",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "GasFeesLengthMismatch",
     type: "error",
   },
@@ -162,6 +167,11 @@ export const vaultAbi = [
   },
   {
     inputs: [],
+    name: "TokenCapacityReached",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "TokenHasOutstandingBalance",
     type: "error",
   },
@@ -189,6 +199,11 @@ export const vaultAbi = [
   {
     inputs: [],
     name: "UnknownGasFeeRoot",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "UnsortedOrDuplicateTokenId",
     type: "error",
   },
   {

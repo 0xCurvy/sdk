@@ -5,6 +5,7 @@ export * from "./account";
 export * from "./aggregator";
 export * from "./auth";
 export * from "./balances";
+export * from "./bridge";
 export * from "./events";
 export * from "./networks";
 export * from "./notes";

@@ -1,5 +1,7 @@
 import type { PaymasterInfo, RelaySubmitRequestBody, RelaySubmitReturnType } from "@/types/aggregator";
 import type {
+  BridgeEstimateRequestBody,
+  BridgeEstimateReturnType,
   GetCurvyIdByOwnerAddressReturnType,
   GetNetworksReturnType,
   GetPortalRecordsReturnType,
@@ -28,13 +30,18 @@ interface IApiClient {
     insertEntryPortal(body: InsertEntryPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
     insertExitPortal(body: InsertExitPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
     getPortalRecords(params?: {
-      offset?: number;
-      size?: number;
+      cursor?: string;
+      limit?: number;
       startTime?: number;
       endTime?: number;
+      direction?: "older" | "newer";
     }): Promise<GetPortalRecordsReturnType>;
     // Returns null when no portal matches the address (404 from backend).
     getPortalStatus(address: string): Promise<PortalStatusResponse | null>;
+  };
+
+  bridge: {
+    estimate(body: BridgeEstimateRequestBody): Promise<BridgeEstimateReturnType["data"]>;
   };
 
   user: {

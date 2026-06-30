@@ -28,7 +28,7 @@ const NATIVE_ETH: Currency = {
 
 function entryPortal(): PortalRecord {
   return {
-    id: 1,
+    id: "00000000-0000-0000-0000-000000000001",
     ephemeralKey: "0xeph1",
     viewTag: "0x01",
     createdAt: "2024-01-01",
@@ -54,7 +54,7 @@ function configWithEvmRpc(network: ReturnType<typeof fixtureNetwork>) {
     scan: vi.fn(async () => ({ spendingPubKeys: [G], spendingPrivKeys: [] })),
   });
   const api = createFakeApi({
-    portal: { getPortalRecords: vi.fn(async () => ({ portals: [entryPortal()], total: 1 })) },
+    portal: { getPortalRecords: vi.fn(async () => ({ portals: [entryPortal()], nextCursor: null })) },
   });
   const account = fakeCurvyAccount({ keyPairs: { s: "1", v: "2", babyJubjubPublicKey: "111.222" } });
   return createFakeConfig({

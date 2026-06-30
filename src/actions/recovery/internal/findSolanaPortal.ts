@@ -34,14 +34,12 @@ export async function findSolanaPortal(
   const targetVault: SolanaAddress = targetBase58;
 
   const BATCH_SIZE = 200;
-  let offset = 0;
-  let total = Number.POSITIVE_INFINITY;
+  let cursor: string | undefined;
 
-  while (offset < total) {
-    const result = await config.api.portal.getPortalRecords({ offset, size: BATCH_SIZE });
-    total = result.total;
-
+  while (true) {
+    const result = await config.api.portal.getPortalRecords({ cursor, limit: BATCH_SIZE });
     if (result.portals.length === 0) break;
+    cursor = result.nextCursor ?? undefined;
 
     const scanData = result.portals.map((p) => ({
       ephemeralPublicKey: p.ephemeralKey,
@@ -73,7 +71,7 @@ export async function findSolanaPortal(
       };
     }
 
-    offset += result.portals.length;
+    if (!cursor) break;
   }
 
   return null;

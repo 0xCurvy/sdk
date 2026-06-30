@@ -515,25 +515,6 @@ export const aggregatorAlphaV2Abi = [
   {
     inputs: [
       {
-        internalType: "uint256",
-        name: "nullifier",
-        type: "uint256",
-      },
-    ],
-    name: "aggregationNullifiers",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
         internalType: "bytes32",
         name: "configKey",
         type: "bytes32",
@@ -595,11 +576,6 @@ export const aggregatorAlphaV2Abi = [
       {
         internalType: "uint256",
         name: "batchSize",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "treeDepth",
         type: "uint256",
       },
       {
@@ -742,11 +718,6 @@ export const aggregatorAlphaV2Abi = [
         name: "maxOutputs",
         type: "uint256",
       },
-      {
-        internalType: "uint256",
-        name: "treeDepth",
-        type: "uint256",
-      },
     ],
     name: "getAggregationVerifier",
     outputs: [
@@ -818,11 +789,6 @@ export const aggregatorAlphaV2Abi = [
         name: "batchSize",
         type: "uint256",
       },
-      {
-        internalType: "uint256",
-        name: "treeDepth",
-        type: "uint256",
-      },
     ],
     name: "getPendingNotesCommitmentVerifier",
     outputs: [
@@ -859,11 +825,6 @@ export const aggregatorAlphaV2Abi = [
       {
         internalType: "uint256",
         name: "maxInputs",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "treeDepth",
         type: "uint256",
       },
     ],
@@ -947,6 +908,25 @@ export const aggregatorAlphaV2Abi = [
         internalType: "enum ICurvyAggregatorAlpha.NoteStatus",
         name: "",
         type: "uint8",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "nullifier",
+        type: "uint256",
+      },
+    ],
+    name: "nullifiers",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
       },
     ],
     stateMutability: "view",
@@ -1079,11 +1059,6 @@ export const aggregatorAlphaV2Abi = [
         type: "uint256",
       },
       {
-        internalType: "uint256",
-        name: "treeDepth",
-        type: "uint256",
-      },
-      {
         internalType: "address",
         name: "verifier",
         type: "address",
@@ -1133,11 +1108,6 @@ export const aggregatorAlphaV2Abi = [
         type: "uint256",
       },
       {
-        internalType: "uint256",
-        name: "treeDepth",
-        type: "uint256",
-      },
-      {
         internalType: "address",
         name: "verifier",
         type: "address",
@@ -1169,11 +1139,6 @@ export const aggregatorAlphaV2Abi = [
         type: "uint256",
       },
       {
-        internalType: "uint256",
-        name: "treeDepth",
-        type: "uint256",
-      },
-      {
         internalType: "address",
         name: "verifier",
         type: "address",
@@ -1189,6 +1154,11 @@ export const aggregatorAlphaV2Abi = [
       {
         internalType: "uint256",
         name: "maxInputs",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "maxOutputs",
         type: "uint256",
       },
       {
@@ -1340,25 +1310,6 @@ export const aggregatorAlphaV2Abi = [
       },
     ],
     name: "validNotesRoot",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "nullifier",
-        type: "uint256",
-      },
-    ],
-    name: "withdrawalNullifiers",
     outputs: [
       {
         internalType: "bool",

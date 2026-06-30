@@ -4,31 +4,33 @@ import { getPortalRecords } from "./getPortalRecords";
 
 describe("getPortalRecords", () => {
   it("delegates to api.portal.getPortalRecords and returns the page", async () => {
-    const getPortalRecordsFn = vi.fn(async () => ({ portals: [], total: 42 }));
+    const getPortalRecordsFn = vi.fn(async () => ({ portals: [], nextCursor: "abc" }));
     const config = createFakeConfig({ api: createFakeApi({ portal: { getPortalRecords: getPortalRecordsFn } }) });
 
-    const result = await getPortalRecords({ offset: 0, size: 200, config });
+    const result = await getPortalRecords({ cursor: "prev", limit: 200, config });
 
-    expect(result).toEqual({ portals: [], total: 42 });
+    expect(result).toEqual({ portals: [], nextCursor: "abc" });
     expect(getPortalRecordsFn).toHaveBeenCalledWith({
-      offset: 0,
-      size: 200,
+      cursor: "prev",
+      limit: 200,
       startTime: undefined,
       endTime: undefined,
+      direction: undefined,
     });
   });
 
-  it("forwards the time-range params", async () => {
-    const getPortalRecordsFn = vi.fn(async () => ({ portals: [], total: 0 }));
+  it("forwards the time-range + direction params", async () => {
+    const getPortalRecordsFn = vi.fn(async () => ({ portals: [], nextCursor: null }));
     const config = createFakeConfig({ api: createFakeApi({ portal: { getPortalRecords: getPortalRecordsFn } }) });
 
-    await getPortalRecords({ startTime: 100, endTime: 200, config });
+    await getPortalRecords({ startTime: 100, endTime: 200, direction: "newer", config });
 
     expect(getPortalRecordsFn).toHaveBeenCalledWith({
-      offset: undefined,
-      size: undefined,
+      cursor: undefined,
+      limit: undefined,
       startTime: 100,
       endTime: 200,
+      direction: "newer",
     });
   });
 });

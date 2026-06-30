@@ -32,15 +32,13 @@ export async function findOwnedEvmPortals(config: CurvyConfig, network: Network)
   const factoryAddress = network.portalFactoryContractAddress as HexString;
 
   const BATCH_SIZE = 200;
-  let offset = 0;
-  let total = Number.POSITIVE_INFINITY;
+  let cursor: string | undefined;
   const owned: MatchedPortalRecord[] = [];
 
-  while (offset < total) {
-    const result = await config.api.portal.getPortalRecords({ offset, size: BATCH_SIZE });
-    total = result.total;
-
+  while (true) {
+    const result = await config.api.portal.getPortalRecords({ cursor, limit: BATCH_SIZE });
     if (result.portals.length === 0) break;
+    cursor = result.nextCursor ?? undefined;
 
     const scanData = result.portals.map((p) => ({
       ephemeralPublicKey: p.ephemeralKey,
@@ -66,7 +64,7 @@ export async function findOwnedEvmPortals(config: CurvyConfig, network: Network)
     }
 
     if (matched.length === 0) {
-      offset += result.portals.length;
+      if (!cursor) break;
       continue;
     }
 
@@ -103,7 +101,7 @@ export async function findOwnedEvmPortals(config: CurvyConfig, network: Network)
       });
     }
 
-    offset += result.portals.length;
+    if (!cursor) break;
   }
 
   return owned;

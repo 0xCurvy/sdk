@@ -227,7 +227,7 @@ type InsertPortalReturnType = {
 };
 
 type PortalRecord = {
-  id: number;
+  id: string;
   ephemeralKey: string;
   viewTag: string;
   createdAt: string;
@@ -252,7 +252,8 @@ type MatchedPortalRecord = MatchedEvmPortal | MatchedSolanaPortal;
 
 type GetPortalRecordsReturnType = {
   portals: PortalRecord[];
-  total: number;
+  /** Opaque keyset cursor for the next page; null when the feed is exhausted. */
+  nextCursor: string | null;
 };
 
 // Mirrors backend PortalState (packages/backend/src/lib/repositories/portal/database/type.ts).
@@ -278,6 +279,51 @@ type PortalStatusResponse = {
 
 type GetPortalStatusReturnType = { data: PortalStatusResponse };
 
+// ── Bridge estimate (POST /bridge/estimate) ──
+// A pre-flight quote for a bridge/swap that mirrors what the broadcaster will execute: it bridges
+// `bridgedAmount` (= fromAmount − carve) and the recipient receives at least `toAmountMin`. `carve`
+// is the operator's reimbursement (source deploy gas + the LiFi native fee) withheld from the amount.
+type BridgeEstimateRequestBody = {
+  fromChainId: number;
+  toChainId: number;
+  fromToken: string;
+  toToken: string;
+  /** Gross input amount, decimal string (base units of `fromToken`). */
+  fromAmount: string;
+  /** The sender address used for the quote (typically the deterministic portal address). */
+  fromAddress: string;
+  /** Destination receiver; defaults to `fromAddress` when omitted. */
+  toAddress?: string;
+};
+
+/** Wire shape (all amounts decimal strings). */
+type BridgeEstimateReturnType = {
+  data: {
+    tool: string;
+    fromAmount: string;
+    bridgedAmount: string;
+    carve: string;
+    nativeFeeWei: string;
+    toAmountMin: string;
+  };
+};
+
+/** Parsed estimate (amounts as bigint) returned by the `estimateBridge` action. */
+type BridgeEstimate = {
+  /** Selected bridge tool (e.g. "across", "stargate"). */
+  tool: string;
+  /** Gross input amount (base units of `fromToken`). */
+  fromAmount: bigint;
+  /** Amount actually bridged (`fromAmount − carve`). */
+  bridgedAmount: bigint;
+  /** Operator reimbursement withheld from the amount (source gas + LiFi native fee), in `fromToken` units. */
+  carve: bigint;
+  /** Native fee (wei) the operator fronts for the route. */
+  nativeFeeWei: bigint;
+  /** Minimum received at the destination (base units of `toToken`). */
+  toAmountMin: bigint;
+};
+
 //#endregion
 
 export type {
@@ -301,6 +347,9 @@ export type {
   PortalState,
   PortalStatusResponse,
   GetPortalStatusReturnType,
+  BridgeEstimateRequestBody,
+  BridgeEstimateReturnType,
+  BridgeEstimate,
 };
 
 //#endregion

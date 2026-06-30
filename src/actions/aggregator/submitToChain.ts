@@ -47,7 +47,17 @@ export async function submitToChain(parameters: SubmitToChainParameters): Promis
   const address: Address = resolved as Address;
   const abi: Abi = aggregatorAlphaV2Abi;
   const functionName = request.action === "withdrawal" ? "submitWithdrawalRequest" : "submitAggregationRequest";
-  const args: readonly unknown[] = [BigInt(request.contractArg), proofA, proofB, proofC, request.publicSignals];
+  // submitAggregationRequest(maxInputs, maxOutputs, …) takes BOTH circuit dimensions;
+  // submitWithdrawalRequest(maxInputs, …) takes only the leading one.
+  let args: readonly unknown[];
+  if (request.action === "withdrawal") {
+    args = [BigInt(request.contractArg), proofA, proofB, proofC, request.publicSignals];
+  } else {
+    if (request.maxOutputs == null) {
+      throw new AggregatorSubmitError("submitToChain: aggregation submission is missing maxOutputs");
+    }
+    args = [BigInt(request.contractArg), BigInt(request.maxOutputs), proofA, proofB, proofC, request.publicSignals];
+  }
 
   try {
     // Simulate against the public client (catches reverts with a decoded reason),

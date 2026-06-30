@@ -11,7 +11,7 @@
 // Depth of the per-token gas-fee Merkle tree — INDEPENDENT of the notes `treeDepth` (30).
 // Kept shallow so its root commits at most 2^GAS_FEE_TREE_DEPTH tokens and can be recomputed
 // cheaply on-chain in setCommitmentGasCosts. MUST match the circuit's `gasTreeDepth` param.
-export const GAS_FEE_TREE_DEPTH = 5;
+export const GAS_FEE_TREE_DEPTH = 6;
 
 // circom `bus Note()`: { owner: { ownerBabyJub[2], sharedSecret }, amount, token }
 export type NoteBus = {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addBps, ceilDiv, gasCostInToken, parseUsdPrice, subBps } from "./gasCostInToken";
+import { addBps, ceilDiv, convertTokenAmount, gasCostInToken, parseUsdPrice, subBps } from "./gasCostInToken";
 
 describe("parseUsdPrice", () => {
   it("scales an integer price by 10^8", () => {
@@ -51,6 +51,51 @@ describe("addBps / subBps", () => {
   it("rejects out-of-range bps", () => {
     expect(() => addBps(1n, -1)).toThrow();
     expect(() => subBps(1n, 10_001)).toThrow();
+  });
+});
+
+describe("convertTokenAmount", () => {
+  const eth = { usd: parseUsdPrice("2500"), decimals: 18 };
+
+  it("converts ETH → USDC across decimals", () => {
+    // 0.018 ETH * $2500 = $45 -> 45 USDC (6 decimals)
+    expect(convertTokenAmount(18_000_000_000_000_000n, eth, { usd: parseUsdPrice("1"), decimals: 6 })).toBe(
+      45_000_000n,
+    );
+  });
+
+  it("converts a token to itself as the identity", () => {
+    const dai = { usd: parseUsdPrice("1"), decimals: 18 };
+    expect(convertTokenAmount(123_456n, dai, dai)).toBe(123_456n);
+  });
+
+  it("is invariant to the shared price scale (it cancels)", () => {
+    const a = convertTokenAmount(
+      1_000_000n,
+      { usd: parseUsdPrice("2500"), decimals: 18 },
+      { usd: parseUsdPrice("1"), decimals: 6 },
+    );
+    const b = convertTokenAmount(
+      1_000_000n,
+      { usd: parseUsdPrice("2500", 4), decimals: 18 },
+      { usd: parseUsdPrice("1", 4), decimals: 6 },
+    );
+    expect(a).toBe(b);
+  });
+
+  it("rounds up and rejects bad inputs", () => {
+    expect(convertTokenAmount(1n, eth, { usd: parseUsdPrice("1"), decimals: 6 })).toBe(1n); // tiny -> 1, not 0
+    expect(() => convertTokenAmount(1n, { usd: 0n, decimals: 18 }, eth)).toThrow(/positive/);
+    expect(() => convertTokenAmount(-1n, eth, eth)).toThrow(/non-negative/);
+  });
+
+  it("gasCostInToken composes from it (native wei IS a native-token amount)", () => {
+    const gasUnits = 900_000n;
+    const gasPriceWei = 20_000_000_000n;
+    const tokenUsd = parseUsdPrice("1");
+    expect(
+      gasCostInToken({ gasUnits, gasPriceWei, nativeUsd: eth.usd, tokenUsd, nativeDecimals: 18, tokenDecimals: 6 }),
+    ).toBe(convertTokenAmount(gasUnits * gasPriceWei, eth, { usd: tokenUsd, decimals: 6 }));
   });
 });
 

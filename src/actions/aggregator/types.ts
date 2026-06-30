@@ -40,6 +40,13 @@ export type AggregatorSubmission = {
   networkSlug: string;
   /** The contract's leading arg: `maxInputs` for aggregation/withdrawal. */
   contractArg: number;
+  /**
+   * Aggregation only: the circuit's `maxOutputs`. The contract's
+   * `submitAggregationRequest(maxInputs, maxOutputs, …)` needs BOTH dimensions to
+   * select the verifier and validate the publicSignals length. Undefined for
+   * withdrawal (whose entry point takes `maxInputs` alone).
+   */
+  maxOutputs?: number;
   /** The groth16 proof, G2-swapped + ready for the verifier ABI. */
   proof: SolidityProof;
   /** All public signals (bigints), in the verifier's declared order. */

@@ -153,6 +153,7 @@ export async function buildAggregateRequest(
     action: "aggregation",
     networkSlug,
     contractArg: maxInputs,
+    maxOutputs,
     proof: formatGroth16ProofForSolidity(proof),
     publicSignals: signals,
     nullifiers: signals.slice(0, maxInputs),

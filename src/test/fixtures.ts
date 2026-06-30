@@ -83,7 +83,7 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
     portal: {
       insertEntryPortal: vi.fn(),
       insertExitPortal: vi.fn(),
-      getPortalRecords: vi.fn(async () => ({ portals: [], total: 0 })),
+      getPortalRecords: vi.fn(async () => ({ portals: [], nextCursor: null })),
       getPortalStatus: vi.fn(async () => null),
       ...overrides.portal,
     },

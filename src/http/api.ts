@@ -4,6 +4,8 @@ import type { IApiClient } from "@/interfaces/api";
 import type { InsertEntryPortalRequestBody, InsertExitPortalRequestBody, InsertPortalReturnType } from "@/types";
 import type { PaymasterInfo, RelaySubmitRequestBody, RelaySubmitReturnType } from "@/types/aggregator";
 import type {
+  BridgeEstimateRequestBody,
+  BridgeEstimateReturnType,
   GetCurvyIdByOwnerAddressResponse,
   GetPortalRecordsReturnType,
   GetPortalStatusReturnType,
@@ -65,11 +67,18 @@ class ApiClient extends HttpClient implements IApiClient {
       ).data;
     },
     getPortalRecords: async (
-      params: { offset?: number; size?: number; startTime?: number; endTime?: number } = {},
+      params: {
+        cursor?: string;
+        limit?: number;
+        startTime?: number;
+        endTime?: number;
+        direction?: "older" | "newer";
+      } = {},
     ): Promise<GetPortalRecordsReturnType> => {
       const queryParams: Record<string, string | number | boolean> = {};
-      if (params.offset !== undefined) queryParams.offset = params.offset;
-      if (params.size !== undefined) queryParams.size = params.size;
+      if (params.cursor !== undefined) queryParams.cursor = params.cursor;
+      if (params.limit !== undefined) queryParams.limit = params.limit;
+      if (params.direction !== undefined) queryParams.direction = params.direction;
       if (params.startTime !== undefined) queryParams.startTime = params.startTime;
       if (params.endTime !== undefined) queryParams.endTime = params.endTime;
 
@@ -93,6 +102,20 @@ class ApiClient extends HttpClient implements IApiClient {
         if (error instanceof APIError && error.statusCode === 404) return null;
         throw error;
       }
+    },
+  };
+
+  bridge = {
+    // Served by the portal-broadcaster (default base URL), backed by the same plan + carve the
+    // broadcaster executes — so the estimate matches the eventual on-chain result.
+    estimate: async (body: BridgeEstimateRequestBody): Promise<BridgeEstimateReturnType["data"]> => {
+      return (
+        await this.request<BridgeEstimateReturnType>({
+          method: "POST",
+          path: "/bridge/estimate",
+          body,
+        })
+      ).data;
     },
   };
 

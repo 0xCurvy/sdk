@@ -42,7 +42,7 @@ const evmNetwork = (overrides = {}) =>
 
 function evmEntryRecord(): Extract<MatchedPortalRecord, { flavour: "evm" }> {
   return {
-    id: 1,
+    id: "00000000-0000-0000-0000-000000000001",
     ephemeralKey: "0xeph1",
     viewTag: "0x01",
     createdAt: "2024-01-01",
@@ -57,7 +57,7 @@ function evmEntryRecord(): Extract<MatchedPortalRecord, { flavour: "evm" }> {
 
 function solanaEntryRecord(): Extract<MatchedPortalRecord, { flavour: "solana" }> {
   return {
-    id: 2,
+    id: "00000000-0000-0000-0000-000000000002",
     ephemeralKey: "0xeph2",
     viewTag: "0x02",
     createdAt: "2024-01-01",

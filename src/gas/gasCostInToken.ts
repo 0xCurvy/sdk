@@ -56,6 +56,35 @@ export function subBps(value: bigint, bps: number): bigint {
   return (value * BigInt(10_000 - bps)) / 10_000n;
 }
 
+/** A token's USD valuation + decimals — the inputs needed to convert across tokens. */
+export interface TokenValuation {
+  /** USD price, fixed-point at the shared price scale (see {@link parseUsdPrice}). */
+  usd: bigint;
+  /** Token decimals (e.g. 18 for ETH, 6 for USDC). */
+  decimals: number;
+}
+
+/**
+ * Convert `amount` (in `from` token base units) into the equivalent value in `to`
+ * token base units, via their USD prices:
+ *
+ *   toAmount = amount * from.usd * 10^to.decimals
+ *             ─────────────────────────────────────
+ *                  10^from.decimals * to.usd
+ *
+ * `from.usd` and `to.usd` MUST share the same fixed-point scale (it cancels in the
+ * ratio, so the absolute scale is irrelevant). Integer-only and rounded UP, so a
+ * rounding error never UNDER-values the result. Throws on a non-positive price or a
+ * negative amount (an unpriced token is "cannot quote", not "free").
+ */
+export function convertTokenAmount(amount: bigint, from: TokenValuation, to: TokenValuation): bigint {
+  if (from.usd <= 0n || to.usd <= 0n) throw new Error("convertTokenAmount: prices must be positive");
+  if (amount < 0n) throw new Error("convertTokenAmount: amount must be non-negative");
+  const numerator = amount * from.usd * 10n ** BigInt(to.decimals);
+  const denominator = 10n ** BigInt(from.decimals) * to.usd;
+  return ceilDiv(numerator, denominator);
+}
+
 export interface GasCostInTokenParams {
   /** Estimated gas units for the transaction. */
   gasUnits: bigint;
@@ -75,16 +104,18 @@ export interface GasCostInTokenParams {
  * Convert a native-denominated gas cost into the equivalent amount of `token`
  * base units. `nativeUsd` and `tokenUsd` MUST share the same fixed-point scale
  * (it cancels). Result is rounded UP. Throws if either price is non-positive.
+ *
+ * Composed from {@link convertTokenAmount}: the native gas cost in wei IS an amount
+ * in the native token's base units, so reimbursing it in another token is just a
+ * token→token conversion.
  */
 export function gasCostInToken(params: GasCostInTokenParams): bigint {
   const { gasUnits, gasPriceWei, nativeUsd, tokenUsd, nativeDecimals, tokenDecimals } = params;
-  if (nativeUsd <= 0n || tokenUsd <= 0n) throw new Error("gasCostInToken: prices must be positive");
   if (gasUnits < 0n || gasPriceWei < 0n) throw new Error("gasCostInToken: gas inputs must be non-negative");
 
-  // tokenBaseUnits = gasUnits * gasPriceWei * nativeUsd * 10^tokenDecimals
-  //                  ───────────────────────────────────────────────────
-  //                            10^nativeDecimals * tokenUsd
-  const numerator = gasUnits * gasPriceWei * nativeUsd * 10n ** BigInt(tokenDecimals);
-  const denominator = 10n ** BigInt(nativeDecimals) * tokenUsd;
-  return ceilDiv(numerator, denominator);
+  return convertTokenAmount(
+    gasUnits * gasPriceWei,
+    { usd: nativeUsd, decimals: nativeDecimals },
+    { usd: tokenUsd, decimals: tokenDecimals },
+  );
 }

@@ -40,7 +40,7 @@ const solanaNetwork = (overrides = {}) =>
 
 function solanaEntryRecord(overrides = {}): Extract<MatchedPortalRecord, { flavour: "solana" }> {
   return {
-    id: 2,
+    id: "00000000-0000-0000-0000-000000000002",
     ephemeralKey: "0xeph2",
     viewTag: "0x02",
     createdAt: "2024-01-01",
