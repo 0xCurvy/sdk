@@ -7,7 +7,7 @@ import type { Currency, Network } from "@/types/api";
 import type { AbortOptions, HexString } from "@/types/helper";
 import { toSlug } from "@/utils/format";
 import { extendClientFromNetwork } from "./extendClientFromNetwork";
-import { generateViemChainFromNetwork } from "./generateViemChainFromNetwork";
+import { toViemChain } from "./toViemChain";
 import type { CurvyPublicClient, CurvyWalletClient, RpcBalance, RpcBalances } from "./types";
 
 type MulticallResult =
@@ -29,7 +29,7 @@ class EvmRpc extends Rpc {
   constructor(network: Network) {
     super(network);
 
-    const chain = generateViemChainFromNetwork(network);
+    const chain = toViemChain(network);
 
     this.#publicClient = createPublicClient({
       transport: http(this.network.rpcUrl),
