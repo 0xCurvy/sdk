@@ -238,6 +238,7 @@ export function createFakeConfig(overrides: CreateFakeConfigOverrides = {}): Cur
     timers: {},
     timerProvider: defaultTimerProvider(),
     scanLocks: new Map<string, boolean>(),
+    inflightRefreshes: new Map<string, Promise<void>>(),
     rpcCache: new Map<NETWORK_ENVIRONMENT_VALUES, MultiRpc>(),
     notesTree: new MerkleTree({ depth: 30 }),
     notesTrees: new Map<string, NotesTreeView>(),

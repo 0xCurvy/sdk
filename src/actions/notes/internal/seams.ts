@@ -27,13 +27,15 @@ const normalizeLeaf = (leaf: SyncedLeaf): SyncedLeaf => ({
 });
 
 /** Drain both append-only indexer streams from the cursors into one delta. */
-export function apiLeafSource(config: CurvyConfig, opts: { pageSize?: number } = {}): LeafSource {
+export function apiLeafSource(config: CurvyConfig, opts: { pageSize?: number; signal?: AbortSignal } = {}): LeafSource {
   const pageSize = opts.pageSize ?? 500;
+  const { signal } = opts;
   return {
     async fetchDelta(cursor) {
       const leaves: SyncedLeaf[] = [];
       let from = cursor.leafCount;
       for (;;) {
+        signal?.throwIfAborted();
         const page = await config.api.sync.GetNotes(from, pageSize);
         // Empty-page guard: a (possibly lying/lagging) indexer that returns no
         // rows while claiming total > from must not spin forever holding scanLock.
@@ -45,6 +47,7 @@ export function apiLeafSource(config: CurvyConfig, opts: { pageSize?: number } =
       const nullifiers: string[] = [];
       let nullifierFrom = cursor.nullifierCount;
       for (;;) {
+        signal?.throwIfAborted();
         const page = await config.api.sync.GetNullifiers(nullifierFrom, pageSize);
         if (page.nullifiers.length === 0) break;
         nullifiers.push(...page.nullifiers.map((n) => n.nullifier));

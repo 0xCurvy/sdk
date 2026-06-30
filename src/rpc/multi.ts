@@ -25,11 +25,8 @@ class MultiRpc {
    * caller passing a hex address never accidentally hits the Solana RPC (and
    * vice versa).
    */
-  async getBalances(
-    stealthAddress: string,
-    networks?: string[],
-    { signal: _ }: AbortOptions = {},
-  ): Promise<RpcBalances> {
+  async getBalances(stealthAddress: string, networks?: string[], { signal }: AbortOptions = {}): Promise<RpcBalances> {
+    signal?.throwIfAborted();
     const addressIsHex = isHexString(stealthAddress);
     const rpcs = this.#rpcArray.filter((rpc) => {
       // Each rpc only handles addresses native to its network flavour.
@@ -38,9 +35,19 @@ class MultiRpc {
       // Optional explicit network filter (slugs).
       return !networks || networks.length === 0 || networks.includes(toSlug(rpc.network.name));
     });
-    return Promise.all(rpcs.map((rpc) => rpc.getBalances(stealthAddress))).then((results) => {
-      return Object.assign(Object.create(null), ...results);
+
+    // allSettled (not all): one unreachable chain must not blank out balances for
+    // every other network. Merge the chains that succeeded and surface the rest.
+    const settled = await Promise.allSettled(rpcs.map((rpc) => rpc.getBalances(stealthAddress, { signal })));
+    const merged: RpcBalances = Object.create(null);
+    settled.forEach((result, i) => {
+      if (result.status === "fulfilled") {
+        Object.assign(merged, result.value);
+      } else {
+        console.warn(`MultiRpc.getBalances: ${toSlug(rpcs[i].network.name)} failed:`, result.reason);
+      }
     });
+    return merged;
   }
 
   async ensResolveCurvyId(curvyId: CurvyId, environment: NETWORK_ENVIRONMENT_VALUES, slip0044?: bigint) {

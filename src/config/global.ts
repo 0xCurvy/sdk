@@ -2,10 +2,14 @@ import { NoCurvyConfigError } from "@/errors";
 import type { CurvyConfig } from "./types";
 
 /**
- * The ambient/global config. `createCurvyConfig` sets this so
- * actions can be called without threading `config` through every call. Multiple
- * configs are supported: pass `config` explicitly to override, or swap the
- * global with `setCurvyConfig`.
+ * The ambient/global config. `createCurvyConfig` sets this (unless called with
+ * `setAsActive: false`) so actions can be called without threading `config`
+ * through every call. Multiple configs are supported: pass `config` explicitly
+ * to override, or swap the global with `setCurvyConfig`.
+ *
+ * NOTE: the ambient config is a browser/single-tenant convenience. In a
+ * multi-tenant (server) context it is a cross-tenant hazard — build configs with
+ * `setAsActive: false` and thread `config` explicitly into every action.
  */
 let activeConfig: CurvyConfig | null = null;
 

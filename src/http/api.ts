@@ -21,13 +21,28 @@ import type {
 } from "@/types/api";
 import type { CurvyId } from "@/types/curvy";
 
+/** Optional per-service base URLs; each defaults to `apiBaseUrl` when unset. */
+export type ApiBaseUrls = {
+  metadataBaseUrl?: string;
+  indexerBaseUrl?: string;
+  relayerBaseUrl?: string;
+};
+
+// Bulk sync downloads and proof submission can legitimately run far longer than
+// a normal request, so they opt out of the 5s default (see HttpClient).
+const SYNC_TIMEOUT = 60_000;
+const SUBMIT_PROOF_TIMEOUT = 60_000;
+
 class ApiClient extends HttpClient implements IApiClient {
   private readonly metadataBaseUrl?: string;
   private readonly indexerBaseUrl?: string;
   private readonly relayerBaseUrl?: string;
 
-  constructor(apiBaseUrl?: string, customFetch?: typeof globalThis.fetch) {
+  constructor(apiBaseUrl?: string, customFetch?: typeof globalThis.fetch, baseUrls: ApiBaseUrls = {}) {
     super(apiBaseUrl, customFetch);
+    this.metadataBaseUrl = baseUrls.metadataBaseUrl;
+    this.indexerBaseUrl = baseUrls.indexerBaseUrl;
+    this.relayerBaseUrl = baseUrls.relayerBaseUrl;
   }
 
   updateBearerToken = (bearer: string | undefined) => {
@@ -197,6 +212,7 @@ class ApiClient extends HttpClient implements IApiClient {
         method: "GET",
         path: "/indexer/v3/sync/meta",
         retries: 2,
+        timeout: SYNC_TIMEOUT,
         baseUrl: this.indexerBaseUrl,
       });
     },
@@ -207,6 +223,7 @@ class ApiClient extends HttpClient implements IApiClient {
         path: "/indexer/v3/sync/notes",
         queryParams: { fromIndex, limit },
         retries: 2,
+        timeout: SYNC_TIMEOUT,
         baseUrl: this.indexerBaseUrl,
       });
     },
@@ -217,6 +234,7 @@ class ApiClient extends HttpClient implements IApiClient {
         path: "/indexer/v3/sync/nullifiers",
         queryParams: { fromIndex, limit },
         retries: 2,
+        timeout: SYNC_TIMEOUT,
         baseUrl: this.indexerBaseUrl,
       });
     },
@@ -227,6 +245,7 @@ class ApiClient extends HttpClient implements IApiClient {
         path: "/indexer/v3/sync/shard-roots",
         queryParams: { fromIndex, limit },
         retries: 2,
+        timeout: SYNC_TIMEOUT,
         baseUrl: this.indexerBaseUrl,
       });
     },
@@ -242,6 +261,7 @@ class ApiClient extends HttpClient implements IApiClient {
         path: "/relay/submit",
         body,
         retries: 0,
+        timeout: SUBMIT_PROOF_TIMEOUT,
         baseUrl: this.relayerBaseUrl,
       });
     },

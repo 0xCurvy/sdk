@@ -43,6 +43,12 @@ export type CurvyConfigInternal = {
   timerProvider: TimerProvider;
   /** Per-`accountId` balance-refresh locks (replaces `BalanceScanner #semaphore`). */
   scanLocks: Map<string, boolean>;
+  /**
+   * In-flight `refreshBalances` promises keyed by `refresh-account-${accountId}`.
+   * Lets a concurrent caller (e.g. `getBalances({ cached: false })`) AWAIT the
+   * running scan and observe fresh data, instead of returning stale storage.
+   */
+  inflightRefreshes: Map<string, Promise<void>>;
   /** Memoized `MultiRpc` per environment (replaces the single mutable `#rpcClient`). */
   rpcCache: Map<NETWORK_ENVIRONMENT_VALUES, MultiRpc>;
 
@@ -95,7 +101,7 @@ export type CurvyConfig = {
 
   /**
    * Which engine `syncNotes`/`getSpendWitnesses` use for a network's notes
-   * tree: "sharded" (default, lean client) or "global" (full in-memory IMT).
+   * tree: "global" (default, full in-memory IMT) or "sharded" (lean client).
    * A consumer-level choice, fixed for the config's lifetime.
    */
   readonly notesSyncEngine: NotesSyncEngine;
@@ -165,7 +171,7 @@ export type CreateCurvyConfigParameters = {
   customFetch?: typeof globalThis.fetch;
   /** Injectable timer scheduler (default wraps setInterval); swap for `chrome.alarms` under MV3. */
   timerProvider?: TimerProvider;
-  /** Notes-sync engine for `syncNotes`/`getSpendWitnesses`. Defaults to "sharded". */
+  /** Notes-sync engine for `syncNotes`/`getSpendWitnesses`. Defaults to "global". */
   notesSyncEngine?: NotesSyncEngine;
   /** Groth16 prover for the client-proving actions. Defaults to snarkjs (`snarkjsProver`). */
   prover?: Prover;
@@ -177,6 +183,13 @@ export type CreateCurvyConfigParameters = {
    * {@link CircuitKeyCache}, or `false` to disable caching entirely.
    */
   circuitKeyCache?: CircuitKeyCache | false;
+  /**
+   * Register this config as the ambient/global default (so actions can resolve
+   * it without an explicit `config`). Defaults to `true`. The ambient config is
+   * a browser/single-tenant convenience — in a multi-tenant (server) context
+   * pass `false` and thread `config` explicitly to avoid cross-tenant bleed.
+   */
+  setAsActive?: boolean;
 };
 
 /**

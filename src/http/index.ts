@@ -148,7 +148,9 @@ class HttpClient {
         signal: abortController.signal,
       });
 
-      clearTimeout(timeoutId);
+      // NB: do NOT clear the abort timer here — the body has not been read yet.
+      // A stalled response body would otherwise hang past `timeout`. The timer
+      // is disarmed only in `finally`, once the body has been fully consumed.
 
       if (response.status < 200 || response.status >= 300) {
         throw new APIError(response.statusText, response.status, await response.text(), requestId);

@@ -21,7 +21,7 @@ import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { NATIVE_SOL_MINT } from "@/constants/solana";
 import { Rpc } from "@/rpc/abstract";
 import type { Currency, Network } from "@/types/api";
-import type { HexString } from "@/types/helper";
+import type { AbortOptions, HexString } from "@/types/helper";
 import { toSlug } from "@/utils/format";
 import type { RpcBalance, RpcBalances } from "./types";
 
@@ -151,7 +151,8 @@ class SolanaRpc extends Rpc {
    *
    * Total RPC round-trips: 3, regardless of the number of supported SPL mints.
    */
-  async getBalances(stealthAddress: string): Promise<RpcBalances> {
+  async getBalances(stealthAddress: string, options?: AbortOptions): Promise<RpcBalances> {
+    options?.signal?.throwIfAborted();
     const owner = address(stealthAddress);
 
     const solCurrency = this.network.currencies.find((c: Currency) => c.nativeCurrency);

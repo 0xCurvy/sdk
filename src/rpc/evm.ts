@@ -4,7 +4,7 @@ import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
 import { Rpc } from "@/rpc/abstract";
 import type { Currency, Network } from "@/types/api";
-import type { HexString } from "@/types/helper";
+import type { AbortOptions, HexString } from "@/types/helper";
 import { toSlug } from "@/utils/format";
 import { extendClientFromNetwork } from "./extendClientFromNetwork";
 import { generateViemChainFromNetwork } from "./generateViemChainFromNetwork";
@@ -52,7 +52,8 @@ class EvmRpc extends Rpc {
     return this.#walletClient;
   }
 
-  async getBalances(address: HexString): Promise<RpcBalances> {
+  async getBalances(address: HexString, options?: AbortOptions): Promise<RpcBalances> {
+    options?.signal?.throwIfAborted();
     const calls = this.network.currencies.map((currency: Currency) => {
       if (currency.nativeCurrency) {
         return {

@@ -1,4 +1,5 @@
 import type { Network } from "@/types/api";
+import type { AbortOptions } from "@/types/helper";
 import type { RpcBalance, RpcBalances } from "./types";
 
 abstract class Rpc {
@@ -20,8 +21,11 @@ abstract class Rpc {
    *   - EVM: `0x`-prefixed 20-byte hex
    *   - Solana: 32-byte base58
    * The string union keeps both supported under a single signature.
+   *
+   * `options.signal` aborts the read; implementations check it before issuing
+   * the (potentially slow) network round-trip.
    */
-  abstract getBalances(stealthAddress: string): Promise<RpcBalances>;
+  abstract getBalances(stealthAddress: string, options?: AbortOptions): Promise<RpcBalances>;
 
   abstract getBalance(stealthAddress: string, symbol: string): Promise<RpcBalance>;
 }

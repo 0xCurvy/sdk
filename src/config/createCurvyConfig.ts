@@ -35,6 +35,9 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
   const {
     environment,
     apiBaseUrl,
+    metadataBaseUrl,
+    indexerBaseUrl,
+    relayerBaseUrl,
     storage = new MapStorage(),
     wasmUrl,
     wasmModule,
@@ -46,9 +49,10 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     prover,
     circuitKeysBaseUrl,
     circuitKeyCache,
+    setAsActive = true,
   } = parameters;
 
-  const api = new ApiClient(apiBaseUrl, customFetch);
+  const api = new ApiClient(apiBaseUrl, customFetch, { metadataBaseUrl, indexerBaseUrl, relayerBaseUrl });
   const emitter = new CurvyEventEmitter();
   api.setOnUnauthorized(() => emitter.emitUnauthorized({ statusCode: 401 }));
 
@@ -66,6 +70,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     timers: {},
     timerProvider,
     scanLocks: new Map(),
+    inflightRefreshes: new Map(),
     rpcCache: new Map(),
     notesTree: new MerkleTree({ depth: 30 }),
     notesTrees: new Map(),
@@ -143,13 +148,21 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
       internal.timers = {};
       api.setOnTokenChange(undefined);
       api.setOnUnauthorized(undefined);
+      // Honour the "detach listeners" contract: drop every emitter subscriber
+      // and release the memoized RPC clients so a destroyed config doesn't pin
+      // them (or keep firing handlers) for the lifetime of the process.
+      emitter.clearListeners();
+      internal.rpcCache.clear();
     },
     _internal: internal,
   };
 
   startPriceRefresh(config);
 
-  setCurvyConfig(config);
+  // The ambient/global config is a browser/single-tenant convenience only. In a
+  // multi-tenant (server) context pass `setAsActive: false` so building a config
+  // never clobbers another tenant's ambient config — thread `config` explicitly.
+  if (setAsActive) setCurvyConfig(config);
 
   // Browser-only: rehydrate accounts + JWT from the keystore so a page refresh
   // doesn't force re-authentication. No-op in Node (keystore is null).

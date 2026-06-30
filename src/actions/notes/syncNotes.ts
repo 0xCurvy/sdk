@@ -22,6 +22,8 @@ export type SyncNotesParameters = WithConfig<{
   source?: LeafSource;
   verifier?: RootVerifier;
   resolveOwnership?: OwnershipResolver;
+  /** Abort the sync — checked between networks and inside the indexer paged loops. */
+  signal?: AbortSignal;
 }>;
 
 export type SyncNotesResult = {
@@ -45,9 +47,9 @@ export type SyncNotesResult = {
  * `getSpendWitnesses`.
  *
  * The working set is chosen by `config.notesSyncEngine` (or the per-call
- * `engine` override): "sharded" (default, lean-client profile — shard roots +
- * tracked witnesses, a few MB at any tree size; see plan-shardtree-curvy.md) or
- * "global" (the full in-memory IMT). Both verify against the same chain anchor
+ * `engine` override): "global" (default, the full in-memory IMT) or "sharded"
+ * (lean-client profile — shard roots + tracked witnesses, a few MB at any tree
+ * size; see plan-shardtree-curvy.md). Both verify against the same chain anchor
  * and emit identical witnesses downstream.
  */
 export async function syncNotes(parameters: SyncNotesParameters = {}): Promise<SyncNotesResult[]> {
@@ -66,6 +68,7 @@ export async function syncNotes(parameters: SyncNotesParameters = {}): Promise<S
 
   const results: SyncNotesResult[] = [];
   for (const network of networks) {
+    parameters.signal?.throwIfAborted();
     results.push(await syncOneNetwork(config, network, accountId, parameters));
   }
   return results;
@@ -95,7 +98,8 @@ async function syncOneNetwork(
 
   try {
     const environment = config.state.environment;
-    const source = parameters.source ?? apiLeafSource(config, { pageSize: parameters.pageSize });
+    const source =
+      parameters.source ?? apiLeafSource(config, { pageSize: parameters.pageSize, signal: parameters.signal });
     const verifier = parameters.verifier ?? rpcRootVerifier(config, networkSlug);
     // Without an account there is still value in syncing (tree freshness);
     // discovery + spend reconciliation are account-scoped extras. The default
