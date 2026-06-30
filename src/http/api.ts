@@ -57,7 +57,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetNetworks: async () => {
       const networks = await this.request<NetworksWithCurrenciesResponse>({
         method: "GET",
-        path: "/metadata/networks",
+        path: "/networks",
         retries: 2,
         baseUrl: this.metadataBaseUrl,
       });
@@ -69,7 +69,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetPrices: async () => {
       const prices = await this.request<PricesResponse>({
         method: "GET",
-        path: "/metadata/prices",
+        path: "/prices",
         retries: 2,
         baseUrl: this.metadataBaseUrl,
       });
@@ -81,7 +81,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetProtocol: async () => {
       const protocol = await this.request<ProtocolResponse>({
         method: "GET",
-        path: "/metadata/protocol",
+        path: "/protocol",
         retries: 2,
         baseUrl: this.metadataBaseUrl,
       });
@@ -166,7 +166,7 @@ class ApiClient extends HttpClient implements IApiClient {
     RegisterCurvyId: async (body: RegisterCurvyIdRequestBody) => {
       return await this.request<RegisterCurvyIdReturnType>({
         method: "POST",
-        path: "/metadata/user/register",
+        path: "/user/register",
         body,
         baseUrl: this.metadataBaseUrl,
       });
@@ -175,7 +175,7 @@ class ApiClient extends HttpClient implements IApiClient {
     ResolveCurvyId: async (username: string) => {
       return this.request<ResolveCurvyIdReturnType>({
         method: "GET",
-        path: `/metadata/user/resolve/${username}`,
+        path: `/user/resolve/${username}`,
         retries: 2,
         baseUrl: this.metadataBaseUrl,
       });
@@ -184,7 +184,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetCurvyIdByOwnerAddress: async (ownerAddress: string) => {
       const response = await this.request<GetCurvyIdByOwnerAddressResponse>({
         method: "GET",
-        path: `/metadata/user/check/${ownerAddress}`,
+        path: `/user/check/${ownerAddress}`,
         retries: 2,
         baseUrl: this.metadataBaseUrl,
       });
@@ -200,7 +200,7 @@ class ApiClient extends HttpClient implements IApiClient {
           nonce: string;
         }>({
           method: "GET",
-          path: "/metadata/auth/nonce",
+          path: "/auth/nonce",
           retries: 2,
           baseUrl: this.metadataBaseUrl,
         })
@@ -214,7 +214,7 @@ class ApiClient extends HttpClient implements IApiClient {
         }>({
           method: "POST",
           body,
-          path: "/metadata/auth",
+          path: "/auth",
           baseUrl: this.metadataBaseUrl,
         })
       ).token;
@@ -226,7 +226,7 @@ class ApiClient extends HttpClient implements IApiClient {
           token: string;
         }>({
           method: "GET",
-          path: "/metadata/auth/renew",
+          path: "/auth/renew",
           retries: 2,
           baseUrl: this.metadataBaseUrl,
         })
@@ -238,7 +238,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetMeta: async () => {
       return await this.request<GetSyncMetaReturnType>({
         method: "GET",
-        path: "/indexer/v3/sync/meta",
+        path: "/v3/sync/meta",
         retries: 2,
         timeout: SYNC_TIMEOUT,
         baseUrl: this.indexerBaseUrl,
@@ -248,7 +248,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetNotes: async (fromIndex: number, limit = 500) => {
       return await this.request<GetSyncNotesReturnType>({
         method: "GET",
-        path: "/indexer/v3/sync/notes",
+        path: "/v3/sync/notes",
         queryParams: { fromIndex, limit },
         retries: 2,
         timeout: SYNC_TIMEOUT,
@@ -259,7 +259,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetNullifiers: async (fromIndex: number, limit = 500) => {
       return await this.request<GetSyncNullifiersReturnType>({
         method: "GET",
-        path: "/indexer/v3/sync/nullifiers",
+        path: "/v3/sync/nullifiers",
         queryParams: { fromIndex, limit },
         retries: 2,
         timeout: SYNC_TIMEOUT,
@@ -270,7 +270,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetShardRoots: async (fromIndex: number, limit = 500) => {
       return await this.request<GetSyncShardRootsReturnType>({
         method: "GET",
-        path: "/indexer/v3/sync/shard-roots",
+        path: "/v3/sync/shard-roots",
         queryParams: { fromIndex, limit },
         retries: 2,
         timeout: SYNC_TIMEOUT,
