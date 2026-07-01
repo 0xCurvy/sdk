@@ -38,16 +38,18 @@ class EvmRpc extends Rpc {
   constructor(network: Network) {
     super(network);
 
-    const chain = toViemChain(network);
+    const chain = toViemChain(
+      network
+    );
 
     this.#publicClient = createPublicClient({
-      transport: http(this.network.rpcUrl),
+      transport: http(String(chain.rpcUrls.default.http)),
       name: `CurvyEvmPublicClient-${toSlug(network.name)}`,
       chain,
     });
 
     this.#walletClient = createWalletClient({
-      transport: http(this.network.rpcUrl),
+      transport: http(String(chain.rpcUrls.default.http)),
       name: `CurvyEvmWalletClient-${toSlug(network.name)}`,
       chain,
     });
