@@ -166,7 +166,7 @@ The **root** (`@0xcurvy/curvy-sdk`) re‑exports nearly everything below (all of
 `HttpClient` *(class)* — `new HttpClient(apiBaseUrl?, customFetch?)`. Retry/backoff + timeouts + bearer‑token + `X‑Request‑ID`; emits unauthorized.
 
 ### `@0xcurvy/curvy-sdk/rpc`
-Classes `EvmRpc`, `SolanaRpc`, `MultiRpc`; factories `newRpc(network)`, `newMultiRpc(networks, filter?)`; helpers `extendClientFromNetwork`, `generateViemChainFromNetwork`. Types: `CurvyPublicClient`, `CurvyWalletClient`, `RpcCallReturnType`, `RpcBalance`, `RpcBalances`, `VaultBalance`.
+Classes `EvmRpc`, `SolanaRpc`, `MultiRpc`; factories `newRpc(network)`, `newMultiRpc(networks, filter?)`; helpers `toViemChain(network)` (curated `viem/chains` base + metadata overlay) and `buildWagmiNetworkConfig({ chains, transport })` (wagmi adapter, auto-resolves networks from the active config). Types: `RpcCallReturnType`, `RpcBalance`, `RpcBalances`, `VaultBalance`.
 
 ### `@0xcurvy/curvy-sdk/storage` & `…/storage/idb`
 `BaseStorage` (abstract — implements all business logic on `_`‑prefixed CRUD primitives), `MapStorage` (in‑memory, Node/tests), `SessionKeystore` (browser keypair/JWT persistence), type `StorageInterface`. **`./storage/idb`:** `IndexedDBStorage` (Dexie‑backed, production browser), `CurvyDatabase`. `insertCurvyAccount` takes a `SerializedCurvyAccount` (key‑free).

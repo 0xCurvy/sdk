@@ -1,4 +1,14 @@
-import { type Address, createPublicClient, createWalletClient, erc20Abi, http } from "viem";
+import {
+  type Address,
+  type Chain,
+  createPublicClient,
+  createWalletClient,
+  erc20Abi,
+  type HttpTransport,
+  http,
+  type PublicClient,
+  type WalletClient,
+} from "viem";
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
@@ -6,9 +16,8 @@ import { Rpc } from "@/rpc/abstract";
 import type { Currency, Network } from "@/types/api";
 import type { AbortOptions, HexString } from "@/types/helper";
 import { toSlug } from "@/utils/format";
-import { extendClientFromNetwork } from "./extendClientFromNetwork";
 import { toViemChain } from "./toViemChain";
-import type { CurvyPublicClient, CurvyWalletClient, RpcBalance, RpcBalances } from "./types";
+import type { RpcBalance, RpcBalances } from "./types";
 
 type MulticallResult =
   | {
@@ -23,8 +32,8 @@ type MulticallResult =
     };
 
 class EvmRpc extends Rpc {
-  readonly #publicClient: CurvyPublicClient;
-  readonly #walletClient: CurvyWalletClient;
+  readonly #publicClient: PublicClient<HttpTransport, Chain>;
+  readonly #walletClient: WalletClient<HttpTransport, Chain>;
 
   constructor(network: Network) {
     super(network);
@@ -35,13 +44,13 @@ class EvmRpc extends Rpc {
       transport: http(this.network.rpcUrl),
       name: `CurvyEvmPublicClient-${toSlug(network.name)}`,
       chain,
-    }).extend((client) => extendClientFromNetwork(network, client));
+    });
 
     this.#walletClient = createWalletClient({
       transport: http(this.network.rpcUrl),
       name: `CurvyEvmWalletClient-${toSlug(network.name)}`,
       chain,
-    }).extend((client) => extendClientFromNetwork(network, client));
+    });
   }
 
   get provider() {

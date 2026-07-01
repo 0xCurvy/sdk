@@ -1,8 +1,8 @@
+import type { Chain, HttpTransport, PublicClient } from "viem";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
-import type { CurvyPublicClient } from "./types";
 
 export type HasBytecodeParameters = WithConfig<{
   network: Network;
@@ -27,7 +27,7 @@ export async function hasBytecode(parameters: HasBytecodeParameters): Promise<bo
   const config = resolveConfig(parameters.config);
   const { network, address } = parameters;
 
-  const client = config.getRpc().Network(network.id).provider as CurvyPublicClient;
+  const client = config.getRpc().Network(network.id).provider as PublicClient<HttpTransport, Chain>;
 
   const bytecode = await client.getCode({ address });
   return !!bytecode && bytecode !== "0x";

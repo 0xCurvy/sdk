@@ -31,7 +31,7 @@ export * from "./note";
 export * from "./planner/types";
 export { describePlan } from "./planner/utils/describePlan";
 export {
-  type BuildWagmiNetworkConfigOptions,
+  type BuildWagmiNetworkConfigParameters,
   buildWagmiNetworkConfig,
   EvmRpc,
   hasBytecode,

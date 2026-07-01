@@ -7,7 +7,7 @@ import type { AbortOptions } from "@/types/helper";
 import { toSlug } from "@/utils/format";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
 import type { Rpc } from "./abstract";
-import type { CurvyPublicClient, RpcBalances } from "./types";
+import type { RpcBalances } from "./types";
 
 class MultiRpc {
   readonly #rpcArray: Rpc[];
@@ -51,14 +51,13 @@ class MultiRpc {
   }
 
   async ensResolveCurvyId(curvyId: CurvyId, environment: NETWORK_ENVIRONMENT_VALUES, slip0044?: bigint) {
-    let publicClient: CurvyPublicClient;
-    if (curvyId.includes(".local-curvy.name")) {
-      publicClient = (this.Network("localnet") as EvmRpc).provider;
-    } else {
-      publicClient = (this.Network(environment === "mainnet" ? "ethereum" : "ethereum-sepolia") as EvmRpc).provider;
-    }
+    const rpc = (
+      curvyId.includes(".local-curvy.name")
+        ? this.Network("localnet")
+        : this.Network(environment === "mainnet" ? "ethereum" : "ethereum-sepolia")
+    ) as EvmRpc;
 
-    return publicClient.getEnsAddress({
+    return rpc.provider.getEnsAddress({
       name: normalize(curvyId),
       coinType: slip0044,
     });
