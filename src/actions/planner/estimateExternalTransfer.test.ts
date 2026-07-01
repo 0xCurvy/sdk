@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createFakeConfig, fixtureNetwork } from "@/test/fixtures";
+import { createFakeConfig, DEFAULT_TEST_PROTOCOL, fixtureNetwork } from "@/test/fixtures";
 import type { Currency, Network } from "@/types";
 import type { HexString } from "@/types/helper";
 import { estimateExternalTransfer } from "./estimateExternalTransfer";
@@ -21,20 +21,27 @@ const currency = (overrides: Partial<Currency> = {}): Currency =>
     ...overrides,
   }) as unknown as Currency;
 
-/** A shielding-capable network (has aggregator + withdraw config). */
+/** A shielding-capable network (has aggregator config). */
 const shieldingNetwork = (currencies: Currency[]): Network =>
   fixtureNetwork({
     id: 1,
     name: "Ethereum",
     chainId: "1",
     aggregatorContractAddress: "0x000000000000000000000000000000000000a991" as HexString,
-    // groupFee 10 => 1% Curvy fee.
-    withdrawCircuitConfig: { treeDepth: 32, maxInputs: 2, maxOutputs: 2, batchSize: 1, groupFee: 10 },
     currencies,
   } as Partial<Network>);
 
+/** Protocol-global proving config with withdrawal groupFee 10 => 1% Curvy fee. */
+const PROTOCOL = {
+  ...DEFAULT_TEST_PROTOCOL,
+  proving: {
+    ...DEFAULT_TEST_PROTOCOL.proving,
+    withdrawal: { ...DEFAULT_TEST_PROTOCOL.proving.withdrawal, groupFee: 10 },
+  },
+};
+
 function configWithShielding(shielding: Network) {
-  return createFakeConfig({ activeNetworks: [shielding] });
+  return createFakeConfig({ activeNetworks: [shielding], protocol: PROTOCOL });
 }
 
 describe("estimateExternalTransfer", () => {

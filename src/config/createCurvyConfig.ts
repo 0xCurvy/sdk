@@ -9,14 +9,7 @@ import { newMultiRpc } from "@/rpc/factory";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
 import type { CurvyKeyPairs } from "@/types/core";
-import {
-  applyPrices,
-  applyProtocol,
-  defaultTimerProvider,
-  filterNetworks,
-  networksToCurrencyMetadata,
-  pricesToPriceData,
-} from "@/utils";
+import { defaultTimerProvider, filterNetworks, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
 import { setCurvyConfig } from "./global";
 import { startPriceRefresh } from "./priceRefresh";
 import { createStore } from "./store";
@@ -102,16 +95,11 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     });
   }
 
-  // Split metadata: the registry (/networks), protocol-global config (/protocol), and the
-  // volatile price feed (/prices). Fetch in parallel, then re-attach protocol + merge prices
-  // onto the networks so downstream consumers keep reading both off the `Network` object.
-  const [networks, protocol, prices] = await Promise.all([
-    api.network.GetNetworks(),
-    api.network.GetProtocol(),
-    api.network.GetPrices(),
-  ]);
-  applyProtocol(networks, protocol);
-  applyPrices(networks, prices);
+  // Split metadata: the registry (/networks, currencies carry their initial price) plus the
+  // protocol-global config (/protocol). Protocol lives in `state.protocol` (the single source
+  // consumers read) — it is NOT stamped onto the networks. The volatile /prices feed is the
+  // poll endpoint used by the refresh timer, not the bootstrap.
+  const [networks, protocol] = await Promise.all([api.network.GetNetworks(), api.network.GetProtocol()]);
   await storage.upsertCurrencyMetadata(networksToCurrencyMetadata(networks));
 
   const isTestnet = environment === NETWORK_ENVIRONMENT.TESTNET;
@@ -125,7 +113,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
 
   store.setState({ networks, activeNetworks, protocol, environment: resolvedEnvironment, status: "ready" });
 
-  const priceData = pricesToPriceData(prices);
+  const priceData = networksToPriceData(networks);
   if (priceData.size > 0) await storage.upsertPriceData(priceData);
 
   const config: CurvyConfig = {

@@ -3,15 +3,27 @@ import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { NoActiveAccountError } from "@/errors";
 import type { Intent } from "@/planner/types";
 import { MapStorage } from "@/storage/map-storage";
-import { createFakeConfig, fakeBalanceEntry, fakeCurvyAccount, fixtureNetwork } from "@/test/fixtures";
+import {
+  createFakeConfig,
+  DEFAULT_TEST_PROTOCOL,
+  fakeBalanceEntry,
+  fakeCurvyAccount,
+  fixtureNetwork,
+} from "@/test/fixtures";
 import type { BalanceEntry, CurvyId, HexString } from "@/types";
 import { estimateIntent } from "./estimateIntent";
 
-/** A network with withdraw/aggregation circuit configs so commands can estimate. */
-const NETWORK = fixtureNetwork({
-  aggregationCircuitConfig: { treeDepth: 32, maxInputs: 2, maxOutputs: 2, batchSize: 1, groupFee: 10 },
-  withdrawCircuitConfig: { treeDepth: 32, maxInputs: 2, maxOutputs: 2, batchSize: 1, groupFee: 10 },
-});
+const NETWORK = fixtureNetwork();
+
+/** Protocol-global proving config with groupFee 10 on both aggregation and withdrawal (fee = amount*10/1000). */
+const PROTOCOL = {
+  ...DEFAULT_TEST_PROTOCOL,
+  proving: {
+    ...DEFAULT_TEST_PROTOCOL.proving,
+    aggregation: { ...DEFAULT_TEST_PROTOCOL.proving.aggregation, groupFee: 10 },
+    withdrawal: { ...DEFAULT_TEST_PROTOCOL.proving.withdrawal, groupFee: 10 },
+  },
+};
 
 const CURRENCY_ADDRESS = "0x0000000000000000000000000000000000000000" as HexString;
 
@@ -44,6 +56,7 @@ async function buildConfig(opts: { withAccount?: boolean; seed?: BalanceEntry[] 
   return createFakeConfig({
     storage,
     networks: [NETWORK],
+    protocol: PROTOCOL,
     activeAccountId: withAccount ? "account-a" : null,
     accounts: withAccount
       ? {

@@ -6,6 +6,7 @@ import type { AggregateRecipientInput } from "@/actions/aggregator/types";
 import { waitForRelay } from "@/actions/aggregator/waitForRelay";
 import { getSpendWitnesses } from "@/actions/notes/getSpendWitnesses";
 import { syncNotes } from "@/actions/notes/syncNotes";
+import { getProtocol } from "@/config/protocol";
 import { balanceEntryToNote, type Note, noteToBalanceEntry } from "@/note";
 import type { CommandData } from "@/planner/types";
 import { type HexString, isValidCurvyId } from "@/types";
@@ -135,7 +136,7 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
     if (estimate) return estimate;
 
     // Fallback (no paymaster/fees reachable): a coarse groupFee-based protocol estimate.
-    let curvyFeeInCurrency = (grossAmount * BigInt(network.aggregationCircuitConfig!.groupFee)) / 1000n;
+    let curvyFeeInCurrency = (grossAmount * BigInt(getProtocol(config).proving.aggregation.groupFee)) / 1000n;
 
     // Operator paymaster gas note, in the aggregation token. Best-effort: when no
     // paymaster is reachable or the token is unpriced, gas shows as 0 and execute

@@ -1,3 +1,4 @@
+import { getProtocol } from "@/config/protocol";
 import type { CurvyConfig } from "@/config/types";
 import type { CircuitId, ZKArtifact } from "@/proving/prover";
 
@@ -20,9 +21,10 @@ export function resolveCircuitArtifacts(
   const network = config.state.networks.find((n) => n.slug === slug);
   if (!network) throw new Error(`prove: no network "${slug ?? "(none active)"}" to resolve ${kind} circuit artifacts`);
 
-  const cc = kind === "aggregation" ? network.aggregationCircuitConfig : network.withdrawCircuitConfig;
+  const proving = getProtocol(config).proving;
+  const cc = kind === "aggregation" ? proving.aggregation : proving.withdrawal;
   if (!cc?.wasmPath || !cc?.zkeyPath) {
-    throw new Error(`prove: network "${network.slug}" has no ${kind} circuit config (missing wasmPath/zkeyPath)`);
+    throw new Error(`prove: protocol has no ${kind} circuit config (missing wasmPath/zkeyPath)`);
   }
 
   return {

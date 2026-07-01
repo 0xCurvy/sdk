@@ -3,6 +3,7 @@ import { buildWithdrawRequest } from "@/actions/aggregator/buildWithdrawRequest"
 import { relaySubmission } from "@/actions/aggregator/relaySubmission";
 import { waitForRelay } from "@/actions/aggregator/waitForRelay";
 import { getSpendWitnesses } from "@/actions/notes/getSpendWitnesses";
+import { getProtocol } from "@/config/protocol";
 import { vaultV2Abi } from "@/contracts/evm/abi";
 import { balanceEntryToNote, type Note } from "@/note";
 import type { CommandData, Intent } from "@/planner/types";
@@ -81,7 +82,7 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
     estimate = {
       // Withdrawal protocol fee (Curvy): mirrors the vault's on-chain `withdrawalFee`
       // (0.2%); `groupFee` is the per-thousand rate (=2). Enforced on-chain by the vault.
-      curvyFeeInCurrency: (inputNotesSum * BigInt(network.withdrawCircuitConfig!.groupFee)) / 1000n,
+      curvyFeeInCurrency: (inputNotesSum * BigInt(getProtocol(config).proving.withdrawal.groupFee)) / 1000n,
       gasFeeInCurrency,
     };
 

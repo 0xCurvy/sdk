@@ -7,7 +7,14 @@ import { getSpendWitnesses } from "@/actions/notes/getSpendWitnesses";
 import { syncNotes } from "@/actions/notes/syncNotes";
 import { Note } from "@/note";
 import type { Intent } from "@/planner/types";
-import { createFakeApi, createFakeConfig, fakeBalanceEntry, fakeCurvyAccount, fixtureNetwork } from "@/test/fixtures";
+import {
+  createFakeApi,
+  createFakeConfig,
+  DEFAULT_TEST_PROTOCOL,
+  fakeBalanceEntry,
+  fakeCurvyAccount,
+  fixtureNetwork,
+} from "@/test/fixtures";
 import type { BalanceEntry, CurvyId, HexString } from "@/types";
 import { createCommand } from "./createCommand";
 
@@ -34,22 +41,17 @@ function entry(overrides: Partial<BalanceEntry> = {}): BalanceEntry {
   return fakeBalanceEntry({ deliveryTag: { ephemeralKey: "4.5", viewTag: "0x6" }, ...overrides });
 }
 
-const NETWORK = fixtureNetwork({
-  aggregationCircuitConfig: {
-    treeDepth: 32,
-    maxInputs: 2,
-    maxOutputs: 2,
-    batchSize: 1,
-    groupFee: 10,
+const NETWORK = fixtureNetwork();
+
+/** Protocol-global proving config with groupFee 10 on both aggregation and withdrawal. */
+const PROTOCOL = {
+  ...DEFAULT_TEST_PROTOCOL,
+  proving: {
+    ...DEFAULT_TEST_PROTOCOL.proving,
+    aggregation: { ...DEFAULT_TEST_PROTOCOL.proving.aggregation, groupFee: 10 },
+    withdrawal: { ...DEFAULT_TEST_PROTOCOL.proving.withdrawal, groupFee: 10 },
   },
-  withdrawCircuitConfig: {
-    treeDepth: 32,
-    maxInputs: 2,
-    maxOutputs: 2,
-    batchSize: 1,
-    groupFee: 10,
-  },
-});
+};
 
 /** A config wired so both `getActiveAccount` (state) and `signMessage` (live map) resolve. */
 function buildConfig(api = createFakeApi()) {
@@ -57,6 +59,7 @@ function buildConfig(api = createFakeApi()) {
   const config = createFakeConfig({
     api,
     networks: [NETWORK],
+    protocol: PROTOCOL,
     activeAccountId: "account-a",
     accounts: {
       "account-a": {

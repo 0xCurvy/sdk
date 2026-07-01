@@ -112,13 +112,12 @@ export async function buildAggregateRequest(
           token,
         })
     : undefined;
-  // Resolve the protocol fee collector: caller-provided `feeRecipient` wins, otherwise
-  // fall back to the active network's metadata-served `feeCollector`. When a fee is
-  // actually charged the resolved key MUST equal the aggregator's on-chain
-  // `feeNotePublicKey` — otherwise the sealed fee note would be owned by the wrong key
-  // (and the witness builder refuses to mint an uncollectable fee note when none resolves).
-  const feeRecipient =
-    parameters.feeRecipient ?? config.state.activeNetworks.find((n) => n.slug === networkSlug)?.feeCollector;
+  // Resolve the protocol fee collector: caller-provided `feeRecipient` wins, otherwise the
+  // protocol-global `feeCollector` (from GET /protocol). When a fee is actually charged the
+  // resolved key MUST equal the aggregator's on-chain `feeNotePublicKey` — otherwise the sealed
+  // fee note would be owned by the wrong key (and the witness builder refuses to mint an
+  // uncollectable fee note when none resolves).
+  const feeRecipient = parameters.feeRecipient ?? config.state.protocol?.feeCollector;
   if ((protocolFeePerThousand > 0n || tokenGasFee > 0n) && feeRecipient) {
     const [feeX, feeY] = feeRecipient.babyJubjubPublicKey.split(".");
     if (BigInt(feeX) !== feeNotePublicKey[0] || BigInt(feeY) !== feeNotePublicKey[1]) {

@@ -51,21 +51,8 @@ type Network = {
   rpcUrl: string;
   currencies: Array<Currency>;
   feeCollectorAddress?: string;
-  /**
-   * Protocol-GLOBAL fields, NOT served on the `/networks` wire. `createCurvyConfig`
-   * fetches them once from `/protocol` and re-attaches them onto each vault-enabled
-   * network at bootstrap, so consumers keep reading them off the `Network` object.
-   * (The legacy `/currency/latest` blob still stamps them per-network inline.)
-   *
-   * `feeCollector` — the protocol fee collector's Curvy keys (spend `S`, view `V`,
-   *   BabyJubjub note-owner key); `aggregate` stealth-delivers the fee note to these,
-   *   and `babyJubjubPublicKey` MUST equal the aggregator's on-chain `feeNotePublicKey`.
-   * `*CircuitConfig` — ZK proving parameters tied to the deployed aggregator.
-   */
-  feeCollector?: FeeCollector;
-  aggregationCircuitConfig?: CircuitConfig;
-  withdrawCircuitConfig?: CircuitConfig;
-  noteOwnershipCircuitConfig?: CircuitConfig;
+  // Proving config + fee collector are protocol-GLOBAL, not per-network: read them from
+  // `config.state.protocol` (see ProtocolConfig / GET /protocol), never off a Network.
 };
 
 /** The protocol fee collector's Curvy public keys (decimal `x.y` field-element pairs). */

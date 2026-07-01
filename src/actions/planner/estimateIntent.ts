@@ -1,5 +1,6 @@
 import { getActiveAccount } from "@/actions/account/getActiveAccount";
 import { resolveConfig } from "@/config/global";
+import { getProtocol } from "@/config/protocol";
 import type { WithConfig } from "@/config/types";
 import { NoActiveAccountError } from "@/errors";
 import type { Intent, IntentEstimation } from "@/planner/types";
@@ -39,6 +40,7 @@ export async function estimateIntent(parameters: EstimateIntentParameters): Prom
 
   const { plan: draftPlan, usedBalances } = generatePlan(balances, intent, {
     checkBytecode: (n, a) => hasBytecode({ network: n, address: a, config }),
+    maxInputs: getProtocol(config).proving.aggregation.maxInputs,
   });
 
   const result = await estimatePlanTree(config, draftPlan, undefined);

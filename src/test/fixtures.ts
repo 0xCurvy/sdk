@@ -13,12 +13,21 @@ import type { Prover } from "@/proving/prover";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
 import type { CurvyAccountData } from "@/types/account";
-import type { Network } from "@/types/api";
+import type { Network, ProtocolConfig } from "@/types/api";
 import type { CurvyKeyPairs } from "@/types/core";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 import type { BalanceEntry } from "@/types/storage";
 import { defaultTimerProvider } from "@/utils/timer";
+
+/** Protocol-global config seeded into fake configs (the `_2_3_30` aggregation / `_2_30` withdrawal dims). */
+export const DEFAULT_TEST_PROTOCOL: ProtocolConfig = {
+  proving: {
+    aggregation: { treeDepth: 30, maxInputs: 2, maxOutputs: 3, batchSize: 5, groupFee: 1 },
+    withdrawal: { treeDepth: 30, maxInputs: 2, maxOutputs: 0, batchSize: 5, groupFee: 2 },
+    noteOwnership: { treeDepth: 0, maxInputs: 0, maxOutputs: 0, batchSize: 10, groupFee: 0 },
+  },
+};
 
 /**
  * Shared test fixtures. The fake `core`/`api`/`rpc`
@@ -82,13 +91,7 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
     network: {
       GetNetworks: vi.fn(async () => []),
       GetPrices: vi.fn(async () => []),
-      GetProtocol: vi.fn(async () => ({
-        proving: {
-          aggregation: { treeDepth: 30, maxInputs: 2, maxOutputs: 3, batchSize: 5, groupFee: 1 },
-          withdrawal: { treeDepth: 30, maxInputs: 2, maxOutputs: 0, batchSize: 5, groupFee: 2 },
-          noteOwnership: { treeDepth: 0, maxInputs: 0, maxOutputs: 0, batchSize: 10, groupFee: 0 },
-        },
-      })),
+      GetProtocol: vi.fn(async () => DEFAULT_TEST_PROTOCOL),
       ...overrides.network,
     },
     portal: {
@@ -206,6 +209,8 @@ export type CreateFakeConfigOverrides = {
   liveAccounts?: Map<string, CurvyAccount>;
   networks?: Network[];
   activeNetworks?: Network[];
+  /** Protocol-global config in state; defaults to {@link DEFAULT_TEST_PROTOCOL}. Pass `null` to test the unloaded path. */
+  protocol?: ProtocolConfig | null;
   storage?: StorageInterface;
   core?: ICore;
   api?: IApiClient;
@@ -240,6 +245,7 @@ export function createFakeConfig(overrides: CreateFakeConfigOverrides = {}): Cur
     environment: overrides.environment ?? NETWORK_ENVIRONMENT.MAINNET,
     networks: overrides.networks ?? [],
     activeNetworks: overrides.activeNetworks ?? [],
+    protocol: overrides.protocol !== undefined ? overrides.protocol : DEFAULT_TEST_PROTOCOL,
     accounts: { ...derivedAccounts, ...(overrides.accounts ?? {}) },
     activeAccountId: overrides.activeAccountId ?? null,
     scan: { status: "idle", progress: 0 },

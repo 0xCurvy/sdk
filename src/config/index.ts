@@ -4,6 +4,7 @@ export { getActiveNetworks } from "./getActiveNetworks";
 export { getEnvironment } from "./getEnvironment";
 export { getCurvyConfig, peekCurvyConfig, resolveConfig, setCurvyConfig } from "./global";
 export { refreshPrices, startPriceRefresh, stopPriceRefresh } from "./priceRefresh";
+export { getProtocol } from "./protocol";
 export type { Store, StoreListener, SubscribeOptions } from "./store";
 export { createStore } from "./store";
 export type {

@@ -17,7 +17,7 @@ import { invariant } from "@/utils/invariant";
  * @throws {Error} when `maxInputs` is missing/zero.
  */
 export const generateAggregationPlan = (items: DraftPlan[], maxInputs: number, intent?: Intent): DraftPlan => {
-  invariant(maxInputs, "Network does not support aggregation, missing aggregationCircuitConfig or maxInputs");
+  invariant(maxInputs, "aggregation plan requires a positive maxInputs (from protocol.proving.aggregation)");
 
   // If we have just one sub plan, just aggregate it
   if (items.length === 1) {

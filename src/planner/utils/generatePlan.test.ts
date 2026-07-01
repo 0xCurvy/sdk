@@ -14,8 +14,7 @@ const fakeCurrency = (): Currency =>
     nativeCurrency: true,
   }) as unknown as Currency;
 
-const fakeNetwork = (maxInputs = 2): Network =>
-  ({ id: 1, name: "Ethereum", slug: "ethereum", aggregationCircuitConfig: { maxInputs } }) as unknown as Network;
+const fakeNetwork = (): Network => ({ id: 1, name: "Ethereum", slug: "ethereum" }) as unknown as Network;
 
 const withdrawIntent = (amount: bigint): Intent => ({
   type: "external-transfer",
@@ -26,7 +25,7 @@ const withdrawIntent = (amount: bigint): Intent => ({
 });
 
 const bal = (id: string, balance: bigint): BalanceEntry => fakeBalanceEntry({ id, balance });
-const deps = { checkBytecode: async () => false };
+const deps = { checkBytecode: async () => false, maxInputs: 2 };
 
 /** Collect every command name in a draft plan tree. */
 function commandNames(node: DraftPlan, acc: string[] = []): string[] {

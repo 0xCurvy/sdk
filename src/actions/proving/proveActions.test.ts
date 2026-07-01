@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { WithdrawCircuitInputs } from "@/proving/circuitInputs";
 import type { ProofResult, Prover } from "@/proving/prover";
-import { createFakeConfig } from "@/test/fixtures";
-import type { Network } from "@/types/api";
+import { createFakeConfig, DEFAULT_TEST_PROTOCOL } from "@/test/fixtures";
+import type { Network, ProtocolConfig } from "@/types/api";
 import { proveWithdrawal } from "./proveWithdrawal";
 
 const SENTINEL = { proof: {}, publicSignals: ["42"] } as unknown as ProofResult;
@@ -29,16 +29,22 @@ const cc = (wasmPath: string, zkeyPath: string) => ({
   groupFee: 0,
 });
 
-const networkWith = (withdrawCircuitConfig?: ReturnType<typeof cc>): Network =>
-  ({ slug: "localnet", withdrawCircuitConfig }) as unknown as Network;
+/** A minimal network (slug only) — the withdrawal circuit config now lives on the protocol. */
+const network = { slug: "localnet" } as unknown as Network;
 
-const configFor = (net: Network, extra: Record<string, unknown> = {}) =>
-  createFakeConfig({ networks: [net], activeNetworks: [net], ...extra });
+/** Build a protocol whose `proving.withdrawal` carries the given circuit config (default = no wasm/zkey). */
+const protocolWith = (withdrawal?: ReturnType<typeof cc>): ProtocolConfig =>
+  withdrawal
+    ? { ...DEFAULT_TEST_PROTOCOL, proving: { ...DEFAULT_TEST_PROTOCOL.proving, withdrawal } }
+    : DEFAULT_TEST_PROTOCOL;
+
+const configFor = (protocol: ProtocolConfig, extra: Record<string, unknown> = {}) =>
+  createFakeConfig({ networks: [network], activeNetworks: [network], protocol, ...extra });
 
 describe("client-proving actions (network-config artifacts + compute prover)", () => {
   it("resolves the network's withdrawal artifacts and passes them + the FLAT witness to the prover", async () => {
     const prove = vi.fn<Prover["prove"]>(async () => SENTINEL);
-    const config = configFor(networkWith(cc("w.wasm", "z.zkey")), { prover: { prove } });
+    const config = configFor(protocolWith(cc("w.wasm", "z.zkey")), { prover: { prove } });
 
     const result = await proveWithdrawal({ config, witness: minimalWithdrawWitness });
 
@@ -52,7 +58,7 @@ describe("client-proving actions (network-config artifacts + compute prover)", (
 
   it("rewrites s3:// key paths against circuitKeysBaseUrl", async () => {
     const prove = vi.fn<Prover["prove"]>(async () => SENTINEL);
-    const config = configFor(networkWith(cc("s3://zk-keys/withdrawal/w.wasm", "s3://zk-keys/withdrawal/w.zkey")), {
+    const config = configFor(protocolWith(cc("s3://zk-keys/withdrawal/w.wasm", "s3://zk-keys/withdrawal/w.zkey")), {
       prover: { prove },
       circuitKeysBaseUrl: "https://cdn.example.com/keys/",
     });
@@ -65,14 +71,14 @@ describe("client-proving actions (network-config artifacts + compute prover)", (
   });
 
   it("throws when the network has no withdrawal circuit config", async () => {
-    const config = configFor(networkWith(undefined));
+    const config = configFor(protocolWith(undefined));
     await expect(proveWithdrawal({ config, witness: minimalWithdrawWitness })).rejects.toThrow(
       /no withdrawal circuit config/,
     );
   });
 
   it("throws when an s3:// key has no circuitKeysBaseUrl configured", async () => {
-    const config = configFor(networkWith(cc("s3://zk-keys/withdrawal/w.wasm", "s3://zk-keys/withdrawal/w.zkey")));
+    const config = configFor(protocolWith(cc("s3://zk-keys/withdrawal/w.wasm", "s3://zk-keys/withdrawal/w.zkey")));
     await expect(proveWithdrawal({ config, witness: minimalWithdrawWitness })).rejects.toThrow(/no circuitKeysBaseUrl/);
   });
 });

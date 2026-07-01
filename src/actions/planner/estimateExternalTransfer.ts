@@ -1,5 +1,6 @@
 import { getQuote } from "@lifi/sdk";
 import { resolveConfig } from "@/config/global";
+import { getProtocol } from "@/config/protocol";
 import type { WithConfig } from "@/config/types";
 import { NETWORK_FLAVOUR } from "@/constants/networks";
 import { LIFI_SOLANA_CHAIN_ID } from "@/constants/solana";
@@ -95,9 +96,6 @@ export async function estimateExternalTransfer(
 
   const shielding = config.state.activeNetworks.find((n) => !!n.aggregatorContractAddress);
   if (!shielding) throw new Error("No shielding-capable network is active.");
-  if (!shielding.withdrawCircuitConfig) {
-    throw new Error("Shielding network is missing withdrawCircuitConfig — cannot compute Curvy fee.");
-  }
 
   // ── Entry leg ────────────────────────────────────────────────────────────────
   let bridgedCurrency: Currency;
@@ -137,7 +135,7 @@ export async function estimateExternalTransfer(
   }
 
   // ── Curvy fee ────────────────────────────────────────────────────────────────
-  const groupFee = BigInt(shielding.withdrawCircuitConfig.groupFee);
+  const groupFee = BigInt(getProtocol(config).proving.withdrawal.groupFee);
   const curvyFee = (amountAfterEntry * groupFee) / 1000n;
   const netAfterCurvy = amountAfterEntry - curvyFee;
 

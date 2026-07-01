@@ -17,13 +17,12 @@ const fakeCurrency = (): Currency =>
     nativeCurrency: true,
   }) as unknown as Currency;
 
-/** A minimal network stub with a configurable aggregation circuit. */
-const fakeNetwork = (maxInputs?: number): Network =>
+/** A minimal network stub (aggregation dims now come from the protocol / the `maxInputs` param). */
+const fakeNetwork = (): Network =>
   ({
     id: 1,
     name: "Ethereum",
     slug: "ethereum",
-    aggregationCircuitConfig: maxInputs === undefined ? undefined : { maxInputs },
   }) as unknown as Network;
 
 /** An external-transfer intent (hex recipient) over the given network. */
@@ -40,7 +39,7 @@ const dataNode = (id: string): DraftPlan => ({ type: "data", data: fakeBalanceEn
 
 describe("generateAggregationPlan", () => {
   it("wraps a single input in a serial Privacy Aggregation plan ending in an aggregate command", () => {
-    const intent = fakeIntent(fakeNetwork(2));
+    const intent = fakeIntent(fakeNetwork());
 
     const plan = generateAggregationPlan([dataNode("a")], 2, intent);
 
@@ -62,7 +61,7 @@ describe("generateAggregationPlan", () => {
   });
 
   it("folds N inputs into a tree whose final command is an aggregate command carrying the intent", () => {
-    const intent = fakeIntent(fakeNetwork(2));
+    const intent = fakeIntent(fakeNetwork());
 
     const plan = generateAggregationPlan([dataNode("a"), dataNode("b"), dataNode("c")], 2, intent);
 
@@ -80,10 +79,10 @@ describe("generateAggregationPlan", () => {
   });
 
   it("throws when maxInputs is missing", () => {
-    const intent = fakeIntent(fakeNetwork(undefined));
+    const intent = fakeIntent(fakeNetwork());
 
     expect(() => generateAggregationPlan([dataNode("a")], 0, intent)).toThrow(
-      "Network does not support aggregation, missing aggregationCircuitConfig or maxInputs",
+      "aggregation plan requires a positive maxInputs",
     );
   });
 });

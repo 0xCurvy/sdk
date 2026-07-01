@@ -4,7 +4,6 @@ import type { BalanceEntry } from "@/types";
 import type { Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { isHexString } from "@/types/helper";
-import { invariant } from "@/utils/invariant";
 import { generateAggregationPlan } from "./generateAggregationPlan";
 import { selectOptimalBalances } from "./selectOptimalBalances";
 
@@ -16,6 +15,8 @@ import { selectOptimalBalances } from "./selectOptimalBalances";
  */
 export type GeneratePlanDeps = {
   checkBytecode: (network: Network, address: HexString) => Promise<boolean>;
+  /** Aggregation circuit `maxInputs` (protocol-global; from `config.state.protocol`). */
+  maxInputs: number;
 };
 
 /**
@@ -63,8 +64,7 @@ export const generatePlan = (
   }));
 
   const recipientIsHex = isHexString(intent.recipient);
-  const maxInputs = intent.network.aggregationCircuitConfig?.maxInputs;
-  invariant(maxInputs, "Network does not support aggregation, missing aggregationCircuitConfig or maxInputs");
+  const { maxInputs } = deps;
 
   let plan: DraftPlan;
 
