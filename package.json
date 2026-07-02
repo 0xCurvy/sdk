@@ -207,7 +207,7 @@
     "prepublishOnly": "pnpm run build:publish",
     "test": "vitest run src",
     "test:build": "publint --strict && attw --pack --profile node16",
-    "prepare": "pnpm run build"
+    "prepare": "node scripts/prepare.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.3",
