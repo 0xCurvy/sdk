@@ -32,7 +32,7 @@ describe("ApiClient per-route-group base URL selection", () => {
     });
 
     await api.network.GetNetworks(); // metadata group
-    await api.sync.GetNotes(0); // indexer group
+    await api.sync.GetNotes(1, 0); // indexer group
     await api.relay.GetPaymasterInfo(); // relayer group
     await api.portal.getPortalRecords(); // default (apiBaseUrl)
 
@@ -46,7 +46,7 @@ describe("ApiClient per-route-group base URL selection", () => {
     const { api, urls } = makeClient();
 
     await api.network.GetNetworks();
-    await api.sync.GetNotes(0);
+    await api.sync.GetNotes(1, 0);
     await api.relay.GetPaymasterInfo();
 
     expect(urls.every((u) => u.startsWith("https://api.test/"))).toBe(true);

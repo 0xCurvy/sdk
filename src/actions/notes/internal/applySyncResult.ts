@@ -1,5 +1,6 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { StorageInterface } from "@/interfaces/storage";
+import type { OwnedNote } from "@/note/discoverOwnedNotes";
 import { Note } from "@/note/note";
 import { noteToBalanceEntry } from "@/note/noteToBalanceEntry";
 import type { SyncShardedNotesTreeResult } from "@/note/shardedNotesSync";
@@ -24,6 +25,14 @@ export type ApplySyncResultOutcome = {
   removed: BalanceEntry[];
   /** Idempotent history entries written (receive + spend). */
   history: TxHistoryEntry[];
+  /**
+   * Owned notes that could NOT be valued because their token has no currency
+   * metadata yet (a newly-listed token or a transient storage read). They are
+   * NOT dropped — the caller persists them for a cheap retry on a later sync,
+   * once metadata exists. (Discovery is delta-only, so a dropped note would
+   * otherwise never be re-discovered — a permanently invisible balance.)
+   */
+  pending: OwnedNote[];
 };
 
 /**
@@ -40,10 +49,13 @@ export async function applySyncResult(params: ApplySyncResultParams): Promise<Ap
   const existingIds = new Set(existing.map((e) => e.id));
 
   // 1. Newly discovered owned notes → balance entries (skip ones the scan
-  //    already recorded; skip tokens with no known currency metadata — the
-  //    witness is still tracked, the balance surfaces once metadata exists).
+  //    already recorded, and ones spent in this same window). A note whose token
+  //    has no currency metadata yet is NOT dropped — it is collected into
+  //    `pending` for the caller to retry once metadata exists (dropping it would
+  //    lose it forever, since discovery is delta-only and never revisits it).
   const spentIds = new Set(result.spentNoteIds.map(String));
   const added: BalanceEntry[] = [];
+  const pending: OwnedNote[] = [];
   for (const owned of result.newOwned) {
     if (existingIds.has(owned.noteId)) continue;
     // Received-and-spent in this same window — no live balance entry. (Step 2's
@@ -54,6 +66,7 @@ export async function applySyncResult(params: ApplySyncResultParams): Promise<Ap
     try {
       metadata = await storage.getCurrencyMetadata(owned.token, networkSlug);
     } catch {
+      pending.push(owned); // no metadata yet — retry next sync, don't lose it
       continue;
     }
     const note = new Note({
@@ -99,5 +112,5 @@ export async function applySyncResult(params: ApplySyncResultParams): Promise<Ap
   });
   if (history.length > 0) await storage.putTxHistory(history);
 
-  return { added, removed, history };
+  return { added, removed, history, pending };
 }

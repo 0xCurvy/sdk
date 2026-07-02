@@ -161,6 +161,13 @@ export type CreateCurvyConfigParameters = {
    */
   indexerBaseUrl?: string;
   /**
+   * Per-chain v3 indexer base URLs, keyed by decimal `chainId`, for when each
+   * chain runs its own single-chain indexer (e.g. eth / base / arbitrum). A chain
+   * absent from the map falls back to `indexerBaseUrl`. The `chainId` is also sent
+   * as a query param so an indexer rejects requests meant for another chain.
+   */
+  indexerBaseUrlsByChainId?: Record<string, string>;
+  /**
    * Base URL of the v3 relayer service. When set, the `relay.*` API routes
    * (proof submission + status polling) are routed here instead of
    * `apiBaseUrl`. Everything else (auth, aggregator, user, portals, sync)

@@ -1,11 +1,13 @@
 import { resolveConfig } from "@/config/global";
 import type { CurvyConfig, NotesSyncEngine, WithConfig } from "@/config/types";
+import { ScanError } from "@/errors";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "@/note/discoverOwnedNotes";
 import { type LeafSource, type RootVerifier, type SyncedLeaf, syncNotesTree } from "@/note/notesTreeSync";
 import { GlobalNotesTree, type NotesTreeView } from "@/note/notesTreeView";
 import { syncShardedNotesTree } from "@/note/shardedNotesSync";
 import type { Network } from "@/types/api";
 import { poseidonHash } from "@/utils/hash/poseidonHash";
+import { applyAccountDiscovery } from "./internal/applyDiscovery";
 import { applySyncResult } from "./internal/applySyncResult";
 import { apiLeafSource, coreOwnershipResolver, ownedNullifiersFromBalances, rpcRootVerifier } from "./internal/seams";
 
@@ -37,6 +39,8 @@ export type SyncNotesResult = {
   spentCount: number;
   /** True when another sync for this network was already in flight (nothing ran). */
   skipped?: boolean;
+  /** Set when THIS network's sync failed — the other networks are unaffected. */
+  error?: Error;
 };
 
 /**
@@ -66,12 +70,46 @@ export async function syncNotes(parameters: SyncNotesParameters = {}): Promise<S
     return [];
   }
 
+  // Per-network isolation: a single network's failure (indexer 5xx, an RPC
+  // hiccup in the root verifier, a transient reorg root-mismatch) must NOT abort
+  // the whole refresh — the networks that DID sync have already persisted their
+  // balances. Collect per-network errors and continue; only a total wipeout
+  // (every network failed) is surfaced as a throw so the caller shows an error.
   const results: SyncNotesResult[] = [];
+  const failures: Error[] = [];
   for (const network of networks) {
     parameters.signal?.throwIfAborted();
-    results.push(await syncOneNetwork(config, network, accountId, parameters));
+    try {
+      results.push(await syncOneNetwork(config, network, accountId, parameters));
+    } catch (error) {
+      // A caller abort terminates the entire pass — don't swallow it as one
+      // network's failure.
+      if (parameters.signal?.aborted) throw error;
+      const err = error instanceof Error ? error : new Error(String(error));
+      failures.push(err);
+      results.push(failedResult(network.slug, err));
+    }
+  }
+  if (failures.length > 0 && failures.length === networks.length) {
+    throw new ScanError(
+      `syncNotes: all ${networks.length} network(s) failed — ${failures.map((e) => e.message).join("; ")}`,
+    );
   }
   return results;
+}
+
+/** A per-network failure result — the sync threw for this network but others ran. */
+function failedResult(networkSlug: string, error: Error): SyncNotesResult {
+  return {
+    networkSlug,
+    caughtUp: false,
+    indexerLag: 0,
+    leafCount: 0,
+    root: 0n,
+    newOwnedCount: 0,
+    spentCount: 0,
+    error,
+  };
 }
 
 async function syncOneNetwork(
@@ -99,7 +137,12 @@ async function syncOneNetwork(
   try {
     const environment = config.state.environment;
     const source =
-      parameters.source ?? apiLeafSource(config, { pageSize: parameters.pageSize, signal: parameters.signal });
+      parameters.source ??
+      apiLeafSource(config, {
+        chainId: Number(network.chainId),
+        pageSize: parameters.pageSize,
+        signal: parameters.signal,
+      });
     const verifier = parameters.verifier ?? rpcRootVerifier(config, networkSlug);
     // Without an account there is still value in syncing (tree freshness);
     // discovery + spend reconciliation are account-scoped extras. The default
@@ -107,6 +150,11 @@ async function syncOneNetwork(
     const resolveOwnership =
       parameters.resolveOwnership ?? (accountId ? coreOwnershipResolver(config, accountId) : undefined);
     const ownedNullifiers = accountId ? await ownedNullifiersFromBalances(config, accountId, networkSlug) : undefined;
+
+    // The committed-leaf cursor BEFORE this sync — the account may lag it (a new
+    // account, a wallet import, or a sync that advanced the log while logged-out).
+    // applyAccountDiscovery backfills discovery over the gap [cursor, treeCursorBefore).
+    const treeCursorBefore = await config.storage.getCommittedLogCount(networkSlug, "leaf");
 
     const engine = parameters.engine ?? config.notesSyncEngine;
     const outcome = await runSyncEngine(engine, {
@@ -124,7 +172,28 @@ async function syncOneNetwork(
     config._internal.notesTrees.set(networkSlug, outcome.tree);
 
     let spentCount = 0;
-    if (accountId) {
+    let newOwnedCount = outcome.newOwned.length;
+    if (accountId && resolveOwnership) {
+      // Account-scoped discovery: delta + historical backfill + metadata retries.
+      const applied = await applyAccountDiscovery({
+        config,
+        accountId,
+        network,
+        environment,
+        resolveOwnership,
+        deltaOwned: outcome.newOwned,
+        deltaLeaves: outcome.newLeaves,
+        deltaSpentNoteIds: outcome.spentNoteIds,
+        treeCursorBefore,
+        head: outcome.leafCount,
+        pageSize: parameters.pageSize,
+        signal: parameters.signal,
+      });
+      spentCount = applied.removedCount;
+      newOwnedCount = applied.addedCount;
+    } else if (accountId) {
+      // No ownership resolver (discovery disabled): reconcile the delta's spends
+      // only, and do NOT advance the discovery cursor (nothing was scanned).
       const applied = await applySyncResult({
         storage: config.storage,
         accountId,
@@ -133,6 +202,7 @@ async function syncOneNetwork(
         result: { newOwned: outcome.newOwned, newLeaves: outcome.newLeaves, spentNoteIds: outcome.spentNoteIds },
       });
       spentCount = applied.removed.length;
+      newOwnedCount = applied.added.length;
     }
 
     return {
@@ -141,7 +211,7 @@ async function syncOneNetwork(
       indexerLag: outcome.indexerLag,
       leafCount: outcome.leafCount,
       root: outcome.root,
-      newOwnedCount: outcome.newOwned.length,
+      newOwnedCount,
       spentCount,
     };
   } finally {

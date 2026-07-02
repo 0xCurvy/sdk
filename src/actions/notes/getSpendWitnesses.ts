@@ -35,6 +35,10 @@ export async function getSpendWitnesses(parameters: GetSpendWitnessesParameters)
     throw new Error(`getSpendWitnesses: no synced notes tree for "${networkSlug}" — run syncNotes first`);
   }
 
+  // Cold-note recovery below reads that network's own chain-scoped indexer.
+  const network = config.state.networks.find((n) => n.slug === networkSlug);
+  if (!network) throw new Error(`getSpendWitnesses: unknown network "${networkSlug}"`);
+
   const accountId = parameters.accountId ?? config.state.activeAccountId;
 
   const proofs: InclusionProof[] = [];
@@ -59,7 +63,7 @@ export async function getSpendWitnesses(parameters: GetSpendWitnessesParameters)
           `getSpendWitnesses: note ${noteId} is not witnessed and its balance entry has no leafIndex — sync first`,
         );
       }
-      await recoverWitness(tree, apiRangeSource(config), noteId, entry.leafIndex);
+      await recoverWitness(tree, apiRangeSource(config, { chainId: Number(network.chainId) }), noteId, entry.leafIndex);
     }
     proofs.push(tree.witness(noteId));
   }

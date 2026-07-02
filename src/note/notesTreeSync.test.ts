@@ -120,6 +120,25 @@ describe("syncNotesTree (engine over chunked storage)", () => {
     expect(await storage.getCommittedLogCount(NET, "leaf")).toBe(3);
   });
 
+  it("surfaces negative lag (no throw) when the one-shot chain read trails the leaf stream", async () => {
+    const storage = new MapStorage();
+    const chain = new MerkleTree({ depth: DEPTH });
+    chain.insertMany([1n, 2n, 3n]); // verifier's RPC replica still at 3 (pre-commit)
+
+    // The indexer (leaf source) is already at head and delivers 5 committed leaves.
+    const res = await syncNotesTree({
+      storage,
+      networkSlug: NET,
+      environment: ENV,
+      source: scriptedSource([{ leaves: leafObjs(0, [1n, 2n, 3n, 4n, 5n]), nullifiers: [], blockNumber: 2 }]),
+      verifier: verifierFor(chain),
+    });
+    expect(res.caughtUp).toBe(false);
+    expect(res.indexerLag).toBe(-2); // leaves ahead of my RPC read — benign, reconciles next pass
+    expect(res.live.leaves).toHaveLength(5);
+    expect(await storage.getCommittedLogCount(NET, "leaf")).toBe(5);
+  });
+
   it("throws on a bad source (wrong leaves → root mismatch against chain)", async () => {
     const storage = new MapStorage();
     const chain = new MerkleTree({ depth: DEPTH });

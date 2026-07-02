@@ -77,7 +77,6 @@ export type FakeApiOverrides = {
   portal?: Partial<IApiClient["portal"]>;
   user?: Partial<IApiClient["user"]>;
   auth?: Partial<IApiClient["auth"]>;
-  aggregator?: Partial<IApiClient["aggregator"]>;
   sync?: Partial<IApiClient["sync"]>;
 };
 
@@ -113,12 +112,6 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
       CreateBearerToken: vi.fn(),
       RefreshBearerToken: vi.fn(),
       ...overrides.auth,
-    },
-    aggregator: {
-      SubmitWithdraw: vi.fn(),
-      SubmitAggregation: vi.fn(),
-      GetAggregatorRequestStatus: vi.fn(),
-      ...overrides.aggregator,
     },
     sync: {
       GetMeta: vi.fn(),

@@ -56,7 +56,12 @@ export type SyncShardedNotesTreeResult = {
    * still read live while `caughtUp` is true.
    */
   caughtUp: boolean;
-  /** Lag in leaves behind the chain head when the indexer is behind (else 0). */
+  /**
+   * Leaf-count skew vs. the verifier's on-chain `noteIndex` when not caught up:
+   * POSITIVE when the indexer/leaves are behind the chain head, NEGATIVE when the
+   * one-shot chain read trails the indexer's leaf stream (transient replica lag
+   * right after a commit), 0 when caught up.
+   */
   indexerLag: number;
 };
 
@@ -144,7 +149,15 @@ export async function syncShardedNotesTree(opts: SyncShardedNotesTreeOptions): P
     } else if (tree.leafCount < noteIndex) {
       indexerLag = noteIndex - tree.leafCount;
     } else {
-      throw new Error(`sharded sync: local leaves ${tree.leafCount} exceed on-chain noteIndex ${noteIndex}`);
+      // My chain read trails the indexer's leaf stream — the benign mirror of
+      // indexerLag. The leaf source (indexer) polls continuously and sits at head,
+      // while `verifier.currentRoot()` is a one-shot RPC read that can land on a
+      // replica a beat behind right after a commit, so it momentarily reports a
+      // lower noteIndex than the leaves already delivered. This is NOT a lying
+      // indexer: stay not-caughtUp (negative lag = leaves ahead of my RPC read)
+      // and let the next pass reconcile. The root-equality gate above still fires
+      // the moment the counts align — a genuinely fabricated leaf fails it then.
+      indexerLag = noteIndex - tree.leafCount;
     }
   }
 

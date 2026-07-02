@@ -28,6 +28,13 @@ export type ApiBaseUrls = {
   metadataBaseUrl?: string;
   indexerBaseUrl?: string;
   relayerBaseUrl?: string;
+  /**
+   * Per-chain indexer base URLs (keyed by decimal chainId), for when each chain
+   * runs its own single-chain indexer (e.g. eth / base / arbitrum). A chain not
+   * in the map falls back to `indexerBaseUrl`. The `chainId` is also sent as a
+   * query param so the indexer can reject a request meant for another chain.
+   */
+  indexerBaseUrlsByChainId?: Record<string, string>;
 };
 
 // Bulk sync downloads and proof submission can legitimately run far longer than
@@ -39,12 +46,19 @@ class ApiClient extends HttpClient implements IApiClient {
   private readonly metadataBaseUrl?: string;
   private readonly indexerBaseUrl?: string;
   private readonly relayerBaseUrl?: string;
+  private readonly indexerBaseUrlsByChainId: Record<string, string>;
 
   constructor(apiBaseUrl?: string, customFetch?: typeof globalThis.fetch, baseUrls: ApiBaseUrls = {}) {
     super(apiBaseUrl, customFetch);
     this.metadataBaseUrl = baseUrls.metadataBaseUrl;
     this.indexerBaseUrl = baseUrls.indexerBaseUrl;
     this.relayerBaseUrl = baseUrls.relayerBaseUrl;
+    this.indexerBaseUrlsByChainId = baseUrls.indexerBaseUrlsByChainId ?? {};
+  }
+
+  /** The indexer serving `chainId` — its own deployment if configured, else the shared one. */
+  private indexerUrlFor(chainId: number): string | undefined {
+    return this.indexerBaseUrlsByChainId[String(chainId)] ?? this.indexerBaseUrl;
   }
 
   updateBearerToken = (bearer: string | undefined) => {
@@ -234,47 +248,52 @@ class ApiClient extends HttpClient implements IApiClient {
     },
   };
 
+  // Every sync request is scoped to one `chainId`: it selects that chain's
+  // indexer deployment AND is sent as a query param the indexer validates, so a
+  // request for chain A can never be answered with chain B's leaves (which would
+  // corrupt that network's committed log and misattribute balances).
   sync = {
-    GetMeta: async () => {
+    GetMeta: async (chainId: number) => {
       return await this.request<GetSyncMetaReturnType>({
         method: "GET",
         path: "/v3/sync/meta",
+        queryParams: { chainId },
         retries: 2,
         timeout: SYNC_TIMEOUT,
-        baseUrl: this.indexerBaseUrl,
+        baseUrl: this.indexerUrlFor(chainId),
       });
     },
 
-    GetNotes: async (fromIndex: number, limit = 500) => {
+    GetNotes: async (chainId: number, fromIndex: number, limit = 500) => {
       return await this.request<GetSyncNotesReturnType>({
         method: "GET",
         path: "/v3/sync/notes",
-        queryParams: { fromIndex, limit },
+        queryParams: { chainId, fromIndex, limit },
         retries: 2,
         timeout: SYNC_TIMEOUT,
-        baseUrl: this.indexerBaseUrl,
+        baseUrl: this.indexerUrlFor(chainId),
       });
     },
 
-    GetNullifiers: async (fromIndex: number, limit = 500) => {
+    GetNullifiers: async (chainId: number, fromIndex: number, limit = 500) => {
       return await this.request<GetSyncNullifiersReturnType>({
         method: "GET",
         path: "/v3/sync/nullifiers",
-        queryParams: { fromIndex, limit },
+        queryParams: { chainId, fromIndex, limit },
         retries: 2,
         timeout: SYNC_TIMEOUT,
-        baseUrl: this.indexerBaseUrl,
+        baseUrl: this.indexerUrlFor(chainId),
       });
     },
 
-    GetShardRoots: async (fromIndex: number, limit = 500) => {
+    GetShardRoots: async (chainId: number, fromIndex: number, limit = 500) => {
       return await this.request<GetSyncShardRootsReturnType>({
         method: "GET",
         path: "/v3/sync/shard-roots",
-        queryParams: { fromIndex, limit },
+        queryParams: { chainId, fromIndex, limit },
         retries: 2,
         timeout: SYNC_TIMEOUT,
-        baseUrl: this.indexerBaseUrl,
+        baseUrl: this.indexerUrlFor(chainId),
       });
     },
   };

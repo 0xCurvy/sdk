@@ -164,6 +164,21 @@ describe("syncShardedNotesTree — folding & persistence", () => {
     expect(res.caughtUp).toBe(false);
     expect(res.indexerLag).toBe(2);
   });
+
+  it("surfaces negative lag (no throw) when the one-shot chain read trails the leaf stream", async () => {
+    const storage = new MapStorage();
+    const all = ids(5);
+    // Indexer (leaf source) is at head with 5 leaves; the verifier's RPC replica
+    // still reports 3 (pre-commit). Benign skew — must not throw.
+    const res = await syncShardedNotesTree({
+      ...baseOpts(storage),
+      source: scriptedSource([{ leaves: bareLeaves(0, all), nullifiers: [], blockNumber: 2 }]),
+      verifier: verifierFor(flatTree(all.slice(0, 3))), // chain read is 2 behind
+    });
+    expect(res.caughtUp).toBe(false);
+    expect(res.indexerLag).toBe(-2);
+    expect(res.tree.leafCount).toBe(5);
+  });
 });
 
 describe("syncShardedNotesTree — discovery, freezing, spends", () => {

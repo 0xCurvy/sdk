@@ -24,6 +24,13 @@ export interface StorageInterface {
    */
   upsertCurvyAccount(account: SerializedCurvyAccount): Promise<void>;
   updateCurvyAccountData(accountId: string, changes: Partial<CurvyAccountData>): Promise<void>;
+  /**
+   * Wholesale-replace an account's data (the caller supplies the complete record).
+   * Unlike `updateCurvyAccountData` this does NOT deep-merge, so it correctly
+   * overwrites array/map fields (`pendingNotes`, `discoveryCursors`) and honours
+   * removed keys — deep-merging those would corrupt arrays and leak stale entries.
+   */
+  replaceCurvyAccountData(accountId: string, data: CurvyAccountData): Promise<void>;
   getCurvyAccountDataById(id: string): Promise<CurvyAccountData>;
 
   upsertCurrencyMetadata(metadata: Map<string, CurrencyMetadata>): Promise<void>;

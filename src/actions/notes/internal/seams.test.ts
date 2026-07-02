@@ -33,11 +33,11 @@ function fakeSyncApi(leaves: SyncedLeaf[], nullifiers: string[], lastIndexedBloc
       pendingCount: 0,
       chain: { root: "0", noteIndex: String(leaves.length), blockNumber: String(lastIndexedBlock) },
     })),
-    GetNotes: vi.fn(async (fromIndex: number, limit = 500) => {
+    GetNotes: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const notes = leaves.slice(fromIndex, fromIndex + limit);
       return { fromIndex, notes, nextIndex: fromIndex + notes.length, total: leaves.length };
     }),
-    GetNullifiers: vi.fn(async (fromIndex: number, limit = 500) => {
+    GetNullifiers: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const page = nullifiers.slice(fromIndex, fromIndex + limit).map((nullifier, i) => ({
         index: fromIndex + i,
         nullifier,
@@ -56,7 +56,10 @@ describe("apiLeafSource", () => {
     const sync = fakeSyncApi(bareLeaves(10), ["7", "8", "9"], 99);
     const config = createFakeConfig({ api: createFakeApi({ sync }) });
 
-    const delta = await apiLeafSource(config, { pageSize: 4 }).fetchDelta({ leafCount: 2, nullifierCount: 1 });
+    const delta = await apiLeafSource(config, { chainId: 1, pageSize: 4 }).fetchDelta({
+      leafCount: 2,
+      nullifierCount: 1,
+    });
 
     expect(delta.leaves.map((l) => l.index)).toEqual([2, 3, 4, 5, 6, 7, 8, 9]);
     expect(delta.nullifiers).toEqual(["8", "9"]);
@@ -70,14 +73,14 @@ describe("apiRangeSource", () => {
     const sync = fakeSyncApi(bareLeaves(20), []);
     const config = createFakeConfig({ api: createFakeApi({ sync }) });
 
-    const range = await apiRangeSource(config, { pageSize: 3 }).fetchRange(4, 8);
+    const range = await apiRangeSource(config, { chainId: 1, pageSize: 3 }).fetchRange(4, 8);
     expect(range.map((l) => l.index)).toEqual([4, 5, 6, 7, 8, 9, 10, 11]);
   });
 
   it("stops early when the stream ends", async () => {
     const sync = fakeSyncApi(bareLeaves(5), []);
     const config = createFakeConfig({ api: createFakeApi({ sync }) });
-    expect((await apiRangeSource(config).fetchRange(3, 10)).map((l) => l.index)).toEqual([3, 4]);
+    expect((await apiRangeSource(config, { chainId: 1 }).fetchRange(3, 10)).map((l) => l.index)).toEqual([3, 4]);
   });
 });
 

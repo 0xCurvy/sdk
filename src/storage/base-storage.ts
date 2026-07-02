@@ -172,6 +172,13 @@ export abstract class BaseStorage implements StorageInterface {
     await this._putAccount(accountId, merge(existing, changes));
   }
 
+  async replaceCurvyAccountData(accountId: string, data: CurvyAccountData): Promise<void> {
+    if (!(await this._hasAccount(accountId))) {
+      throw new StorageError(`Account with ID ${accountId} not found in storage`);
+    }
+    await this._putAccount(accountId, data);
+  }
+
   async getCurvyAccountDataById(id: string): Promise<CurvyAccountData> {
     const account = await this._getAccount(id);
     if (!account) {

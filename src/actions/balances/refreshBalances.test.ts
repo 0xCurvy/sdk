@@ -116,9 +116,37 @@ describe("refreshBalances", () => {
 
     expect(cancelled).toBe(1);
     expect(completed).toBe(0);
-    expect(config.state.scan.status).toBe("error");
+    // Cancelled, not failed — the scan lands back at idle, not "error".
+    expect(config.state.scan.status).toBe("idle");
     expect(vi.mocked(syncNotes)).not.toHaveBeenCalled(); // aborted before delegating
     // lock released even on the abort path
+    expect(config._internal.scanLocks.get(`refresh-account-${accountId}`)).toBe(false);
+  });
+
+  it("recognizes a STRING abort reason as cancellation (env-switch-abort), not a hard error", async () => {
+    const accountId = accounts[0].id;
+    const config = createFakeConfig({ activeAccountId: accountId });
+
+    // The frontend aborts with a string reason: controller.abort("env-switch-abort").
+    // `throwIfAborted()` throws that string verbatim (not an Error), which used to
+    // fall through the `instanceof Error` guards → no cancelled event → the
+    // env-switch recovery never re-synced the new environment.
+    const controller = new AbortController();
+    controller.abort("env-switch-abort");
+
+    let cancelled = 0;
+    let cancelReason = "";
+    config.emitter.on(CURVY_EVENT_TYPES.BALANCE_REFRESH_CANCELLED, ({ reason }) => {
+      cancelled += 1;
+      cancelReason = reason ?? "";
+    });
+
+    // Must resolve (not reject) — a swallowed string abort used to reject the run.
+    await expect(refreshBalances({ accountId, signal: controller.signal, config })).resolves.toBeUndefined();
+
+    expect(cancelled).toBe(1);
+    expect(cancelReason).toBe("env-switch-abort");
+    expect(config.state.scan.status).toBe("idle");
     expect(config._internal.scanLocks.get(`refresh-account-${accountId}`)).toBe(false);
   });
 });

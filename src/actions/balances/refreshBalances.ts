@@ -51,14 +51,25 @@ export async function refreshBalances(parameters: RefreshBalancesParameters = {}
       config.setState({ scan: { status: "idle", progress: 100, accountId } });
       if (!parameters.silent) config.emitter.emitBalanceRefreshComplete({ accountId, environment });
     } catch (error) {
-      config.setState({ scan: { status: "error", progress: 0, accountId } });
-      if (
-        (error instanceof Error && error.cause === "abort") ||
-        (error instanceof Error && error.name === "AbortError")
-      ) {
-        config.emitter.emitBalanceRefreshCancelled({ reason: error.message, environment });
+      // A caller-initiated abort surfaces via the signal's `reason`, which
+      // `throwIfAborted()` throws verbatim — and callers legitimately pass a plain
+      // string (e.g. the frontend's `controller.abort("env-switch-abort")`), NOT an
+      // Error. Detect cancellation from the signal state, not the thrown value's
+      // type, so `BALANCE_REFRESH_CANCELLED` reliably fires and the frontend's
+      // env-switch recovery re-syncs the newly-selected environment. Gating on
+      // `instanceof Error` swallowed string-reason aborts, leaving the new env
+      // unsynced until a full reload.
+      const cancelled =
+        parameters.signal?.aborted === true ||
+        (error instanceof Error && (error.cause === "abort" || error.name === "AbortError"));
+      if (cancelled) {
+        // Cancelled, not failed — don't strand the UI in an error state.
+        config.setState({ scan: { status: "idle", progress: 0, accountId } });
+        const reason = error instanceof Error ? error.message : typeof error === "string" ? error : "aborted";
+        config.emitter.emitBalanceRefreshCancelled({ reason, environment });
         return;
       }
+      config.setState({ scan: { status: "error", progress: 0, accountId } });
       throw error;
     } finally {
       config._internal.scanLocks.set(lockKey, false);

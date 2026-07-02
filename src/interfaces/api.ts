@@ -66,10 +66,10 @@ interface IApiClient {
    * client-side against a direct chain root read.
    */
   sync: {
-    GetMeta(): Promise<GetSyncMetaReturnType>;
-    GetNotes(fromIndex: number, limit?: number): Promise<GetSyncNotesReturnType>;
-    GetNullifiers(fromIndex: number, limit?: number): Promise<GetSyncNullifiersReturnType>;
-    GetShardRoots(fromIndex: number, limit?: number): Promise<GetSyncShardRootsReturnType>;
+    GetMeta(chainId: number): Promise<GetSyncMetaReturnType>;
+    GetNotes(chainId: number, fromIndex: number, limit?: number): Promise<GetSyncNotesReturnType>;
+    GetNullifiers(chainId: number, fromIndex: number, limit?: number): Promise<GetSyncNullifiersReturnType>;
+    GetShardRoots(chainId: number, fromIndex: number, limit?: number): Promise<GetSyncShardRootsReturnType>;
   };
 
   /**

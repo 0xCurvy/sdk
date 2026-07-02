@@ -34,11 +34,11 @@ function fakeSyncApi(leaves: SyncedLeaf[], nullifiers: string[] = []) {
       pendingCount: 0,
       chain: { root: "0", noteIndex: String(leaves.length), blockNumber: "7" },
     })),
-    GetNotes: vi.fn(async (fromIndex: number, limit = 500) => {
+    GetNotes: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const notes = leaves.slice(fromIndex, fromIndex + limit);
       return { fromIndex, notes, nextIndex: fromIndex + notes.length, total: leaves.length };
     }),
-    GetNullifiers: vi.fn(async (fromIndex: number, limit = 500) => {
+    GetNullifiers: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const page = nullifiers
         .slice(fromIndex, fromIndex + limit)
         .map((nullifier, i) => ({ index: fromIndex + i, nullifier }));

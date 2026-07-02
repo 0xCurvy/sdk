@@ -38,7 +38,7 @@ interface CurvyCommandEstimateWithNote extends CommandEstimate {
  * committed and synced before returning it, so the next plan step can spend it.
  */
 export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
-  const { intent, network, senderCurvyId, config, networkSlug, ownerBjjPrivateKeyHex } = ctx;
+  const { intent, senderCurvyId, config, networkSlug, ownerBjjPrivateKeyHex } = ctx;
 
   if (Array.isArray(ctx.input)) {
     invariant(!ctx.input.some((note) => !note.vaultTokenId), "Invalid input for command, vaultTokenId is required.");

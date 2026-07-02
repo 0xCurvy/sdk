@@ -35,7 +35,7 @@ export type CommandContext = {
   /** The live config — the v3 client-proving path needs the prover/relay/storage/sync seams. */
   config: CurvyConfig;
   /** Just the api resources commands use. */
-  api: Pick<IApiClient, "user" | "aggregator">;
+  api: Pick<IApiClient, "user">;
   /** Just the core methods commands use. */
   core: Pick<ICore, "sendNote">;
   /** Sign a BabyJubjub message, bound to the active account's key. */

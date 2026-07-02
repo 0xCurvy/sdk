@@ -26,17 +26,24 @@ const normalizeLeaf = (leaf: SyncedLeaf): SyncedLeaf => ({
     : leaf.ephemeralKey,
 });
 
-/** Drain both append-only indexer streams from the cursors into one delta. */
-export function apiLeafSource(config: CurvyConfig, opts: { pageSize?: number; signal?: AbortSignal } = {}): LeafSource {
+/**
+ * Drain both append-only indexer streams from the cursors into one delta. Scoped
+ * to `chainId`: the sync client routes to that chain's indexer and sends the id so
+ * a lagging/misconfigured indexer can't answer with another chain's leaves.
+ */
+export function apiLeafSource(
+  config: CurvyConfig,
+  opts: { chainId: number; pageSize?: number; signal?: AbortSignal },
+): LeafSource {
   const pageSize = opts.pageSize ?? 500;
-  const { signal } = opts;
+  const { chainId, signal } = opts;
   return {
     async fetchDelta(cursor) {
       const leaves: SyncedLeaf[] = [];
       let from = cursor.leafCount;
       for (;;) {
         signal?.throwIfAborted();
-        const page = await config.api.sync.GetNotes(from, pageSize);
+        const page = await config.api.sync.GetNotes(chainId, from, pageSize);
         // Empty-page guard: a (possibly lying/lagging) indexer that returns no
         // rows while claiming total > from must not spin forever holding scanLock.
         if (page.notes.length === 0) break;
@@ -48,27 +55,38 @@ export function apiLeafSource(config: CurvyConfig, opts: { pageSize?: number; si
       let nullifierFrom = cursor.nullifierCount;
       for (;;) {
         signal?.throwIfAborted();
-        const page = await config.api.sync.GetNullifiers(nullifierFrom, pageSize);
+        const page = await config.api.sync.GetNullifiers(chainId, nullifierFrom, pageSize);
         if (page.nullifiers.length === 0) break;
         nullifiers.push(...page.nullifiers.map((n) => n.nullifier));
         nullifierFrom = page.nextIndex;
         if (nullifierFrom >= page.total) break;
       }
-      const meta = await config.api.sync.GetMeta();
-      return { leaves, nullifiers, blockNumber: meta.lastIndexedBlock };
+      // GetMeta does a LIVE chain-head RPC on the indexer that can transiently fail,
+      // yet it only supplies the checkpoint's advisory `blockNumber` — never balance
+      // correctness (the sync cursors are leaf/nullifier COUNTS). Degrade to the last
+      // delivered leaf's block instead of discarding an otherwise-healthy delta on a
+      // chain-head hiccup; the block self-heals on the next successful meta read.
+      let blockNumber = 0;
+      try {
+        blockNumber = (await config.api.sync.GetMeta(chainId)).lastIndexedBlock;
+      } catch {
+        blockNumber = leaves.length ? (leaves[leaves.length - 1].blockNumber ?? 0) : 0;
+      }
+      return { leaves, nullifiers, blockNumber };
     },
   };
 }
 
-/** Bounded range reads of the leaf stream — cold-note witness recovery. */
-export function apiRangeSource(config: CurvyConfig, opts: { pageSize?: number } = {}): LeafRangeSource {
+/** Bounded range reads of the leaf stream — cold-note witness recovery. Chain-scoped. */
+export function apiRangeSource(config: CurvyConfig, opts: { chainId: number; pageSize?: number }): LeafRangeSource {
   const pageSize = opts.pageSize ?? 500;
+  const { chainId } = opts;
   return {
     async fetchRange(fromIndex, count) {
       const out: SyncedLeaf[] = [];
       let from = fromIndex;
       while (out.length < count) {
-        const page = await config.api.sync.GetNotes(from, Math.min(count - out.length, pageSize));
+        const page = await config.api.sync.GetNotes(chainId, from, Math.min(count - out.length, pageSize));
         if (page.notes.length === 0) break;
         out.push(...page.notes.map(normalizeLeaf));
         from = page.nextIndex;
@@ -185,7 +203,7 @@ export function coreOwnershipResolver(config: CurvyConfig, accountId: string): O
       s,
       v,
       discoverable.map((l) => ({
-        ephemeralKey: `${l.ephemeralKey[0]}.${l.ephemeralKey[1]}`,
+        ephemeralKey: `${BigInt(l.ephemeralKey[0])}.${BigInt(l.ephemeralKey[1])}`,
         // padStart: the Go-WASM scan slices viewTag[:2] — a 1-char hex tag
         // (e.g. "0" from zero/legacy tags) panics the whole batch.
         viewTag: (l.viewTag ?? 0).toString(16).padStart(2, "0"),

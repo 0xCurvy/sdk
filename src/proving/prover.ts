@@ -1,5 +1,4 @@
-import { type Groth16Proof, groth16, type ZKArtifact } from "snarkjs";
-import type { PublicSignals } from "snarkjs/index";
+import { type Groth16Proof, groth16, type PublicSignals, type ZKArtifact } from "snarkjs";
 
 export type { ZKArtifact };
 

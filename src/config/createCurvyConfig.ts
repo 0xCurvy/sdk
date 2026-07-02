@@ -37,6 +37,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     apiBaseUrl,
     metadataBaseUrl,
     indexerBaseUrl,
+    indexerBaseUrlsByChainId,
     relayerBaseUrl,
     storage = new MapStorage(),
     wasmUrl,
@@ -52,7 +53,12 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     setAsActive = true,
   } = parameters;
 
-  const api = new ApiClient(apiBaseUrl, customFetch, { metadataBaseUrl, indexerBaseUrl, relayerBaseUrl });
+  const api = new ApiClient(apiBaseUrl, customFetch, {
+    metadataBaseUrl,
+    indexerBaseUrl,
+    indexerBaseUrlsByChainId,
+    relayerBaseUrl,
+  });
   const emitter = new CurvyEventEmitter();
   api.setOnUnauthorized(() => emitter.emitUnauthorized({ statusCode: 401 }));
 

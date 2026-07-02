@@ -98,5 +98,6 @@ export async function discoverOwnedNotes(leaves: SyncedLeaf[], resolve: Ownershi
       viewTag: leaf.viewTag ?? 0,
     });
   }
+
   return owned;
 }

@@ -8,16 +8,6 @@ class CurvyError extends Error {
   }
 }
 
-class AnnouncementSyncError extends CurvyError {
-  constructor(
-    message: string,
-    public originalError?: Error,
-  ) {
-    super(message, "SYNC_ERROR");
-    this.name = "AnnouncementSyncError";
-  }
-}
-
 class StorageError extends CurvyError {
   constructor(
     message: string,
@@ -197,7 +187,6 @@ class MissingContractAddressError extends CurvyError {
 
 export {
   CurvyError,
-  AnnouncementSyncError,
   StorageError,
   APIError,
   NoCurvyConfigError,
