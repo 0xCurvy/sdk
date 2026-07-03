@@ -153,4 +153,17 @@ export interface StorageInterface {
 
   /** An account's history, newest-first (`observedAt` desc), optionally per network. */
   getTxHistory(accountId: string, filter?: { networkSlug?: string }): Promise<TxHistoryEntry[]>;
+
+  // ── Privacy Pass token pouch (per redemption scope) ─────────────────────────
+  // Opaque single-use tokens, deliberately NOT tied to any account: linking a
+  // stored token to a handle would undo the unlinkability the tokens exist for.
+
+  /** Append serialized (b64url) tokens to a scope's pouch. */
+  appendPrivateTokens(scopeKey: string, tokens: string[]): Promise<void>;
+
+  /** Remove and return one token, or `undefined` when the pouch is empty. */
+  takePrivateToken(scopeKey: string): Promise<string | undefined>;
+
+  /** Unspent tokens remaining in a scope's pouch. */
+  countPrivateTokens(scopeKey: string): Promise<number>;
 }

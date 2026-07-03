@@ -14,7 +14,15 @@ function res(status: number, body: unknown = {}): Response {
 
 /** Exposes the protected `request` for testing and lets tests set a bearer token. */
 class TestClient extends HttpClient {
-  call(opts: { method: string; path: string; retries?: number; retryDelay?: number; retryableStatusCodes?: number[] }) {
+  call(opts: {
+    method: string;
+    path: string;
+    retries?: number;
+    retryDelay?: number;
+    retryableStatusCodes?: number[];
+    auth?: "bearer" | "none";
+    headers?: Record<string, string>;
+  }) {
     return this.request<{ ok?: boolean } | null>(opts);
   }
   setToken(token: string | undefined) {
@@ -78,18 +86,49 @@ describe("HttpClient retry + backoff", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("fires onUnauthorized for an authenticated 401 (and does not retry it)", async () => {
-    const fetchMock = vi.fn(async () => res(401));
+  it("fires onUnauthorized for a bearer-authenticated 401 (and does not retry it)", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => res(401));
     const client = new TestClient("https://api.test", asFetch(fetchMock));
     client.setToken("tok");
     const onUnauthorized = vi.fn();
     client.setOnUnauthorized(onUnauthorized);
 
-    await expect(client.call({ method: "GET", path: "/x", retries: 3, retryDelay: 1 })).rejects.toMatchObject({
+    await expect(
+      client.call({ method: "GET", path: "/x", retries: 3, retryDelay: 1, auth: "bearer" }),
+    ).rejects.toMatchObject({
       statusCode: 401,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer tok");
     expect(onUnauthorized).toHaveBeenCalledWith(401, expect.any(String));
+  });
+
+  it("never attaches the bearer token unless auth: 'bearer' is requested", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => res(200, { ok: true }));
+    const client = new TestClient("https://api.test", asFetch(fetchMock));
+    client.setToken("tok");
+    const onUnauthorized = vi.fn();
+    client.setOnUnauthorized(onUnauthorized);
+
+    await client.call({ method: "GET", path: "/x" });
+    const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
+
+    // A 401 on a token-less request must not trigger the re-auth signal either.
+    fetchMock.mockResolvedValueOnce(res(401));
+    await expect(client.call({ method: "GET", path: "/x" })).rejects.toMatchObject({ statusCode: 401 });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it("passes extra headers through (PrivateToken attach path)", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => res(200, { ok: true }));
+    const client = new TestClient("https://api.test", asFetch(fetchMock));
+    client.setToken("tok");
+
+    await client.call({ method: "POST", path: "/x", headers: { Authorization: "PrivateToken token=abc" } });
+    const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBe("PrivateToken token=abc");
   });
 
   it("does not fire onUnauthorized for a 401 on an unauthenticated request", async () => {

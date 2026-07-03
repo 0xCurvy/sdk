@@ -32,6 +32,7 @@ export class MapStorage extends BaseStorage {
   readonly #noteWitnesses = new Map<string, SerializedNoteWitness>();
   readonly #liveShards = new Map<string, LiveShardRecord>();
   readonly #txHistory = new Map<string, TxHistoryEntry>();
+  readonly #tokenPouches = new Map<string, string[]>();
 
   // ── Key helpers ──
   #balanceKey(e: { accountId: string; id: string; currencyAddress: string; networkSlug: string }): string {
@@ -197,6 +198,15 @@ export class MapStorage extends BaseStorage {
     return Array.from(this.#txHistory.values()).filter((e) => e.accountId === accountId);
   }
 
+  // ── Privacy Pass token pouch ──
+  protected async _getTokenPouch(scopeKey: string) {
+    return this.#tokenPouches.get(scopeKey);
+  }
+  protected async _putTokenPouch(scopeKey: string, tokens: string[]) {
+    if (tokens.length === 0) this.#tokenPouches.delete(scopeKey);
+    else this.#tokenPouches.set(scopeKey, [...tokens]);
+  }
+
   // ── Lifecycle ──
   protected async _clearAll() {
     this.#accounts.clear();
@@ -210,6 +220,7 @@ export class MapStorage extends BaseStorage {
     this.#noteWitnesses.clear();
     this.#liveShards.clear();
     this.#txHistory.clear();
+    this.#tokenPouches.clear();
   }
 
   /** Entry counts per store — a debugging/monitoring aid. */
@@ -226,6 +237,7 @@ export class MapStorage extends BaseStorage {
       noteWitnesses: this.#noteWitnesses.size,
       liveShards: this.#liveShards.size,
       txHistory: this.#txHistory.size,
+      tokenPouches: this.#tokenPouches.size,
     };
   }
 }

@@ -78,6 +78,8 @@ export type FakeApiOverrides = {
   user?: Partial<IApiClient["user"]>;
   auth?: Partial<IApiClient["auth"]>;
   sync?: Partial<IApiClient["sync"]>;
+  privacyPass?: Partial<IApiClient["privacyPass"]>;
+  relay?: Partial<IApiClient["relay"]>;
 };
 
 /** Fake `IApiClient`; override individual resource methods per test. */
@@ -119,6 +121,24 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
       GetNullifiers: vi.fn(),
       GetShardRoots: vi.fn(),
       ...overrides.sync,
+    },
+    privacyPass: {
+      // "off" by default so actions behave exactly as before tokens existed.
+      GetChallenge: vi.fn(async () => ({
+        mode: "off" as const,
+        challenge: "",
+        "token-key": null,
+        "issuer-directory": "",
+      })),
+      GetIssuerDirectory: vi.fn(async () => ({ "issuer-request-uri": "/token-request", "token-keys": [] })),
+      RequestTokens: vi.fn(async () => new Uint8Array()),
+      ...overrides.privacyPass,
+    },
+    relay: {
+      SubmitProof: vi.fn(),
+      GetSubmissionStatus: vi.fn(),
+      GetPaymasterInfo: vi.fn(),
+      ...overrides.relay,
     },
   } as unknown as IApiClient;
 }

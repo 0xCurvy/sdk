@@ -360,9 +360,31 @@ type BridgeEstimate = {
   toAmountMin: bigint;
 };
 
+//#region Privacy Pass (blind-RSA access tokens)
+
+/** `GET <service>/token-challenge` — the redeemer's bootstrap payload. */
+type PrivacyPassChallengeInfo = {
+  /** off = don't attach tokens; shadow/enforce = attach one per gated request. */
+  mode: "off" | "shadow" | "enforce";
+  /** b64url(padded) serialized TokenChallenge the redeemer accepts. */
+  challenge: string;
+  /** b64url(padded) issuer SPKI the redeemer currently trusts (null before its first directory fetch). */
+  "token-key": string | null;
+  /** The issuer directory URL (metadata). */
+  "issuer-directory": string;
+};
+
+/** RFC 9578 issuer directory (served by metadata). */
+type PrivacyPassIssuerDirectory = {
+  "issuer-request-uri": string;
+  "token-keys": Array<{ "token-type": number; "token-key": string; "not-before"?: number }>;
+};
+
 //#endregion
 
 export type {
+  PrivacyPassChallengeInfo,
+  PrivacyPassIssuerDirectory,
   Network,
   Currency,
   FeeCollector,

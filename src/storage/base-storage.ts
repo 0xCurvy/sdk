@@ -128,6 +128,10 @@ export abstract class BaseStorage implements StorageInterface {
   /** All history entries for an account (UNORDERED — ordering/filtering is done in BaseStorage). */
   protected abstract _getTxHistoryByAccount(accountId: string): Promise<TxHistoryEntry[]>;
 
+  // --- Privacy Pass token pouch ---
+  protected abstract _getTokenPouch(scopeKey: string): Promise<string[] | undefined>;
+  protected abstract _putTokenPouch(scopeKey: string, tokens: string[]): Promise<void>;
+
   // --- Lifecycle ---
   protected abstract _clearAll(): Promise<void>;
 
@@ -424,6 +428,26 @@ export abstract class BaseStorage implements StorageInterface {
     }
     // Newest-first by observedAt; tie-break by id (ascending) for determinism.
     return entries.sort((a, b) => b.observedAt - a.observedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+
+  // ── Privacy Pass token pouch ──
+
+  async appendPrivateTokens(scopeKey: string, tokens: string[]): Promise<void> {
+    if (tokens.length === 0) return;
+    const existing = (await this._getTokenPouch(scopeKey)) ?? [];
+    await this._putTokenPouch(scopeKey, [...existing, ...tokens]);
+  }
+
+  async takePrivateToken(scopeKey: string): Promise<string | undefined> {
+    const existing = await this._getTokenPouch(scopeKey);
+    if (!existing || existing.length === 0) return undefined;
+    const [token, ...rest] = existing;
+    await this._putTokenPouch(scopeKey, rest);
+    return token;
+  }
+
+  async countPrivateTokens(scopeKey: string): Promise<number> {
+    return ((await this._getTokenPouch(scopeKey)) ?? []).length;
   }
 
   // ──────────────────────────────────────────────

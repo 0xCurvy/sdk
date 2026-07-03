@@ -38,9 +38,7 @@ class EvmRpc extends Rpc {
   constructor(network: Network) {
     super(network);
 
-    const chain = toViemChain(
-      network
-    );
+    const chain = toViemChain(network);
 
     this.#publicClient = createPublicClient({
       transport: http(String(chain.rpcUrls.default.http)),

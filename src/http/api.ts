@@ -16,6 +16,8 @@ import type {
   NetworksWithCurrenciesResponse,
   PortalStatusResponse,
   PricesResponse,
+  PrivacyPassChallengeInfo,
+  PrivacyPassIssuerDirectory,
   ProtocolResponse,
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,
@@ -243,8 +245,45 @@ class ApiClient extends HttpClient implements IApiClient {
           path: "/auth/renew",
           retries: 2,
           baseUrl: this.metadataBaseUrl,
+          auth: "bearer",
         })
       ).token;
+    },
+  };
+
+  // Privacy Pass (blind-RSA access tokens). Issuance is identity-bound (bearer
+  // JWT + per-handle quota, metadata); redemption is anonymous. The JWT is
+  // deliberately confined to metadata — see `RequestOptions.auth`.
+  privacyPass = {
+    /** The redeemer's expected challenge + current key (service-prefixed bootstrap route). */
+    GetChallenge: async (_service: "relayer"): Promise<PrivacyPassChallengeInfo> => {
+      return await this.request<PrivacyPassChallengeInfo>({
+        method: "GET",
+        path: "/relay/token-challenge",
+        retries: 2,
+        baseUrl: this.relayerBaseUrl,
+      });
+    },
+
+    /** The issuer's public-key directory (metadata). */
+    GetIssuerDirectory: async (): Promise<PrivacyPassIssuerDirectory> => {
+      return await this.request<PrivacyPassIssuerDirectory>({
+        method: "GET",
+        path: "/.well-known/private-token-issuer-directory",
+        retries: 2,
+        baseUrl: this.metadataBaseUrl,
+      });
+    },
+
+    /** Blind-sign a generic-batch token request. Identity-bound: requires the login JWT. */
+    RequestTokens: async (batchedRequest: Uint8Array): Promise<Uint8Array> => {
+      return await this.requestBinary({
+        path: "/token-request",
+        baseUrl: this.metadataBaseUrl,
+        body: batchedRequest,
+        contentType: "application/private-token-generic-batch-request",
+        auth: "bearer",
+      });
     },
   };
 
@@ -302,7 +341,9 @@ class ApiClient extends HttpClient implements IApiClient {
   // so a network hiccup never double-submits — the `idempotencyKey` is the dedupe
   // guard if the relayer DID receive it.
   relay = {
-    SubmitProof: async (body: RelaySubmitRequestBody) => {
+    // `privateTokenHeader` is a single-use, unlinkable Privacy Pass token
+    // ("PrivateToken token=…") — the relayer's anonymous rate-limit credential.
+    SubmitProof: async (body: RelaySubmitRequestBody, privateTokenHeader?: string) => {
       return await this.request<RelaySubmitReturnType>({
         method: "POST",
         path: "/relay/submit",
@@ -310,6 +351,7 @@ class ApiClient extends HttpClient implements IApiClient {
         retries: 0,
         timeout: SUBMIT_PROOF_TIMEOUT,
         baseUrl: this.relayerBaseUrl,
+        headers: privateTokenHeader ? { Authorization: privateTokenHeader } : undefined,
       });
     },
 

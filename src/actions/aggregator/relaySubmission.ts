@@ -1,6 +1,7 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
-import { RelayError } from "@/errors";
+import { APIError, RelayError } from "@/errors";
+import { popPrivateToken } from "@/privacy-pass/tokens";
 import type { RelayProofPayload, RelaySubmitRequestBody, RelaySubmitReturnType } from "@/types/aggregator";
 import type { AggregatorSubmission } from "./types";
 
@@ -50,9 +51,27 @@ export async function relaySubmission(parameters: RelaySubmissionParameters): Pr
     idempotencyKey: `${request.action}:${dedupe}`,
   };
 
+  // Privacy Pass: attach a single-use anonymous token (the relayer's rate-limit
+  // credential). `undefined` (tokens off / unavailable) submits tokenless — a
+  // shadow-mode relayer accepts that; an enforcing one 401s and we retry once
+  // with a freshly-bootstrapped scope + token.
+  const privateToken = await popPrivateToken(config, "relayer");
+
   try {
-    return await config.api.relay.SubmitProof(body);
+    return await config.api.relay.SubmitProof(body, privateToken);
   } catch (error) {
+    const status = error instanceof APIError ? error.statusCode : undefined;
+    if (status === 401 || status === 409) {
+      const retryToken = await popPrivateToken(config, "relayer", { forceRefresh: true });
+      if (retryToken && retryToken !== privateToken) {
+        try {
+          // Safe to retry: idempotencyKey dedupes if the first POST DID land.
+          return await config.api.relay.SubmitProof(body, retryToken);
+        } catch (retryError) {
+          throw new RelayError(`relaySubmission failed: ${(retryError as Error).message}`, retryError as Error);
+        }
+      }
+    }
     throw new RelayError(`relaySubmission failed: ${(error as Error).message}`, error as Error);
   }
 }

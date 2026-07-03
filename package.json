@@ -152,6 +152,26 @@
         "default": "./dist/_cjs/http/index.cjs"
       }
     },
+    "./http/api": {
+      "import": {
+        "types": "./dist/_types/http/api.d.ts",
+        "default": "./dist/_esm/http/api.js"
+      },
+      "require": {
+        "types": "./dist/_types/http/api.d.cts",
+        "default": "./dist/_cjs/http/api.cjs"
+      }
+    },
+    "./privacy-pass": {
+      "import": {
+        "types": "./dist/_types/privacy-pass/index.d.ts",
+        "default": "./dist/_esm/privacy-pass/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/privacy-pass/index.d.cts",
+        "default": "./dist/_cjs/privacy-pass/index.cjs"
+      }
+    },
     "./storage": {
       "import": {
         "types": "./dist/_types/storage/index.d.ts",
@@ -222,6 +242,7 @@
     "vitest": "3.1.4"
   },
   "dependencies": {
+    "@cloudflare/privacypass-ts": "0.9.0",
     "@lifi/sdk": "^3.13.6",
     "@noble/hashes": "^2.2.0",
     "@noble/secp256k1": "^2.3.0",

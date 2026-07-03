@@ -14,6 +14,11 @@ const codeEntries: Record<string, string> = {
   "rpc/index": "src/rpc/index.ts",
   "core/index": "src/core/index.ts",
   "http/index": "src/http/index.ts",
+  // The concrete ApiClient (constructible for advanced/e2e use; normally built
+  // by createCurvyConfig). Own entry — re-exporting it from http/index would
+  // make index ⇄ api circular (ApiClient extends HttpClient defined in index).
+  "http/api": "src/http/api.ts",
+  "privacy-pass/index": "src/privacy-pass/index.ts",
   "storage/index": "src/storage/index.ts",
   "storage/idb/index": "src/storage/idb/index.ts",
   errors: "src/errors.ts",
@@ -53,7 +58,17 @@ export default defineConfig(() => {
     // 'blake2bFinal' not found"); bundling lets esbuild resolve the interop at
     // build time, so consumers (devenv vitest, app bundlers, external npm users)
     // get a self-contained module with no special config.
-    noExternal: ["@zk-kit/eddsa-poseidon", "@zk-kit/baby-jubjub"],
+    // @cloudflare/privacypass-ts + blindrsa-ts are ESM-only — bundle them (and
+    // their small codec deps) so the CJS pass doesn't emit require() of ESM.
+    noExternal: [
+      "@zk-kit/eddsa-poseidon",
+      "@zk-kit/baby-jubjub",
+      /^@cloudflare\/(privacypass-ts|blindrsa-ts|voprf-ts)/,
+      "asn1-parser",
+      "quicvarint",
+      "rfc4648",
+      "asn1js",
+    ],
   };
 
   // Pass 1: ESM — code-split so shared code dedupes into chunks across subpaths.

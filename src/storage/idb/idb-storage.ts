@@ -157,6 +157,30 @@ export class IndexedDBStorage extends BaseStorage {
     return this.db.txHistory.where({ accountId }).toArray();
   }
 
+  // ── Privacy Pass token pouch ──
+  protected async _getTokenPouch(scopeKey: string) {
+    return (await this.db.tokenPouches.get(scopeKey))?.tokens;
+  }
+  protected async _putTokenPouch(scopeKey: string, tokens: string[]) {
+    if (tokens.length === 0) await this.db.tokenPouches.delete(scopeKey);
+    else await this.db.tokenPouches.put({ scopeKey, tokens });
+  }
+
+  /**
+   * Atomic take: the read-modify-write runs in a Dexie rw transaction so two
+   * tabs can't pop the SAME token (which the redeemer would 409 as a replay).
+   */
+  override async takePrivateToken(scopeKey: string): Promise<string | undefined> {
+    return this.db.transaction("rw", this.db.tokenPouches, async () => {
+      const pouch = await this.db.tokenPouches.get(scopeKey);
+      if (!pouch || pouch.tokens.length === 0) return undefined;
+      const [token, ...rest] = pouch.tokens;
+      if (rest.length === 0) await this.db.tokenPouches.delete(scopeKey);
+      else await this.db.tokenPouches.put({ scopeKey, tokens: rest });
+      return token;
+    });
+  }
+
   // ── Lifecycle ──
   protected async _clearAll() {
     await Promise.all([
@@ -171,6 +195,7 @@ export class IndexedDBStorage extends BaseStorage {
       this.db.noteWitnesses.clear(),
       this.db.liveShards.clear(),
       this.db.txHistory.clear(),
+      this.db.tokenPouches.clear(),
     ]);
   }
 

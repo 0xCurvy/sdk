@@ -28,6 +28,12 @@ export type ShardRootsChunk = {
   items: string[];
 };
 
+/** Privacy Pass token pouch: one row per redemption scope, FIFO token list. */
+export type TokenPouch = {
+  scopeKey: string;
+  tokens: string[];
+};
+
 /**
  * Dexie schema for the Curvy SDK's IndexedDB storage. Subclass to add legacy
  * migrations or extra tables; {@link IndexedDBStorage} exposes the instance via
@@ -48,6 +54,7 @@ export class CurvyDatabase extends Dexie {
   noteWitnesses!: Table<SerializedNoteWitness, [string, string]>;
   liveShards!: Table<LiveShardRecord, string>;
   txHistory!: Table<TxHistoryEntry, [string, string]>;
+  tokenPouches!: Table<TokenPouch, string>;
 
   constructor(name = DEFAULT_DB_NAME) {
     super(name);
@@ -96,6 +103,13 @@ export class CurvyDatabase extends Dexie {
     // per-account / per-network reads. Chain-derived, so no migration is needed.
     this.version(5).stores({
       txHistory: "[accountId+id], accountId, [accountId+networkSlug]",
+    });
+
+    // v6: Privacy Pass token pouches — single-use anonymous access tokens, one
+    // FIFO row per redemption scope. Deliberately account-agnostic (tokens must
+    // not be linkable to a handle). Refillable at will, so no migration.
+    this.version(6).stores({
+      tokenPouches: "scopeKey",
     });
   }
 }

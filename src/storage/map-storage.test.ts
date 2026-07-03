@@ -183,6 +183,7 @@ describe("MapStorage (BaseStorage business logic)", () => {
     });
     await s.putLiveShard({ networkSlug: "ethereum", startIndex: 0, leaves: ["11"] });
     await s.putTxHistory([makeTxHistoryEntry()]);
+    await s.appendPrivateTokens("pp:relayer:chal", ["tok"]);
     await s.clearStorage();
     expect(s.stats()).toEqual({
       accounts: 0,
@@ -196,7 +197,21 @@ describe("MapStorage (BaseStorage business logic)", () => {
       noteWitnesses: 0,
       liveShards: 0,
       txHistory: 0,
+      tokenPouches: 0,
     });
+  });
+
+  it("token pouch: FIFO take, count, and per-scope isolation", async () => {
+    const s = new MapStorage();
+    await s.appendPrivateTokens("pp:relayer:c1", ["a", "b"]);
+    await s.appendPrivateTokens("pp:indexer:c2", ["z"]);
+
+    expect(await s.countPrivateTokens("pp:relayer:c1")).toBe(2);
+    expect(await s.takePrivateToken("pp:relayer:c1")).toBe("a");
+    expect(await s.takePrivateToken("pp:relayer:c1")).toBe("b");
+    expect(await s.takePrivateToken("pp:relayer:c1")).toBeUndefined();
+    // The other scope is untouched.
+    expect(await s.countPrivateTokens("pp:indexer:c2")).toBe(1);
   });
 
   it("round-trips the notes checkpoint per (networkSlug, environment); null when absent", async () => {

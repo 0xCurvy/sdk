@@ -21,6 +21,14 @@ type RequestOptions = {
   retryableStatusCodes?: number[];
   /** Override the client's default base URL (e.g. point sync routes at the indexer, user/auth at the metadata service). */
   baseUrl?: string;
+  /**
+   * Identity policy for this request. "none" (default): NEVER attach the JWT —
+   * the handle-bearing bearer token must not ride on relayer/indexer traffic in
+   * a privacy protocol. "bearer": attach it (metadata auth/issuance routes only).
+   */
+  auth?: "bearer" | "none";
+  /** Extra headers (e.g. a single-use `Authorization: PrivateToken …` value). */
+  headers?: Record<string, string>;
 };
 
 /** Exponential backoff with full jitter, capped at {@link MAX_RETRY_DELAY}. */
@@ -62,18 +70,22 @@ class HttpClient {
     return this.#bearerToken;
   }
 
-  private getHeaders(requestId: string): Record<string, string> {
+  private getHeaders(
+    requestId: string,
+    auth: "bearer" | "none",
+    extra?: Record<string, string>,
+  ): Record<string, string> {
     const baseHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       "User-Agent": "curvy-sdk",
       "X-Request-ID": requestId,
     };
 
-    if (this.#bearerToken) {
+    if (auth === "bearer" && this.#bearerToken) {
       baseHeaders.Authorization = `Bearer ${this.#bearerToken}`;
     }
 
-    return baseHeaders;
+    return extra ? { ...baseHeaders, ...extra } : baseHeaders;
   }
 
   protected async request<T extends object | null>({
@@ -86,17 +98,22 @@ class HttpClient {
     retryDelay = DEFAULT_RETRY_DELAY,
     retryableStatusCodes = DEFAULT_RETRYABLE_STATUS_CODES,
     baseUrl,
+    auth = "none",
+    headers,
   }: RequestOptions): Promise<T> {
     const requestId = uuidV4();
-    // Capture once: only an authenticated 401 should trigger the re-auth signal.
-    const hadBearer = this.#bearerToken !== undefined;
+    // Capture once: only a bearer-authenticated 401 should trigger the re-auth signal.
+    const hadBearer = auth === "bearer" && this.#bearerToken !== undefined;
     let lastError: APIError | undefined;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       if (attempt > 0) await sleep(jitteredDelay(retryDelay, attempt - 1));
 
       try {
-        return await this.#executeRequest<T>({ method, path, body, timeout, queryParams, baseUrl }, requestId);
+        return await this.#executeRequest<T>(
+          { method, path, body, timeout, queryParams, baseUrl, auth, headers },
+          requestId,
+        );
       } catch (error) {
         lastError =
           error instanceof APIError
@@ -119,6 +136,53 @@ class HttpClient {
     throw lastError;
   }
 
+  /**
+   * Binary POST (Privacy Pass issuance): raw request/response bytes with an
+   * explicit content type — outside the JSON envelope `request` enforces.
+   */
+  protected async requestBinary({
+    path,
+    baseUrl,
+    body,
+    contentType,
+    auth = "none",
+    timeout = DEFAULT_TIMEOUT,
+  }: {
+    path: string;
+    baseUrl?: string;
+    body: Uint8Array;
+    contentType: string;
+    auth?: "bearer" | "none";
+    timeout?: number;
+  }): Promise<Uint8Array> {
+    const requestId = uuidV4();
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), timeout);
+
+    try {
+      const headers = this.getHeaders(requestId, auth);
+      headers["Content-Type"] = contentType;
+
+      const response = await this.#fetch(`${baseUrl ?? this.apiBaseUrl}${path}`, {
+        method: "POST",
+        headers,
+        // Copy into a fresh ArrayBuffer-backed view — RequestInit rejects SharedArrayBuffer-typed views.
+        body: new Uint8Array(body),
+        signal: abortController.signal,
+      });
+
+      if (response.status < 200 || response.status >= 300) {
+        throw new APIError(response.statusText, response.status, await response.text(), requestId);
+      }
+      return new Uint8Array(await response.arrayBuffer());
+    } catch (error) {
+      if (error instanceof APIError) throw error;
+      throw new APIError(`Request failed: ${(error as Error).message}`, undefined, error, requestId);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   async #executeRequest<T extends object | null>(
     {
       method,
@@ -127,6 +191,8 @@ class HttpClient {
       timeout = DEFAULT_TIMEOUT,
       queryParams,
       baseUrl,
+      auth = "none",
+      headers,
     }: Omit<RequestOptions, "retries" | "retryDelay" | "retryableStatusCodes">,
     requestId: string,
   ): Promise<T> {
@@ -143,7 +209,7 @@ class HttpClient {
 
       const response = await this.#fetch(url.toString(), {
         method,
-        headers: this.getHeaders(requestId),
+        headers: this.getHeaders(requestId, auth, headers),
         body: body ? jsonStringify(body) : undefined,
         signal: abortController.signal,
       });

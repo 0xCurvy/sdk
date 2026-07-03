@@ -14,6 +14,8 @@ import type {
   InsertExitPortalRequestBody,
   InsertPortalReturnType,
   PortalStatusResponse,
+  PrivacyPassChallengeInfo,
+  PrivacyPassIssuerDirectory,
   ProtocolConfig,
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,
@@ -61,6 +63,17 @@ interface IApiClient {
   };
 
   /**
+   * Privacy Pass (blind-RSA) access tokens: identity-bound issuance at metadata
+   * (bearer JWT + per-handle quota), anonymous single-use redemption at the
+   * relayer/indexer. See the `privacy-pass` module for the client lifecycle.
+   */
+  privacyPass: {
+    GetChallenge(service: "relayer"): Promise<PrivacyPassChallengeInfo>;
+    GetIssuerDirectory(): Promise<PrivacyPassIssuerDirectory>;
+    RequestTokens(batchedRequest: Uint8Array): Promise<Uint8Array>;
+  };
+
+  /**
    * The v3 indexer sync streams (append-only, cursor = local count). The
    * indexer is availability-only — everything fetched here is verified
    * client-side against a direct chain root read.
@@ -78,7 +91,7 @@ interface IApiClient {
    * it is anonymous + backend-agnostic, so a backend rewrite can't break it.
    */
   relay: {
-    SubmitProof(body: RelaySubmitRequestBody): Promise<RelaySubmitReturnType>;
+    SubmitProof(body: RelaySubmitRequestBody, privateTokenHeader?: string): Promise<RelaySubmitReturnType>;
     GetSubmissionStatus(requestId: string): Promise<RelaySubmitReturnType>;
     GetPaymasterInfo(): Promise<PaymasterInfo>;
   };

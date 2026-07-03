@@ -4,6 +4,7 @@ import type { ICore } from "@/interfaces/core";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { NotesTreeView } from "@/note/notesTreeView";
+import type { PrivacyPassInternalState } from "@/privacy-pass/tokens";
 import type { MerkleTree } from "@/proving";
 import type { CircuitKeyCache } from "@/proving/circuitKeyCache";
 import type { Prover } from "@/proving/prover";
@@ -68,6 +69,9 @@ export type CurvyConfigInternal = {
    * path until the v3 client-proving API migration.
    */
   notesTrees: Map<string, NotesTreeView>;
+
+  /** Privacy Pass client state (challenge cache + single-flight refills); lazily initialized. */
+  privacyPass?: PrivacyPassInternalState;
 };
 
 /**
