@@ -19,10 +19,6 @@ const LIFI_BRIDGES_SOLANA_ENTRY = ["across", "relaydepository"];
 // at a predictable offset in the bridge-specific data blob.
 const LIFI_BRIDGES_SOLANA_EXIT = ["across", "mayan", "near"];
 
-// LiFi integrator fee Curvy applies on the entry bridge (matches the broadcaster's
-// `fee: 0.001` arg). The exit leg currently isn't charged this fee.
-const LIFI_INTEGRATOR_FEE_ENTRY = 0.001;
-
 // LiFi rejects all-zero / system-program addresses with a "Zero address is provided"
 // error, even for read-only quote calls. The numbers don't depend on the sender, so
 // we just pick well-known non-zero values: the EVM "0xdEaD" burn address and the
@@ -143,7 +139,6 @@ export async function estimateExternalTransfer(
       toToken: bridged.contractAddress,
       fromAmount: fromAmount.toString(),
       fromAddress: placeholderAddress(fromNetwork),
-      fee: LIFI_INTEGRATOR_FEE_ENTRY,
       integrator: "Curvy-Staging",
       allowBridges: entryBridges,
     });
