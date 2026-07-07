@@ -93,7 +93,7 @@ interface IApiClient {
   relay: {
     SubmitProof(body: RelaySubmitRequestBody, privateTokenHeader?: string): Promise<RelaySubmitReturnType>;
     GetSubmissionStatus(requestId: string): Promise<RelaySubmitReturnType>;
-    GetPaymasterInfo(): Promise<PaymasterInfo>;
+    GetPaymasterInfo(chainId?: number | string): Promise<PaymasterInfo>;
   };
 }
 

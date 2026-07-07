@@ -31,6 +31,16 @@ const shieldingNetwork = (currencies: Currency[]): Network =>
     currencies,
   } as Partial<Network>);
 
+/** A SECOND shielding-capable network (its own aggregator), for multi-aggregator tests. */
+const arbitrumShielding = (currencies: Currency[]): Network =>
+  fixtureNetwork({
+    id: 42161,
+    name: "Arbitrum",
+    chainId: "42161",
+    aggregatorContractAddress: "0x000000000000000000000000000000000000b992" as HexString,
+    currencies,
+  } as Partial<Network>);
+
 /** Protocol-global proving config with withdrawal groupFee 10 => 1% Curvy fee. */
 const PROTOCOL = {
   ...DEFAULT_TEST_PROTOCOL,
@@ -151,5 +161,56 @@ describe("estimateExternalTransfer", () => {
     expect(result.fees.curvy).toBe(10_000n);
     expect(result.fees.exitBridge).toBe(5_000n);
     expect(result.effectiveAmount).toBe(985_000n);
+  });
+
+  it("multi-aggregator: shields on the SOURCE chain when it has its own aggregator (no entry bridge)", async () => {
+    const ethUsdc = currency({ id: 1, contractAddress: SHIELD_USDC });
+    const arbUsdc = currency({ id: 2, contractAddress: ARB_USDC });
+    const ethereum = shieldingNetwork([ethUsdc]); // id 1 — the old find-first pick
+    const arbitrum = arbitrumShielding([arbUsdc]); // id 42161 — the source, also an aggregator
+    const config = createFakeConfig({ activeNetworks: [ethereum, arbitrum], protocol: PROTOCOL });
+
+    const result = await estimateExternalTransfer({
+      config,
+      fromNetwork: arbitrum, // source IS an aggregator network — but NOT activeNetworks[0]
+      fromCurrency: arbUsdc,
+      fromAmount: 1_000_000n,
+      toNetwork: arbitrum,
+      toCurrency: arbUsdc,
+    });
+
+    // Old find-first picked ethereum and would have bridged; new code shields on arbitrum directly.
+    expect(result.shieldingNetwork.id).toBe(arbitrum.id);
+    expect(result.fees.entryBridge).toBe(0n);
+    expect(getQuote).not.toHaveBeenCalled();
+  });
+
+  it("multi-aggregator: an explicit shieldingNetworkSlug overrides the default", async () => {
+    const ethUsdc = currency({ id: 1, contractAddress: SHIELD_USDC });
+    const arbUsdc = currency({
+      id: 2,
+      contractAddress: ARB_USDC,
+      bridgeNetworkIdToCurrencyIdMap: { 1: ethUsdc.id },
+    } as Partial<Currency>);
+    const ethereum = shieldingNetwork([ethUsdc]);
+    const arbitrum = arbitrumShielding([arbUsdc]);
+    const config = createFakeConfig({ activeNetworks: [ethereum, arbitrum], protocol: PROTOCOL });
+
+    // Entry bridge arbitrum→ethereum is quoted because we force shielding on ethereum.
+    getQuote.mockResolvedValueOnce({ estimate: { toAmount: "980000", feeCosts: [{ amount: "5000" }] } });
+
+    const result = await estimateExternalTransfer({
+      config,
+      fromNetwork: arbitrum,
+      fromCurrency: arbUsdc,
+      fromAmount: 1_000_000n,
+      toNetwork: ethereum,
+      toCurrency: ethUsdc,
+      shieldingNetworkSlug: ethereum.slug,
+    });
+
+    expect(result.shieldingNetwork.id).toBe(ethereum.id);
+    expect(getQuote).toHaveBeenCalledTimes(1);
+    expect(result.fees.entryBridge).toBe(5_000n);
   });
 });

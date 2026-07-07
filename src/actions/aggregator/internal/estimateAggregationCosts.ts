@@ -74,7 +74,7 @@ export async function estimateAggregationCosts(
   let gasPriceWei: bigint | undefined;
   let clientBufferBps = 0;
   try {
-    const info = await config.api.relay.GetPaymasterInfo();
+    const info = await config.api.relay.GetPaymasterInfo(network.chainId);
     operator = info.operator;
     submitAggregationGasUnits = BigInt(info.submitAggregationGasUnits);
     gasPriceWei = BigInt(info.gasPriceWei);

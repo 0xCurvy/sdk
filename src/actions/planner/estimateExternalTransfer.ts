@@ -36,6 +36,13 @@ export type EstimateExternalTransferArgs = {
   fromAmount: bigint;
   toNetwork: Network;
   toCurrency: Currency;
+  /**
+   * Which aggregator network to shield on, by slug. Defaults to the source chain
+   * when it has its own aggregator (no entry bridge — mirrors the deposit rule),
+   * otherwise the first active aggregator network. Multi-aggregator deployments
+   * should pass this (or the planner will, once value-tiered routing lands).
+   */
+  shieldingNetworkSlug?: string;
 };
 
 export type EstimateExternalTransferResult = {
@@ -92,9 +99,20 @@ export async function estimateExternalTransfer(
   parameters: EstimateExternalTransferParameters,
 ): Promise<EstimateExternalTransferResult> {
   const config = resolveConfig(parameters.config);
-  const { fromNetwork, fromCurrency, fromAmount, toNetwork, toCurrency } = parameters;
+  const { fromNetwork, fromCurrency, fromAmount, toNetwork, toCurrency, shieldingNetworkSlug } = parameters;
 
-  const shielding = config.state.activeNetworks.find((n) => !!n.aggregatorContractAddress);
+  // Pick the shielding network. Multi-aggregator safe: an explicit slug wins;
+  // otherwise shield on the SOURCE chain when it has its own aggregator (no entry
+  // bridge — mirrors the backend deposit rule); otherwise the first active
+  // aggregator network. (Value-tiered selection lands with the planner expansion.)
+  const aggregatorNetworks = config.state.activeNetworks.filter((n) => !!n.aggregatorContractAddress);
+  let shielding: Network | undefined;
+  if (shieldingNetworkSlug) {
+    shielding = aggregatorNetworks.find((n) => n.slug === shieldingNetworkSlug);
+    if (!shielding) throw new Error(`Shielding network "${shieldingNetworkSlug}" is not an active aggregator network.`);
+  } else {
+    shielding = fromNetwork.aggregatorContractAddress ? fromNetwork : aggregatorNetworks[0];
+  }
   if (!shielding) throw new Error("No shielding-capable network is active.");
 
   // ── Entry leg ────────────────────────────────────────────────────────────────

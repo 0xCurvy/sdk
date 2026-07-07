@@ -364,12 +364,14 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    // Paymaster discovery — the operator's keys + current gas view, used to size
-    // the gas-reimbursement note (see PaymasterInfo). Read-only; safe to retry.
-    GetPaymasterInfo: async () => {
+    // Paymaster discovery — the operator's keys + current gas view for a chain,
+    // used to size the gas-reimbursement note (see PaymasterInfo). The gas view is
+    // per-chain, so pass the chainId on multi-aggregator relayers; a single-chain
+    // relayer answers the no-param form. Read-only; safe to retry.
+    GetPaymasterInfo: async (chainId?: number | string) => {
       return await this.request<PaymasterInfo>({
         method: "GET",
-        path: "/relay/paymaster",
+        path: chainId != null ? `/relay/paymaster?chainId=${chainId}` : "/relay/paymaster",
         retries: 2,
         baseUrl: this.relayerBaseUrl,
       });
