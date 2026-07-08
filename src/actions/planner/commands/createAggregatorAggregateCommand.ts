@@ -232,7 +232,7 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
     });
 
     const queued = await relaySubmission({ config, request: built });
-    const finalized = await waitForRelay({ config, requestId: queued.requestId, intervalMs: 500, attempts: 240 });
+    const finalized = await waitForRelay({ config, requestId: queued.requestId });
     if (finalized.status !== "finalized") {
       throw new Error(`aggregation relay did not finalize (status: ${finalized.status})`);
     }
