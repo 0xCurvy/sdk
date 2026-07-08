@@ -21,7 +21,7 @@ export async function estimateBridge(parameters: EstimateBridgeParameters): Prom
   const config = resolveConfig(parameters.config);
   const { config: _config, ...body } = parameters;
 
-  const data = await config.api.bridge.estimate(body);
+  const data = await config.api.bridge.Estimate(body);
 
   return {
     tool: data.tool,

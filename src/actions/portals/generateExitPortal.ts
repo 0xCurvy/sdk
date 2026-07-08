@@ -23,5 +23,5 @@ export async function generateExitPortal(
 ): Promise<{ address: HexString; flavour: NETWORK_FLAVOUR_VALUES }> {
   const config = resolveConfig(parameters.config);
   const { config: _config, ...body } = parameters;
-  return config.api.portal.insertExitPortal(body as InsertExitPortalRequestBody);
+  return config.api.portal.InsertExitPortal(body as InsertExitPortalRequestBody);
 }

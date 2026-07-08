@@ -1,4 +1,5 @@
 import type { Buffer } from "buffer";
+import { encode } from "@/utils/common";
 
 /**
  * Shared key-derivation parameters and routine for {@link encryptData} /
@@ -9,8 +10,6 @@ import type { Buffer } from "buffer";
 
 export const PBKDF2_ITERATION_COUNT = 210000;
 export const DERIVATION_LENGTH = 256;
-
-const encode = (str: string) => new TextEncoder().encode(str);
 
 const derivePasswordBits = async (password: string, salt: Buffer<ArrayBuffer>) => {
   const key = await crypto.subtle.importKey("raw", encode(password), { name: "PBKDF2", hash: "SHA-512" }, false, [

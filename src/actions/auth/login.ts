@@ -1,16 +1,16 @@
 import type { CurvyAccount } from "@/account";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
-import type { EvmSignatureData, StarknetSignatureData } from "@/types";
+import type { EvmSignatureData } from "@/types";
 import { computePrivateKeys } from "@/utils/keys";
 import { createAndAddAccount } from "./internal/createAndAddAccount";
 import { preLoginChecks } from "./internal/preLoginChecks";
 import { verifyEvmSignature } from "./internal/verifyEvmSignature";
 
-export type LoginParameters = WithConfig<{ signature: EvmSignatureData | StarknetSignatureData }>;
+export type LoginParameters = WithConfig<{ signature: EvmSignatureData }>;
 
 /**
- * Log in (add an existing account) from a account signature.
+ * Log in (add an existing account) from an account signature.
  *
  * Verifies the signature, derives the spending/viewing private keys, fetches
  * the Curvy keypairs, runs the pre-login checks (which authenticate), then

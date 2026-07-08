@@ -1,10 +1,9 @@
 import { Buffer } from "buffer";
+import { encode } from "@/utils/common";
 import { deriveKey } from "@/utils/encryption/kdf";
 
 const SALT_LENGTH = 32;
 const IV_LENGTH = 12;
-
-const encode = (str: string) => new TextEncoder().encode(str);
 
 const encrypt = async (plainText: string, password: string) => {
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));

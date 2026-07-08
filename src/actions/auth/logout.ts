@@ -6,7 +6,7 @@ import { stopJwtRefresh } from "./internal/session";
 export type LogoutParameters = WithConfig<{ accountId?: string }>;
 
 /**
- * Remove a account and re-point (or clear) the active account. Defaults to the
+ * Remove an account and re-point (or clear) the active account. Defaults to the
  * active account id.
  *
  * Stops the JWT refresh timer, clears the bearer token, deletes the account's
@@ -48,5 +48,4 @@ export async function logout(parameters: LogoutParameters = {}): Promise<void> {
   }
 
   config.setState({ activeAccountId: null });
-  return;
 }

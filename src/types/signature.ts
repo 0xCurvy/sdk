@@ -12,23 +12,5 @@ type SignatureData = {
 };
 
 type EvmSignatureData = SignatureData;
-type StarknetSignatureData = SignatureData & {
-  msgHash: HexString;
-  signingAccountId: "argentX" | "braavos" | (string & {});
-};
-function assertIsStarkentSignatureData(
-  signature: EvmSignatureData | StarknetSignatureData,
-): asserts signature is StarknetSignatureData {
-  if (!("signingPublicKey" in signature) && !("signingAccountId" in signature))
-    throw new Error("Signature verification failed - Public key and account ID are required for Starknet signatures.");
-}
 
-export type {
-  EvmSignTypedDataParameters,
-  CurvySignatureParameters,
-  SignatureData,
-  EvmSignatureData,
-  StarknetSignatureData,
-};
-
-export { assertIsStarkentSignatureData };
+export type { EvmSignTypedDataParameters, CurvySignatureParameters, SignatureData, EvmSignatureData };

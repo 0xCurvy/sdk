@@ -5,7 +5,7 @@ import { findNetwork } from "@/utils/network/findNetwork";
 
 const networks: Network[] = [
   fixtureNetwork({ id: 1, name: "Ethereum Sepolia", slug: "ethereum-sepolia", testnet: true }),
-  fixtureNetwork({ id: 2, name: "Starknet Sepolia", slug: "starknet-sepolia", testnet: true }),
+  fixtureNetwork({ id: 2, name: "Base Sepolia", slug: "base-sepolia", testnet: true }),
   fixtureNetwork({ id: 3, name: "Ethereum", slug: "ethereum", testnet: false }),
 ];
 

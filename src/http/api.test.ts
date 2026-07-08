@@ -34,7 +34,7 @@ describe("ApiClient per-route-group base URL selection", () => {
     await api.network.GetNetworks(); // metadata group
     await api.sync.GetNotes(1, 0); // indexer group
     await api.relay.GetPaymasterInfo(); // relayer group
-    await api.portal.getPortalRecords(); // default (apiBaseUrl)
+    await api.portal.GetPortalRecords(); // default (apiBaseUrl)
 
     expect(urls[0].startsWith("https://meta.test/")).toBe(true);
     expect(urls[1].startsWith("https://indexer.test/")).toBe(true);

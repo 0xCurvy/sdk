@@ -40,7 +40,7 @@ export async function estimateIntent(parameters: EstimateIntentParameters): Prom
 
   const { plan: draftPlan, usedBalances } = generatePlan(balances, intent, {
     checkBytecode: (n, a) => hasBytecode({ network: n, address: a, config }),
-    maxInputs: getProtocol(config).proving.aggregation.maxInputs,
+    maxInputs: getProtocol({ config }).proving.aggregation.maxInputs,
   });
 
   const result = await estimatePlanTree(config, draftPlan, undefined);

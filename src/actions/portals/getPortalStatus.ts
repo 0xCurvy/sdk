@@ -16,5 +16,5 @@ export type GetPortalStatusParameters = WithConfig<{
  */
 export async function getPortalStatus(parameters: GetPortalStatusParameters): Promise<PortalStatusResponse | null> {
   const config = resolveConfig(parameters.config);
-  return config.api.portal.getPortalStatus(parameters.address);
+  return config.api.portal.GetPortalStatus(parameters.address);
 }

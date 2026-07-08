@@ -33,9 +33,9 @@ interface IApiClient {
   };
 
   portal: {
-    insertEntryPortal(body: InsertEntryPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
-    insertExitPortal(body: InsertExitPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
-    getPortalRecords(params?: {
+    InsertEntryPortal(body: InsertEntryPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
+    InsertExitPortal(body: InsertExitPortalRequestBody): Promise<InsertPortalReturnType["data"]>;
+    GetPortalRecords(params?: {
       cursor?: string;
       limit?: number;
       startTime?: number;
@@ -43,11 +43,11 @@ interface IApiClient {
       direction?: "older" | "newer";
     }): Promise<GetPortalRecordsReturnType>;
     // Returns null when no portal matches the address (404 from backend).
-    getPortalStatus(address: string): Promise<PortalStatusResponse | null>;
+    GetPortalStatus(address: string): Promise<PortalStatusResponse | null>;
   };
 
   bridge: {
-    estimate(body: BridgeEstimateRequestBody): Promise<BridgeEstimateReturnType["data"]>;
+    Estimate(body: BridgeEstimateRequestBody): Promise<BridgeEstimateReturnType["data"]>;
   };
 
   user: {

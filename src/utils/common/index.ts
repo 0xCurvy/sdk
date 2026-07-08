@@ -1,3 +1,3 @@
 export { isNode } from "./isNode";
 export { noop } from "./noop";
-export { encode, textEncoder } from "./textEncoder";
+export { decode, encode, textDecoder, textEncoder } from "./textEncoder";

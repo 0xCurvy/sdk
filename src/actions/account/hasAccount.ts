@@ -4,7 +4,7 @@ import type { WithConfig } from "@/config/types";
 export type HasAccountParameters = WithConfig<{ id: string }>;
 
 /**
- * Check whether a account with the given id is known.
+ * Check whether an account with the given id is known.
  *
  * @example
  * if (hasAccount({ id })) { ... }

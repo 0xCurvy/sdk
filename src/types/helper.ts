@@ -1,6 +1,6 @@
 type ExtractKeys<T> = T extends { [key: string]: unknown } ? keyof T : never;
 type ExtractValues<T> = T extends { [key: string]: unknown } ? T[keyof T] : never;
-type Prettify<T> = { [key in keyof T]: T[key] } & unknown;
+type Prettify<T> = { [K in keyof T]: T[K] };
 type Tuple<T, N extends number, R extends T[] = []> = R["length"] extends N ? R : Tuple<T, N, [...R, T]>;
 
 type HexString = `0x${string}`;

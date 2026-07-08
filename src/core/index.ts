@@ -1,6 +1,6 @@
 import { derivePublicKey, signMessage } from "@zk-kit/eddsa-poseidon";
 import { Buffer } from "buffer";
-import type { ICore, RawAnnouncement } from "@/interfaces/core";
+import type { ICore, NoteDeliveryTag, RawAnnouncement, SendNoteData } from "@/interfaces/core";
 import { Note } from "@/note";
 import type {
   CoreLegacyKeyPairs,
@@ -194,23 +194,12 @@ class Core implements ICore {
     return { Rs, viewTags };
   }
 
-  #prepareScanArgs(s: string, v: string, announcements: RawAnnouncement[]): CoreScanArgs {
-    const { viewTags, Rs } = this.#extractScanArgsFromAnnouncements(announcements);
-
+  #prepareScanArgs(s: string, v: string, { Rs, viewTags }: { Rs: string[]; viewTags: string[] }): CoreScanArgs {
     return {
       k: s,
       v,
       Rs,
       viewTags,
-    } satisfies CoreScanArgs;
-  }
-
-  #prepareScanNotesArgs(s: string, v: string, noteData: { ephemeralKey: string; viewTag: string }[]): CoreScanArgs {
-    return {
-      k: s,
-      v,
-      Rs: noteData.map((note) => note.ephemeralKey),
-      viewTags: noteData.map((note) => note.viewTag),
     } satisfies CoreScanArgs;
   }
 
@@ -225,20 +214,26 @@ class Core implements ICore {
     } satisfies CoreViewerScanArgs;
   }
 
+  // Map the WASM's legacy `{k,v,K,V}` keypair shape to the SDK `CurvyKeyPairs`
+  // ({s,v,S,V}), deriving the BabyJubjub public key from the spend key.
+  async #toCurvyKeyPairs(legacy: CoreLegacyKeyPairs): Promise<CurvyKeyPairs> {
+    const babyJubjubPublicKey = await this.getBabyJubjubPublicKey(legacy.k);
+
+    return {
+      s: legacy.k,
+      v: legacy.v,
+      S: legacy.K,
+      V: legacy.V,
+      babyJubjubPublicKey,
+    } satisfies CurvyKeyPairs;
+  }
+
   async generateKeyPairs(): Promise<CurvyKeyPairs> {
     await this.loadWasm();
 
     const keyPairs = JSON.parse(curvy.new_meta()) as CoreLegacyKeyPairs;
 
-    const babyJubjubPublicKeyStringified = await this.getBabyJubjubPublicKey(keyPairs.k);
-
-    return {
-      s: keyPairs.k,
-      S: keyPairs.K,
-      v: keyPairs.v,
-      V: keyPairs.V,
-      babyJubjubPublicKey: babyJubjubPublicKeyStringified,
-    };
+    return this.#toCurvyKeyPairs(keyPairs);
   }
 
   async getCurvyKeys(s: string, v: string): Promise<CurvyKeyPairs> {
@@ -247,15 +242,7 @@ class Core implements ICore {
     const inputs = JSON.stringify({ k: s, v });
     const result = JSON.parse(curvy.get_meta(inputs)) as CoreLegacyKeyPairs;
 
-    const babyJubjubPublicKey = await this.getBabyJubjubPublicKey(result.k);
-
-    return {
-      s: result.k,
-      v: result.v,
-      S: result.K,
-      V: result.V,
-      babyJubjubPublicKey,
-    } satisfies CurvyKeyPairs;
+    return this.#toCurvyKeyPairs(result);
   }
 
   async send(S: string, V: string) {
@@ -266,11 +253,7 @@ class Core implements ICore {
     return JSON.parse(curvy.send(input)) as CoreSendReturnType;
   }
 
-  async sendNote(
-    S: string,
-    V: string,
-    noteData: { ownerBabyJubjubPublicKey: string; amount: bigint; token: bigint },
-  ): Promise<Note> {
+  async sendNote(S: string, V: string, noteData: SendNoteData): Promise<Note> {
     let { R, viewTag, spendingPubKey } = await this.send(S, V);
 
     if (!viewTag.startsWith("0x")) {
@@ -296,10 +279,13 @@ class Core implements ICore {
     });
   }
 
-  async scan(s: string, v: string, announcements: RawAnnouncement[]) {
+  // Shared scan tail: run the WASM `curvy.scan` on prepared args and normalize
+  // the returned spend keys. `scan`/`scanNotes` differ only in how they source
+  // the `Rs`/`viewTags`, so they build args then delegate here.
+  async #runScan(args: CoreScanArgs) {
     await this.loadWasm();
 
-    const input = JSON.stringify(this.#prepareScanArgs(s, v, announcements));
+    const input = JSON.stringify(args);
 
     const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
 
@@ -309,17 +295,17 @@ class Core implements ICore {
     };
   }
 
-  async scanNotes(s: string, v: string, noteData: { ephemeralKey: string; viewTag: string }[]) {
-    await this.loadWasm();
+  async scan(s: string, v: string, announcements: RawAnnouncement[]) {
+    return this.#runScan(this.#prepareScanArgs(s, v, this.#extractScanArgsFromAnnouncements(announcements)));
+  }
 
-    const input = JSON.stringify(this.#prepareScanNotesArgs(s, v, noteData));
-
-    const { spendingPubKeys, spendingPrivKeys } = JSON.parse(curvy.scan(input)) as CoreScanReturnType;
-
-    return {
-      spendingPubKeys: spendingPubKeys ?? [],
-      spendingPrivKeys: (spendingPrivKeys ?? []).map((pk) => this.#normalizeSpendPrivKey(pk)),
-    };
+  async scanNotes(s: string, v: string, noteData: NoteDeliveryTag[]) {
+    return this.#runScan(
+      this.#prepareScanArgs(s, v, {
+        Rs: noteData.map((note) => note.ephemeralKey),
+        viewTags: noteData.map((note) => note.viewTag),
+      }),
+    );
   }
 
   async viewerScan(v: string, S: string, announcements: RawAnnouncement[]) {

@@ -1,6 +1,5 @@
 import { Buffer } from "buffer";
-
-const encode = (str: string) => new TextEncoder().encode(str);
+import { encode } from "@/utils/common";
 
 /**
  * Derives a deterministic, hex-encoded password hash using PBKDF2-SHA256

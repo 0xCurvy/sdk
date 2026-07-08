@@ -4,7 +4,7 @@ import type { WithConfig } from "@/config/types";
 export type HasActiveAccountParameters = WithConfig;
 
 /**
- * Check whether a account is currently active.
+ * Check whether an account is currently active.
  *
  * @example
  * if (hasActiveAccount()) { ... }

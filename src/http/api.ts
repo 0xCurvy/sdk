@@ -107,7 +107,7 @@ class ApiClient extends HttpClient implements IApiClient {
   };
 
   portal = {
-    insertEntryPortal: async (body: InsertEntryPortalRequestBody): Promise<InsertPortalReturnType["data"]> => {
+    InsertEntryPortal: async (body: InsertEntryPortalRequestBody): Promise<InsertPortalReturnType["data"]> => {
       return (
         await this.request<InsertPortalReturnType>({
           method: "POST",
@@ -116,7 +116,7 @@ class ApiClient extends HttpClient implements IApiClient {
         })
       ).data;
     },
-    insertExitPortal: async (body: InsertExitPortalRequestBody): Promise<InsertPortalReturnType["data"]> => {
+    InsertExitPortal: async (body: InsertExitPortalRequestBody): Promise<InsertPortalReturnType["data"]> => {
       return (
         await this.request<InsertPortalReturnType>({
           method: "POST",
@@ -125,7 +125,7 @@ class ApiClient extends HttpClient implements IApiClient {
         })
       ).data;
     },
-    getPortalRecords: async (
+    GetPortalRecords: async (
       params: {
         cursor?: string;
         limit?: number;
@@ -148,7 +148,7 @@ class ApiClient extends HttpClient implements IApiClient {
         retries: 2,
       });
     },
-    getPortalStatus: async (address: string): Promise<PortalStatusResponse | null> => {
+    GetPortalStatus: async (address: string): Promise<PortalStatusResponse | null> => {
       try {
         const response = await this.request<GetPortalStatusReturnType>({
           method: "GET",
@@ -167,7 +167,7 @@ class ApiClient extends HttpClient implements IApiClient {
   bridge = {
     // Served by the portal-broadcaster (default base URL), backed by the same plan + carve the
     // broadcaster executes — so the estimate matches the eventual on-chain result.
-    estimate: async (body: BridgeEstimateRequestBody): Promise<BridgeEstimateReturnType["data"]> => {
+    Estimate: async (body: BridgeEstimateRequestBody): Promise<BridgeEstimateReturnType["data"]> => {
       return (
         await this.request<BridgeEstimateReturnType>({
           method: "POST",

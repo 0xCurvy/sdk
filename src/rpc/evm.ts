@@ -91,7 +91,7 @@ class EvmRpc extends Rpc {
     return tokenBalances.reduce<RpcBalances>((acc, tokenBalance, idx) => {
       const currency = this.network.currencies[idx];
       if (tokenBalance.status === "failure") {
-        console.log(`Couldn't get balance for token ${currency.contractAddress}: `, tokenBalance.error);
+        console.warn(`Couldn't get balance for token ${currency.contractAddress}: `, tokenBalance.error);
         return acc;
       }
 

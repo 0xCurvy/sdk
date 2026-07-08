@@ -21,18 +21,18 @@ export function resolveCircuitArtifacts(
   const network = config.state.networks.find((n) => n.slug === slug);
   if (!network) throw new Error(`prove: no network "${slug ?? "(none active)"}" to resolve ${kind} circuit artifacts`);
 
-  const proving = getProtocol(config).proving;
-  const cc = kind === "aggregation" ? proving.aggregation : proving.withdrawal;
-  if (!cc?.wasmPath || !cc?.zkeyPath) {
+  const proving = getProtocol({ config }).proving;
+  const circuitConfig = kind === "aggregation" ? proving.aggregation : proving.withdrawal;
+  if (!circuitConfig?.wasmPath || !circuitConfig?.zkeyPath) {
     throw new Error(`prove: protocol has no ${kind} circuit config (missing wasmPath/zkeyPath)`);
   }
 
   return {
-    wasm: resolveKeyUri(config, cc.wasmPath),
-    zkey: resolveKeyUri(config, cc.zkeyPath),
-    maxInputs: cc.maxInputs,
-    maxOutputs: cc.maxOutputs,
-    treeDepth: cc.treeDepth,
+    wasm: resolveKeyUri(config, circuitConfig.wasmPath),
+    zkey: resolveKeyUri(config, circuitConfig.zkeyPath),
+    maxInputs: circuitConfig.maxInputs,
+    maxOutputs: circuitConfig.maxOutputs,
+    treeDepth: circuitConfig.treeDepth,
   };
 }
 

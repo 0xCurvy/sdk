@@ -12,7 +12,7 @@ export type GetBalancesParameters = WithConfig<{
 }>;
 
 /**
- * Get a account's shielded balances from storage, optionally refreshing first.
+ * Get an account's shielded balances from storage, optionally refreshing first.
  *
  * @example
  * await getBalances();                       // active account, cached

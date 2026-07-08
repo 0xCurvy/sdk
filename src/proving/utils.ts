@@ -23,11 +23,14 @@ export const sha256BigInt = async (inputs: bigint[]): Promise<bigint> => {
   return BigInt(`0x${Buffer.from(digest).toString("hex")}`);
 };
 
+// Returns a NEW array padded up to `numElements` with `element`; the input is
+// left untouched.
 export const padArray = <T>(arr: T[], numElements: number, element: T): T[] => {
-  for (let i = arr.length; i < numElements; i += 1) {
-    arr.push(element);
+  const out = [...arr];
+  for (let i = out.length; i < numElements; i += 1) {
+    out.push(element);
   }
-  return arr;
+  return out;
 };
 
 export const generateRandomBigInt = (bytes: number = 31): bigint => {
@@ -35,6 +38,3 @@ export const generateRandomBigInt = (bytes: number = 31): bigint => {
   crypto.getRandomValues(buf);
   return BigInt(`0x${Buffer.from(buf).toString("hex")}`);
 };
-
-export const generateRandomInt = (min: number, max: number): number =>
-  Math.floor(min + Math.random() * (max - min + 1));

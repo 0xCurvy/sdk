@@ -30,5 +30,5 @@ export async function getPortalRecords(
 ): Promise<GetPortalRecordsReturnType> {
   const config = resolveConfig(parameters.config);
   const { cursor, limit, startTime, endTime, direction } = parameters;
-  return config.api.portal.getPortalRecords({ cursor, limit, startTime, endTime, direction });
+  return config.api.portal.GetPortalRecords({ cursor, limit, startTime, endTime, direction });
 }

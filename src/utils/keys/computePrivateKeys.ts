@@ -11,13 +11,13 @@ import { invariant } from "@/utils/invariant";
  *
  * @throws if the two derived keys collide (s === v).
  */
-const computePrivateKeys = (r_string: string, s_string: string) => {
-  const _r = BigInt(r_string);
-  const _s = BigInt(s_string);
+const computePrivateKeys = (rString: string, sString: string) => {
+  const _r = BigInt(rString);
+  const _s = BigInt(sString);
 
   const [s, v] = [hash([_s, _r]), hash([_r, _s])];
 
-  invariant(s !== v, "Error generating keys: k === v !");
+  invariant(s !== v, "Error generating keys: s === v !");
 
   return { s, v };
 };

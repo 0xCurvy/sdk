@@ -24,7 +24,6 @@ export async function fetchAggregatorFees(
 ): Promise<{
   protocolFeePerThousand: bigint;
   feeNotePublicKey: [bigint, bigint];
-  commitmentFeeRoot: bigint;
   commitmentGasCosts: bigint[];
 }> {
   const network = config.state.networks.find((n) => n.slug === networkSlug);
@@ -40,7 +39,7 @@ export async function fetchAggregatorFees(
   const aggregator = network.aggregatorContractAddress as Address;
   const vault = network.vaultContractAddress as Address;
 
-  const [protocolFeePerThousand, feeKeyX, feeKeyY, commitmentFeeRoot, latestBlock] = await Promise.all([
+  const [protocolFeePerThousand, feeKeyX, feeKeyY, latestBlock] = await Promise.all([
     rpc.provider.readContract({
       address: aggregator,
       abi: aggregatorAlphaV2Abi,
@@ -58,7 +57,6 @@ export async function fetchAggregatorFees(
       functionName: "feeNotePublicKey",
       args: [1n],
     }),
-    rpc.provider.readContract({ address: aggregator, abi: aggregatorAlphaV2Abi, functionName: "commitmentFeeRoot" }),
     rpc.provider.readContract({ address: vault, abi: vaultV2Abi, functionName: "gasFeeUpdateBlock" }),
   ]);
 
@@ -91,7 +89,6 @@ export async function fetchAggregatorFees(
   return {
     protocolFeePerThousand: protocolFeePerThousand as bigint,
     feeNotePublicKey: [feeKeyX as bigint, feeKeyY as bigint],
-    commitmentFeeRoot: commitmentFeeRoot as bigint,
     commitmentGasCosts,
   };
 }

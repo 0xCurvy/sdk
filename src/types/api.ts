@@ -1,11 +1,5 @@
 //#region API Types
 
-//////////////////////////////////////////////////////////////////////////////
-//
-// API Types
-//
-//////////////////////////////////////////////////////////////////////////////
-
 import type { NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
 import type { AggregatorRequestStatus } from "@/types/aggregator";
 import type { CircuitConfig } from "@/types/core";
@@ -84,12 +78,6 @@ type CurrencyPrice = {
 //#endregion
 
 //#region API Client Types
-
-//////////////////////////////////////////////////////////////////////////////
-//
-// API Client Types
-//
-//////////////////////////////////////////////////////////////////////////////
 
 type NetworksWithCurrenciesResponse = {
   data: Array<Network>;
@@ -315,6 +303,10 @@ type PortalStatusResponse = {
 
 type GetPortalStatusReturnType = { data: PortalStatusResponse };
 
+//#endregion
+
+//#region Bridge estimate
+
 // ── Bridge estimate (POST /bridge/estimate) ──
 // A pre-flight quote for a bridge/swap that mirrors what the broadcaster will execute: it bridges
 // `bridgedAmount` (= fromAmount − carve) and the recipient receives at least `toAmountMin`. `carve`
@@ -359,6 +351,8 @@ type BridgeEstimate = {
   /** Minimum received at the destination (base units of `toToken`). */
   toAmountMin: bigint;
 };
+
+//#endregion
 
 //#region Privacy Pass (blind-RSA access tokens)
 
@@ -414,5 +408,3 @@ export type {
   BridgeEstimateReturnType,
   BridgeEstimate,
 };
-
-//#endregion

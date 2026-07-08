@@ -5,6 +5,15 @@ import type { CurvyKeyPairs } from "@/types/core";
 import type { CurvyId } from "@/types/curvy";
 import { textEncoder } from "@/utils/common";
 
+type CurvyAccountInit = {
+  keyPairs: Partial<CurvyKeyPairs>;
+  curvyHandle: CurvyId | null;
+  ownerAddress: string | null;
+  createdAt?: number;
+  passwordHash?: string;
+  credId?: ArrayBuffer;
+};
+
 class CurvyAccount {
   readonly #keyPairs: CurvyKeyPairs;
 
@@ -16,14 +25,7 @@ class CurvyAccount {
   readonly #passwordHash?: string;
   readonly #credId?: ArrayBuffer;
 
-  constructor(
-    keyPairs: Partial<CurvyKeyPairs>,
-    curvyHandle: CurvyId | null,
-    ownerAddress: string | null,
-    createdAt = +dayjs(),
-    passwordHash?: string,
-    credId?: ArrayBuffer,
-  ) {
+  constructor({ keyPairs, curvyHandle, ownerAddress, createdAt = +dayjs(), passwordHash, credId }: CurvyAccountInit) {
     this.#keyPairs = { S: "", V: "", s: "", v: "", babyJubjubPublicKey: "", ...keyPairs };
     this.curvyHandle = curvyHandle;
     this.ownerAddress = ownerAddress;
@@ -69,3 +71,4 @@ class CurvyAccount {
 }
 
 export { CurvyAccount };
+export type { CurvyAccountInit };

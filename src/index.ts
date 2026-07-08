@@ -19,7 +19,7 @@ export * from "./constants/networks";
 export * from "./contracts/evm/abi";
 // Live IO objects + their contracts (for advanced / custom configuration)
 export { Core } from "./core";
-// Errors, network constants, contract ABIs
+// Errors
 export * from "./errors";
 export { CurvyEventEmitter } from "./events";
 export type { IApiClient } from "./interfaces/api";

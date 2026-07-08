@@ -66,7 +66,7 @@ function configWithEvmRpc(opts: {
     scan: vi.fn(async () => ({ spendingPubKeys: opts.spendingPubKeys, spendingPrivKeys: [] })),
   });
   const api = createFakeApi({
-    portal: { getPortalRecords: vi.fn(async () => ({ portals: opts.portals, nextCursor: null })) },
+    portal: { GetPortalRecords: vi.fn(async () => ({ portals: opts.portals, nextCursor: null })) },
   });
 
   const account = fakeCurvyAccount({ keyPairs: { s: "1", v: "2", babyJubjubPublicKey: "111.222" } });

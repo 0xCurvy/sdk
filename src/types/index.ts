@@ -7,7 +7,9 @@ export * from "./core";
 export * from "./curvy";
 export * from "./events";
 export {
+  type AbortOptions,
   assertHexString,
+  type DeepNonNullable,
   type ExtractKeys,
   type ExtractValues,
   type HexString,

@@ -5,13 +5,12 @@ import { waitForRelay } from "@/actions/aggregator/waitForRelay";
 import { getSpendWitnesses } from "@/actions/notes/getSpendWitnesses";
 import { getProtocol } from "@/config/protocol";
 import { vaultV2Abi } from "@/contracts/evm/abi";
-import { balanceEntryToNote, type Note } from "@/note";
 import type { CommandData, Intent } from "@/planner/types";
 import type { EvmRpc } from "@/rpc/evm";
 import { type HexString, isHexString } from "@/types";
-import type { DeepNonNullable } from "@/types/helper";
-import type { BalanceEntry } from "@/types/storage";
 import { invariant } from "@/utils/invariant";
+import { LIFI_BRIDGES_EVM } from "../constants";
+import { normalizeCommandNotes } from "./normalizeCommandNotes";
 import type { Command, CommandContext, CommandEstimate } from "./types";
 
 /**
@@ -27,20 +26,7 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
   const intent = ctx.intent as Intent;
 
   // --- AbstractAggregatorCommand: validate + normalize input to an array. ---
-  if (Array.isArray(ctx.input)) {
-    invariant(!ctx.input.some((note) => !note.vaultTokenId), "Invalid input for command, vaultTokenId is required.");
-  } else {
-    invariant(ctx.input.vaultTokenId, "Invalid input for command, vaultTokenId is required.");
-  }
-
-  const input: DeepNonNullable<BalanceEntry>[] = (
-    Array.isArray(ctx.input) ? ctx.input.flat() : [ctx.input]
-  ) as DeepNonNullable<BalanceEntry>[];
-
-  const inputNotes: Note[] = input.map((noteBalanceEntry) => balanceEntryToNote(noteBalanceEntry));
-  const inputNotesSum = inputNotes.reduce((acc, note) => acc + note.amount, 0n);
-
-  const grossAmount = inputNotesSum;
+  const { input, inputNotes, grossAmount } = normalizeCommandNotes(ctx.input);
 
   let estimate = ctx.estimate;
 
@@ -82,7 +68,7 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
     estimate = {
       // Withdrawal protocol fee (Curvy): mirrors the vault's on-chain `withdrawalFee`
       // (0.2%); `groupFee` is the per-thousand rate (=2). Enforced on-chain by the vault.
-      curvyFeeInCurrency: (inputNotesSum * BigInt(getProtocol(config).proving.withdrawal.groupFee)) / 1000n,
+      curvyFeeInCurrency: (grossAmount * BigInt(getProtocol({ config }).proving.withdrawal.groupFee)) / 1000n,
       gasFeeInCurrency,
     };
 
@@ -110,7 +96,7 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
         fromToken: intent.currency.contractAddress,
         toToken: exitNetworkCurrencyAddress,
         fromAmount: netAmount().toString(),
-        allowBridges: ["gasZipBridge", "relaydepository", "across"],
+        allowBridges: LIFI_BRIDGES_EVM,
       });
 
       estimate.bridgeFeeInCurrency =
@@ -126,7 +112,7 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
         fromToken: intent.currency.contractAddress,
         toToken: intent.exitCurrency.contractAddress,
         fromAmount: netAmount().toString(),
-        allowBridges: ["gasZipBridge", "relaydepository", "across"],
+        allowBridges: LIFI_BRIDGES_EVM,
       });
 
       estimate.bridgeFeeInCurrency =

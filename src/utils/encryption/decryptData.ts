@@ -1,7 +1,6 @@
 import { Buffer } from "buffer";
+import { decode } from "@/utils/common";
 import { deriveKey } from "@/utils/encryption/kdf";
-
-const decode = (buffer: ArrayBuffer) => new TextDecoder().decode(buffer);
 
 const decrypt = async (cipherText: string, password: string, iv: string, salt: string) => {
   const key = await deriveKey(password, Buffer.from(salt, "hex"));

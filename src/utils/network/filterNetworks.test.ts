@@ -10,7 +10,7 @@ import { filterNetworks } from "@/utils/network/filterNetworks";
 
 const networks: Network[] = [
   fixtureNetwork({ id: 1, name: "Ethereum Sepolia", slug: "ethereum-sepolia", testnet: true }),
-  fixtureNetwork({ id: 2, name: "Starknet Sepolia", slug: "starknet-sepolia", testnet: true }),
+  fixtureNetwork({ id: 2, name: "Base Sepolia", slug: "base-sepolia", testnet: true }),
   fixtureNetwork({ id: 3, name: "Ethereum", slug: "ethereum", testnet: false }),
 ];
 
@@ -79,7 +79,7 @@ describe("filterNetworks", () => {
   });
 
   it("filters with a callback predicate", () => {
-    const matched = filterNetworks(networks, (network) => network.name.startsWith("Starknet"));
+    const matched = filterNetworks(networks, (network) => network.name.startsWith("Base"));
     expect(matched).toHaveLength(1);
     expect(matched[0].id).toBe(2);
   });

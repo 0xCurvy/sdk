@@ -96,10 +96,10 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
       ...overrides.network,
     },
     portal: {
-      insertEntryPortal: vi.fn(),
-      insertExitPortal: vi.fn(),
-      getPortalRecords: vi.fn(async () => ({ portals: [], nextCursor: null })),
-      getPortalStatus: vi.fn(async () => null),
+      InsertEntryPortal: vi.fn(),
+      InsertExitPortal: vi.fn(),
+      GetPortalRecords: vi.fn(async () => ({ portals: [], nextCursor: null })),
+      GetPortalStatus: vi.fn(async () => null),
       ...overrides.portal,
     },
     user: {
@@ -206,7 +206,11 @@ export function fakeCurvyAccount(
   const curvyHandle = "curvyHandle" in overrides ? overrides.curvyHandle : ("alice.curvy.name" as CurvyId);
   const ownerAddress =
     "ownerAddress" in overrides ? overrides.ownerAddress : "0x000000000000000000000000000000000000000a";
-  return new CurvyAccount(fakeKeyPairs(overrides.keyPairs), curvyHandle ?? null, ownerAddress ?? null);
+  return new CurvyAccount({
+    keyPairs: fakeKeyPairs(overrides.keyPairs),
+    curvyHandle: curvyHandle ?? null,
+    ownerAddress: ownerAddress ?? null,
+  });
 }
 
 export type CreateFakeConfigOverrides = {

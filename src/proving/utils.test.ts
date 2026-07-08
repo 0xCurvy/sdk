@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  generateRandomBigInt,
-  generateRandomInt,
-  padArray,
-  SNARK_SCALAR_FIELD,
-  serializeJson,
-  sha256BigInt,
-} from "./utils";
+import { generateRandomBigInt, padArray, SNARK_SCALAR_FIELD, serializeJson, sha256BigInt } from "./utils";
 
 describe("serializeJson", () => {
   it("stringifies bigints as decimal strings", () => {
@@ -75,11 +68,12 @@ describe("padArray", () => {
     expect(padArray([1, 2, 3, 4], 2, 0)).toEqual([1, 2, 3, 4]);
   });
 
-  it("mutates and returns same reference", () => {
+  it("returns a new array and leaves the input untouched", () => {
     const a: number[] = [];
     const r = padArray(a, 3, 1);
-    expect(r).toBe(a);
-    expect(a).toEqual([1, 1, 1]);
+    expect(r).not.toBe(a);
+    expect(a).toEqual([]);
+    expect(r).toEqual([1, 1, 1]);
   });
 });
 
@@ -100,20 +94,6 @@ describe("generateRandomBigInt", () => {
     const a = generateRandomBigInt();
     const b = generateRandomBigInt();
     expect(a).not.toBe(b);
-  });
-});
-
-describe("generateRandomInt", () => {
-  it("stays within [min, max]", () => {
-    for (let i = 0; i < 50; i++) {
-      const v = generateRandomInt(3, 7);
-      expect(v).toBeGreaterThanOrEqual(3);
-      expect(v).toBeLessThanOrEqual(7);
-    }
-  });
-
-  it("returns min when min === max", () => {
-    expect(generateRandomInt(5, 5)).toBe(5);
   });
 });
 

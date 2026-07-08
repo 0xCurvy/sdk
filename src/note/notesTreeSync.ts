@@ -112,6 +112,36 @@ export type SyncNotesTreeResult = {
 };
 
 /**
+ * Chain trust-anchor reconciliation, shared by the full and sharded sync engines.
+ * When the local leaf count is level with the verifier's on-chain `noteIndex`,
+ * the local root MUST equal the on-chain root — throws `<mismatchLabel> <local>
+ * != on-chain root <chain>` on divergence (also what retroactively validates any
+ * bootstrapped state). Otherwise it reports the SIGNED `indexerLag`:
+ *   POSITIVE — the indexer/leaves trail the chain head.
+ *   NEGATIVE — `verifier.currentRoot()` (a one-shot RPC read) landed on a replica
+ *     a beat behind right after a commit, momentarily reporting a lower noteIndex
+ *     than the leaves already delivered. NOT a lying indexer: stay not-caughtUp
+ *     and let the next pass reconcile; the root-equality gate above still fires
+ *     the moment the counts align, so a genuinely fabricated leaf fails it then.
+ */
+export async function reconcileWithChain(
+  verifier: RootVerifier,
+  leafCount: number,
+  localRoot: () => bigint,
+  mismatchLabel: string,
+): Promise<{ caughtUp: boolean; indexerLag: number }> {
+  const { root, noteIndex } = await verifier.currentRoot();
+  if (leafCount === noteIndex) {
+    const assembled = localRoot();
+    if (assembled !== root) {
+      throw new Error(`${mismatchLabel} ${assembled} != on-chain root ${root}`);
+    }
+    return { caughtUp: true, indexerLag: 0 };
+  }
+  return { caughtUp: false, indexerLag: noteIndex - leafCount };
+}
+
+/**
  * Run one sync pass for a network: rebuild the warm tree from the chunked logs,
  * pull the delta from `source` (cursor = persisted log lengths), fold it in,
  * verify against chain, and persist (only the tail chunk is rewritten). Returns
@@ -155,25 +185,12 @@ export async function syncNotesTree(opts: SyncNotesTreeOptions): Promise<SyncNot
   let caughtUp = false;
   let indexerLag = 0;
   if (verifier) {
-    const { root, noteIndex } = await verifier.currentRoot();
-    if (live.leaves.length === noteIndex) {
-      if (live.tree.root() !== root) {
-        throw new Error(`notes-tree sync: rebuilt root ${live.tree.root()} != on-chain root ${root}`);
-      }
-      caughtUp = true;
-    } else if (live.leaves.length < noteIndex) {
-      indexerLag = noteIndex - live.leaves.length; // indexer behind chain (S7)
-    } else {
-      // My chain read trails the indexer's leaf stream — the benign mirror of
-      // indexerLag. The leaf source (indexer) polls continuously and sits at head,
-      // while `verifier.currentRoot()` is a one-shot RPC read that can land on a
-      // replica a beat behind right after a commit, so it momentarily reports a
-      // lower noteIndex than the leaves already delivered. This is NOT a lying
-      // indexer: stay not-caughtUp (negative lag = leaves ahead of my RPC read)
-      // and let the next pass reconcile. The root-equality gate above still fires
-      // the moment the counts align — a genuinely fabricated leaf fails it then.
-      indexerLag = noteIndex - live.leaves.length;
-    }
+    ({ caughtUp, indexerLag } = await reconcileWithChain(
+      verifier,
+      live.leaves.length,
+      () => live.tree.root(),
+      "notes-tree sync: rebuilt root",
+    ));
   }
 
   // 5. Persist: append only the tail (chunked) + rewrite the small checkpoint.

@@ -4,12 +4,12 @@ import type { CurvyId } from "@/types/curvy";
 import { generateExitPortal } from "./generateExitPortal";
 
 describe("generateExitPortal", () => {
-  it("delegates to api.portal.insertExitPortal and returns { address, flavour }", async () => {
-    const insertExitPortal = vi.fn(async () => ({
+  it("delegates to api.portal.InsertExitPortal and returns { address, flavour }", async () => {
+    const InsertExitPortal = vi.fn(async () => ({
       address: "0x00000000000000000000000000000000000000cc" as const,
       flavour: "evm" as const,
     }));
-    const config = createFakeConfig({ api: createFakeApi({ portal: { insertExitPortal } }) });
+    const config = createFakeConfig({ api: createFakeApi({ portal: { InsertExitPortal } }) });
 
     const result = await generateExitPortal({
       curvyId: "alice.curvy.name" as CurvyId,
@@ -19,15 +19,15 @@ describe("generateExitPortal", () => {
     });
 
     expect(result).toEqual({ address: "0x00000000000000000000000000000000000000cc", flavour: "evm" });
-    expect(insertExitPortal).toHaveBeenCalledTimes(1);
+    expect(InsertExitPortal).toHaveBeenCalledTimes(1);
   });
 
   it("forwards the request body (minus config) to the api", async () => {
-    const insertExitPortal = vi.fn(async () => ({
+    const InsertExitPortal = vi.fn(async () => ({
       address: "0x00000000000000000000000000000000000000dd" as const,
       flavour: "evm" as const,
     }));
-    const config = createFakeConfig({ api: createFakeApi({ portal: { insertExitPortal } }) });
+    const config = createFakeConfig({ api: createFakeApi({ portal: { InsertExitPortal } }) });
 
     await generateExitPortal({
       curvyId: "bob.curvy.name" as CurvyId,
@@ -36,7 +36,7 @@ describe("generateExitPortal", () => {
       config,
     });
 
-    expect(insertExitPortal).toHaveBeenCalledWith({
+    expect(InsertExitPortal).toHaveBeenCalledWith({
       curvyId: "bob.curvy.name",
       currencyId: 2,
       exitAddress: "0x0000000000000000000000000000000000000001",

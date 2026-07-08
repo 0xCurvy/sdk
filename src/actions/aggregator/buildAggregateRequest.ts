@@ -3,10 +3,10 @@ import type { WithConfig } from "@/config/types";
 import type { Note } from "@/note";
 import type { SuppliedInclusionProofs } from "@/proving";
 import { GAS_FEE_TREE_DEPTH, MerkleTree } from "@/proving";
-import { loadCircuitKey } from "@/proving/circuitKeyCache";
 import { formatGroth16ProofForSolidity } from "@/proving/groth16";
 import { buildAggregationWitnessBundle, flattenAggregationCircuitInputs } from "@/proving/witnessFromNotes";
 import type { CurvyPublicKeys } from "@/types/core";
+import { loadArtifactsAndProve } from "../proving/internal/loadArtifactsAndProve";
 import { resolveCircuitArtifacts } from "../proving/internal/resolveCircuitArtifacts";
 import { attachSubmissionSugar } from "./internal/attachSugar";
 import { fetchAggregatorFees } from "./internal/fetchAggregatorFees";
@@ -153,14 +153,10 @@ export async function buildAggregateRequest(
     treeDepth,
   });
 
-  const [wasmArtifact, zkeyArtifact] = await Promise.all([
-    loadCircuitKey(config.circuitKeyCache, wasm),
-    loadCircuitKey(config.circuitKeyCache, zkey),
-  ]);
-  const { proof, publicSignals } = await config.prover.prove(
+  const { proof, publicSignals } = await loadArtifactsAndProve(
+    config,
+    { wasm, zkey },
     flattenAggregationCircuitInputs(witness),
-    wasmArtifact,
-    zkeyArtifact,
   );
   const signals = publicSignals.map(BigInt);
 

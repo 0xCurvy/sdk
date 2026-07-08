@@ -26,9 +26,8 @@ export async function findOwnedPortals(parameters: FindOwnedPortalsParameters): 
   const { network } = parameters;
 
   if (network.flavour === NETWORK_FLAVOUR.SOLANA) {
-    // Solana only supports entry portals today, and there's only one possible
-    // entry per (keys, network). Fall back to the existing single-address
-    // helper isn't possible without an address, so leave this for follow-up.
+    // Solana has one entry portal per (keys, network) and no exit portals;
+    // enumeration needs an address we don't have here, so return [] for now.
     return [];
   }
   return findOwnedEvmPortals(config, network);

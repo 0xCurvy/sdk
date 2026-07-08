@@ -79,8 +79,8 @@ export class SessionKeystore extends Emittery<SessionKeystoreEvents> {
   }
 
   /**
-   * Wait for the keystore to be ready prior session
-   * data restored). Must be awaited before first use.
+   * Resolves once the keystore has restored any persisted session data.
+   * Await before first use.
    */
   async ready(): Promise<void> {
     return this.#initialized;

@@ -1,10 +1,10 @@
 import { sleep } from "@/utils/promise/sleep";
 
 /**
- *  * Polls a function until the criteria is met or max retries is reached.
+ * Polls a function until the criteria is met or max retries is reached.
  *
- * @param pollFunction
- * @param pollCriteria
+ * @param pollFunction - Async function invoked each attempt; its result is tested against `pollCriteria`
+ * @param pollCriteria - Predicate returning `true` when `pollFunction`'s result is acceptable
  * @param {number} [pollAttempts=120] - Maximum number of retries
  * @param {number} [pollDelay=10_000] - Delay between retries in milliseconds
  * @param {(pollAttempt: number, error: unknown) => boolean} [shouldRetry] - Optional function to determine if a retry should be attempted after an error

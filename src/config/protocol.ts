@@ -1,6 +1,6 @@
 import type { ProtocolConfig } from "@/types/api";
 import { resolveConfig } from "./global";
-import type { CurvyConfig } from "./types";
+import type { WithConfig } from "./types";
 
 /**
  * The protocol-global config — proving parameters + fee collector — from the active config's
@@ -8,8 +8,8 @@ import type { CurvyConfig } from "./types";
  * from `GET /protocol`; this is the single source consumers read (it is NOT stamped onto each
  * network). Throws if it isn't loaded yet — proving/fee ops can't proceed without it.
  */
-export function getProtocol(config?: CurvyConfig): ProtocolConfig {
-  const protocol = resolveConfig(config).state.protocol;
+export function getProtocol(parameters: WithConfig = {}): ProtocolConfig {
+  const protocol = resolveConfig(parameters.config).state.protocol;
   if (!protocol) {
     throw new Error("Curvy protocol config is not loaded — createCurvyConfig() must complete before proving/fee ops.");
   }

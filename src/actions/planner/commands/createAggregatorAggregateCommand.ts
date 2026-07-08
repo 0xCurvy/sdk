@@ -7,15 +7,14 @@ import { waitForRelay } from "@/actions/aggregator/waitForRelay";
 import { getSpendWitnesses } from "@/actions/notes/getSpendWitnesses";
 import { syncNotes } from "@/actions/notes/syncNotes";
 import { getProtocol } from "@/config/protocol";
-import { balanceEntryToNote, type Note, noteToBalanceEntry } from "@/note";
+import { type Note, noteToBalanceEntry } from "@/note";
 import type { CommandData } from "@/planner/types";
 import { type HexString, isValidCurvyId } from "@/types";
 import type { CurvyPublicKeys } from "@/types/core";
-import type { DeepNonNullable } from "@/types/helper";
-import type { BalanceEntry } from "@/types/storage";
 import { invariant } from "@/utils/invariant";
 import { pollForCriteria } from "@/utils/promise";
 import { generateNewNote } from "./generateNewNote";
+import { normalizeCommandNotes } from "./normalizeCommandNotes";
 import type { Command, CommandContext, CommandEstimate } from "./types";
 
 /** The aggregate command stores its freshly-minted (estimate-time) output note on the estimate. */
@@ -40,21 +39,7 @@ interface CurvyCommandEstimateWithNote extends CommandEstimate {
 export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
   const { intent, senderCurvyId, config, networkSlug, ownerBjjPrivateKeyHex } = ctx;
 
-  if (Array.isArray(ctx.input)) {
-    invariant(!ctx.input.some((note) => !note.vaultTokenId), "Invalid input for command, vaultTokenId is required.");
-  } else {
-    invariant(ctx.input.vaultTokenId, "Invalid input for command, vaultTokenId is required.");
-  }
-
-  const input: DeepNonNullable<BalanceEntry>[] = (
-    Array.isArray(ctx.input) ? ctx.input.flat() : [ctx.input]
-  ) as DeepNonNullable<BalanceEntry>[];
-
-  const inputNotes: Note[] = input.map((noteBalanceEntry) => balanceEntryToNote(noteBalanceEntry));
-  const inputNotesSum = inputNotes.reduce((acc, note) => acc + note.amount, 0n);
-
-  // grossAmount === inputNotesSum
-  const grossAmount = inputNotesSum;
+  const { input, inputNotes, grossAmount } = normalizeCommandNotes(ctx.input);
 
   // --- recipient (handle / keys), used by the estimate path + the `recipient` getter ---
   const getRecipient = () => {
@@ -136,7 +121,7 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
     if (estimate) return estimate;
 
     // Fallback (no paymaster/fees reachable): a coarse groupFee-based protocol estimate.
-    let curvyFeeInCurrency = (grossAmount * BigInt(getProtocol(config).proving.aggregation.groupFee)) / 1000n;
+    let curvyFeeInCurrency = (grossAmount * BigInt(getProtocol({ config }).proving.aggregation.groupFee)) / 1000n;
 
     // Operator paymaster gas note, in the aggregation token. Best-effort: when no
     // paymaster is reachable or the token is unpriced, gas shows as 0 and execute

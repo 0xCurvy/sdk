@@ -10,7 +10,7 @@ import { verifyEvmSignature } from "./internal/verifyEvmSignature";
 export type RegisterParameters = WithConfig<{ handle: CurvyId; signature: EvmSignatureData }>;
 
 /**
- * Register a new Curvy handle from a account signature.
+ * Register a new Curvy handle from an account signature.
  *
  * Runs the pre-registration checks, verifies the signature, derives the private
  * keys, then registers and adds the account.

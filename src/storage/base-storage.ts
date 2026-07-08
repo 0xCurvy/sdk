@@ -337,23 +337,13 @@ export abstract class BaseStorage implements StorageInterface {
     if (items.length === 0) return;
     // Group the new items by the chunk they land in; rewrite only those chunks.
     // Earlier full chunks are never touched (append-only log).
-    let i = 0;
-    while (i < items.length) {
-      const globalIndex = fromIndex + i;
-      const chunkIndex = Math.floor(globalIndex / LOG_CHUNK_SIZE);
-      const offset = globalIndex % LOG_CHUNK_SIZE;
-      const take = Math.min(LOG_CHUNK_SIZE - offset, items.length - i);
-
-      const chunk = (await this._getLogChunk(networkSlug, kind, chunkIndex)) ?? [];
-      if (chunk.length !== offset) {
-        throw new StorageError(
-          `appendCommittedLog(${kind}): non-contiguous append — chunk ${chunkIndex} has ${chunk.length} items, expected ${offset}`,
-        );
-      }
-      for (let j = 0; j < take; j++) chunk.push(items[i + j]);
-      await this._putLogChunk(networkSlug, kind, chunkIndex, chunk);
-      i += take;
-    }
+    await this.#appendChunked(
+      (chunkIndex) => this._getLogChunk(networkSlug, kind, chunkIndex),
+      (chunkIndex, chunk) => this._putLogChunk(networkSlug, kind, chunkIndex, chunk),
+      fromIndex,
+      items,
+      `appendCommittedLog(${kind})`,
+    );
   }
 
   async getCommittedLog(networkSlug: string, kind: CommittedLogKind): Promise<string[]> {
@@ -375,21 +365,43 @@ export abstract class BaseStorage implements StorageInterface {
     // Append-only: the new roots must start exactly at the current stored count.
     // Stored chunked (like the committed logs) so a delta only rewrites the tail
     // chunk(s); earlier full chunks are immutable once sealed.
+    await this.#appendChunked(
+      (chunkIndex) => this._getShardRootsChunk(networkSlug, chunkIndex),
+      (chunkIndex, chunk) => this._putShardRootsChunk(networkSlug, chunkIndex, chunk),
+      fromShard,
+      roots,
+      "appendShardRoots",
+    );
+  }
+
+  /**
+   * Chunked append-only writer shared by {@link appendCommittedLog} and
+   * {@link appendShardRoots}: lands `items` starting at global `fromIndex`,
+   * rewriting only the chunk(s) they touch and asserting each write is
+   * contiguous with what is already stored (throws `<label>: non-contiguous …`).
+   */
+  async #appendChunked(
+    read: (chunkIndex: number) => Promise<string[] | undefined>,
+    write: (chunkIndex: number, items: string[]) => Promise<void>,
+    fromIndex: number,
+    items: string[],
+    label: string,
+  ): Promise<void> {
     let i = 0;
-    while (i < roots.length) {
-      const globalIndex = fromShard + i;
+    while (i < items.length) {
+      const globalIndex = fromIndex + i;
       const chunkIndex = Math.floor(globalIndex / LOG_CHUNK_SIZE);
       const offset = globalIndex % LOG_CHUNK_SIZE;
-      const take = Math.min(LOG_CHUNK_SIZE - offset, roots.length - i);
+      const take = Math.min(LOG_CHUNK_SIZE - offset, items.length - i);
 
-      const chunk = (await this._getShardRootsChunk(networkSlug, chunkIndex)) ?? [];
+      const chunk = (await read(chunkIndex)) ?? [];
       if (chunk.length !== offset) {
         throw new StorageError(
-          `appendShardRoots: non-contiguous append — chunk ${chunkIndex} has ${chunk.length} items, expected ${offset}`,
+          `${label}: non-contiguous append — chunk ${chunkIndex} has ${chunk.length} items, expected ${offset}`,
         );
       }
-      for (let j = 0; j < take; j++) chunk.push(roots[i + j]);
-      await this._putShardRootsChunk(networkSlug, chunkIndex, chunk);
+      for (let j = 0; j < take; j++) chunk.push(items[i + j]);
+      await write(chunkIndex, chunk);
       i += take;
     }
   }

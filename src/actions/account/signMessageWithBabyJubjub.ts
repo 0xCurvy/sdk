@@ -7,7 +7,7 @@ import { getActiveKeyPairs } from "./internal/getActiveKeyPairs";
 export type SignMessageWithBabyJubjubParameters = WithConfig<{ message: bigint; accountId?: string }>;
 
 /**
- * Sign a message with a account's BabyJubjub spending key. Resolves the active
+ * Sign a message with an account's BabyJubjub spending key. Resolves the active
  * (or explicit) live account and delegates to `core.signWithBabyJubjubPrivateKey`.
  *
  * @example

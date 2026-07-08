@@ -36,7 +36,7 @@ export async function findOwnedEvmPortals(config: CurvyConfig, network: Network)
   const owned: MatchedPortalRecord[] = [];
 
   while (true) {
-    const result = await config.api.portal.getPortalRecords({ cursor, limit: BATCH_SIZE });
+    const result = await config.api.portal.GetPortalRecords({ cursor, limit: BATCH_SIZE });
     if (result.portals.length === 0) break;
     cursor = result.nextCursor ?? undefined;
 

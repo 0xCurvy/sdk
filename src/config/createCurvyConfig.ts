@@ -11,6 +11,7 @@ import { MapStorage } from "@/storage/map-storage";
 import type { CurvyKeyPairs } from "@/types/core";
 import { defaultTimerProvider, filterNetworks, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
 import { setCurvyConfig } from "./global";
+import { KEYSTORE_JWT_KEY } from "./keystoreKeys";
 import { startPriceRefresh } from "./priceRefresh";
 import { createStore } from "./store";
 import type { CreateCurvyConfigParameters, CurvyConfig, CurvyConfigInternal, CurvyState } from "./types";
@@ -96,8 +97,8 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     // token change (initial auth + refresh). Per-account keypairs are co-tenants
     // in the same store; iteration must skip this key (see actions/auth/session).
     api.setOnTokenChange((token) => {
-      if (token) keystore?.set("__jwt__", token);
-      else keystore?.delete("__jwt__");
+      if (token) keystore?.set(KEYSTORE_JWT_KEY, token);
+      else keystore?.delete(KEYSTORE_JWT_KEY);
     });
   }
 

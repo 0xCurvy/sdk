@@ -19,5 +19,5 @@ export async function generateEntryPortal(
 ): Promise<{ address: HexString; flavour: NETWORK_FLAVOUR_VALUES }> {
   const config = resolveConfig(parameters.config);
   const { config: _config, ...body } = parameters;
-  return config.api.portal.insertEntryPortal(body as InsertEntryPortalRequestBody);
+  return config.api.portal.InsertEntryPortal(body as InsertEntryPortalRequestBody);
 }

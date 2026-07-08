@@ -1,7 +1,9 @@
 /**
- * Convert an ownerHash (decimal string from Poseidon, 0x-hex, or plain hex)
- * into a 32-byte buffer suitable for PDA derivation. Pure JS — no `Buffer`
- * dependency, so this works in any environment the SDK targets.
+ * Convert a big-endian 256-bit value — given as a decimal string, 0x-hex, or
+ * plain hex — into a 32-byte buffer. Used both for ownerHash → PDA seed
+ * derivation and for turning a secp256k1 private key (hex/decimal) into its raw
+ * 32-byte signing key (see `signSolRecovery`/`signSplRecovery`). Pure JS — no
+ * `Buffer` dependency, so this works in any environment the SDK targets.
  *
  * @example
  * ownerHashToBytes("0x01");           // 32 bytes, last byte = 0x01

@@ -28,7 +28,7 @@ export type NotesSyncEngine = "sharded" | "global";
  * *metadata*; the event emitter remains the channel for *progress/notification*.
  */
 export type CurvyState = {
-  status: "uninitialized" | "initializing" | "ready";
+  status: "initializing" | "ready";
   environment: NETWORK_ENVIRONMENT_VALUES;
   networks: Network[];
   activeNetworks: Network[];

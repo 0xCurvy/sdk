@@ -1,3 +1,5 @@
+import { bytesToHex } from "./bytesToHex";
+
 /**
  * Convert a 64-byte `Uint8Array` (two 32-byte big-endian field elements) into a
  * `"X.Y"` decimal public-key string. If already a string, returns it unchanged.
@@ -20,9 +22,7 @@ export function bytesToDecimalString(bytes: Uint8Array | string): string {
   }
 
   // Convert back to hex strings
-  const hexString = Array.from(bytes)
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  const hexString = bytesToHex(bytes);
 
   const xHex = hexString.slice(0, 64);
   const yHex = hexString.slice(64);

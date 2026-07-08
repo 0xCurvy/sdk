@@ -26,6 +26,6 @@ describe("computePrivateKeys", () => {
   });
 
   it("throws when r equals s (s === v collision)", () => {
-    expect(() => computePrivateKeys("5", "5")).toThrow(/k === v/);
+    expect(() => computePrivateKeys("5", "5")).toThrow(/s === v/);
   });
 });

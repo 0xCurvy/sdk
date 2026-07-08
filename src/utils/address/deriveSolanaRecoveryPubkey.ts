@@ -42,7 +42,7 @@ const deriveSolanaRecoveryPubkey = (rawPubKey: string): string => {
   // Domain tag "curvy-solana-recovery-v1" prevents cross-context key reuse
   const domainTagHex = Buffer.from("curvy-solana-recovery-v1", "utf8").toString("hex");
   const preimage = `0x${domainTagHex}${compressedHex}` as const;
-  const hashHex = sha256(preimage, "bytes"); // ethers returns "0x..." hex
+  const hashHex = sha256(preimage, "bytes"); // viem sha256 with "bytes" returns a Uint8Array
 
   // Encode as base58 (Solana pubkey format — same Bitcoin base58 alphabet, no checksum)
   return bs58.encode(hashHex);

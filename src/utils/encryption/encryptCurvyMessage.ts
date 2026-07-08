@@ -3,15 +3,11 @@ import { ethers } from "ethers";
 import { bytesToHex } from "viem";
 import { decimalStringToHex } from "@/utils/encoding";
 import { encryptData } from "@/utils/encryption";
+import type { EncryptedCurvyMessage } from "@/utils/encryption/decryptCurvyMessage";
 import { normalizePrivateKey } from "@/utils/encryption/normalizePrivateKey";
 
-type EncryptedCurvyMessage = {
-  data: string;
-  senderSAPublicKey: string;
-};
-
 const getPublicKey = (privateKey: string) => {
-  const signer = new ethers.SigningKey(`0x${privateKey.replace("0x", "")}`);
+  const signer = new ethers.SigningKey(`0x${normalizePrivateKey(privateKey)}`);
   return signer.publicKey;
 };
 

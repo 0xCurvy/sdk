@@ -4,7 +4,7 @@ import type { PortalStatusResponse } from "@/types/api";
 import { getPortalStatus } from "./getPortalStatus";
 
 describe("getPortalStatus", () => {
-  it("delegates to api.portal.getPortalStatus and returns the status", async () => {
+  it("delegates to api.portal.GetPortalStatus and returns the status", async () => {
     const status: PortalStatusResponse = {
       type: "entry",
       state: "completed",
@@ -12,7 +12,7 @@ describe("getPortalStatus", () => {
       updatedAt: "2026-01-02T00:00:00Z",
     };
     const getPortalStatusFn = vi.fn(async () => status);
-    const config = createFakeConfig({ api: createFakeApi({ portal: { getPortalStatus: getPortalStatusFn } }) });
+    const config = createFakeConfig({ api: createFakeApi({ portal: { GetPortalStatus: getPortalStatusFn } }) });
 
     const result = await getPortalStatus({ address: "0x00000000000000000000000000000000000000aa", config });
 
@@ -22,7 +22,7 @@ describe("getPortalStatus", () => {
 
   it("returns null when the api reports no portal", async () => {
     const getPortalStatusFn = vi.fn(async () => null);
-    const config = createFakeConfig({ api: createFakeApi({ portal: { getPortalStatus: getPortalStatusFn } }) });
+    const config = createFakeConfig({ api: createFakeApi({ portal: { GetPortalStatus: getPortalStatusFn } }) });
 
     const result = await getPortalStatus({ address: "0xdoesnotexist", config });
 

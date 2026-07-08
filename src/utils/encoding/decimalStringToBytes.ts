@@ -1,3 +1,5 @@
+import { hexToBytes } from "./hexToBytes";
+
 /**
  * Convert a `"X.Y"` decimal public-key string into its 64-byte representation
  * (two 32-byte big-endian field elements). If already a `Uint8Array`, returns
@@ -25,10 +27,6 @@ export function decimalStringToBytes(decimal: string | Uint8Array): Uint8Array {
   if (hex.length % 2 !== 0) {
     throw new Error("Hex string must have an even length.");
   }
-  const array = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    array[i / 2] = Number.parseInt(hex.substring(i, i + 2), 16);
-  }
 
-  return array;
+  return hexToBytes(hex);
 }

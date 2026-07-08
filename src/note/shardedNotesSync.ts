@@ -3,7 +3,7 @@ import type { StorageInterface } from "@/interfaces/storage";
 import { MerkleTree } from "@/proving/merkleTree";
 import { poseidonHash } from "@/utils/hash/poseidonHash";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "./discoverOwnedNotes";
-import type { LeafSource, RootVerifier, SyncedLeaf } from "./notesTreeSync";
+import { type LeafSource, type RootVerifier, reconcileWithChain, type SyncedLeaf } from "./notesTreeSync";
 import { DEFAULT_SHARD_HEIGHT, NOTES_TREE_DEPTH, ShardedNotesTree } from "./shardedNotesTree";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,25 +140,12 @@ export async function syncShardedNotesTree(opts: SyncShardedNotesTreeOptions): P
   let caughtUp = false;
   let indexerLag = 0;
   if (verifier) {
-    const { root, noteIndex } = await verifier.currentRoot();
-    if (tree.leafCount === noteIndex) {
-      if (tree.root() !== root) {
-        throw new Error(`sharded sync: assembled root ${tree.root()} != on-chain root ${root}`);
-      }
-      caughtUp = true;
-    } else if (tree.leafCount < noteIndex) {
-      indexerLag = noteIndex - tree.leafCount;
-    } else {
-      // My chain read trails the indexer's leaf stream — the benign mirror of
-      // indexerLag. The leaf source (indexer) polls continuously and sits at head,
-      // while `verifier.currentRoot()` is a one-shot RPC read that can land on a
-      // replica a beat behind right after a commit, so it momentarily reports a
-      // lower noteIndex than the leaves already delivered. This is NOT a lying
-      // indexer: stay not-caughtUp (negative lag = leaves ahead of my RPC read)
-      // and let the next pass reconcile. The root-equality gate above still fires
-      // the moment the counts align — a genuinely fabricated leaf fails it then.
-      indexerLag = noteIndex - tree.leafCount;
-    }
+    ({ caughtUp, indexerLag } = await reconcileWithChain(
+      verifier,
+      tree.leafCount,
+      () => tree.root(),
+      "sharded sync: assembled root",
+    ));
   }
 
   // 6. Persist the delta: append-only shard roots, the (bounded) live shard,

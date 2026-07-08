@@ -147,6 +147,10 @@ export function rpcRootVerifier(config: CurvyConfig, networkSlug: string): RootV
  * resolver only supplies (sharedSecret, ownerPub); `discoverOwnedNotes`' noteId
  * recompute remains the integrity gate. A WASM-Core per-leaf ECDH resolver can
  * replace this later to also discover notes the scan has never seen.
+ *
+ * Intentional dead code: production sync uses {@link coreOwnershipResolver} (which
+ * supersedes this); the stored-balance variant is retained as a documented
+ * fallback and is currently exercised only by tests.
  */
 export async function balanceOwnershipResolver(
   config: CurvyConfig,
