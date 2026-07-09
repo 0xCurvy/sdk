@@ -1,4 +1,5 @@
 import type { CurvyConfig } from "@/config/types";
+import { AuthError } from "@/errors";
 import type { CurvyKeyPairs, HexString } from "@/types";
 import { requireSpendKey } from "@/utils/keys";
 import { getUserDetails } from "./getUserDetails";
@@ -15,7 +16,7 @@ export async function preLoginChecks(config: CurvyConfig, keyPairs: CurvyKeyPair
   const { createdAt, publicKeys, curvyHandle } = await getUserDetails(config, userAddress);
 
   if (!(publicKeys.viewingKey === keyPairs.V && publicKeys.spendingKey === keyPairs.S)) {
-    throw new Error(`Wrong password for handle ${curvyHandle}.`);
+    throw new AuthError(`Wrong password for handle ${curvyHandle}.`);
   }
 
   await updateBearerToken(config, requireSpendKey(keyPairs));

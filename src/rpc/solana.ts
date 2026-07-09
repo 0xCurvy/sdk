@@ -189,8 +189,12 @@ class SolanaRpc extends Rpc {
     if (solCurrency) {
       const solBalance = solBalanceRes.value;
       const bridgeable = solBalance > rentExempt ? solBalance - rentExempt : 0n;
-      acc[networkSlug] ??= {};
-      acc[networkSlug]![solCurrency.contractAddress] = {
+      let networkBalances = acc[networkSlug];
+      if (!networkBalances) {
+        networkBalances = {};
+        acc[networkSlug] = networkBalances;
+      }
+      networkBalances[solCurrency.contractAddress] = {
         id: solCurrency.id,
         balance: bridgeable,
         // Solana mint addresses are base58, not hex — cast for type compatibility.
@@ -216,8 +220,12 @@ class SolanaRpc extends Rpc {
       const amount = data.readBigUInt64LE(64);
 
       const currency = splCurrencies[i];
-      acc[networkSlug] ??= {};
-      acc[networkSlug]![currency.contractAddress] = {
+      let networkBalances = acc[networkSlug];
+      if (!networkBalances) {
+        networkBalances = {};
+        acc[networkSlug] = networkBalances;
+      }
+      networkBalances[currency.contractAddress] = {
         id: currency.id,
         balance: amount,
         currencyAddress: currency.contractAddress as HexString,

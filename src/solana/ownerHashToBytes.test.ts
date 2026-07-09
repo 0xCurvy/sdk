@@ -6,7 +6,7 @@ describe("ownerHashToBytes", () => {
     expect(ownerHashToBytes("0x01").length).toBe(32);
     expect(ownerHashToBytes("1").length).toBe(32);
     expect(ownerHashToBytes("ff").length).toBe(32);
-    expect(ownerHashToBytes("0x" + "ab".repeat(32)).length).toBe(32);
+    expect(ownerHashToBytes(`0x${"ab".repeat(32)}`).length).toBe(32);
   });
 
   it("left-pads a short hex value into the low-order bytes", () => {
@@ -35,7 +35,7 @@ describe("ownerHashToBytes", () => {
 
   it("round-trips a full 32-byte hex value verbatim", () => {
     const hex = "ab".repeat(32);
-    const bytes = ownerHashToBytes("0x" + hex);
+    const bytes = ownerHashToBytes(`0x${hex}`);
     const back = Array.from(bytes)
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
@@ -43,7 +43,7 @@ describe("ownerHashToBytes", () => {
   });
 
   it("keeps only the low 64 hex chars when given an over-long value", () => {
-    const bytes = ownerHashToBytes("0x" + "12".repeat(40));
+    const bytes = ownerHashToBytes(`0x${"12".repeat(40)}`);
     expect(bytes.length).toBe(32);
     expect(bytes.every((b) => b === 0x12)).toBe(true);
   });

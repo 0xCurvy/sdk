@@ -66,7 +66,8 @@ export async function syncNotes(parameters: SyncNotesParameters = {}): Promise<S
   // An explicit unknown network is a caller error; an empty "sync all" (a wallet
   // with no aggregator network yet) is simply nothing to do, not an error.
   if (networks.length === 0) {
-    if (parameters.networkSlug) throw new Error(`syncNotes: unknown network "${parameters.networkSlug}"`);
+    if (parameters.networkSlug)
+      throw new ScanError(`syncNotes: unknown network "${parameters.networkSlug}"`, parameters.networkSlug);
     return [];
   }
 

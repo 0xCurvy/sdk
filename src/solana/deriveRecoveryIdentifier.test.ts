@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deriveRecoveryIdentifier } from "./deriveRecoveryIdentifier";
 
 // Fixed, valid secp256k1 private key (32 bytes, less than the curve order).
-const PRIV_HEX = "0x" + "01".padStart(64, "0");
+const PRIV_HEX = `0x${"01".padStart(64, "0")}`;
 const PRIV_BYTES = (() => {
   const b = new Uint8Array(32);
   b[31] = 1;

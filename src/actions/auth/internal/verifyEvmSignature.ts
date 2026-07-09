@@ -1,4 +1,5 @@
 import { parseSignature, verifyTypedData } from "viem";
+import { AuthError } from "@/errors";
 import { type EvmSignatureData, type EvmSignTypedDataParameters, isHexString } from "@/types";
 
 /**
@@ -17,7 +18,7 @@ export async function verifyEvmSignature({
   signatureResult,
 }: EvmSignatureData): Promise<[r: string, s: string]> {
   if (!isHexString(signatureResult)) {
-    throw new Error("Invalid signature result");
+    throw new AuthError("Invalid signature result");
   }
 
   const signature = parseSignature(signatureResult);
@@ -29,7 +30,7 @@ export async function verifyEvmSignature({
   });
 
   if (!isValidSignature) {
-    throw new Error("Signature verification failed. Invalid signature.");
+    throw new AuthError("Signature verification failed. Invalid signature.");
   }
 
   return [signature.r, signature.s];

@@ -28,6 +28,13 @@ export type PlanWalkFailureResult = {
 
 export type PlanWalkResult = PlanWalkSuccessResult | PlanWalkFailureResult;
 
+function requireEstimatedPlans(results: PlanWalkSuccessResult[]): EstimatedPlan[] {
+  return results.map((result) => {
+    invariant(result.estimatedPlan, "Expected every successful child result to include an estimated plan.");
+    return result.estimatedPlan;
+  });
+}
+
 export type PlanNodeHandlers<C extends DraftCommand> = {
   command: (plan: C, input: CommandData) => Promise<PlanWalkResult>;
   data: (plan: PlanData, input?: CommandData) => Promise<PlanWalkResult>;
@@ -70,7 +77,7 @@ export async function walkPlan<C extends DraftCommand>(
             type: "parallel" as const,
             name: plan.name,
             description: plan.description,
-            items: results.map((r) => r.estimatedPlan!),
+            items: requireEstimatedPlans(results),
           },
         }),
         items: results,
@@ -120,7 +127,7 @@ export async function walkPlan<C extends DraftCommand>(
           type: "serial" as const,
           name: plan.name,
           description: plan.description,
-          items: results.map((r) => r.estimatedPlan!),
+          items: requireEstimatedPlans(results),
         },
       }),
       data,

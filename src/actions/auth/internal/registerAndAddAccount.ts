@@ -1,5 +1,6 @@
 import type { CurvyAccount } from "@/account";
 import type { CurvyConfig } from "@/config/types";
+import { AuthError } from "@/errors";
 import type { AdditionalAccountData, CurvyId, CurvyPrivateKeys, HexString } from "@/types";
 import { requireSpendKey } from "@/utils/keys";
 import { createAndAddAccount } from "./createAndAddAccount";
@@ -32,7 +33,7 @@ export async function registerAndAddAccount(
 
   const { data: registerDetails } = await config.api.user.ResolveCurvyId(handle);
   if (!registerDetails)
-    throw new Error(`Registration validation failed for handle ${handle}. Please try adding the account manually.`);
+    throw new AuthError(`Registration validation failed for handle ${handle}. Please try adding the account manually.`);
 
   await updateBearerToken(config, requireSpendKey(keyPairs));
 

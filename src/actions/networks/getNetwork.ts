@@ -1,5 +1,6 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
+import { NetworkError } from "@/errors";
 import type { Network } from "@/types/api";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
 
@@ -22,11 +23,11 @@ export function getNetwork(parameters: GetNetworkParameters = {}): Network {
   const networks = filterNetworks(config.state.networks, networkFilter);
 
   if (networks.length === 0) {
-    throw new Error(`Expected exactly one, but no network found with filter ${networkFilter}`);
+    throw new NetworkError(`Expected exactly one, but no network found with filter ${networkFilter}`);
   }
 
   if (networks.length > 1) {
-    throw new Error(`Expected exactly one, but more than one network found with filter ${networkFilter}`);
+    throw new NetworkError(`Expected exactly one, but more than one network found with filter ${networkFilter}`);
   }
 
   return networks[0];

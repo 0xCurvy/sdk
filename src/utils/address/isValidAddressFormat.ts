@@ -17,7 +17,6 @@ const isValidAddressFormat = (recipient: string, flavour?: NETWORK_FLAVOUR_VALUE
     case NETWORK_FLAVOUR.SOLANA: {
       return isAddress(recipient);
     }
-    case NETWORK_FLAVOUR.EVM:
     default: {
       return isValidEvmAddress(recipient);
     }

@@ -53,7 +53,10 @@ describe("loadCircuitKey", () => {
     expect(out).toBeInstanceOf(Uint8Array);
     expect(Array.from(out as Uint8Array)).toEqual([1, 2, 3, 4]);
     // stored for next time
-    expect(Array.from(store.get(URL)!)).toEqual([1, 2, 3, 4]);
+    const stored = store.get(URL);
+    expect(stored).toBeDefined();
+    if (!stored) throw new Error("Expected cached bytes");
+    expect(Array.from(stored)).toEqual([1, 2, 3, 4]);
   });
 
   it("falls back to the URL when the fetch is non-2xx (never blocks proving on the cache layer)", async () => {

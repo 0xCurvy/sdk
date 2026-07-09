@@ -46,7 +46,12 @@ export const findMinSumSubset = (notes: BalanceEntry[], target: bigint): Balance
 
       // Track best candidate >= target
       if (newSum >= target) {
-        if (bestSum === null || newSum < bestSum || (newSum === bestSum && indices.length + 1 < bestIndices!.length)) {
+        if (
+          bestSum === null ||
+          bestIndices === null ||
+          newSum < bestSum ||
+          (newSum === bestSum && indices.length + 1 < bestIndices.length)
+        ) {
           bestSum = newSum;
           bestIndices = [...indices, i];
         }

@@ -1,6 +1,7 @@
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
+import { AccountError, NetworkError } from "@/errors";
 import type { SolanaSigner } from "@/rpc/solana";
 import type { MatchedPortalRecord } from "@/types/api";
 import type { HexString } from "@/types/helper";
@@ -34,7 +35,7 @@ export async function recoverPortal(parameters: RecoverPortalParameters): Promis
 
   const { s, v } = getActiveKeyPairs(config);
   if (!s || !v) {
-    throw new Error("Active account has no private keys available for recovery.");
+    throw new AccountError("Active account has no private keys available for recovery.");
   }
 
   const { portalRecord, networkId } = parameters;
@@ -48,17 +49,17 @@ export async function recoverPortal(parameters: RecoverPortalParameters): Promis
 
   const recoveryPrivateKey = spendingPrivKeys[0];
   if (!recoveryPrivateKey) {
-    throw new Error("Failed to derive recovery private key: no matching key found for the given announcement.");
+    throw new AccountError("Failed to derive recovery private key: no matching key found for the given announcement.");
   }
 
   const network = config.state.networks.find((n) => n.id === networkId);
   if (!network) {
-    throw new Error(`Network with id ${networkId} not found.`);
+    throw new NetworkError(`Network with id ${networkId} not found.`);
   }
 
   if (portalRecord.flavour === "solana") {
     if (!parameters.solanaSigner) {
-      throw new Error("Solana recovery requires a connected Solana account signer.");
+      throw new NetworkError("Solana recovery requires a connected Solana account signer.", network.slug);
     }
     return recoverSolanaPortal(config, {
       network,

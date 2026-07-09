@@ -1,5 +1,6 @@
 import type { CurvyConfig } from "@/config/types";
 import { CURVY_ID_REGEX } from "@/constants/regex";
+import { AuthError } from "@/errors";
 import type { CurvyId, HexString } from "@/types";
 
 /**
@@ -15,16 +16,16 @@ export async function preRegistrationChecks(
 ): Promise<true> {
   const curvyHandle = await config.api.user.GetCurvyIdByOwnerAddress(userAddress);
   if (curvyHandle) {
-    throw new Error(`Handle ${curvyHandle} already registered, for owner address: ${userAddress}`);
+    throw new AuthError(`Handle ${curvyHandle} already registered, for owner address: ${userAddress}`);
   }
 
   if (!CURVY_ID_REGEX.test(handle))
-    throw new Error(
+    throw new AuthError(
       `Invalid handle format: ${handle}. Curvy handles can only include letters, numbers, and dashes, with a minimum of 3 and maximum length of 20 characters.`,
     );
 
   const { data: userDetails } = await config.api.user.ResolveCurvyId(handle);
-  if (userDetails) throw new Error(`Handle ${handle} already registered.`);
+  if (userDetails) throw new AuthError(`Handle ${handle} already registered.`);
 
   return true;
 }

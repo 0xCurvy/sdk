@@ -105,10 +105,12 @@ class EvmRpc extends Rpc {
         environment: this.network.testnet ? NETWORK_ENVIRONMENT.TESTNET : NETWORK_ENVIRONMENT.MAINNET,
       };
 
-      if (!acc[networkSlug]) {
-        acc[networkSlug] = {};
+      let networkBalances = acc[networkSlug];
+      if (!networkBalances) {
+        networkBalances = {};
+        acc[networkSlug] = networkBalances;
       }
-      acc[networkSlug]![rpcBalance.currencyAddress] = rpcBalance;
+      networkBalances[rpcBalance.currencyAddress] = rpcBalance;
 
       return acc;
     }, {});

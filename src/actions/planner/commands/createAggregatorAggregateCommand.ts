@@ -176,8 +176,9 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
   // Estimate-time resulting balance (threaded to the next command during planning).
   const getResultingBalanceEntry = async (): Promise<CommandData> => {
     const { symbol, accountId, environment, networkSlug: slug, decimals, currencyAddress } = input[0];
+    invariant(estimate, "Aggregation estimate is required before reading the resulting balance entry.");
 
-    return noteToBalanceEntry(estimate!.note, {
+    return noteToBalanceEntry(estimate.note, {
       symbol,
       decimals,
       accountId,

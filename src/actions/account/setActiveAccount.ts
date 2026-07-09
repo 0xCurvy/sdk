@@ -1,5 +1,6 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
+import { AccountError } from "@/errors";
 import { requireSpendKey } from "@/utils/keys";
 import { startJwtRefresh, updateBearerToken } from "../auth/internal/session";
 
@@ -25,7 +26,7 @@ export async function setActiveAccount(parameters: SetActiveAccountParameters): 
 
   const keyPairs = config.keyring.get(accountId);
   if (!keyPairs) {
-    throw new Error(`Account with id ${accountId} does not exist.`);
+    throw new AccountError(`Account with id ${accountId} does not exist.`, accountId);
   }
 
   config.setState({ activeAccountId: accountId });

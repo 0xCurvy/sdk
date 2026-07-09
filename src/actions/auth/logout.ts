@@ -1,5 +1,6 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
+import { AccountError } from "@/errors";
 import { setActiveAccount } from "../account/setActiveAccount";
 import { stopJwtRefresh } from "./internal/session";
 
@@ -24,7 +25,7 @@ export async function logout(parameters: LogoutParameters = {}): Promise<void> {
   const accountId = parameters.accountId ?? config.state.activeAccountId;
 
   if (!accountId || !config.keyring.has(accountId)) {
-    throw new Error(`Account with id ${accountId} does not exist.`);
+    throw new AccountError(`Account with id ${accountId} does not exist.`, accountId ?? undefined);
   }
 
   stopJwtRefresh(config);

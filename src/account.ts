@@ -57,15 +57,16 @@ class CurvyAccount {
   }
 
   serialize(): SerializedCurvyAccount {
-    if (this.isPartial) {
+    const { ownerAddress, curvyHandle } = this;
+    if (!ownerAddress || !curvyHandle) {
       throw new Error("Cannot serialize a partial account!");
     }
 
     return {
       id: this.id,
       createdAt: this.createdAt,
-      ownerAddress: this.ownerAddress!,
-      curvyHandle: this.curvyHandle!,
+      ownerAddress,
+      curvyHandle,
     };
   }
 }

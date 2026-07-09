@@ -8,15 +8,21 @@ const note = (id: string, balance: bigint): BalanceEntry => fakeBalanceEntry({ i
 
 const sum = (notes: BalanceEntry[]): bigint => notes.reduce((acc, n) => acc + n.balance, 0n);
 
+const expectSubset = (notes: BalanceEntry[] | null): BalanceEntry[] => {
+  expect(notes).not.toBeNull();
+  if (!notes) throw new Error("Expected subset");
+  return notes;
+};
+
 describe("findMinSumSubset", () => {
   it("returns a single note when it exactly matches the target", () => {
     const notes = [note("a", 30n), note("b", 100n), note("c", 70n)];
 
     const result = findMinSumSubset(notes, 100n);
+    const subset = expectSubset(result);
 
-    expect(result).not.toBeNull();
-    expect(result!.map((n) => n.id)).toEqual(["b"]);
-    expect(sum(result!)).toBe(100n);
+    expect(subset.map((n) => n.id)).toEqual(["b"]);
+    expect(sum(subset)).toBe(100n);
   });
 
   it("combines notes to reach the target with minimum overshoot", () => {
@@ -24,11 +30,11 @@ describe("findMinSumSubset", () => {
     const notes = [note("a", 40n), note("b", 70n), note("c", 90n)];
 
     const result = findMinSumSubset(notes, 100n);
+    const subset = expectSubset(result);
 
-    expect(result).not.toBeNull();
-    expect(sum(result!)).toBeGreaterThanOrEqual(100n);
-    expect(sum(result!)).toBe(110n);
-    expect(result!.map((n) => n.id).sort()).toEqual(["a", "b"]);
+    expect(sum(subset)).toBeGreaterThanOrEqual(100n);
+    expect(sum(subset)).toBe(110n);
+    expect(subset.map((n) => n.id).sort()).toEqual(["a", "b"]);
   });
 
   it("returns null when no subset can reach the target", () => {

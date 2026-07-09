@@ -1,4 +1,5 @@
 import type { CurvyConfig } from "@/config/types";
+import { AuthError } from "@/errors";
 import { assertCurvyId, type HexString } from "@/types";
 
 /**
@@ -13,13 +14,13 @@ import { assertCurvyId, type HexString } from "@/types";
 export async function getUserDetails(config: CurvyConfig, userAddress: HexString) {
   const curvyHandle = await config.api.user.GetCurvyIdByOwnerAddress(userAddress);
   if (!curvyHandle) {
-    throw new Error(`No Curvy handle found for address: ${userAddress}`);
+    throw new AuthError(`No Curvy handle found for address: ${userAddress}`);
   }
 
   assertCurvyId(curvyHandle);
 
   const { data: userDetails } = await config.api.user.ResolveCurvyId(curvyHandle);
-  if (!userDetails) throw new Error(`Handle ${curvyHandle} does not exist.`);
+  if (!userDetails) throw new AuthError(`Handle ${curvyHandle} does not exist.`);
 
   return { ...userDetails, curvyHandle };
 }

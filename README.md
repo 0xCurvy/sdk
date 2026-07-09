@@ -1,176 +1,171 @@
-## Getting Started
+# Curvy SDK
 
-> **IMPORTANT**
->
-> Curvy SDK is currently in closed beta.
->
-> To receive support, please open a discussion at [Curvy Community](https://community.curvy.box)
-> or [GitHub Issues](https://github.com/0xCurvy/curvy-sdk/issues/)
->
+`@0xcurvy/curvy-sdk` is the functional, framework-agnostic TypeScript SDK for the Curvy protocol. It works in browser and server runtimes, exposes standalone actions, and keeps live IO/state in a `CurvyConfig` value.
 
-Curvy SDK is a Typescript SDK that works in both server and browser environments and
-gives you the complete feature set of the Curvy protocol.
-
-- [GitHub repository](https://github.com/0xCurvy/curvy-sdk/)
-- [NPM](https://www.npmjs.com/package/@0xcurvy/curvy-sdk)
+> Curvy SDK is currently in closed beta. For support, use [Curvy Community](https://community.curvy.box) or [GitHub Issues](https://github.com/0xCurvy/curvy-sdk/issues/).
 
 ## Installation
 
-Curvy SDK can be installed with a Node package manager:
-
-```
+```bash
 pnpm install @0xcurvy/curvy-sdk
 ```
 
-The easiest way to get started is to run the provided `curvy-os` example app:
+Node `>=22.16` is required.
 
+## Quickstart
+
+```ts
+import {
+  createCurvyConfig,
+  destroyConfig,
+  getBalances,
+  getNetwork,
+  login,
+  refreshBalances,
+} from "@0xcurvy/curvy-sdk";
+
+const config = await createCurvyConfig({
+  environment: "mainnet",
+  apiBaseUrl: "https://api.curvy.box",
+});
+
+await login({ config, signature });
+await refreshBalances({ config });
+
+const balances = await getBalances({ config });
+const ethereum = getNetwork({ config, filter: "ethereum" });
+
+console.log({ balances, ethereum });
+
+await destroyConfig({ config });
 ```
-git clone https://github.com/0xCurvy/curvy-sdk.git
-cd example/curvy-os
-pnpm install
-pnpm start
+
+Every action accepts a single options object. Pass `config` explicitly for multi-config/server code, or omit it after `createCurvyConfig(...)` registers the ambient browser/single-tenant default.
+
+## Browser And Server Defaults
+
+Use the convenience constructors when you do not need custom storage wiring:
+
+```ts
+import { createBrowserCurvyConfig } from "@0xcurvy/curvy-sdk/config/browser";
+
+const config = await createBrowserCurvyConfig({
+  apiBaseUrl: "https://api.curvy.box",
+});
 ```
 
-After opening the plain JS/HTML app in your browser, configure the API key you have received from the team, and
-you will have the complete set of features in the Curvy SDK at your disposal through the primitive UI of `curvy-os`.
+`createBrowserCurvyConfig` defaults to IndexedDB storage, session keystore rehydration, and the lean sharded notes-sync engine.
 
-## Initialization
+```ts
+import { getBalances } from "@0xcurvy/curvy-sdk/actions/balances";
+import { createServerCurvyConfig } from "@0xcurvy/curvy-sdk/config/server";
 
-Before using the SDK, you must initialize the `CurvySDK` instance.
+const config = await createServerCurvyConfig({
+  apiBaseUrl: process.env.CURVY_API_BASE_URL,
+});
 
-```typescript
-import { CurvySDK } from "@0xcurvy/curvy-sdk";
-
-// Initialize with defaults (mainnet)
-const sdk = await CurvySDK.init();
+await getBalances({ config, accountId });
 ```
+
+`createServerCurvyConfig` defaults to `setAsActive: false`, so actions should receive `config` explicitly to avoid cross-request state bleed.
 
 ## Authentication
 
-Authentication with the Curvy Protocol relies on cryptographic signatures. You can log in an existing user or register a new one.
+Authentication derives Curvy keys from a signed EIP-712 message.
 
-### Registration
+```ts
+import { getAuthenticationSignatureParams, register } from "@0xcurvy/curvy-sdk";
 
-Registering a new Curvy ID providing the desired name alongside the signature data:
-
-```typescript
-import { getAuthenticationSignatureParams } from "@0xcurvy/curvy-sdk";
-import { useSignTypedData, useAccount } from "wagmi";
-
-const { address } = useAccount();
-
-const password = "optional-password";
-const signatureParams = await getAuthenticationSignatureParams(
-  address,
-  password,
-);
-
-const { signTypedDataAsync } = useSignTypedData();
+const signatureParams = await getAuthenticationSignatureParams(address, "optional-password");
 const signatureResult = await signTypedDataAsync(signatureParams);
 
-const signatureData = {
-  signatureResult,
-  signatureParams,
-  signingAddress: address,
-};
-
-await sdk.register(
-  "my-awesome-id.curvy.name", // Curvy ID to register (it needs to end with .curvy.name domain)
-  signatureData,
-);
+const account = await register({
+  config,
+  handle: "my-awesome-id.curvy.name",
+  signature: {
+    signatureParams,
+    signatureResult,
+    signingAddress: address,
+  },
+});
 ```
 
-### Logging In
+For an existing user, call `login({ config, signature })` with the same signature shape.
 
-If you already have a user's signature, you can use the SDK's `login` method.
+## Balances
 
-```typescript
-// Logging in on the Curvy Protocol network uses the same `signatureData` process as registration
+```ts
+import { getBalances, refreshBalances } from "@0xcurvy/curvy-sdk/actions/balances";
 
-await sdk.login(signatureData);
+await refreshBalances({ config });
+
+const cachedBalances = await getBalances({ config });
+const freshBalances = await getBalances({ config, cached: false });
 ```
 
-## Querying Balances
+Balance refresh is on-demand. Use `AbortSignal` for cancellation and SDK events for progress updates.
 
-The Curvy SDK handles asset balances across multiple networks. You can refresh balances on-demand, which updates the SDK's internal storage.
+## Intents
 
-### Refreshing Balances
+Curvy asset movement follows `Intent -> estimateIntent -> executePlan`.
 
-Call `refreshBalances` to scan for the latest balances across all active networks.
-
-```typescript
-// Scan for balances
-await sdk.refreshBalances();
-```
-
-### Retrieving Balances from Storage
-
-Once refreshed, you can query balances directly from the SDK.
-
-```typescript
-// Fetch all balances for the active wallet
-const balances = await sdk.getBalances();
-
-// Pass false to force a refresh before returning, same as calling `sdk.refreshBalances()` prior to this
-const freshBalances = await sdk.getBalances(false);
-
-console.log(`Found ${balances.length} balance(s).`);
-
-// Get aggregated totals per currency
-const totals = await sdk.getTotals();
-```
-
-## Interacting with Assets
-
-The Curvy Protocol uses an Intent -> Estimate -> Execute model for interacting with assets. This abstracts away the complexity of stealth addresses, bridging, and shielding/unshielding.
-
-### Step 1: Define an Intent
-
-An intent describes _what_ the user wants to do. There are four intent types:
-
-- **`curvy-transfer`** — Send to a Curvy ID (`.curvy.name` handle)
-- **`curvy-swap`** — Swap currencies within the Curvy Protocol
-- **`external-transfer`** — Transfer to an external wallet address on any of the supported chains
-- **`send-to-anyone`** — Generate a secure link that will allow you to send funds to anyone, prompting them to register or sign in
-
-```typescript
+```ts
+import { estimateIntent, executePlan, getNetwork } from "@0xcurvy/curvy-sdk";
 import type { TransferIntent } from "@0xcurvy/curvy-sdk";
 
-// Fetch network and currency details from the SDK
-const network = sdk.getNetwork("ethereum");
+const network = getNetwork({ config, filter: "ethereum" });
 const currency = network.currencies.find((c) => c.symbol === "ETH");
+if (!currency) throw new Error("ETH not found");
 
 const intent: TransferIntent = {
   type: "curvy-transfer",
-  amount: 1000000000000000000n, // 1 ETH in wei
-  currency: currency,
-  network: network,
-  recipient: "vitalik.curvy.name", // Must be a Curvy ID ending in .curvy.name
+  amount: 1_000_000_000_000_000_000n,
+  currency,
+  network,
+  recipient: "vitalik.curvy.name",
 };
+
+const estimation = await estimateIntent({ config, intent });
+const execution = await executePlan({ config, plan: estimation.plan });
 ```
 
-### Step 2: Estimate the Intent
+## Imports And Bundling
 
-The SDK generates a local execution plan based on the user's current balances to fulfill the intent.
+Root imports are convenient:
 
-```typescript
-const estimation = await sdk.estimate(intent);
-
-console.log("Gas fee:", estimation.gas);
-console.log("Curvy fee:", estimation.curvyFee);
-console.log("Effective amount:", estimation.effectiveAmount);
+```ts
+import { createCurvyConfig, login, getBalances } from "@0xcurvy/curvy-sdk";
 ```
 
-### Step 3: Execute the Plan
+Subpath imports reduce accidental bundle size:
 
-Once estimated, execute the plan. The SDK handles generating zero-knowledge proofs and broadcasting transactions.
-
-```typescript
-const executionResult = await sdk.execute(estimation.plan);
-
-if (executionResult.success) {
-  console.log("Assets transferred successfully!");
-} else {
-  console.error("Execution failed:", executionResult.error);
-}
+```ts
+import { login } from "@0xcurvy/curvy-sdk/actions/auth";
+import { getBalances } from "@0xcurvy/curvy-sdk/actions/balances";
+import { poseidonHash } from "@0xcurvy/curvy-sdk/utils/hash";
+import { IndexedDBStorage } from "@0xcurvy/curvy-sdk/storage/idb";
 ```
+
+Vite browser consumers should exclude the SDK from dependency optimization and include `.zkey` assets:
+
+```ts
+export default defineConfig({
+  assetsInclude: ["**/*.zkey"],
+  optimizeDeps: {
+    include: ["buffer"],
+    exclude: ["@0xcurvy/curvy-sdk"],
+  },
+});
+```
+
+The SDK ships its WASM core in `dist/assets` and resolves it via `new URL(..., import.meta.url)`.
+
+## Lifecycle
+
+`createCurvyConfig` starts background timers. Always tear configs down:
+
+```ts
+await destroyConfig({ config });
+```
+
+Use `config.destroy()` for a specific config or `destroyConfig()` for the ambient global.

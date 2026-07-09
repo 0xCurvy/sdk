@@ -7,7 +7,9 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 
-if (existsSync(new URL("../src", import.meta.url))) {
+if (process.env.CURVY_SDK_SKIP_PREPARE === "1") {
+  console.log("[@0xcurvy/curvy-sdk] prepare: CURVY_SDK_SKIP_PREPARE=1 — skipping build");
+} else if (existsSync(new URL("../src", import.meta.url))) {
   execSync("pnpm run build", { stdio: "inherit" });
 } else {
   console.log("[@0xcurvy/curvy-sdk] prepare: src/ absent (manifests-only install) — skipping build");

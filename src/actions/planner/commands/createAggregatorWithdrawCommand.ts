@@ -135,7 +135,8 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
       symbol = intent.exitCurrency.symbol;
       currencyAddress = intent.exitCurrency.contractAddress;
       decimals = intent.exitCurrency.decimals;
-      balance = BigInt(estimate!.bridgeEstimateAmount!);
+      invariant(estimate?.bridgeEstimateAmount, "Swap withdrawal estimate is missing the bridge amount.");
+      balance = BigInt(estimate.bridgeEstimateAmount);
     }
 
     return {

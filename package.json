@@ -4,7 +4,7 @@
   "version": "0.0.7",
   "repository": {
     "type": "git",
-    "url": "https://github.com/0xCurvy/curvy-sdk"
+    "url": "git+https://github.com/0xCurvy/curvy-sdk.git"
   },
   "bugs": {
     "url": "https://github.com/0xCurvy/curvy-sdk/issues"
@@ -22,7 +22,7 @@
     "zk",
     "zero-knowledge"
   ],
-  "packageManager": "pnpm@10.12.1",
+  "packageManager": "pnpm@11.4.0",
   "type": "module",
   "//sideEffects": "core/wasm-exec.js installs the Go WASM runtime (globalThis.Go). Core.#initWasm loads it via a DYNAMIC import so it survives consumer tree-shaking regardless of chunk naming; this carve-out is belt-and-suspenders for bundlers that still honor it. Everything else is side-effect-free.",
   "sideEffects": [
@@ -62,6 +62,66 @@
         "default": "./dist/_cjs/actions/index.cjs"
       }
     },
+    "./actions/account": {
+      "import": {
+        "types": "./dist/_types/actions/account/index.d.ts",
+        "default": "./dist/_esm/actions/account/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/actions/account/index.d.cts",
+        "default": "./dist/_cjs/actions/account/index.cjs"
+      }
+    },
+    "./actions/auth": {
+      "import": {
+        "types": "./dist/_types/actions/auth/index.d.ts",
+        "default": "./dist/_esm/actions/auth/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/actions/auth/index.d.cts",
+        "default": "./dist/_cjs/actions/auth/index.cjs"
+      }
+    },
+    "./actions/balances": {
+      "import": {
+        "types": "./dist/_types/actions/balances/index.d.ts",
+        "default": "./dist/_esm/actions/balances/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/actions/balances/index.d.cts",
+        "default": "./dist/_cjs/actions/balances/index.cjs"
+      }
+    },
+    "./actions/networks": {
+      "import": {
+        "types": "./dist/_types/actions/networks/index.d.ts",
+        "default": "./dist/_esm/actions/networks/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/actions/networks/index.d.cts",
+        "default": "./dist/_cjs/actions/networks/index.cjs"
+      }
+    },
+    "./actions/planner": {
+      "import": {
+        "types": "./dist/_types/actions/planner/index.d.ts",
+        "default": "./dist/_esm/actions/planner/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/actions/planner/index.d.cts",
+        "default": "./dist/_cjs/actions/planner/index.cjs"
+      }
+    },
+    "./actions/portals": {
+      "import": {
+        "types": "./dist/_types/actions/portals/index.d.ts",
+        "default": "./dist/_esm/actions/portals/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/actions/portals/index.d.cts",
+        "default": "./dist/_cjs/actions/portals/index.cjs"
+      }
+    },
     "./config": {
       "import": {
         "types": "./dist/_types/config/index.d.ts",
@@ -72,6 +132,26 @@
         "default": "./dist/_cjs/config/index.cjs"
       }
     },
+    "./config/browser": {
+      "import": {
+        "types": "./dist/_types/config/browser.d.ts",
+        "default": "./dist/_esm/config/browser.js"
+      },
+      "require": {
+        "types": "./dist/_types/config/browser.d.cts",
+        "default": "./dist/_cjs/config/browser.cjs"
+      }
+    },
+    "./config/server": {
+      "import": {
+        "types": "./dist/_types/config/server.d.ts",
+        "default": "./dist/_esm/config/server.js"
+      },
+      "require": {
+        "types": "./dist/_types/config/server.d.cts",
+        "default": "./dist/_cjs/config/server.cjs"
+      }
+    },
     "./utils": {
       "import": {
         "types": "./dist/_types/utils/index.d.ts",
@@ -80,6 +160,86 @@
       "require": {
         "types": "./dist/_types/utils/index.d.cts",
         "default": "./dist/_cjs/utils/index.cjs"
+      }
+    },
+    "./utils/brand": {
+      "import": {
+        "types": "./dist/_types/utils/brand.d.ts",
+        "default": "./dist/_esm/utils/brand.js"
+      },
+      "require": {
+        "types": "./dist/_types/utils/brand.d.cts",
+        "default": "./dist/_cjs/utils/brand.cjs"
+      }
+    },
+    "./utils/invariant": {
+      "import": {
+        "types": "./dist/_types/utils/invariant.d.ts",
+        "default": "./dist/_esm/utils/invariant.js"
+      },
+      "require": {
+        "types": "./dist/_types/utils/invariant.d.cts",
+        "default": "./dist/_cjs/utils/invariant.cjs"
+      }
+    },
+    "./utils/timer": {
+      "import": {
+        "types": "./dist/_types/utils/timer.d.ts",
+        "default": "./dist/_esm/utils/timer.js"
+      },
+      "require": {
+        "types": "./dist/_types/utils/timer.d.cts",
+        "default": "./dist/_cjs/utils/timer.cjs"
+      }
+    },
+    "./utils/address": {
+      "import": {
+        "types": "./dist/_types/utils/address/index.d.ts",
+        "default": "./dist/_esm/utils/address/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/utils/address/index.d.cts",
+        "default": "./dist/_cjs/utils/address/index.cjs"
+      }
+    },
+    "./utils/encoding": {
+      "import": {
+        "types": "./dist/_types/utils/encoding/index.d.ts",
+        "default": "./dist/_esm/utils/encoding/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/utils/encoding/index.d.cts",
+        "default": "./dist/_cjs/utils/encoding/index.cjs"
+      }
+    },
+    "./utils/hash": {
+      "import": {
+        "types": "./dist/_types/utils/hash/index.d.ts",
+        "default": "./dist/_esm/utils/hash/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/utils/hash/index.d.cts",
+        "default": "./dist/_cjs/utils/hash/index.cjs"
+      }
+    },
+    "./utils/keys": {
+      "import": {
+        "types": "./dist/_types/utils/keys/index.d.ts",
+        "default": "./dist/_esm/utils/keys/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/utils/keys/index.d.cts",
+        "default": "./dist/_cjs/utils/keys/index.cjs"
+      }
+    },
+    "./utils/network": {
+      "import": {
+        "types": "./dist/_types/utils/network/index.d.ts",
+        "default": "./dist/_esm/utils/network/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/utils/network/index.d.cts",
+        "default": "./dist/_cjs/utils/network/index.cjs"
       }
     },
     "./gas": {
@@ -215,18 +375,20 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "rimraf dist && tsup && bash scripts/postbuild.sh",
-    "build:publish": "rimraf dist && CURVY_SDK_PUBLISH=1 tsup && bash scripts/postbuild.sh",
+    "build": "rimraf dist && CURVY_SDK_PASS=js tsup && NODE_OPTIONS=--max-old-space-size=8192 CURVY_SDK_PASS=dts tsup && bash scripts/postbuild.sh",
+    "build:publish": "rimraf dist && CURVY_SDK_PUBLISH=1 CURVY_SDK_FORMAT=esm CURVY_SDK_PASS=js tsup && NODE_OPTIONS=--max-old-space-size=8192 CURVY_SDK_PUBLISH=1 CURVY_SDK_FORMAT=esm CURVY_SDK_PASS=dts tsup && CURVY_SDK_PUBLISH=1 CURVY_SDK_FORMAT=cjs CURVY_SDK_PASS=js tsup && NODE_OPTIONS=--max-old-space-size=8192 CURVY_SDK_PUBLISH=1 CURVY_SDK_FORMAT=cjs CURVY_SDK_PASS=dts tsup && bash scripts/postbuild.sh",
     "watch": "tsup --watch",
-    "build:example": "tsup src/index.ts --format esm --dts --dts-resolve --clean --out-dir example/curvy-os/dist --platform browser --target es2022",
     "clean": "rimraf dist .turbo",
-    "check": "biome check --write src",
+    "typecheck": "tsc --noEmit",
+    "check": "biome check src",
+    "check:fix": "biome check --write src",
     "format": "biome format --write src",
-    "lint": "biome lint --write src",
+    "lint": "biome lint src",
+    "lint:fix": "biome lint --write src",
     "check:packages": "pnpm up --latest --interactive",
-    "prepublishOnly": "pnpm run build:publish",
+    "prepublishOnly": "pnpm run test:build",
     "test": "vitest run src",
-    "test:build": "publint --strict && attw --pack --profile node16",
+    "test:build": "pnpm run build:publish && publint --strict && CURVY_SDK_SKIP_PREPARE=1 npm_config_cache=/tmp/curvy-sdk-npm-cache attw --pack --profile node16",
     "prepare": "node scripts/prepare.mjs"
   },
   "devDependencies": {
@@ -267,7 +429,7 @@
   },
   "lint-staged": {
     "*": [
-      "biome check --write ./src"
+      "biome check --write src"
     ]
   },
   "engines": {

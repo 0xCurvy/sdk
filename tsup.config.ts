@@ -1,12 +1,31 @@
 import { defineConfig, type Options } from "tsup";
 
+const actionEntryNames = ["account", "auth", "balances", "networks", "planner", "portals"] as const;
+
+const utilsEntryNames = ["address", "encoding", "hash", "keys", "network"] as const;
+
+const actionEntries = Object.fromEntries(
+  actionEntryNames.map((name) => [`actions/${name}/index`, `src/actions/${name}/index.ts`]),
+);
+
+const utilsEntries = Object.fromEntries(
+  utilsEntryNames.map((name) => [`utils/${name}/index`, `src/utils/${name}/index.ts`]),
+);
+
 // One entry per public subpath (see package.json `exports`). Object form gives
 // each entry a stable, predictable output path (e.g. dist/_esm/storage/idb/index.js).
 const codeEntries: Record<string, string> = {
   index: "src/index.ts",
   "actions/index": "src/actions/index.ts",
+  ...actionEntries,
   "config/index": "src/config/index.ts",
+  "config/browser": "src/config/browser.ts",
+  "config/server": "src/config/server.ts",
   "utils/index": "src/utils/index.ts",
+  ...utilsEntries,
+  "utils/brand": "src/utils/brand.ts",
+  "utils/invariant": "src/utils/invariant.ts",
+  "utils/timer": "src/utils/timer.ts",
   "gas/index": "src/gas/index.ts",
   "note/index": "src/note/index.ts",
   "proving/index": "src/proving/index.ts",
@@ -46,6 +65,16 @@ const assetDefines = (rel: string): Record<string, string> => ({
 
 export default defineConfig(() => {
   const isProd = process.env.NODE_ENV === "production";
+  const buildPass = process.env.CURVY_SDK_PASS;
+  const selectPasses = (js: Options, dts: Options): Options[] => {
+    if (buildPass === "js") {
+      return [js];
+    }
+    if (buildPass === "dts") {
+      return [dts];
+    }
+    return [js, dts];
+  };
 
   const shared: Options = {
     target: "es2024",
@@ -102,10 +131,15 @@ export default defineConfig(() => {
   // and it skips the CJS bundle + the second (CJS) DTS rollup — the slow part of
   // the build. The npm-published package must keep CJS + .d.cts for external
   // `require` consumers, so the publish build (CURVY_SDK_PUBLISH=1, via
-  // `pnpm run build:publish`) adds them back. Keep publish output byte-for-byte
-  // as before by preserving the original pass order: esm, cjs, esm-dts, cjs-dts.
+  // `pnpm run build:publish`) adds them back. CURVY_SDK_PASS lets package
+  // scripts run JS and DTS separately so declaration bundling gets its own heap.
   if (!process.env.CURVY_SDK_PUBLISH) {
-    return [esm, esmDts];
+    return selectPasses(esm, esmDts);
+  }
+
+  const publishFormat = process.env.CURVY_SDK_FORMAT;
+  if (publishFormat === "esm") {
+    return selectPasses(esm, esmDts);
   }
 
   // Pass 3: CJS — esbuild can't code-split CJS, so each entry is self-contained.
@@ -133,6 +167,16 @@ export default defineConfig(() => {
     outDir: "dist/_types",
     clean: false,
   };
+
+  if (publishFormat === "cjs") {
+    return selectPasses(cjs, cjsDts);
+  }
+  if (buildPass === "js") {
+    return [esm, cjs];
+  }
+  if (buildPass === "dts") {
+    return [esmDts, cjsDts];
+  }
 
   return [esm, cjs, esmDts, cjsDts];
 });
