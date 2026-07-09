@@ -1,7 +1,7 @@
+import { setActiveAccount } from "@/actions";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { AccountError } from "@/errors";
-import { setActiveAccount } from "../account/setActiveAccount";
 import { stopJwtRefresh } from "./internal/session";
 
 export type LogoutParameters = WithConfig<{ accountId?: string }>;
