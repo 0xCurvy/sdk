@@ -61,6 +61,7 @@ delete typeEntries["core/wasm-exec"];
 const assetDefines = (rel: string): Record<string, string> => ({
   __CURVY_ASSETS_REL__: JSON.stringify(rel),
   __CURVY_CORE_WASM_URL__: JSON.stringify(`${rel}/core/curvy-core-v1.0.2.wasm`),
+  __CURVY_CORE_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_bg.wasm`),
 });
 
 export default defineConfig(() => {

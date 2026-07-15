@@ -3,6 +3,7 @@ import * as path from "node:path";
 export default {
   test: {
     globals: true,
+    setupFiles: ["./src/test/setup-rust-core.ts"],
     // @zk-kit/eddsa-poseidon (ESM) imports blakejs (CJS) via named exports that
     // node's cjs-module-lexer can't statically detect — under vitest's default
     // node_modules externalization that throws "Named export 'blake2bFinal' not

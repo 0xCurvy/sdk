@@ -1,6 +1,6 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { StorageInterface } from "@/interfaces/storage";
-import { MerkleTree } from "@/proving/merkleTree";
+import { bytesToFields, createRustMerkleTreeFromLeaves, fieldToBytes } from "@/proving/rustCore";
 import { poseidonHash } from "@/utils/hash/poseidonHash";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "./discoverOwnedNotes";
 import { type LeafSource, type RootVerifier, reconcileWithChain, type SyncedLeaf } from "./notesTreeSync";
@@ -219,11 +219,17 @@ export async function recoverWitness(
       throw new Error(`witness recovery: leaf range gap — expected index ${start + i}, got ${leaf.index}`);
     }
   });
-  const shard = MerkleTree.fromLeaves(
-    { depth: tree.shardHeight },
-    leaves.map((l) => BigInt(l.noteId)),
+  const shard = createRustMerkleTreeFromLeaves(
+    tree.shardHeight,
+    leaves.map((leaf) => BigInt(leaf.noteId)),
   );
-  tree.adoptFrozenWitness(noteId, leafIndex, shard.createInclusionProof(noteId).siblings);
+  const proof = shard.proof(fieldToBytes(noteId));
+  try {
+    tree.adoptFrozenWitness(noteId, leafIndex, bytesToFields(proof.siblings));
+  } finally {
+    proof.free();
+    shard.free();
+  }
 }
 
 /**

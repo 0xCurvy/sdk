@@ -5,6 +5,7 @@ import { Core } from "@/core";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import { defaultCircuitKeyCache, MerkleTree, snarkjsProver } from "@/proving";
+import { initCore as initRustCore } from "@/proving/rustCore";
 import { newMultiRpc } from "@/rpc/factory";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
@@ -53,6 +54,11 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     circuitKeyCache,
     setAsActive = true,
   } = parameters;
+
+  // Sharded sync and witness construction use synchronous Rust/WASM methods
+  // after startup. Initialize their shared module before any tree is created;
+  // concurrent configs reuse the same promise.
+  await initRustCore();
 
   const api = new ApiClient(apiBaseUrl, customFetch, {
     metadataBaseUrl,
