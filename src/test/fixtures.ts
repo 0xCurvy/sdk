@@ -119,6 +119,7 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
       GetMeta: vi.fn(),
       GetNotes: vi.fn(),
       GetNullifiers: vi.fn(),
+      GetPending: vi.fn(),
       GetShardRoots: vi.fn(),
       ...overrides.sync,
     },

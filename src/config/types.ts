@@ -111,7 +111,7 @@ export type CurvyConfig = {
 
   /**
    * Which engine `syncNotes`/`getSpendWitnesses` use for a network's notes
-   * tree: "global" (default, full in-memory IMT) or "sharded" (lean client).
+   * tree: "sharded" (default, bounded live shard + witnesses) or "global" (legacy full IMT).
    * A consumer-level choice, fixed for the config's lifetime.
    */
   readonly notesSyncEngine: NotesSyncEngine;
@@ -188,7 +188,7 @@ export type CreateCurvyConfigParameters = {
   customFetch?: typeof globalThis.fetch;
   /** Injectable timer scheduler (default wraps setInterval); swap for `chrome.alarms` under MV3. */
   timerProvider?: TimerProvider;
-  /** Notes-sync engine for `syncNotes`/`getSpendWitnesses`. Defaults to "global". */
+  /** Notes-sync engine for `syncNotes`/`getSpendWitnesses`. Defaults to "sharded". */
   notesSyncEngine?: NotesSyncEngine;
   /** Groth16 prover for the client-proving actions. Defaults to snarkjs (`snarkjsProver`). */
   prover?: Prover;

@@ -29,6 +29,7 @@ const codeEntries: Record<string, string> = {
   "gas/index": "src/gas/index.ts",
   "note/index": "src/note/index.ts",
   "proving/index": "src/proving/index.ts",
+  "rust-core": "src/proving/rustCore.ts",
   "solana/index": "src/solana/index.ts",
   "rpc/index": "src/rpc/index.ts",
   "core/index": "src/core/index.ts",

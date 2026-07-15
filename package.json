@@ -272,6 +272,16 @@
         "default": "./dist/_cjs/proving/index.cjs"
       }
     },
+    "./rust-core": {
+      "import": {
+        "types": "./dist/_types/rust-core.d.ts",
+        "default": "./dist/_esm/rust-core.js"
+      },
+      "require": {
+        "types": "./dist/_types/rust-core.d.cts",
+        "default": "./dist/_cjs/rust-core.cjs"
+      }
+    },
     "./solana": {
       "import": {
         "types": "./dist/_types/solana/index.d.ts",

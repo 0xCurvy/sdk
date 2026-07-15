@@ -1,5 +1,5 @@
 import { decryptAmountToken } from "@/proving/balanceCipher";
-import { poseidonHash } from "@/utils/hash/poseidonHash";
+import { noteId as rustNoteId, ownerHash as rustOwnerHash } from "@/proving/rustCore";
 import type { SyncedLeaf } from "./notesTreeSync";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -49,9 +49,9 @@ export type OwnedNote = {
 };
 
 const ownerHashOf = (pub: [bigint, bigint], sharedSecret: bigint): bigint =>
-  poseidonHash([pub[0], pub[1], sharedSecret]);
+  rustOwnerHash(pub[0], pub[1], sharedSecret);
 
-const noteIdOf = (ownerHash: bigint, amount: bigint, token: bigint): bigint => poseidonHash([ownerHash, amount, token]);
+const noteIdOf = (ownerHash: bigint, amount: bigint, token: bigint): bigint => rustNoteId(ownerHash, amount, token);
 
 /**
  * Discover the owned notes in a batch of synced leaves. For each leaf the

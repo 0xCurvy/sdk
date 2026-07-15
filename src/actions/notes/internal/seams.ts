@@ -1,10 +1,11 @@
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import type { CurvyConfig } from "@/config/types";
 import type { OwnershipMatch, OwnershipResolver } from "@/note/discoverOwnedNotes";
-import type { LeafSource, RootVerifier, SyncedLeaf } from "@/note/notesTreeSync";
+import type { FinalizedSyncCheckpoint, LeafSource, RootVerifier, SyncedLeaf } from "@/note/notesTreeSync";
 import type { LeafRangeSource } from "@/note/shardedNotesSync";
+import { DEFAULT_SHARD_HEIGHT } from "@/note/shardedNotesTree";
+import { nullifier as rustNullifier } from "@/proving/rustCore";
 import type { EvmRpc } from "@/rpc";
-import { poseidonHash } from "@/utils/hash/poseidonHash";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Production adapters for the sharded-sync seams. The engine
@@ -39,42 +40,70 @@ export function apiLeafSource(
   const { chainId, signal } = opts;
   return {
     async fetchDelta(cursor) {
+      const meta = await config.api.sync.GetMeta(chainId);
+      const network = config.state.networks.find((candidate) => Number(candidate.chainId) === chainId);
+      const expectedContract = network?.aggregatorContractAddress?.toLowerCase();
+      if (!expectedContract || meta.contractAddress.toLowerCase() !== expectedContract) {
+        throw new Error(`sync checkpoint contract ${meta.contractAddress} does not match chain ${chainId}`);
+      }
+      if (meta.chainId !== chainId) throw new Error(`sync checkpoint chain ${meta.chainId} does not match ${chainId}`);
+      if (meta.treeVersion !== 1) throw new Error(`unsupported sync tree version ${meta.treeVersion}`);
+      if (meta.shardHeight !== DEFAULT_SHARD_HEIGHT || meta.shardSize !== 1 << DEFAULT_SHARD_HEIGHT) {
+        throw new Error(`unsupported shard geometry h${meta.shardHeight}/${meta.shardSize}`);
+      }
+      if (meta.noteCount < cursor.leafCount || meta.nullifierCount < cursor.nullifierCount) {
+        throw new Error(
+          `sync checkpoint regressed below local cursors (${meta.noteCount}/${meta.nullifierCount} < ${cursor.leafCount}/${cursor.nullifierCount})`,
+        );
+      }
+
       const leaves: SyncedLeaf[] = [];
       let from = cursor.leafCount;
-      for (;;) {
+      while (from < meta.noteCount) {
         signal?.throwIfAborted();
-        const page = await config.api.sync.GetNotes(chainId, from, pageSize);
-        // Empty-page guard: a (possibly lying/lagging) indexer that returns no
-        // rows while claiming total > from must not spin forever holding scanLock.
-        if (page.notes.length === 0) break;
+        const page = await config.api.sync.GetNotes(chainId, from, pageSize, meta.checkpoint);
+        assertPage(page, meta.checkpoint, from, meta.noteCount, page.notes.length, "notes");
+        if (page.notes.length === 0) throw new Error(`sync notes stopped before checkpoint total ${meta.noteCount}`);
         leaves.push(...page.notes.map(normalizeLeaf));
         from = page.nextIndex;
-        if (from >= page.total) break;
       }
       const nullifiers: string[] = [];
       let nullifierFrom = cursor.nullifierCount;
-      for (;;) {
+      while (nullifierFrom < meta.nullifierCount) {
         signal?.throwIfAborted();
-        const page = await config.api.sync.GetNullifiers(chainId, nullifierFrom, pageSize);
-        if (page.nullifiers.length === 0) break;
+        const page = await config.api.sync.GetNullifiers(chainId, nullifierFrom, pageSize, meta.checkpoint);
+        assertPage(page, meta.checkpoint, nullifierFrom, meta.nullifierCount, page.nullifiers.length, "nullifiers");
+        if (page.nullifiers.length === 0) {
+          throw new Error(`sync nullifiers stopped before checkpoint total ${meta.nullifierCount}`);
+        }
         nullifiers.push(...page.nullifiers.map((n) => n.nullifier));
         nullifierFrom = page.nextIndex;
-        if (nullifierFrom >= page.total) break;
       }
-      // GetMeta does a LIVE chain-head RPC on the indexer that can transiently fail,
-      // yet it only supplies the checkpoint's advisory `blockNumber` — never balance
-      // correctness (the sync cursors are leaf/nullifier COUNTS). Degrade to the last
-      // delivered leaf's block instead of discarding an otherwise-healthy delta on a
-      // chain-head hiccup; the block self-heals on the next successful meta read.
-      let blockNumber = 0;
-      try {
-        blockNumber = (await config.api.sync.GetMeta(chainId)).lastIndexedBlock;
-      } catch {
-        blockNumber = leaves.length ? (leaves[leaves.length - 1].blockNumber ?? 0) : 0;
-      }
-      return { leaves, nullifiers, blockNumber };
+      return {
+        leaves,
+        nullifiers,
+        blockNumber: meta.finalizedBlockNumber,
+        checkpoint: meta satisfies FinalizedSyncCheckpoint,
+      };
     },
   };
+}
+
+function assertPage(
+  page: { checkpoint: string; fromIndex: number; nextIndex: number; total: number },
+  checkpoint: string,
+  fromIndex: number,
+  total: number,
+  itemCount: number,
+  label: string,
+): void {
+  if (page.checkpoint !== checkpoint) throw new Error(`sync ${label} page changed checkpoint`);
+  if (page.fromIndex !== fromIndex)
+    throw new Error(`sync ${label} page started at ${page.fromIndex}, expected ${fromIndex}`);
+  if (page.total !== total) throw new Error(`sync ${label} page total ${page.total}, expected ${total}`);
+  if (page.nextIndex !== fromIndex + itemCount) {
+    throw new Error(`sync ${label} page next index ${page.nextIndex}, expected ${fromIndex + itemCount}`);
+  }
 }
 
 /** Bounded range reads of the leaf stream — cold-note witness recovery. Chain-scoped. */
@@ -83,11 +112,21 @@ export function apiRangeSource(config: CurvyConfig, opts: { chainId: number; pag
   const { chainId } = opts;
   return {
     async fetchRange(fromIndex, count) {
+      const meta = await config.api.sync.GetMeta(chainId);
+      if (fromIndex + count > meta.noteCount) {
+        throw new Error(`requested leaf range ${fromIndex}..${fromIndex + count} exceeds checkpoint ${meta.noteCount}`);
+      }
       const out: SyncedLeaf[] = [];
       let from = fromIndex;
       while (out.length < count) {
-        const page = await config.api.sync.GetNotes(chainId, from, Math.min(count - out.length, pageSize));
-        if (page.notes.length === 0) break;
+        const page = await config.api.sync.GetNotes(
+          chainId,
+          from,
+          Math.min(count - out.length, pageSize),
+          meta.checkpoint,
+        );
+        assertPage(page, meta.checkpoint, from, meta.noteCount, page.notes.length, "range");
+        if (page.notes.length === 0) throw new Error("sync leaf range stopped before requested count");
         out.push(...page.notes.map(normalizeLeaf));
         from = page.nextIndex;
       }
@@ -119,23 +158,35 @@ const AGGREGATOR_READ_ABI = [
  */
 export function rpcRootVerifier(config: CurvyConfig, networkSlug: string): RootVerifier {
   return {
-    async currentRoot() {
+    async currentRoot(checkpoint) {
       const network = config.state.networks.find((n) => n.slug === networkSlug);
       const address = network?.aggregatorContractAddress;
       if (!address) throw new Error(`syncNotes: network ${networkSlug} has no aggregatorContractAddress`);
       const provider = (config.getRpc().Network(networkSlug) as EvmRpc).provider;
-      const [root, noteIndex] = await Promise.all([
+      if (checkpoint && checkpoint.contractAddress.toLowerCase() !== address.toLowerCase()) {
+        throw new Error(`checkpoint contract ${checkpoint.contractAddress} does not match ${address}`);
+      }
+      const blockNumber = checkpoint ? BigInt(checkpoint.finalizedBlockNumber) : undefined;
+      const [root, noteIndex, block] = await Promise.all([
         provider.readContract({
           address: address as `0x${string}`,
           abi: AGGREGATOR_READ_ABI,
           functionName: "getCurrentNotesTreeRoot",
+          ...(blockNumber !== undefined ? { blockNumber } : {}),
         }),
         provider.readContract({
           address: address as `0x${string}`,
           abi: AGGREGATOR_READ_ABI,
           functionName: "getCurrentNoteIndex",
+          ...(blockNumber !== undefined ? { blockNumber } : {}),
         }),
+        blockNumber !== undefined ? provider.getBlock({ blockNumber }) : Promise.resolve(null),
       ]);
+      if (checkpoint && block?.hash !== checkpoint.finalizedBlockHash) {
+        throw new Error(
+          `checkpoint block hash ${checkpoint.finalizedBlockHash} does not match RPC ${block?.hash ?? "missing"}`,
+        );
+      }
       return { root: root as bigint, noteIndex: Number(noteIndex as bigint) };
     },
   };
@@ -234,11 +285,11 @@ export async function ownedNullifiersFromBalances(
   const map = new Map<bigint, bigint>();
   for (const e of entries) {
     if (e.networkSlug !== networkSlug) continue;
-    const nullifier = poseidonHash([
+    const nullifier = rustNullifier(
       BigInt(e.owner.sharedSecret),
       BigInt(e.owner.babyJubjubPublicKey.x),
       BigInt(e.owner.babyJubjubPublicKey.y),
-    ]);
+    );
     map.set(nullifier, BigInt(e.id));
   }
   return map;

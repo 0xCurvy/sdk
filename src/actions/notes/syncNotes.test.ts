@@ -26,23 +26,39 @@ const aggNetwork = fixtureNetwork({ aggregatorContractAddress: "0x00000000000000
 
 /** Fake `api.sync` over fixed streams — the REAL apiLeafSource paginates it. */
 function fakeSyncApi(leaves: SyncedLeaf[], nullifiers: string[] = []) {
+  const checkpoint = "checkpoint-sync";
+  const root = flatOver(leaves).root().toString();
   return {
     GetMeta: vi.fn(async () => ({
-      lastIndexedBlock: 7,
+      checkpoint,
+      chainId: 1,
+      contractAddress: aggNetwork.aggregatorContractAddress as string,
+      treeVersion: 1,
+      finalizedBlockNumber: 7,
+      finalizedBlockHash: `0x${"f".repeat(64)}`,
+      notesRoot: root,
       noteCount: leaves.length,
       nullifierCount: nullifiers.length,
       pendingCount: 0,
-      chain: { root: "0", noteIndex: String(leaves.length), blockNumber: "7" },
+      shardCount: Math.floor(leaves.length / (1 << 14)),
+      shardHeight: 14,
+      shardSize: 1 << 14,
     })),
     GetNotes: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const notes = leaves.slice(fromIndex, fromIndex + limit);
-      return { fromIndex, notes, nextIndex: fromIndex + notes.length, total: leaves.length };
+      return { checkpoint, fromIndex, notes, nextIndex: fromIndex + notes.length, total: leaves.length };
     }),
     GetNullifiers: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const page = nullifiers
         .slice(fromIndex, fromIndex + limit)
         .map((nullifier, i) => ({ index: fromIndex + i, nullifier }));
-      return { fromIndex, nullifiers: page, nextIndex: fromIndex + page.length, total: nullifiers.length };
+      return {
+        checkpoint,
+        fromIndex,
+        nullifiers: page,
+        nextIndex: fromIndex + page.length,
+        total: nullifiers.length,
+      };
     }),
     GetShardRoots: vi.fn(),
   };

@@ -151,9 +151,9 @@ export type { SubmitWithdrawReturnType, SubmitAggregationReturnType, GetAggregat
 
 //#endregion
 
-//#region v3 sync (indexer cursor streams — see plan-shardtree-curvy.md)
+//#region finalized sync (checkpoint-pinned indexer streams)
 
-/** One committed leaf on the /v3/sync wire — a superset of the SDK's `SyncedLeaf`. */
+/** One committed leaf on the /sync wire — a superset of the SDK's `SyncedLeaf`. */
 type SyncCommittedNote = {
   /** Slot in the on-chain notes tree (dense, zero-stripped) — the cursor. */
   index: number;
@@ -183,25 +183,49 @@ type SyncNullifierRecord = {
 };
 
 type GetSyncMetaReturnType = {
-  lastIndexedBlock: number;
+  checkpoint: string;
+  chainId: number;
+  contractAddress: string;
+  treeVersion: number;
+  finalizedBlockNumber: number;
+  finalizedBlockHash: string;
+  notesRoot: string;
   noteCount: number;
   nullifierCount: number;
   pendingCount: number;
-  shardCount?: number;
-  shardHeight?: number;
-  shardSize?: number;
-  /** Direct chain head as the indexer sees it (decimal strings). */
-  chain: { root: string; noteIndex: string; blockNumber: string };
+  shardCount: number;
+  shardHeight: number;
+  shardSize: number;
 };
 
-type GetSyncNotesReturnType = { fromIndex: number; notes: SyncCommittedNote[]; nextIndex: number; total: number };
+type SyncPendingNote = Omit<SyncCommittedNote, "batchRunId" | "relaySubmissionId"> & {
+  blockNumber: number;
+  requestTxHash: string;
+};
+
+type GetSyncNotesReturnType = {
+  checkpoint: string;
+  fromIndex: number;
+  notes: SyncCommittedNote[];
+  nextIndex: number;
+  total: number;
+};
 type GetSyncNullifiersReturnType = {
+  checkpoint: string;
   fromIndex: number;
   nullifiers: SyncNullifierRecord[];
   nextIndex: number;
   total: number;
 };
+type GetSyncPendingReturnType = {
+  checkpoint: string;
+  fromIndex: number;
+  notes: SyncPendingNote[];
+  nextIndex: number;
+  total: number;
+};
 type GetSyncShardRootsReturnType = {
+  checkpoint: string;
   fromIndex: number;
   shardRoots: string[];
   nextIndex: number;
@@ -212,10 +236,12 @@ type GetSyncShardRootsReturnType = {
 
 export type {
   SyncCommittedNote,
+  SyncPendingNote,
   SyncNullifierRecord,
   GetSyncMetaReturnType,
   GetSyncNotesReturnType,
   GetSyncNullifiersReturnType,
+  GetSyncPendingReturnType,
   GetSyncShardRootsReturnType,
 };
 

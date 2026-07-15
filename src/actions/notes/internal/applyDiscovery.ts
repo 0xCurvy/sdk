@@ -2,9 +2,9 @@ import type { CurvyConfig } from "@/config/types";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "@/note/discoverOwnedNotes";
 import type { SyncedLeaf } from "@/note/notesTreeSync";
+import { nullifier as rustNullifier } from "@/proving/rustCore";
 import type { CurvyAccountData, SerializedPendingNote } from "@/types/account";
 import type { Network } from "@/types/api";
-import { poseidonHash } from "@/utils/hash/poseidonHash";
 import { applySyncResult } from "./applySyncResult";
 import { apiRangeSource } from "./seams";
 
@@ -22,7 +22,7 @@ import { apiRangeSource } from "./seams";
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** The nullifier a note reveals when spent (matches the engine's reconciliation). */
-const nullifierOf = (n: OwnedNote): bigint => poseidonHash([n.sharedSecret, n.ownerPub[0], n.ownerPub[1]]);
+const nullifierOf = (n: OwnedNote): bigint => rustNullifier(n.sharedSecret, n.ownerPub[0], n.ownerPub[1]);
 
 const toPending = (n: OwnedNote): SerializedPendingNote => ({
   noteId: n.noteId,

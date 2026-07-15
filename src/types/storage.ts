@@ -100,6 +100,13 @@ type NotesCheckpoint = {
   lastSynced: number;
   /** Completed-shard count of the sharded tree (sharded profile only). */
   shardCount?: number;
+  /** Opaque finalized indexer checkpoint. Missing on legacy, untrusted records. */
+  checkpoint?: string;
+  finalizedBlockNumber?: number;
+  finalizedBlockHash?: string;
+  contractAddress?: string;
+  treeVersion?: number;
+  shardHeight?: number;
 };
 
 /**

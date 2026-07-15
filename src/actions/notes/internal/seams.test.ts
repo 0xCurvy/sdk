@@ -22,27 +22,43 @@ import {
 } from "./seams";
 
 const NET = "ethereum";
+const CONTRACT = "0x00000000000000000000000000000000000000aa";
+const CHECKPOINT = "checkpoint-1";
 
 /** A fake `api.sync` backed by fixed in-memory streams (with real pagination math). */
 function fakeSyncApi(leaves: SyncedLeaf[], nullifiers: string[], lastIndexedBlock = 7) {
   return {
     GetMeta: vi.fn(async () => ({
-      lastIndexedBlock,
+      checkpoint: CHECKPOINT,
+      chainId: 1,
+      contractAddress: CONTRACT,
+      treeVersion: 1,
+      finalizedBlockNumber: lastIndexedBlock,
+      finalizedBlockHash: `0x${"f".repeat(64)}`,
+      notesRoot: "0",
       noteCount: leaves.length,
       nullifierCount: nullifiers.length,
       pendingCount: 0,
-      chain: { root: "0", noteIndex: String(leaves.length), blockNumber: String(lastIndexedBlock) },
+      shardCount: 0,
+      shardHeight: 14,
+      shardSize: 1 << 14,
     })),
     GetNotes: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const notes = leaves.slice(fromIndex, fromIndex + limit);
-      return { fromIndex, notes, nextIndex: fromIndex + notes.length, total: leaves.length };
+      return { checkpoint: CHECKPOINT, fromIndex, notes, nextIndex: fromIndex + notes.length, total: leaves.length };
     }),
     GetNullifiers: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const page = nullifiers.slice(fromIndex, fromIndex + limit).map((nullifier, i) => ({
         index: fromIndex + i,
         nullifier,
       }));
-      return { fromIndex, nullifiers: page, nextIndex: fromIndex + page.length, total: nullifiers.length };
+      return {
+        checkpoint: CHECKPOINT,
+        fromIndex,
+        nullifiers: page,
+        nextIndex: fromIndex + page.length,
+        total: nullifiers.length,
+      };
     }),
     GetShardRoots: vi.fn(),
   };
@@ -54,7 +70,10 @@ const bareLeaves = (n: number): SyncedLeaf[] =>
 describe("apiLeafSource", () => {
   it("drains both streams from the cursors across pages and reports the indexer block", async () => {
     const sync = fakeSyncApi(bareLeaves(10), ["7", "8", "9"], 99);
-    const config = createFakeConfig({ api: createFakeApi({ sync }) });
+    const config = createFakeConfig({
+      api: createFakeApi({ sync }),
+      networks: [fixtureNetwork({ aggregatorContractAddress: CONTRACT })],
+    });
 
     const delta = await apiLeafSource(config, { chainId: 1, pageSize: 4 }).fetchDelta({
       leafCount: 2,
@@ -71,16 +90,22 @@ describe("apiLeafSource", () => {
 describe("apiRangeSource", () => {
   it("fetches exactly the requested range, paging as needed", async () => {
     const sync = fakeSyncApi(bareLeaves(20), []);
-    const config = createFakeConfig({ api: createFakeApi({ sync }) });
+    const config = createFakeConfig({
+      api: createFakeApi({ sync }),
+      networks: [fixtureNetwork({ aggregatorContractAddress: CONTRACT })],
+    });
 
     const range = await apiRangeSource(config, { chainId: 1, pageSize: 3 }).fetchRange(4, 8);
     expect(range.map((l) => l.index)).toEqual([4, 5, 6, 7, 8, 9, 10, 11]);
   });
 
-  it("stops early when the stream ends", async () => {
+  it("rejects a range beyond the finalized checkpoint", async () => {
     const sync = fakeSyncApi(bareLeaves(5), []);
-    const config = createFakeConfig({ api: createFakeApi({ sync }) });
-    expect((await apiRangeSource(config, { chainId: 1 }).fetchRange(3, 10)).map((l) => l.index)).toEqual([3, 4]);
+    const config = createFakeConfig({
+      api: createFakeApi({ sync }),
+      networks: [fixtureNetwork({ aggregatorContractAddress: CONTRACT })],
+    });
+    await expect(apiRangeSource(config, { chainId: 1 }).fetchRange(3, 10)).rejects.toThrow(/exceeds checkpoint/);
   });
 });
 

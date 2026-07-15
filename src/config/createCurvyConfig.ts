@@ -48,7 +48,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     enableKeystore = false,
     customFetch,
     timerProvider = defaultTimerProvider(),
-    notesSyncEngine = "global",
+    notesSyncEngine = "sharded",
     prover,
     circuitKeysBaseUrl,
     circuitKeyCache,

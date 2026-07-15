@@ -73,8 +73,24 @@ async function load(source?: CoreWasmSource): Promise<void> {
     const { readFile } = await import("node:fs/promises");
     const { fileURLToPath } = await import("node:url");
     const { dirname, join } = await import("node:path");
-    const wasmPath = join(dirname(fileURLToPath(import.meta.url)), NODE_CORE_RS_WASM);
-    await initWasm({ module_or_path: new Uint8Array(await readFile(wasmPath)) });
+    const moduleDirectory = dirname(fileURLToPath(import.meta.url));
+    const candidates = [
+      join(moduleDirectory, NODE_CORE_RS_WASM),
+      join(moduleDirectory, "..", "assets", "core-rs", "curvy_core_bg.wasm"),
+      join(moduleDirectory, "..", "..", "assets", "core-rs", "curvy_core_bg.wasm"),
+    ];
+    let bytes: Uint8Array | null = null;
+    let lastError: unknown;
+    for (const candidate of candidates) {
+      try {
+        bytes = new Uint8Array(await readFile(candidate));
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!bytes) throw lastError;
+    await initWasm({ module_or_path: bytes });
   } else {
     await initWasm({ module_or_path: new URL(__CURVY_CORE_RS_WASM_URL__, import.meta.url) });
   }

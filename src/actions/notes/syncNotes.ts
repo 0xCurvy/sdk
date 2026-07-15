@@ -5,8 +5,8 @@ import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "@/no
 import { type LeafSource, type RootVerifier, type SyncedLeaf, syncNotesTree } from "@/note/notesTreeSync";
 import { GlobalNotesTree, type NotesTreeView } from "@/note/notesTreeView";
 import { syncShardedNotesTree } from "@/note/shardedNotesSync";
+import { nullifier as rustNullifier } from "@/proving/rustCore";
 import type { Network } from "@/types/api";
-import { poseidonHash } from "@/utils/hash/poseidonHash";
 import { applyAccountDiscovery } from "./internal/applyDiscovery";
 import { applySyncResult } from "./internal/applySyncResult";
 import { apiLeafSource, coreOwnershipResolver, ownedNullifiersFromBalances, rpcRootVerifier } from "./internal/seams";
@@ -51,9 +51,9 @@ export type SyncNotesResult = {
  * `getSpendWitnesses`.
  *
  * The working set is chosen by `config.notesSyncEngine` (or the per-call
- * `engine` override): "global" (default, the full in-memory IMT) or "sharded"
- * (lean-client profile — shard roots + tracked witnesses, a few MB at any tree
- * size; see plan-shardtree-curvy.md). Both verify against the same chain anchor
+ * `engine` override): "sharded" (default lean-client profile — shard roots +
+ * tracked witnesses, a few MB at any tree size) or "global" (legacy full IMT).
+ * See plan-shardtree-curvy.md. Both verify against the same chain anchor
  * and emit identical witnesses downstream.
  */
 export async function syncNotes(parameters: SyncNotesParameters = {}): Promise<SyncNotesResult[]> {
@@ -260,7 +260,7 @@ async function runSyncEngine(engine: NotesSyncEngine, opts: SyncEngineOptions): 
     // sharded engine; the pre-sync `ownedNullifiers` is stored-balances only).
     const reconNullifiers = new Map(ownedNullifiers ?? []);
     for (const note of newOwned) {
-      reconNullifiers.set(poseidonHash([note.sharedSecret, note.ownerPub[0], note.ownerPub[1]]), BigInt(note.noteId));
+      reconNullifiers.set(rustNullifier(note.sharedSecret, note.ownerPub[0], note.ownerPub[1]), BigInt(note.noteId));
     }
     const spentNoteIds: bigint[] = [];
     for (const nf of r.newNullifiers) {

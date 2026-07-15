@@ -1,7 +1,11 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { StorageInterface } from "@/interfaces/storage";
-import { bytesToFields, createRustMerkleTreeFromLeaves, fieldToBytes } from "@/proving/rustCore";
-import { poseidonHash } from "@/utils/hash/poseidonHash";
+import {
+  bytesToFields,
+  createRustMerkleTreeFromLeaves,
+  fieldToBytes,
+  nullifier as rustNullifier,
+} from "@/proving/rustCore";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "./discoverOwnedNotes";
 import { type LeafSource, type RootVerifier, reconcileWithChain, type SyncedLeaf } from "./notesTreeSync";
 import { DEFAULT_SHARD_HEIGHT, NOTES_TREE_DEPTH, ShardedNotesTree } from "./shardedNotesTree";
@@ -123,7 +127,7 @@ export async function syncShardedNotesTree(opts: SyncShardedNotesTreeOptions): P
   //    that is never reconciled away (phantom live balance).
   const ownedNullifiers = new Map(opts.ownedNullifiers ?? []);
   for (const note of newOwned) {
-    ownedNullifiers.set(poseidonHash([note.sharedSecret, note.ownerPub[0], note.ownerPub[1]]), BigInt(note.noteId));
+    ownedNullifiers.set(rustNullifier(note.sharedSecret, note.ownerPub[0], note.ownerPub[1]), BigInt(note.noteId));
   }
   const newNullifiers = delta.nullifiers.map(BigInt);
   const spentNoteIds: bigint[] = [];
@@ -145,6 +149,7 @@ export async function syncShardedNotesTree(opts: SyncShardedNotesTreeOptions): P
       tree.leafCount,
       () => tree.root(),
       "sharded sync: assembled root",
+      delta.checkpoint,
     ));
   }
 
@@ -181,6 +186,16 @@ export async function syncShardedNotesTree(opts: SyncShardedNotesTreeOptions): P
     blockNumber: delta.blockNumber,
     lastSynced: now(),
     shardCount: tree.shardCount,
+    ...(delta.checkpoint
+      ? {
+          checkpoint: delta.checkpoint.checkpoint,
+          finalizedBlockNumber: delta.checkpoint.finalizedBlockNumber,
+          finalizedBlockHash: delta.checkpoint.finalizedBlockHash,
+          contractAddress: delta.checkpoint.contractAddress,
+          treeVersion: delta.checkpoint.treeVersion,
+          shardHeight: delta.checkpoint.shardHeight,
+        }
+      : {}),
   });
 
   return { tree, newLeaves, newOwned, newNullifiers, spentNoteIds, caughtUp, indexerLag };

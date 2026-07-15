@@ -48,11 +48,26 @@ const ethMetadata: CurrencyMetadata = {
 
 /** Fake `api.sync` backed by the leaf array — the backfill range fetch reads it. */
 function fakeSyncApi(leaves: SyncedLeaf[]) {
+  const checkpoint = "checkpoint-discovery";
   return {
-    GetMeta: vi.fn(),
+    GetMeta: vi.fn(async () => ({
+      checkpoint,
+      chainId: 1,
+      contractAddress: network.aggregatorContractAddress as string,
+      treeVersion: 1,
+      finalizedBlockNumber: 7,
+      finalizedBlockHash: `0x${"f".repeat(64)}`,
+      notesRoot: "0",
+      noteCount: leaves.length,
+      nullifierCount: 0,
+      pendingCount: 0,
+      shardCount: 0,
+      shardHeight: 14,
+      shardSize: 1 << 14,
+    })),
     GetNotes: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const notes = leaves.slice(fromIndex, fromIndex + limit);
-      return { fromIndex, notes, nextIndex: fromIndex + notes.length, total: leaves.length };
+      return { checkpoint, fromIndex, notes, nextIndex: fromIndex + notes.length, total: leaves.length };
     }),
     GetNullifiers: vi.fn(),
     GetShardRoots: vi.fn(),

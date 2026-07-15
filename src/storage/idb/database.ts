@@ -111,5 +111,12 @@ export class CurvyDatabase extends Dexie {
     this.version(6).stores({
       tokenPouches: "scopeKey",
     });
+
+    // v7 records the finalized block hash/checkpoint identity on notes
+    // checkpoints. The key is unchanged; legacy rows remain readable but are
+    // treated as untrusted until the next verified sync rewrites them.
+    this.version(7).stores({
+      notesCheckpoints: "[networkSlug+environment]",
+    });
   }
 }
