@@ -34,7 +34,11 @@ export async function executePlanTree(
 
           const data = await command.execute();
 
-          await config.storage.removeSpentBalanceEntries(Array.isArray(nodeInput) ? nodeInput : [nodeInput]);
+          // v3 hot inputs remain in the finalized base and are hidden by intent
+          // locks/canonical nullifiers; only legacy commands delete eagerly.
+          if (node.name !== "aggregator-aggregate" && node.name !== "aggregator-withdraw") {
+            await config.storage.removeSpentBalanceEntries(Array.isArray(nodeInput) ? nodeInput : [nodeInput]);
+          }
           config.emitter.emitPlanCommandExecutionProgress({ commandId: node.id });
 
           return { success: true, estimate: node.estimate, data };

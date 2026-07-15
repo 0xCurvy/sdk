@@ -93,4 +93,20 @@ describe("relaySubmission — privacy pass attach + retry", () => {
     await expect(relaySubmission({ config, request })).rejects.toMatchObject({ name: "RelayError" });
     expect(submitProof).toHaveBeenCalledTimes(1);
   });
+
+  it("recovers by stable intent id when the POST response is lost", async () => {
+    popMock.mockResolvedValue(undefined);
+    const submitProof = vi.fn().mockRejectedValue(new Error("response reset"));
+    const getByIntent = vi.fn().mockResolvedValue({ requestId: "r-recovered", status: "queued", networkId: 1 });
+    const api = createFakeApi({
+      relay: { SubmitProof: submitProof, GetSubmissionByIntent: getByIntent },
+    });
+    const config = createFakeConfig({ api, networks: [fixtureNetwork({ slug: "ethereum", chainId: "1" })] });
+    const intentId = "00000000-0000-4000-8000-000000000777";
+
+    const result = await relaySubmission({ config, request, intentId });
+
+    expect(result.requestId).toBe("r-recovered");
+    expect(getByIntent).toHaveBeenCalledWith(intentId, 1);
+  });
 });

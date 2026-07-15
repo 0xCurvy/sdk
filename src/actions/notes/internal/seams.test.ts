@@ -44,7 +44,12 @@ function fakeSyncApi(leaves: SyncedLeaf[], nullifiers: string[], lastIndexedBloc
       shardSize: 1 << 14,
     })),
     GetNotes: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
-      const notes = leaves.slice(fromIndex, fromIndex + limit);
+      const notes = leaves.slice(fromIndex, fromIndex + limit).map((note) => ({
+        ...note,
+        commitBlockNumber: note.commitBlockNumber ?? lastIndexedBlock,
+        commitBlockHash: note.commitBlockHash ?? `0x${"c".repeat(64)}`,
+        commitTxHash: note.commitTxHash ?? `0x${"d".repeat(64)}`,
+      }));
       return { checkpoint: CHECKPOINT, fromIndex, notes, nextIndex: fromIndex + notes.length, total: leaves.length };
     }),
     GetNullifiers: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {

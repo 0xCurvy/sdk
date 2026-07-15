@@ -8,6 +8,7 @@ import type { AggregatorSubmission } from "./types";
 export type RelaySubmissionParameters = WithConfig<{
   /** A built submission from one of the `build*Request` actions. */
   request: AggregatorSubmission;
+  intentId?: string;
 }>;
 
 /**
@@ -49,6 +50,7 @@ export async function relaySubmission(parameters: RelaySubmissionParameters): Pr
     proof,
     publicSignals: request.publicSignals.map((s) => s.toString()),
     idempotencyKey: `${request.action}:${dedupe}`,
+    intentId: parameters.intentId,
   };
 
   // Privacy Pass: attach a single-use anonymous token (the relayer's rate-limit
@@ -60,6 +62,7 @@ export async function relaySubmission(parameters: RelaySubmissionParameters): Pr
   try {
     return await config.api.relay.SubmitProof(body, privateToken);
   } catch (error) {
+    let failure = error as Error;
     const status = error instanceof APIError ? error.statusCode : undefined;
     if (status === 401 || status === 409) {
       const retryToken = await popPrivateToken(config, "relayer", { forceRefresh: true });
@@ -68,10 +71,18 @@ export async function relaySubmission(parameters: RelaySubmissionParameters): Pr
           // Safe to retry: idempotencyKey dedupes if the first POST DID land.
           return await config.api.relay.SubmitProof(body, retryToken);
         } catch (retryError) {
-          throw new RelayError(`relaySubmission failed: ${(retryError as Error).message}`, retryError as Error);
+          failure = retryError as Error;
         }
       }
     }
-    throw new RelayError(`relaySubmission failed: ${(error as Error).message}`, error as Error);
+    if (parameters.intentId) {
+      try {
+        const recovered = await config.api.relay.GetSubmissionByIntent(parameters.intentId, Number(network.chainId));
+        if (recovered?.requestId) return recovered;
+      } catch {
+        // The persisted intent/attempt remains locked and can retry this lookup on sync.
+      }
+    }
+    throw new RelayError(`relaySubmission failed: ${failure.message}`, failure);
   }
 }

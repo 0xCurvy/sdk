@@ -9,6 +9,8 @@ import type {
   GetCurvyIdByOwnerAddressResponse,
   GetPortalRecordsReturnType,
   GetPortalStatusReturnType,
+  GetSyncHotBlocksReturnType,
+  GetSyncHotMetaReturnType,
   GetSyncMetaReturnType,
   GetSyncNotesReturnType,
   GetSyncNullifiersReturnType,
@@ -347,6 +349,28 @@ class ApiClient extends HttpClient implements IApiClient {
         baseUrl: this.indexerUrlFor(chainId),
       });
     },
+
+    GetHotMeta: async (chainId: number, baseCheckpoint: string) => {
+      return await this.request<GetSyncHotMetaReturnType>({
+        method: "GET",
+        path: "/sync/hot/meta",
+        queryParams: { chainId, base: baseCheckpoint },
+        retries: 2,
+        timeout: SYNC_TIMEOUT,
+        baseUrl: this.indexerUrlFor(chainId),
+      });
+    },
+
+    GetHotBlocks: async (chainId: number, snapshot: string, fromBlock?: number, limit = 64) => {
+      return await this.request<GetSyncHotBlocksReturnType>({
+        method: "GET",
+        path: "/sync/hot/blocks",
+        queryParams: { chainId, at: snapshot, limit, ...(fromBlock === undefined ? {} : { fromBlock }) },
+        retries: 2,
+        timeout: SYNC_TIMEOUT,
+        baseUrl: this.indexerUrlFor(chainId),
+      });
+    },
   };
 
   // v3 client-proving relay (anonymous, SDK-owned contract). `retries: 0` on POST
@@ -371,6 +395,16 @@ class ApiClient extends HttpClient implements IApiClient {
       return await this.request<RelaySubmitReturnType>({
         method: "GET",
         path: `/relay/submission/${requestId}/status`,
+        retries: 2,
+        baseUrl: this.relayerBaseUrl,
+      });
+    },
+
+    GetSubmissionByIntent: async (intentId: string, networkId: number) => {
+      return await this.request<RelaySubmitReturnType>({
+        method: "GET",
+        path: `/relay/intent/${encodeURIComponent(intentId)}/status`,
+        queryParams: { networkId },
         retries: 2,
         baseUrl: this.relayerBaseUrl,
       });

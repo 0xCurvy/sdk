@@ -57,6 +57,10 @@ export function reduceSyncToHistory(params: ReduceSyncToHistoryParams): TxHistor
       leafIndex: owned.leafIndex,
       requestTxHash: leaf?.requestTxHash,
       blockNumber: leaf?.blockNumber,
+      blockHash: leaf?.commitBlockHash ?? leaf?.requestBlockHash,
+      commitTxHash: leaf?.commitTxHash,
+      finality: "finalized",
+      status: "finalized",
       observedAt: now,
     });
   }

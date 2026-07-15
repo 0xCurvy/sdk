@@ -5,11 +5,14 @@ import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "@/no
 import { type LeafSource, type RootVerifier, type SyncedLeaf, syncNotesTree } from "@/note/notesTreeSync";
 import { GlobalNotesTree, type NotesTreeView } from "@/note/notesTreeView";
 import { syncShardedNotesTree } from "@/note/shardedNotesSync";
+import { ShardedNotesTree } from "@/note/shardedNotesTree";
+import { syncHotNotesOverlay } from "@/note/syncHotNotesOverlay";
 import { nullifier as rustNullifier } from "@/proving/rustCore";
 import type { Network } from "@/types/api";
 import { applyAccountDiscovery } from "./internal/applyDiscovery";
 import { applySyncResult } from "./internal/applySyncResult";
 import { apiLeafSource, coreOwnershipResolver, ownedNullifiersFromBalances, rpcRootVerifier } from "./internal/seams";
+import { reconcileTransferRecords } from "./reconcileTransferRecords";
 
 export type SyncNotesParameters = WithConfig<{
   /** Network to sync; omit to sync every active network with an aggregator. */
@@ -35,6 +38,9 @@ export type SyncNotesResult = {
   indexerLag: number;
   leafCount: number;
   root: bigint;
+  hotBlockNumber?: number;
+  hotBlockHash?: string;
+  hotStatus?: "normal" | "stalled" | "provider_disagreement" | "deep_reorg" | "unavailable";
   newOwnedCount: number;
   spentCount: number;
   /** True when another sync for this network was already in flight (nothing ran). */
@@ -169,8 +175,8 @@ async function syncOneNetwork(
       ownedNullifiers,
     });
 
-    // Hand the warm tree to the spend path (getSpendWitnesses).
-    config._internal.notesTrees.set(networkSlug, outcome.tree);
+    // Keep the verified finalized base independently from the disposable hot view.
+    config._internal.finalizedNotesTrees.set(networkSlug, outcome.tree);
 
     let spentCount = 0;
     let newOwnedCount = outcome.newOwned.length;
@@ -206,14 +212,55 @@ async function syncOneNetwork(
       newOwnedCount = applied.added.length;
     }
 
+    let effectiveTree = outcome.tree;
+    let hotBlockNumber: number | undefined;
+    let hotBlockHash: string | undefined;
+    let hotStatus: SyncNotesResult["hotStatus"] = "unavailable";
+    if (engine === "sharded" && outcome.tree instanceof ShardedNotesTree) {
+      const checkpoint = await config.storage.getNotesCheckpoint(networkSlug, environment);
+      if (checkpoint?.checkpoint) {
+        try {
+          const hot = await syncHotNotesOverlay({
+            api: config.api,
+            storage: config.storage,
+            chainId: Number(network.chainId),
+            accountId: accountId ?? undefined,
+            networkSlug,
+            environment,
+            finalizedTree: outcome.tree,
+            finalizedCheckpoint: checkpoint,
+            verifier,
+            resolveOwnership,
+            pageSize: parameters.pageSize,
+            signal: parameters.signal,
+          });
+          effectiveTree = hot.tree;
+          hotBlockNumber = hot.meta.hotBlockNumber;
+          hotBlockHash = hot.meta.hotBlockHash;
+          hotStatus = hot.meta.finality.status;
+        } catch {
+          // Hot availability must never make the verified finalized wallet unusable.
+          await config.storage.clearHotOverlay(networkSlug, accountId ?? undefined);
+        }
+      }
+    }
+    config._internal.notesTrees.set(networkSlug, effectiveTree);
+    const checkpoint = await config.storage.getNotesCheckpoint(networkSlug, environment);
+    if (accountId && checkpoint) {
+      await reconcileTransferRecords({ config, accountId, networkSlug, checkpoint });
+    }
+
     return {
       networkSlug,
       caughtUp: outcome.caughtUp,
       indexerLag: outcome.indexerLag,
-      leafCount: outcome.leafCount,
-      root: outcome.root,
+      leafCount: effectiveTree.leafCount,
+      root: effectiveTree.root(),
       newOwnedCount,
       spentCount,
+      hotBlockNumber,
+      hotBlockHash,
+      hotStatus,
     };
   } finally {
     config._internal.scanLocks.set(lockKey, false);

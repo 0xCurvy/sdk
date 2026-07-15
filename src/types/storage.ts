@@ -54,6 +54,11 @@ type BalanceEntry = GenericBalanceEntry & {
    * batch is ingested (`leafIndex = currentNoteIndex + i`, zeros skipped).
    */
   leafIndex?: number | null;
+  /** Commitment finality used by planner policy and balance presentation. */
+  finality?: "finalized" | "hot";
+  commitBlockNumber?: number;
+  commitBlockHash?: string;
+  originIntentId?: string;
 };
 
 type TotalBalance = {
@@ -169,8 +174,204 @@ type TxHistoryEntry = {
   /** The aggregation-request tx that announced the note — the user-action time. */
   requestTxHash?: string;
   blockNumber?: number;
+  blockHash?: string;
+  commitTxHash?: string;
+  finality?: "hot" | "finalized";
+  status?: "available_hot" | "finalized" | "reorged";
   /** Client clock when the sync observed the event (chain gives order, not wall time). */
   observedAt: number;
+};
+
+type InputFinalityPolicy = "included" | "finalized";
+
+type HotNoteStatus =
+  | "finalized_spent_hot"
+  | "pending_incoming"
+  | "hot_available"
+  | "hot_spent"
+  | "recovery_locked"
+  | "orphaned";
+
+type HotSyncState = {
+  networkSlug: string;
+  environment: NETWORK_ENVIRONMENT_VALUES;
+  generation: number;
+  baseCheckpoint: string;
+  baseBlockNumber: number;
+  baseBlockHash: string;
+  snapshot: string;
+  hotBlockNumber: number;
+  hotBlockHash: string;
+  noteCount: number;
+  notesRoot: string;
+  nullifierCount: number;
+  finalityMode: "finalized" | "safe" | "confirmations";
+  finalityStatus: "normal" | "stalled" | "provider_disagreement" | "deep_reorg";
+  observedFinalityLagSeconds: number;
+  estimatedSecondsToFinality: number | null;
+  updatedAt: number;
+};
+
+type HotBlockRecord = {
+  networkSlug: string;
+  number: number;
+  hash: string;
+  parentHash: string;
+  timestamp: number;
+  announcements: Array<{
+    noteId: string;
+    ephemeralKey?: [string, string];
+    viewTag?: number;
+    amount?: string;
+    token?: string;
+    isPlaintext?: boolean;
+    relaySubmissionId?: string | null;
+    transactionHash: string;
+    transactionIndex: number;
+    logIndex: number;
+    eventArrayIndex: number;
+  }>;
+  committedNotes: Array<{
+    index: number;
+    noteId: string;
+    ephemeralKey?: [string, string];
+    viewTag?: number;
+    amount?: string;
+    token?: string;
+    isPlaintext?: boolean;
+    batchRunId?: string | null;
+    relaySubmissionId?: string | null;
+    commitTransactionHash: string;
+    commitTransactionIndex: number;
+    commitLogIndex: number;
+    commitEventArrayIndex: number;
+    announcementBlockNumber?: number;
+    announcementBlockHash?: string;
+  }>;
+  nullifiers: Array<{
+    index: number;
+    nullifier: string;
+    relaySubmissionId?: string | null;
+    transactionHash: string;
+    transactionIndex: number;
+    logIndex: number;
+    eventArrayIndex: number;
+  }>;
+  postBlockNoteCount: number;
+  postBlockNotesRoot: string;
+  postBlockNullifierCount: number;
+};
+
+type HotNoteState = {
+  accountId: string;
+  networkSlug: string;
+  noteId: string;
+  status: HotNoteStatus;
+  balanceEntry?: BalanceEntry;
+  origin: "local_intent" | "external";
+  originIntentId?: string;
+  spentHotBy?: string;
+  spentBlockNumber?: number;
+  spentBlockHash?: string;
+  spendTxHash?: string;
+  announcementBlockNumber?: number;
+  announcementBlockHash?: string;
+  requestTxHash?: string;
+  commitmentBlockNumber?: number;
+  commitmentBlockHash?: string;
+  commitTxHash?: string;
+  leafIndex?: number;
+};
+
+type BalanceBreakdown = {
+  finalizedAvailable: bigint;
+  hotAvailable: bigint;
+  pendingIncoming: bigint;
+  lockedOutgoing: bigint;
+  spendableAvailable: bigint;
+};
+
+type TransferIntentStatus =
+  | "proving"
+  | "queued"
+  | "submitted"
+  | "input_spend_included"
+  | "awaiting_output_commit"
+  | "available_hot"
+  | "finalized"
+  | "reorged"
+  | "rebuilding"
+  | "blocked_upstream"
+  | "failed";
+
+type TransferHistoryRecord = {
+  intentId: string;
+  accountId: string;
+  networkSlug: string;
+  direction: "incoming" | "outgoing";
+  action: "aggregation" | "withdrawal";
+  token: string;
+  amount: string;
+  recipients: string[];
+  createdAt: number;
+  statusUpdatedAt: number;
+  finalityPolicy: InputFinalityPolicy;
+  localDependencyDepth: number;
+  hasExternalHotDependency: boolean;
+  status: TransferIntentStatus;
+  inputCommitments: string[];
+  expectedOutputCommitments: string[];
+  activeAttemptGeneration: number;
+};
+
+type TransferAttempt = {
+  accountId: string;
+  intentId: string;
+  generation: number;
+  referencedRoot: string;
+  referencedRootBlockHash: string;
+  proofCreatedAt: number;
+  relayRequestId?: string;
+  relayTxHash?: string;
+  submittedAt?: number;
+  inclusionBlockNumber?: number;
+  inclusionBlockHash?: string;
+  includedAt?: number;
+  status: "created" | "submitted" | "included" | "finalized" | "reorged" | "replaced" | "failed";
+  replacementTxHash?: string;
+  errorCode?: string;
+};
+
+type TransferSettlement = {
+  accountId: string;
+  intentId: string;
+  outputCommitment: string;
+  batchTxHash?: string;
+  commitBlockNumber?: number;
+  commitBlockHash?: string;
+  leafIndex?: number;
+  status: "pending" | "available_hot" | "finalized" | "reorged";
+};
+
+type IntentDependency = {
+  accountId: string;
+  fromIntentId: string;
+  toIntentId: string;
+  noteId: string;
+};
+
+type FinalityPreference = {
+  accountId: string;
+  networkSlug: string;
+  requireFinalizedFunds: boolean;
+};
+
+type HotOverlayReplacement = {
+  state: HotSyncState;
+  blocks: HotBlockRecord[];
+  accountId?: string;
+  noteStates?: HotNoteState[];
+  history?: TxHistoryEntry[];
 };
 
 export type {
@@ -185,4 +386,17 @@ export type {
   LiveShardRecord,
   TxHistoryEntry,
   TxHistoryKind,
+  InputFinalityPolicy,
+  HotNoteStatus,
+  HotSyncState,
+  HotBlockRecord,
+  HotNoteState,
+  BalanceBreakdown,
+  TransferIntentStatus,
+  TransferHistoryRecord,
+  TransferAttempt,
+  TransferSettlement,
+  IntentDependency,
+  FinalityPreference,
+  HotOverlayReplacement,
 };

@@ -212,14 +212,26 @@ describe("aggregator-aggregate command", () => {
     vi.mocked(relaySubmission).mockResolvedValue({ requestId: "req-agg", status: "queued" } as never);
     vi.mocked(waitForRelay).mockResolvedValue({ status: "finalized" } as never);
     vi.mocked(syncNotes).mockResolvedValue([] as never);
+    await config.storage.putNotesCheckpoint({
+      networkSlug: "ethereum",
+      environment: "mainnet",
+      leafCount: 0,
+      nullifierCount: 0,
+      root: "0",
+      blockNumber: 10,
+      finalizedBlockNumber: 10,
+      finalizedBlockHash: "0xfinalized",
+      lastSynced: 1,
+    });
     // The committed output surfaces in storage as balance id "42".
+    const input = entry({ balance: 1000n });
     const synced = entry({ id: "42", balance: 990n });
-    config.storage.getBalances = vi.fn(async () => [synced]) as never;
+    config.storage.getProjectedBalances = vi.fn().mockResolvedValueOnce([input]).mockResolvedValue([synced]);
 
     const command = createCommand(config, {
       id: "cmd-agg4",
       name: "aggregator-aggregate",
-      input: entry({ balance: 1000n }),
+      input,
     });
 
     await command.estimateFees();
@@ -288,12 +300,25 @@ describe("aggregator-withdraw command", () => {
     vi.mocked(buildWithdrawRequest).mockResolvedValue({ action: "withdrawal", publicSignals: [] } as never);
     vi.mocked(relaySubmission).mockResolvedValue({ requestId: "req-wd", status: "queued" } as never);
     vi.mocked(waitForRelay).mockResolvedValue({ status: "finalized" } as never);
+    await config.storage.putNotesCheckpoint({
+      networkSlug: "ethereum",
+      environment: "mainnet",
+      leafCount: 0,
+      nullifierCount: 0,
+      root: "0",
+      blockNumber: 10,
+      finalizedBlockNumber: 10,
+      finalizedBlockHash: "0xfinalized",
+      lastSynced: 1,
+    });
+    const input = [entry({ id: "note-1", balance: 600n }), entry({ id: "note-2", balance: 400n })];
+    config.storage.getProjectedBalances = vi.fn(async () => input);
 
     const command = createCommand(config, {
       id: "cmd-wd4",
       name: "aggregator-withdraw",
       // v3 withdrawal consumes exactly maxInputs (2) committed notes.
-      input: [entry({ balance: 600n }), entry({ balance: 400n })],
+      input,
       intent,
     });
 

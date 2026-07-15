@@ -6,11 +6,17 @@ import { NoActiveAccountError } from "@/errors";
 import type { Intent, IntentEstimation } from "@/planner/types";
 import { generatePlan } from "@/planner/utils";
 import { hasBytecode } from "@/rpc/hasBytecode";
+import type { InputFinalityPolicy } from "@/types/storage";
 import { toSlug } from "@/utils/format";
 import { invariant } from "@/utils/invariant";
 import { estimatePlanTree } from "./estimatePlanTree";
+import { resolveInputFinalityPolicy } from "./resolveInputFinalityPolicy";
 
-export type EstimateIntentParameters = WithConfig<{ intent: Intent }>;
+export type EstimateIntentParameters = WithConfig<{
+  intent: Intent;
+  /** Integration-level lower bound that account/intent settings cannot weaken. */
+  minimumInputFinalityPolicy?: InputFinalityPolicy;
+}>;
 
 /**
  * Estimate the full cost of fulfilling an `intent` (functional port of
@@ -32,13 +38,20 @@ export async function estimateIntent(parameters: EstimateIntentParameters): Prom
   if (!activeAccount) throw new NoActiveAccountError();
   const activeAccountId = activeAccount.id;
 
-  const balances = await config.storage.getBalancesByCurrencyAndNetwork(
-    activeAccountId,
-    intent.currency.contractAddress,
-    toSlug(intent.network.name),
-  );
+  const networkSlug = toSlug(intent.network.name);
+  const inputFinalityPolicy = await resolveInputFinalityPolicy({
+    config,
+    accountId: activeAccountId,
+    networkSlug,
+    intent,
+    mandatory: parameters.minimumInputFinalityPolicy,
+  });
+  const balances = (
+    await config.storage.getProjectedBalances(activeAccountId, networkSlug, inputFinalityPolicy)
+  ).filter((entry) => entry.currencyAddress === intent.currency.contractAddress);
 
-  const { plan: draftPlan, usedBalances } = generatePlan(balances, intent, {
+  const resolvedIntent = { ...intent, inputFinalityPolicy } as Intent;
+  const { plan: draftPlan, usedBalances } = generatePlan(balances, resolvedIntent, {
     checkBytecode: (n, a) => hasBytecode({ network: n, address: a, config }),
     maxInputs: getProtocol({ config }).proving.aggregation.maxInputs,
   });
@@ -64,5 +77,6 @@ export async function estimateIntent(parameters: EstimateIntentParameters): Prom
     curvyFee: result.estimate.curvyFeeInCurrency,
     bridgeFee: result.estimate.bridgeFeeInCurrency,
     effectiveAmount: result.data.balance,
+    inputFinalityPolicy,
   };
 }

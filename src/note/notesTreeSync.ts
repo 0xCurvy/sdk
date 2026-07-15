@@ -35,6 +35,10 @@ export type SyncedLeaf = {
   blockNumber?: number;
   /** The tx that announced the note (submitAggregation / autoShield) — user-action time (tx history). */
   requestTxHash?: string;
+  requestBlockHash?: string;
+  commitBlockNumber?: number;
+  commitBlockHash?: string;
+  commitTxHash?: string;
 };
 
 export type FinalizedSyncCheckpoint = {

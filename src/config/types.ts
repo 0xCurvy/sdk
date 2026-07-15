@@ -69,6 +69,8 @@ export type CurvyConfigInternal = {
    * path until the v3 client-proving API migration.
    */
   notesTrees: Map<string, NotesTreeView>;
+  /** Durable-base trees retained separately from the disposable effective view. */
+  finalizedNotesTrees: Map<string, NotesTreeView>;
 
   /** Privacy Pass client state (challenge cache + single-flight refills); lazily initialized. */
   privacyPass?: PrivacyPassInternalState;

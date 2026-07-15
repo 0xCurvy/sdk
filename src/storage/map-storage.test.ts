@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { SerializedCurvyAccount } from "@/types";
-import type { BalanceEntry, CurrencyMetadata, SerializedNoteWitness, TxHistoryEntry } from "@/types/storage";
+import type {
+  BalanceEntry,
+  CurrencyMetadata,
+  HotNoteState,
+  HotOverlayReplacement,
+  SerializedNoteWitness,
+  TxHistoryEntry,
+} from "@/types/storage";
 import { MapStorage } from "./map-storage";
 
 const account = {
@@ -39,6 +46,33 @@ const meta: CurrencyMetadata = {
   networkSlug: "ethereum",
   environment: "testnet",
 };
+
+function hotReplacement(noteStates: HotNoteState[]): HotOverlayReplacement {
+  return {
+    state: {
+      networkSlug: "ethereum",
+      environment: "testnet",
+      generation: 1,
+      baseCheckpoint: "checkpoint-10",
+      baseBlockNumber: 10,
+      baseBlockHash: "0xbase",
+      snapshot: "snapshot-11",
+      hotBlockNumber: 11,
+      hotBlockHash: "0xhot",
+      noteCount: 1,
+      notesRoot: "1",
+      nullifierCount: 0,
+      finalityMode: "finalized",
+      finalityStatus: "normal",
+      observedFinalityLagSeconds: 12,
+      estimatedSecondsToFinality: null,
+      updatedAt: 1,
+    },
+    blocks: [],
+    accountId: "acc-1",
+    noteStates,
+  };
+}
 
 describe("MapStorage (BaseStorage business logic)", () => {
   it("inserts an account with empty scan cursors and rejects duplicates", async () => {
@@ -117,6 +151,82 @@ describe("MapStorage (BaseStorage business logic)", () => {
     expect(await s.getBalances("acc-1", "testnet")).toHaveLength(1);
     expect(await s.getBalances("acc-1", "mainnet")).toHaveLength(0);
     expect(await s.getTotals("acc-1", "mainnet")).toHaveLength(0);
+  });
+
+  it("projects hot notes only for included-funds policy", async () => {
+    const s = new MapStorage();
+    const hot = makeEntry({ id: "hot-1", balance: 50n, finality: "hot" });
+    await s.replaceHotOverlay(
+      hotReplacement([
+        {
+          accountId: "acc-1",
+          networkSlug: "ethereum",
+          noteId: hot.id,
+          status: "hot_available",
+          balanceEntry: hot,
+          origin: "external",
+        },
+      ]),
+    );
+
+    expect(await s.getProjectedBalances("acc-1", "ethereum", "finalized")).toEqual([]);
+    expect((await s.getProjectedBalances("acc-1", "ethereum", "included")).map((entry) => entry.id)).toEqual(["hot-1"]);
+  });
+
+  it("clears stale hot projections for every account when the shared head changes", async () => {
+    const s = new MapStorage();
+    const first = hotReplacement([
+      {
+        accountId: "acc-1",
+        networkSlug: "ethereum",
+        noteId: "hot-1",
+        status: "hot_available",
+        balanceEntry: makeEntry({ id: "hot-1", finality: "hot" }),
+        origin: "external",
+      },
+      {
+        accountId: "acc-2",
+        networkSlug: "ethereum",
+        noteId: "hot-2",
+        status: "hot_available",
+        balanceEntry: makeEntry({ id: "hot-2", accountId: "acc-2", finality: "hot" }),
+        origin: "external",
+      },
+    ]);
+    await s.replaceHotOverlay(first);
+
+    await s.replaceHotOverlay(hotReplacement([]));
+
+    expect(await s.getHotNoteStates("acc-1", "ethereum")).toEqual([]);
+    expect(await s.getHotNoteStates("acc-2", "ethereum")).toEqual([]);
+  });
+
+  it("keeps a hot-spent finalized note durable but removes it from spendable balance", async () => {
+    const s = new MapStorage();
+    const finalized = makeEntry({ id: "finalized-1", balance: 100n });
+    await s.updateBalanceEntries("acc-1", "ethereum", [finalized]);
+    await s.replaceHotOverlay(
+      hotReplacement([
+        {
+          accountId: "acc-1",
+          networkSlug: "ethereum",
+          noteId: finalized.id,
+          status: "finalized_spent_hot",
+          balanceEntry: finalized,
+          origin: "external",
+        },
+      ]),
+    );
+
+    expect(await s.getBalances("acc-1")).toHaveLength(1);
+    expect(await s.getProjectedBalances("acc-1", "ethereum", "included")).toEqual([]);
+    expect(await s.getBalanceBreakdown("acc-1", "ethereum", "0xusdc")).toEqual({
+      finalizedAvailable: 0n,
+      hotAvailable: 0n,
+      pendingIncoming: 0n,
+      lockedOutgoing: 100n,
+      spendableAvailable: 0n,
+    });
   });
 
   it("removes spent entries (total drops to zero so it is deleted)", async () => {
@@ -198,6 +308,14 @@ describe("MapStorage (BaseStorage business logic)", () => {
       liveShards: 0,
       txHistory: 0,
       tokenPouches: 0,
+      hotSyncStates: 0,
+      hotBlocks: 0,
+      hotNoteStates: 0,
+      transferIntents: 0,
+      transferAttempts: 0,
+      transferSettlements: 0,
+      intentDependencies: 0,
+      finalityPreferences: 0,
     });
   });
 

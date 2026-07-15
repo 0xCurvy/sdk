@@ -71,10 +71,20 @@ export type RelaySubmitRequestBody = {
    * relayed tx instead of double-submitting. The relayer MUST honor it.
    */
   idempotencyKey: string;
+  /** Stable wallet intent id shared by retries; contains no private material. */
+  intentId?: string;
 };
 
 /** Lifecycle of a relayed submission (richer than the legacy pending/success). */
-export type RelaySubmissionStatus = "queued" | "submitting" | "finalized" | "failed";
+export type RelaySubmissionStatus =
+  | "queued"
+  | "submitting"
+  | "submitted"
+  | "included"
+  | "finalized"
+  | "reorged"
+  | "needs_rebuild"
+  | "failed";
 
 /** Relay response — includes `transactionHash` so the user can verify their own submission. */
 export type RelaySubmitReturnType = {
@@ -82,6 +92,13 @@ export type RelaySubmitReturnType = {
   status: RelaySubmissionStatus;
   transactionHash?: HexString;
   blockNumber?: string;
+  blockHash?: string;
+  canonicalTransactionHash?: HexString;
+  includedAt?: string;
+  finalizedAt?: string;
+  syncCheckpointId?: string;
+  retryGeneration?: number;
+  reorgReason?: string;
   networkId?: number;
   error?: string;
 };

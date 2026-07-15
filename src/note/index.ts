@@ -8,4 +8,5 @@ export * from "./notesTreeView";
 export * from "./noteToBalanceEntry";
 export * from "./shardedNotesSync";
 export * from "./shardedNotesTree";
+export * from "./syncHotNotesOverlay";
 export * from "./types";

@@ -1,13 +1,24 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { CurvyAccountData, HexString, PriceData, SerializedCurvyAccount } from "@/types";
 import type {
+  BalanceBreakdown,
   BalanceEntry,
   CommittedLogKind,
   CurrencyMetadata,
+  FinalityPreference,
+  HotBlockRecord,
+  HotNoteState,
+  HotOverlayReplacement,
+  HotSyncState,
+  InputFinalityPolicy,
+  IntentDependency,
   LiveShardRecord,
   NotesCheckpoint,
   SerializedNoteWitness,
   TotalBalance,
+  TransferAttempt,
+  TransferHistoryRecord,
+  TransferSettlement,
   TxHistoryEntry,
 } from "@/types/storage";
 
@@ -153,6 +164,28 @@ export interface StorageInterface {
 
   /** An account's history, newest-first (`observedAt` desc), optionally per network. */
   getTxHistory(accountId: string, filter?: { networkSlug?: string }): Promise<TxHistoryEntry[]>;
+
+  // ── Reversible hot projection (Dexie v8) ──────────────────────────────────
+
+  /** Atomically replace one network's disposable canonical hot suffix. */
+  replaceHotOverlay(replacement: HotOverlayReplacement): Promise<void>;
+  clearHotOverlay(networkSlug: string, accountId?: string): Promise<void>;
+  getHotSyncState(networkSlug: string): Promise<HotSyncState | null>;
+  getHotBlocks(networkSlug: string): Promise<HotBlockRecord[]>;
+  getHotNoteStates(accountId: string, networkSlug: string): Promise<HotNoteState[]>;
+  getProjectedBalances(accountId: string, networkSlug: string, policy: InputFinalityPolicy): Promise<BalanceEntry[]>;
+  getBalanceBreakdown(accountId: string, networkSlug: string, currencyAddress: string): Promise<BalanceBreakdown>;
+
+  putTransferIntent(intent: TransferHistoryRecord): Promise<void>;
+  getTransferIntents(accountId: string, networkSlug?: string): Promise<TransferHistoryRecord[]>;
+  putTransferAttempt(attempt: TransferAttempt): Promise<void>;
+  getTransferAttempts(accountId: string, intentId: string): Promise<TransferAttempt[]>;
+  putTransferSettlement(settlement: TransferSettlement): Promise<void>;
+  getTransferSettlements(accountId: string, intentId: string): Promise<TransferSettlement[]>;
+  putIntentDependencies(dependencies: IntentDependency[]): Promise<void>;
+  getIntentDependencies(accountId: string): Promise<IntentDependency[]>;
+  putFinalityPreference(preference: FinalityPreference): Promise<void>;
+  getFinalityPreference(accountId: string, networkSlug: string): Promise<FinalityPreference>;
 
   // ── Privacy Pass token pouch (per redemption scope) ─────────────────────────
   // Opaque single-use tokens, deliberately NOT tied to any account: linking a

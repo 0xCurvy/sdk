@@ -170,8 +170,12 @@ type SyncCommittedNote = {
   relaySubmissionId?: string | null;
   /** Block of the announce tx — the user-action time (pairs with `requestTxHash`). */
   blockNumber?: number;
+  requestBlockHash?: string;
   /** The tx that announced the note (submitAggregation / autoShield) — user-action time. */
   requestTxHash?: string;
+  commitBlockNumber: number;
+  commitBlockHash: string;
+  commitTxHash: string;
 };
 
 type SyncNullifierRecord = {
@@ -180,6 +184,8 @@ type SyncNullifierRecord = {
   /** Relay submission id whose tx consumed this nullifier. */
   relaySubmissionId?: string | null;
   blockNumber?: number;
+  blockHash?: string;
+  txHash?: string;
 };
 
 type GetSyncMetaReturnType = {
@@ -198,8 +204,12 @@ type GetSyncMetaReturnType = {
   shardSize: number;
 };
 
-type SyncPendingNote = Omit<SyncCommittedNote, "batchRunId" | "relaySubmissionId"> & {
+type SyncPendingNote = Omit<
+  SyncCommittedNote,
+  "batchRunId" | "relaySubmissionId" | "requestBlockHash" | "commitBlockNumber" | "commitBlockHash" | "commitTxHash"
+> & {
   blockNumber: number;
+  blockHash: string;
   requestTxHash: string;
 };
 
@@ -234,6 +244,87 @@ type GetSyncShardRootsReturnType = {
   shardSize: number;
 };
 
+type SyncHotAnnouncement = {
+  noteId: string;
+  ephemeralKey?: [string, string];
+  viewTag?: number;
+  amount?: string;
+  token?: string;
+  isPlaintext?: boolean;
+  relaySubmissionId?: string | null;
+  transactionHash: string;
+  transactionIndex: number;
+  logIndex: number;
+  eventArrayIndex: number;
+};
+
+type SyncHotCommittedNote = SyncHotAnnouncement & {
+  index: number;
+  batchRunId?: string | null;
+  commitTransactionHash: string;
+  commitTransactionIndex: number;
+  commitLogIndex: number;
+  commitEventArrayIndex: number;
+  announcementBlockNumber?: number;
+  announcementBlockHash?: string;
+};
+
+type SyncHotNullifier = {
+  index: number;
+  nullifier: string;
+  relaySubmissionId?: string | null;
+  transactionHash: string;
+  transactionIndex: number;
+  logIndex: number;
+  eventArrayIndex: number;
+};
+
+type SyncHotBlock = {
+  number: number;
+  hash: string;
+  parentHash: string;
+  timestamp: number;
+  announcements: SyncHotAnnouncement[];
+  committedNotes: SyncHotCommittedNote[];
+  nullifiers: SyncHotNullifier[];
+  postBlockNoteCount: number;
+  postBlockNotesRoot: string;
+  postBlockNullifierCount: number;
+};
+
+type GetSyncHotMetaReturnType = {
+  snapshot: string;
+  baseCheckpoint: string;
+  chainId: number;
+  contractAddress: string;
+  treeVersion: number;
+  finalizedBlockNumber: number;
+  finalizedBlockHash: string;
+  finalizedTimestamp: number;
+  hotBlockNumber: number;
+  hotBlockHash: string;
+  hotTimestamp: number;
+  noteCount: number;
+  notesRoot: string;
+  nullifierCount: number;
+  finality: {
+    mode: "finalized" | "safe" | "confirmations";
+    confirmationDepth: number | null;
+    observedFinalityLagSeconds: number;
+    estimatedSecondsToFinality: number | null;
+    status: "normal" | "stalled" | "provider_disagreement" | "deep_reorg";
+  };
+};
+
+type GetSyncHotBlocksReturnType = {
+  snapshot: string;
+  fromBlock: number;
+  nextBlock: number;
+  hotBlockNumber: number;
+  done: boolean;
+  blocks: SyncHotBlock[];
+};
+
 export type {
   SyncCommittedNote,
   SyncPendingNote,
@@ -243,6 +334,12 @@ export type {
   GetSyncNullifiersReturnType,
   GetSyncPendingReturnType,
   GetSyncShardRootsReturnType,
+  SyncHotAnnouncement,
+  SyncHotCommittedNote,
+  SyncHotNullifier,
+  SyncHotBlock,
+  GetSyncHotMetaReturnType,
+  GetSyncHotBlocksReturnType,
 };
 
 //#endregion

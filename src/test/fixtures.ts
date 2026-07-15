@@ -121,6 +121,8 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
       GetNullifiers: vi.fn(),
       GetPending: vi.fn(),
       GetShardRoots: vi.fn(),
+      GetHotMeta: vi.fn(),
+      GetHotBlocks: vi.fn(),
       ...overrides.sync,
     },
     privacyPass: {
@@ -138,6 +140,7 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
     relay: {
       SubmitProof: vi.fn(),
       GetSubmissionStatus: vi.fn(),
+      GetSubmissionByIntent: vi.fn(),
       GetPaymasterInfo: vi.fn(),
       ...overrides.relay,
     },
@@ -277,6 +280,7 @@ export function createFakeConfig(overrides: CreateFakeConfigOverrides = {}): Cur
     rpcCache: new Map<NETWORK_ENVIRONMENT_VALUES, MultiRpc>(),
     notesTree: new MerkleTree({ depth: 30 }),
     notesTrees: new Map<string, NotesTreeView>(),
+    finalizedNotesTrees: new Map<string, NotesTreeView>(),
   };
 
   return {

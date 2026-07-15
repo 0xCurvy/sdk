@@ -5,11 +5,19 @@ import type {
   BalanceEntry,
   CommittedLogKind,
   CurrencyMetadata,
+  FinalityPreference,
+  HotBlockRecord,
+  HotNoteState,
+  HotSyncState,
+  IntentDependency,
   LiveShardRecord,
   NotesCheckpoint,
   PriceData,
   SerializedNoteWitness,
   TotalBalance,
+  TransferAttempt,
+  TransferHistoryRecord,
+  TransferSettlement,
   TxHistoryEntry,
 } from "@/types/storage";
 
@@ -55,6 +63,14 @@ export class CurvyDatabase extends Dexie {
   liveShards!: Table<LiveShardRecord, string>;
   txHistory!: Table<TxHistoryEntry, [string, string]>;
   tokenPouches!: Table<TokenPouch, string>;
+  hotSyncStates!: Table<HotSyncState, string>;
+  hotBlocks!: Table<HotBlockRecord, [string, number]>;
+  hotNoteStates!: Table<HotNoteState, [string, string, string]>;
+  transferIntents!: Table<TransferHistoryRecord, [string, string]>;
+  transferAttempts!: Table<TransferAttempt, [string, string, number]>;
+  transferSettlements!: Table<TransferSettlement, [string, string, string]>;
+  intentDependencies!: Table<IntentDependency, [string, string, string, string]>;
+  finalityPreferences!: Table<FinalityPreference, [string, string]>;
 
   constructor(name = DEFAULT_DB_NAME) {
     super(name);
@@ -117,6 +133,18 @@ export class CurvyDatabase extends Dexie {
     // treated as untrusted until the next verified sync rewrites them.
     this.version(7).stores({
       notesCheckpoints: "[networkSlug+environment]",
+    });
+
+    // v8 isolates every reversible hot projection from the durable finalized base.
+    this.version(8).stores({
+      hotSyncStates: "networkSlug",
+      hotBlocks: "[networkSlug+number], [networkSlug+hash], networkSlug",
+      hotNoteStates: "[accountId+networkSlug+noteId], [accountId+networkSlug], [accountId+networkSlug+status]",
+      transferIntents: "[accountId+intentId], accountId, [accountId+networkSlug], [accountId+status]",
+      transferAttempts: "[accountId+intentId+generation], [accountId+intentId]",
+      transferSettlements: "[accountId+intentId+outputCommitment], [accountId+intentId]",
+      intentDependencies: "[accountId+fromIntentId+toIntentId+noteId], accountId, [accountId+toIntentId]",
+      finalityPreferences: "[accountId+networkSlug]",
     });
   }
 }

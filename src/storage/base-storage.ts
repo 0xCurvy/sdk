@@ -4,13 +4,24 @@ import { StorageError } from "@/errors";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { CurvyAccountData, PriceData, SerializedCurvyAccount } from "@/types";
 import type {
+  BalanceBreakdown,
   BalanceEntry,
   CommittedLogKind,
   CurrencyMetadata,
+  FinalityPreference,
+  HotBlockRecord,
+  HotNoteState,
+  HotOverlayReplacement,
+  HotSyncState,
+  InputFinalityPolicy,
+  IntentDependency,
   LiveShardRecord,
   NotesCheckpoint,
   SerializedNoteWitness,
   TotalBalance,
+  TransferAttempt,
+  TransferHistoryRecord,
+  TransferSettlement,
   TxHistoryEntry,
 } from "@/types/storage";
 
@@ -127,6 +138,26 @@ export abstract class BaseStorage implements StorageInterface {
   protected abstract _putTxHistoryEntries(entries: TxHistoryEntry[]): Promise<void>;
   /** All history entries for an account (UNORDERED — ordering/filtering is done in BaseStorage). */
   protected abstract _getTxHistoryByAccount(accountId: string): Promise<TxHistoryEntry[]>;
+
+  // --- Reversible hot projection + workflow history ---
+  protected abstract _replaceHotOverlay(replacement: HotOverlayReplacement): Promise<void>;
+  protected abstract _clearHotOverlay(networkSlug: string, accountId?: string): Promise<void>;
+  protected abstract _getHotSyncState(networkSlug: string): Promise<HotSyncState | undefined>;
+  protected abstract _getHotBlocks(networkSlug: string): Promise<HotBlockRecord[]>;
+  protected abstract _getHotNoteStates(accountId: string, networkSlug: string): Promise<HotNoteState[]>;
+  protected abstract _putTransferIntent(intent: TransferHistoryRecord): Promise<void>;
+  protected abstract _getTransferIntents(accountId: string): Promise<TransferHistoryRecord[]>;
+  protected abstract _putTransferAttempt(attempt: TransferAttempt): Promise<void>;
+  protected abstract _getTransferAttempts(accountId: string, intentId: string): Promise<TransferAttempt[]>;
+  protected abstract _putTransferSettlement(settlement: TransferSettlement): Promise<void>;
+  protected abstract _getTransferSettlements(accountId: string, intentId: string): Promise<TransferSettlement[]>;
+  protected abstract _putIntentDependencies(dependencies: IntentDependency[]): Promise<void>;
+  protected abstract _getIntentDependencies(accountId: string): Promise<IntentDependency[]>;
+  protected abstract _putFinalityPreference(preference: FinalityPreference): Promise<void>;
+  protected abstract _getFinalityPreference(
+    accountId: string,
+    networkSlug: string,
+  ): Promise<FinalityPreference | undefined>;
 
   // --- Privacy Pass token pouch ---
   protected abstract _getTokenPouch(scopeKey: string): Promise<string[] | undefined>;
@@ -440,6 +471,142 @@ export abstract class BaseStorage implements StorageInterface {
     }
     // Newest-first by observedAt; tie-break by id (ascending) for determinism.
     return entries.sort((a, b) => b.observedAt - a.observedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+
+  // ── Reversible hot projection + workflow history ──
+
+  async replaceHotOverlay(replacement: HotOverlayReplacement): Promise<void> {
+    await this._replaceHotOverlay(replacement);
+  }
+
+  async clearHotOverlay(networkSlug: string, accountId?: string): Promise<void> {
+    await this._clearHotOverlay(networkSlug, accountId);
+  }
+
+  async getHotSyncState(networkSlug: string): Promise<HotSyncState | null> {
+    return (await this._getHotSyncState(networkSlug)) ?? null;
+  }
+
+  async getHotBlocks(networkSlug: string): Promise<HotBlockRecord[]> {
+    return this._getHotBlocks(networkSlug);
+  }
+
+  async getHotNoteStates(accountId: string, networkSlug: string): Promise<HotNoteState[]> {
+    return this._getHotNoteStates(accountId, networkSlug);
+  }
+
+  async getProjectedBalances(
+    accountId: string,
+    networkSlug: string,
+    policy: InputFinalityPolicy,
+  ): Promise<BalanceEntry[]> {
+    const [finalized, hot, intents] = await Promise.all([
+      this._getBalancesByAccountAndNetwork(accountId, networkSlug),
+      this._getHotNoteStates(accountId, networkSlug),
+      this._getTransferIntents(accountId),
+    ]);
+    const hidden = new Set(
+      hot
+        .filter((note) => ["finalized_spent_hot", "hot_spent", "recovery_locked", "orphaned"].includes(note.status))
+        .map((note) => note.noteId),
+    );
+    for (const intent of intents) {
+      if (intent.networkSlug !== networkSlug || intent.status === "finalized" || intent.status === "failed") continue;
+      for (const noteId of intent.inputCommitments) hidden.add(noteId);
+    }
+    const durable = finalized
+      .filter((entry) => !hidden.has(entry.id))
+      .map((entry) => ({ ...entry, finality: "finalized" as const }));
+    if (policy === "finalized") return durable;
+    const provisional = hot
+      .filter((note) => note.status === "hot_available" && note.balanceEntry && !hidden.has(note.noteId))
+      .map((note) => ({ ...(note.balanceEntry as BalanceEntry), finality: "hot" as const }));
+    return [...durable, ...provisional];
+  }
+
+  async getBalanceBreakdown(
+    accountId: string,
+    networkSlug: string,
+    currencyAddress: string,
+  ): Promise<BalanceBreakdown> {
+    const [finalized, hot, spendable] = await Promise.all([
+      this._getBalancesByAccountAndNetwork(accountId, networkSlug),
+      this._getHotNoteStates(accountId, networkSlug),
+      this.getProjectedBalances(accountId, networkSlug, "included"),
+    ]);
+    const forCurrency = (entry?: BalanceEntry) => entry?.currencyAddress === currencyAddress;
+    const finalizedGross = finalized.filter(forCurrency).reduce((sum, entry) => sum + entry.balance, 0n);
+    const finalizedAvailable = finalized
+      .filter(forCurrency)
+      .filter((entry) => !hot.some((note) => note.noteId === entry.id && note.status === "finalized_spent_hot"))
+      .reduce((sum, entry) => sum + entry.balance, 0n);
+    const hotGross = hot
+      .filter((note) => ["hot_available", "hot_spent", "recovery_locked"].includes(note.status))
+      .filter((note) => forCurrency(note.balanceEntry))
+      .reduce((sum, note) => sum + (note.balanceEntry?.balance ?? 0n), 0n);
+    const hotAvailable = hot
+      .filter((note) => note.status === "hot_available" && forCurrency(note.balanceEntry))
+      .reduce((sum, note) => sum + (note.balanceEntry?.balance ?? 0n), 0n);
+    const pendingIncoming = hot
+      .filter((note) => note.status === "pending_incoming" && forCurrency(note.balanceEntry))
+      .reduce((sum, note) => sum + (note.balanceEntry?.balance ?? 0n), 0n);
+    const spendableAvailable = spendable.filter(forCurrency).reduce((sum, entry) => sum + entry.balance, 0n);
+    return {
+      finalizedAvailable,
+      hotAvailable,
+      pendingIncoming,
+      lockedOutgoing: finalizedGross + hotGross - spendableAvailable,
+      spendableAvailable,
+    };
+  }
+
+  async putTransferIntent(intent: TransferHistoryRecord): Promise<void> {
+    await this._putTransferIntent(intent);
+  }
+
+  async getTransferIntents(accountId: string, networkSlug?: string): Promise<TransferHistoryRecord[]> {
+    const rows = await this._getTransferIntents(accountId);
+    return rows
+      .filter((row) => !networkSlug || row.networkSlug === networkSlug)
+      .sort((a, b) => b.createdAt - a.createdAt || a.intentId.localeCompare(b.intentId));
+  }
+
+  async putTransferAttempt(attempt: TransferAttempt): Promise<void> {
+    await this._putTransferAttempt(attempt);
+  }
+
+  async getTransferAttempts(accountId: string, intentId: string): Promise<TransferAttempt[]> {
+    return (await this._getTransferAttempts(accountId, intentId)).sort((a, b) => a.generation - b.generation);
+  }
+
+  async putTransferSettlement(settlement: TransferSettlement): Promise<void> {
+    await this._putTransferSettlement(settlement);
+  }
+
+  async getTransferSettlements(accountId: string, intentId: string): Promise<TransferSettlement[]> {
+    return this._getTransferSettlements(accountId, intentId);
+  }
+
+  async putIntentDependencies(dependencies: IntentDependency[]): Promise<void> {
+    await this._putIntentDependencies(dependencies);
+  }
+
+  async getIntentDependencies(accountId: string): Promise<IntentDependency[]> {
+    return this._getIntentDependencies(accountId);
+  }
+
+  async putFinalityPreference(preference: FinalityPreference): Promise<void> {
+    await this._putFinalityPreference(preference);
+  }
+
+  async getFinalityPreference(accountId: string, networkSlug: string): Promise<FinalityPreference> {
+    return (
+      (await this._getFinalityPreference(accountId, networkSlug)) ?? {
+        accountId,
+        networkSlug,
+        requireFinalizedFunds: false,
+      }
+    );
   }
 
   // ── Privacy Pass token pouch ──

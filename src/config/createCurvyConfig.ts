@@ -88,6 +88,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     rpcCache: new Map(),
     notesTree: new MerkleTree({ depth: 30 }),
     notesTrees: new Map(),
+    finalizedNotesTrees: new Map(),
   };
 
   // The keyring: raw keypairs (ephemeral, in-memory), keyed by account id.

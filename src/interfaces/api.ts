@@ -6,6 +6,8 @@ import type {
   GetCurvyIdByOwnerAddressReturnType,
   GetNetworksReturnType,
   GetPortalRecordsReturnType,
+  GetSyncHotBlocksReturnType,
+  GetSyncHotMetaReturnType,
   GetSyncMetaReturnType,
   GetSyncNotesReturnType,
   GetSyncNullifiersReturnType,
@@ -94,6 +96,13 @@ interface IApiClient {
       limit?: number,
       at?: string,
     ): Promise<GetSyncShardRootsReturnType>;
+    GetHotMeta(chainId: number, baseCheckpoint: string): Promise<GetSyncHotMetaReturnType>;
+    GetHotBlocks(
+      chainId: number,
+      snapshot: string,
+      fromBlock?: number,
+      limit?: number,
+    ): Promise<GetSyncHotBlocksReturnType>;
   };
 
   /**
@@ -104,6 +113,7 @@ interface IApiClient {
   relay: {
     SubmitProof(body: RelaySubmitRequestBody, privateTokenHeader?: string): Promise<RelaySubmitReturnType>;
     GetSubmissionStatus(requestId: string): Promise<RelaySubmitReturnType>;
+    GetSubmissionByIntent(intentId: string, networkId: number): Promise<RelaySubmitReturnType>;
     GetPaymasterInfo(chainId?: number | string): Promise<PaymasterInfo>;
   };
 }
