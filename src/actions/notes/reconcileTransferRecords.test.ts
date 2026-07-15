@@ -40,7 +40,7 @@ function intent(intentId: string, createdAt: number): TransferHistoryRecord {
 }
 
 describe("reconcileTransferRecords", () => {
-  it("marks an orphaned attempt for rebuild and blocks its local descendants", async () => {
+  it("marks a lost-root attempt failed and blocks its local descendants", async () => {
     const storage = new MapStorage();
     await storage.putNotesCheckpoint(checkpoint);
     await storage.putTransferIntent(intent("parent", 1));
@@ -110,8 +110,9 @@ describe("reconcileTransferRecords", () => {
         relay: {
           GetSubmissionStatus: vi.fn(async () => ({
             requestId: "relay-parent",
-            status: "needs_rebuild" as const,
+            status: "failed" as const,
             reorgReason: "referenced_root_orphaned",
+            error: "referenced root orphaned; stored proof cannot be resubmitted",
           })),
         },
       }),
@@ -119,9 +120,12 @@ describe("reconcileTransferRecords", () => {
 
     await reconcileTransferRecords({ config, accountId: "account-a", networkSlug: "ethereum", checkpoint });
 
-    expect((await storage.getTransferAttempts("account-a", "parent"))[0].status).toBe("reorged");
+    expect((await storage.getTransferAttempts("account-a", "parent"))[0]).toMatchObject({
+      status: "failed",
+      errorCode: "referenced root orphaned; stored proof cannot be resubmitted",
+    });
     const records = await storage.getTransferIntents("account-a", "ethereum");
-    expect(records.find((record) => record.intentId === "parent")?.status).toBe("rebuilding");
+    expect(records.find((record) => record.intentId === "parent")?.status).toBe("failed");
     expect(records.find((record) => record.intentId === "child")?.status).toBe("blocked_upstream");
   });
 

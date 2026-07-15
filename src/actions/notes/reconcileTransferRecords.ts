@@ -51,7 +51,7 @@ export async function reconcileTransferRecords(options: ReconcileTransferRecords
               includedAt: relay.includedAt ? Date.parse(relay.includedAt) : (next.includedAt ?? Date.now()),
               status: relay.status,
             };
-          } else if (relay.status === "reorged" || relay.status === "needs_rebuild") {
+          } else if (relay.status === "reorged") {
             relayVerdict = "reorged";
             next = { ...next, status: "reorged", errorCode: relay.reorgReason ?? "referenced_root_orphaned" };
           } else if (
@@ -115,14 +115,14 @@ export async function reconcileTransferRecords(options: ReconcileTransferRecords
       const parents = dependencies.filter((edge) => edge.toIntentId === intent.intentId);
       const parentBlocked = parents.some((edge) => {
         const parent = updated.get(edge.fromIntentId) ?? intents.find((item) => item.intentId === edge.fromIntentId);
-        return parent && ["reorged", "rebuilding", "blocked_upstream", "failed"].includes(parent.status);
+        return parent && ["reorged", "blocked_upstream", "failed"].includes(parent.status);
       });
       const attempts = await config.storage.getTransferAttempts(accountId, intent.intentId);
       const active = attempts.find((attempt) => attempt.generation === intent.activeAttemptGeneration);
       const settlements = await config.storage.getTransferSettlements(accountId, intent.intentId);
       let status = intent.status;
       if (parentBlocked) status = "blocked_upstream";
-      else if (active?.status === "reorged") status = "rebuilding";
+      else if (active?.status === "reorged") status = "reorged";
       else if (active?.status === "failed") status = "failed";
       else if (
         active?.status === "finalized" &&

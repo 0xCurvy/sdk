@@ -24,10 +24,7 @@ export async function waitForRelay(parameters: WaitForRelayParameters): Promise<
   const rank = { queued: 0, submitting: 1, submitted: 2, included: 3, finalized: 4 } as const;
   return pollForCriteria(
     () => config.api.relay.GetSubmissionStatus(parameters.requestId),
-    (res) =>
-      res.status === "failed" ||
-      res.status === "needs_rebuild" ||
-      (res.status !== "reorged" && rank[res.status] >= rank[waitFor]),
+    (res) => res.status === "failed" || (res.status !== "reorged" && rank[res.status] >= rank[waitFor]),
     parameters.attempts ?? 120,
     parameters.intervalMs ?? 3000,
     // Keep polling through transient errors (network reset, 5xx, timeout): the

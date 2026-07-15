@@ -300,7 +300,6 @@ type TransferIntentStatus =
   | "available_hot"
   | "finalized"
   | "reorged"
-  | "rebuilding"
   | "blocked_upstream"
   | "failed";
 

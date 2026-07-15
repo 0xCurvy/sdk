@@ -83,7 +83,6 @@ export type RelaySubmissionStatus =
   | "included"
   | "finalized"
   | "reorged"
-  | "needs_rebuild"
   | "failed";
 
 /** Relay response — includes `transactionHash` so the user can verify their own submission. */
