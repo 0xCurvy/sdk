@@ -8,6 +8,12 @@ export type CircuitId = "aggregation" | "withdrawal";
 /** A Groth16 proof + its public signals — the output of any {@link Prover}. */
 export type ProofResult = { proof: Groth16Proof; publicSignals: PublicSignals };
 
+/** Authenticated artifact metadata resolved alongside a circuit configuration. */
+export type ProverContext = {
+  /** Trusted lowercase/uppercase SHA-256 digest of the proving key bytes. */
+  zkeySha256?: string;
+};
+
 /**
  * The proving seam — pure COMPUTE. Takes a flat circuit-signals witness plus the
  * circuit's `wasm` + `zkey` (a Node path, a URL, or a buffer) and returns the
@@ -23,7 +29,9 @@ export type ProofResult = { proof: Groth16Proof; publicSignals: PublicSignals };
  * scheme-identical across implementations; only the compute differs.
  */
 export interface Prover {
-  prove(input: object, wasm: ZKArtifact, zkey: ZKArtifact): Promise<ProofResult>;
+  prove(input: object, wasm: ZKArtifact, zkey: ZKArtifact, context?: ProverContext): Promise<ProofResult>;
+  /** Release parsed keys or platform workers owned by this prover instance. */
+  destroy?(): void | Promise<void>;
 }
 
 /**

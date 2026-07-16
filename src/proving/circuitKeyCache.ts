@@ -4,9 +4,10 @@ import type { ZKArtifact } from "./prover";
 /**
  * A persistent cache for downloaded circuit proving artifacts (wasm + zkey).
  *
- * These are large (wasm ~MBs, zkey ~tens of MBs), immutable (a circuit's
- * filename encodes its dimensions, so a new circuit is a new key — no
- * invalidation needed), and fetched on every prove. The zkey in particular is
+ * These are large (wasm ~MBs, zkey ~tens of MBs), published as immutable
+ * objects, and fetched on every prove. A metadata-provided digest also versions
+ * the cache identity, so a same-URL emergency rotation cannot reuse old bytes.
+ * The zkey in particular is
  * read by snarkjs via HTTP Range requests, which the browser HTTP cache handles
  * unreliably; caching the full bytes here lets us hand the prover an in-memory
  * buffer instead (no Range, no network after the first fetch, works offline).
@@ -136,17 +137,24 @@ export async function loadCircuitKey(
   cache: CircuitKeyCache | undefined,
   artifact: ZKArtifact,
   fetchFn: typeof fetch = fetch,
+  integrity?: string,
 ): Promise<ZKArtifact> {
   if (!cache || typeof artifact !== "string" || !/^https?:\/\//i.test(artifact)) return artifact;
 
-  const hit = await cache.get(artifact);
+  // Key rotations normally change the artifact URL. Including the metadata
+  // digest also makes same-URL rotations safe and avoids serving stale bytes
+  // that the Rust integrity gate would correctly reject.
+  const cacheKey = integrity
+    ? `${artifact}${artifact.includes("?") ? "&" : "?"}__curvy_sha256=${encodeURIComponent(integrity.toLowerCase())}`
+    : artifact;
+  const hit = await cache.get(cacheKey);
   if (hit) return hit;
 
   try {
     const res = await fetchFn(artifact);
     if (!res.ok) return artifact;
     const bytes = new Uint8Array(await res.arrayBuffer());
-    await cache.put(artifact, bytes);
+    await cache.put(cacheKey, bytes);
     return bytes;
   } catch {
     return artifact;

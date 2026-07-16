@@ -59,6 +59,8 @@ type CoreViewerScanReturnType = {
 type CircuitConfig = {
   wasmPath?: string;
   zkeyPath?: string;
+  /** SHA-256 of the exact zkey bytes, published with the rotatable protocol metadata. */
+  zkeySha256?: string;
   vkeyPath?: string;
   treeDepth: number;
   maxInputs: number;

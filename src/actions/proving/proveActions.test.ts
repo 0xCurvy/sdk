@@ -19,9 +19,11 @@ const minimalWithdrawWitness = {
   tokenId: 0n,
 } as unknown as WithdrawCircuitInputs;
 
+const ZKEY_SHA256 = "ab".repeat(32);
 const cc = (wasmPath: string, zkeyPath: string) => ({
   wasmPath,
   zkeyPath,
+  zkeySha256: ZKEY_SHA256,
   treeDepth: 30,
   maxInputs: 2,
   maxOutputs: 0,
@@ -49,9 +51,10 @@ describe("client-proving actions (network-config artifacts + compute prover)", (
     const result = await proveWithdrawal({ config, witness: minimalWithdrawWitness });
 
     expect(result).toBe(SENTINEL);
-    const [input, wasm, zkey] = prove.mock.calls[0];
+    const [input, wasm, zkey, context] = prove.mock.calls[0];
     expect(wasm).toBe("w.wasm");
     expect(zkey).toBe("z.zkey");
+    expect(context).toEqual({ zkeySha256: ZKEY_SHA256 });
     // The FLATTENED witness (3-tuple signature), not the bus one.
     expect(input).toMatchObject({ signature: [0n, 0n, 0n], notesRoot: 0n, tokenId: 0n });
   });

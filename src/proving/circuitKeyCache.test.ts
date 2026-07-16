@@ -59,6 +59,33 @@ describe("loadCircuitKey", () => {
     expect(Array.from(stored)).toEqual([1, 2, 3, 4]);
   });
 
+  it("versions a cache entry by the metadata-provided artifact digest", async () => {
+    const { cache, store } = makeFakeCache();
+    const payload = new Uint8Array([4, 5, 6]);
+    const fetchFn = vi.fn(async () => new Response(payload as BodyInit, { status: 200 }));
+    await loadCircuitKey(cache, URL, fetchFn as unknown as typeof fetch, "ab".repeat(32));
+
+    expect(store.has(`${URL}?__curvy_sha256=${"ab".repeat(32)}`)).toBe(true);
+    expect(store.has(URL)).toBe(false);
+  });
+
+  it("fetches a same-URL key rotation without discarding the rollback entry", async () => {
+    const { cache } = makeFakeCache();
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(new Uint8Array([1]) as BodyInit, { status: 200 }))
+      .mockResolvedValueOnce(new Response(new Uint8Array([2]) as BodyInit, { status: 200 }));
+
+    const oldKey = await loadCircuitKey(cache, URL, fetchFn as typeof fetch, "aa".repeat(32));
+    const newKey = await loadCircuitKey(cache, URL, fetchFn as typeof fetch, "bb".repeat(32));
+    const rollbackKey = await loadCircuitKey(cache, URL, fetchFn as typeof fetch, "aa".repeat(32));
+
+    expect(Array.from(oldKey as Uint8Array)).toEqual([1]);
+    expect(Array.from(newKey as Uint8Array)).toEqual([2]);
+    expect(Array.from(rollbackKey as Uint8Array)).toEqual([1]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
   it("falls back to the URL when the fetch is non-2xx (never blocks proving on the cache layer)", async () => {
     const { cache } = makeFakeCache();
     const fetchFn = vi.fn(async () => new Response("nope", { status: 404 }));

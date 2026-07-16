@@ -25,6 +25,7 @@ const NODE_ASSETS_REL = typeof __CURVY_ASSETS_REL__ === "string" ? __CURVY_ASSET
 const NODE_CORE_RS_WASM = `${NODE_ASSETS_REL}/core-rs/curvy_core_bg.wasm`;
 const NODE_CORE_RS_THREADS_WASM = `${NODE_ASSETS_REL}/core-rs/curvy_core_threads_bg.wasm`;
 const MAX_BROWSER_THREADS = 8;
+const CORE_WORKERS = Symbol.for("curvy.rustCoreWorkers");
 
 const isNode = typeof process !== "undefined" && !!process.versions?.node;
 
@@ -118,21 +119,33 @@ const resolveThreadCount = (threads: Exclude<RustCoreThreads, false>): number =>
   return Math.min(requested, hardwareThreads, MAX_BROWSER_THREADS);
 };
 
+function terminateFailedThreadPool(): void {
+  const holder = globalThis as typeof globalThis & { [CORE_WORKERS]?: Array<{ terminate(): void }> };
+  holder[CORE_WORKERS]?.forEach((worker) => {
+    worker.terminate();
+  });
+  delete holder[CORE_WORKERS];
+}
+
 async function initialize(source: CoreWasmSource | undefined, options: RustCoreRuntimeOptions): Promise<void> {
   const requestedThreads = options.threads ?? false;
   if (requestedThreads !== false && supportsBrowserThreads()) {
-    const bindings = (await import("./_wasm_threads/curvy_wasm.js")) as unknown as ThreadedWasmBindings;
-    // Keep the define-injected literal directly inside new URL: bundlers only
-    // emit the WASM asset when this call is statically analyzable.
-    const browserAssetUrl = isNode ? undefined : new URL(__CURVY_CORE_RS_THREADS_WASM_URL__, import.meta.url);
-    await load(bindings, NODE_CORE_RS_THREADS_WASM, browserAssetUrl, source);
-    const threadCount = resolveThreadCount(requestedThreads);
-    await bindings.initThreadPool(threadCount);
-    wasm = bindings;
-    runtimeStatus = { mode: "multi-threaded", threadCount };
-    return;
-  }
-  if (typeof requestedThreads === "number") {
+    try {
+      const bindings = (await import("./_wasm_threads/curvy_wasm.js")) as unknown as ThreadedWasmBindings;
+      // Keep the define-injected literal directly inside new URL: bundlers only
+      // emit the WASM asset when this call is statically analyzable.
+      const browserAssetUrl = isNode ? undefined : new URL(__CURVY_CORE_RS_THREADS_WASM_URL__, import.meta.url);
+      await load(bindings, NODE_CORE_RS_THREADS_WASM, browserAssetUrl, source);
+      const threadCount = resolveThreadCount(requestedThreads);
+      await bindings.initThreadPool(threadCount);
+      wasm = bindings;
+      runtimeStatus = { mode: "multi-threaded", threadCount };
+      return;
+    } catch (error) {
+      terminateFailedThreadPool();
+      if (requestedThreads !== "auto") throw error;
+    }
+  } else if (typeof requestedThreads === "number") {
     throw new Error("Threaded Curvy Rust core requires a cross-origin-isolated browser with Web Workers");
   }
   const browserAssetUrl = isNode ? undefined : new URL(__CURVY_CORE_RS_WASM_URL__, import.meta.url);
@@ -148,9 +161,15 @@ async function initialize(source: CoreWasmSource | undefined, options: RustCoreR
 export async function initCore(source?: CoreWasmSource, options: RustCoreRuntimeOptions = {}): Promise<void> {
   if (ready) return;
   if (!initPromise) {
-    initPromise = initialize(source, options).then(() => {
-      ready = true;
-    });
+    initPromise = initialize(source, options)
+      .then(() => {
+        ready = true;
+      })
+      .catch((error) => {
+        initPromise = null;
+        runtimeStatus = { mode: "uninitialized", threadCount: 0 };
+        throw error;
+      });
   }
   return initPromise;
 }

@@ -1,4 +1,5 @@
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { IMT } from "@zk-kit/imt";
@@ -10,6 +11,7 @@ import { Note, ShardedNotesTree } from "@/note";
 import { ephemeralPubKey, pubFromPrivateKey } from "./babyJubjub";
 import type { InclusionProof } from "./merkleTree";
 import { fieldsToBytes, verifyRustMerkleProof } from "./rustCore";
+import { createRustProver } from "./rustProver";
 import { flattenWithdrawalCircuitInputs, generateWithdrawalCircuitInputsFromNotes } from "./witnessFromNotes";
 
 const zkRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../../zk-keys/v2/withdrawal");
@@ -37,8 +39,8 @@ const randomField = (): bigint => {
 
 const ownerKey = "0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9";
 
-maybe("Rust sharded SDK ↔ independent Node IMT ↔ Circom", () => {
-  it("matches across a depth-14 rollover and proves with only Rust paths", async () => {
+maybe("Rust sharded SDK ↔ independent Node IMT ↔ Circom ↔ arkworks", () => {
+  it("matches across a depth-14 rollover and verifies a Rust Groth16 proof with snarkjs", async () => {
     const shardHeight = 14;
     const shardSize = 1 << shardHeight;
     const ownedIndices = [7, shardSize];
@@ -100,12 +102,19 @@ maybe("Rust sharded SDK ↔ independent Node IMT ↔ Circom", () => {
       maxInputs: 2,
       treeDepth: 30,
     });
-    const { proof, publicSignals } = await groth16.fullProve(
-      flattenWithdrawalCircuitInputs(witness),
-      circuit.wasm,
-      circuit.zkey,
-    );
-    const verificationKey = await zKey.exportVerificationKey(circuit.zkey);
-    expect(await groth16.verify(verificationKey, publicSignals, proof)).toBe(true);
+    const prover = createRustProver({ threads: false });
+    try {
+      const zkeySha256 = createHash("sha256").update(readFileSync(circuit.zkey)).digest("hex");
+      const { proof, publicSignals } = await prover.prove(
+        flattenWithdrawalCircuitInputs(witness),
+        circuit.wasm,
+        circuit.zkey,
+        { zkeySha256 },
+      );
+      const verificationKey = await zKey.exportVerificationKey(circuit.zkey);
+      expect(await groth16.verify(verificationKey, publicSignals, proof)).toBe(true);
+    } finally {
+      await prover.destroy?.();
+    }
   }, 300_000);
 });

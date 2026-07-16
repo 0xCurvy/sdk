@@ -13,7 +13,7 @@ Reference + working guide for **AI agents** (and humans) editing or consuming th
 - **Tests:** `vitest` (`pnpm test` == `vitest run src`). Real‑WASM `Core` tests run offline in Node.
 - **Subpath exports (tree‑shakeable):** import from the root for convenience, or a subpath for granular bundles:
   `.` · `./actions` · `./config` · `./utils` · `./note` · `./solana` · `./rpc` · `./core` · `./http` · `./storage` · `./storage/idb` · `./errors` · `./types`.
-- Crypto, stealth scanning, Poseidon, note cipher, and Merkle state share one Rust/WASM module. Cross-origin-isolated browsers may opt into its Rayon build; other browsers and Node use the single-threaded build.
+- Crypto, stealth scanning, Poseidon, note cipher, Merkle state, and Groth16 proving run in Rust/WASM. Cross-origin-isolated browsers may opt into Rayon builds; other browsers and Node use single-threaded builds. Circom WASM remains only as the temporary witness-generation seam.
 
 ```bash
 pnpm --filter @0xcurvy/curvy-sdk build      # tsup + postbuild (assets → dist/assets)
@@ -157,7 +157,7 @@ The **root** (`@0xcurvy/curvy-sdk`) re‑exports nearly everything below (all of
 ### `@0xcurvy/curvy-sdk/config`
 `createCurvyConfig`, `destroyConfig`, `getCurvyConfig` (throws), `peekCurvyConfig` (→ `CurvyConfig | null`), `setCurvyConfig`, `resolveConfig`, `getActiveNetworks`, `getEnvironment`, `refreshPrices`, `startPriceRefresh` (recurring; `PRICE_UPDATE_INTERVAL = 5 min`), `stopPriceRefresh`, `createStore`. Types: `CurvyConfig`, `CurvyConfigInternal` (the `_internal` wiring — plain underscore field, **not** behind a Proxy; treat as private), `CurvyState`, `CreateCurvyConfigParameters`, `WithConfig`, `Store`, `StoreListener`, `SubscribeOptions`, `ScanStatus`.
 
-`CreateCurvyConfigParameters`: `{ environment?, apiBaseUrl?, storage?, wasmUrl?, wasmModule?, core?, enableKeystore?, customFetch?, timerProvider?, rustCoreThreads? }` — inject `core`/`storage`/`timerProvider` for testing or MV3; set `rustCoreThreads: "auto"` to use Rayon only in cross-origin-isolated browsers.
+`CreateCurvyConfigParameters`: `{ environment?, apiBaseUrl?, storage?, wasmUrl?, wasmModule?, core?, enableKeystore?, customFetch?, timerProvider?, rustCoreThreads?, prover? }` — inject `core`/`storage`/`timerProvider` for testing or MV3; set `rustCoreThreads: "auto"` to use Rayon only in cross-origin-isolated browsers. The default prover is Rust/arkworks; proving-key paths and digests come from protocol metadata, never an SDK manifest.
 
 ### `@0xcurvy/curvy-sdk/core`
 `Core` *(class)* — `new Core(wasmUrl?, wasmModule?)`, implements `ICore` as a compatibility adapter over the shared Rust module. WASM crypto: `generateKeyPairs`, `getCurvyKeys`, `send`/`sendNote`, `scan` (spend), `viewerScan` (view‑only), `getBabyJubjubPublicKey`, and `signWithBabyJubjubPrivateKey`. `loadWasm` pre-warms the shared idempotent module.
@@ -213,7 +213,7 @@ The shared contract/domain types and guards: `Network`, `Currency`, `BalanceEntr
 - **Crypto / proof‑system / key‑derivation decisions go through an external crypto advisor + an ADR** (`knowledge/adrs/`) — produce open questions, don't unilaterally commit.
 - **Before finishing:** `tsc --noEmit` clean, `biome check --write src` clean, `vitest run src` green. When changing shared types, check downstream consumers.
 - **`import { Buffer } from "buffer"`** per file (no global `Buffer`); hot byte paths hand‑roll hex to stay Buffer‑free in browser bundles.
-- **WASM asset loading (`proving/rustCore.ts`)** — the single-thread and Rayon binaries live in `assets/core-rs/` (copied to `dist/assets` by postbuild), resolved relative to the compiled module through bare `define`-injected URL literals. A template/variable defeats bundlers' static asset emission.
+- **WASM asset loading (`proving/rustCore.ts`, `proving/rustProver.ts`)** — the single-thread and Rayon binaries live in `assets/core-rs/` (copied to `dist/assets` by postbuild), resolved relative to the compiled module through bare `define`-injected URL literals. A template/variable defeats bundlers' static asset emission.
 
 ---
 

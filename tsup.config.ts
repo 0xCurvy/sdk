@@ -57,6 +57,8 @@ const assetDefines = (rel: string): Record<string, string> => ({
   __CURVY_ASSETS_REL__: JSON.stringify(rel),
   __CURVY_CORE_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_bg.wasm`),
   __CURVY_CORE_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_threads_bg.wasm`),
+  __CURVY_PROVER_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_prover_bg.wasm`),
+  __CURVY_PROVER_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_prover_threads_bg.wasm`),
 });
 
 export default defineConfig(() => {

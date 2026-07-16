@@ -9,12 +9,14 @@ import type { ProofResult, ZKArtifact } from "@/proving/prover";
  */
 export async function loadArtifactsAndProve(
   config: CurvyConfig,
-  artifacts: { wasm: ZKArtifact; zkey: ZKArtifact },
+  artifacts: { wasm: ZKArtifact; zkey: ZKArtifact; zkeySha256?: string },
   flattenedInputs: object,
 ): Promise<ProofResult> {
   const [wasmArtifact, zkeyArtifact] = await Promise.all([
     loadCircuitKey(config.circuitKeyCache, artifacts.wasm),
-    loadCircuitKey(config.circuitKeyCache, artifacts.zkey),
+    loadCircuitKey(config.circuitKeyCache, artifacts.zkey, fetch, artifacts.zkeySha256),
   ]);
-  return config.prover.prove(flattenedInputs, wasmArtifact, zkeyArtifact);
+  return config.prover.prove(flattenedInputs, wasmArtifact, zkeyArtifact, {
+    zkeySha256: artifacts.zkeySha256,
+  });
 }

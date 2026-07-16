@@ -50,7 +50,7 @@ export async function buildWithdrawRequest(parameters: BuildWithdrawRequestParam
     );
   }
 
-  const { wasm, zkey, maxInputs, treeDepth } = resolveCircuitArtifacts(config, "withdrawal", networkSlug);
+  const { wasm, zkey, zkeySha256, maxInputs, treeDepth } = resolveCircuitArtifacts(config, "withdrawal", networkSlug);
 
   const witness = await generateWithdrawalCircuitInputsFromNotes({
     notes: parameters.notes,
@@ -65,7 +65,7 @@ export async function buildWithdrawRequest(parameters: BuildWithdrawRequestParam
 
   const { proof, publicSignals } = await loadArtifactsAndProve(
     config,
-    { wasm, zkey },
+    { wasm, zkey, zkeySha256 },
     flattenWithdrawalCircuitInputs(witness),
   );
   const signals = publicSignals.map(BigInt);

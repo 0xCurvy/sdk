@@ -19,7 +19,7 @@ export type ProveWithdrawalParameters = WithConfig<{
 /**
  * Prove a withdrawal: resolve the network's withdrawal circuit artifacts (from
  * its `CircuitConfig`), flatten the supplied witness, and run it through the
- * config's `prover` (default snarkjs). Returns the Groth16 proof + public
+ * config's `prover` (default Rust/arkworks). Returns the Groth16 proof + public
  * signals, ready for the operator's on-chain submit.
  *
  * @example
@@ -28,6 +28,6 @@ export type ProveWithdrawalParameters = WithConfig<{
  */
 export async function proveWithdrawal(parameters: ProveWithdrawalParameters): Promise<ProofResult> {
   const config = resolveConfig(parameters.config);
-  const { wasm, zkey } = resolveCircuitArtifacts(config, "withdrawal", parameters.networkSlug);
-  return loadArtifactsAndProve(config, { wasm, zkey }, flattenWithdrawalCircuitInputs(parameters.witness));
+  const { wasm, zkey, zkeySha256 } = resolveCircuitArtifacts(config, "withdrawal", parameters.networkSlug);
+  return loadArtifactsAndProve(config, { wasm, zkey, zkeySha256 }, flattenWithdrawalCircuitInputs(parameters.witness));
 }

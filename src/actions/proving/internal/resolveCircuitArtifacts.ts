@@ -2,6 +2,15 @@ import { getProtocol } from "@/config/protocol";
 import type { CurvyConfig } from "@/config/types";
 import type { CircuitId, ZKArtifact } from "@/proving/prover";
 
+export type ResolvedCircuitArtifacts = {
+  wasm: ZKArtifact;
+  zkey: ZKArtifact;
+  zkeySha256?: string;
+  maxInputs: number;
+  maxOutputs: number;
+  treeDepth: number;
+};
+
 /**
  * Resolve a circuit's proving artifacts (wasm + zkey) for a network from the
  * `CircuitConfig` the backend advertises via GetNetworks — the single source of
@@ -16,7 +25,7 @@ export function resolveCircuitArtifacts(
   config: CurvyConfig,
   kind: CircuitId,
   networkSlug?: string,
-): { wasm: ZKArtifact; zkey: ZKArtifact; maxInputs: number; maxOutputs: number; treeDepth: number } {
+): ResolvedCircuitArtifacts {
   const slug = networkSlug ?? config.state.activeNetworks[0]?.slug;
   const network = config.state.networks.find((n) => n.slug === slug);
   if (!network) throw new Error(`prove: no network "${slug ?? "(none active)"}" to resolve ${kind} circuit artifacts`);
@@ -30,6 +39,7 @@ export function resolveCircuitArtifacts(
   return {
     wasm: resolveKeyUri(config, circuitConfig.wasmPath),
     zkey: resolveKeyUri(config, circuitConfig.zkeyPath),
+    zkeySha256: circuitConfig.zkeySha256,
     maxInputs: circuitConfig.maxInputs,
     maxOutputs: circuitConfig.maxOutputs,
     treeDepth: circuitConfig.treeDepth,

@@ -17,5 +17,6 @@ export * from "./groth16";
 export * from "./merkleTree";
 export * from "./pendingNotesCommitmentInputs";
 export * from "./prover";
+export * from "./rustProver";
 export * from "./utils";
 export * from "./witnessFromNotes";
