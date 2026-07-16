@@ -1,14 +1,19 @@
-import { IMT, type IMTMerkleProof } from "@zk-kit/imt";
-import { poseidon2 } from "poseidon-lite";
-
-const ZERO_VALUE = 0;
-const ARITY = 2;
+import {
+  bytesToField,
+  bytesToFields,
+  createRustMerkleTree,
+  createRustMerkleTreeFromLeaves,
+  createRustOrderedMerkleTreeFromLeaves,
+  fieldsToBytes,
+  fieldToBytes,
+  type RustMerkleTree,
+  type RustOrderedMerkleTree,
+  verifyRustMerkleProof,
+} from "./rustCore";
 
 export const SNARK_SCALAR_FIELD = BigInt(
   "21888242871839275222246405745257275088548364400416034343698204186575808495617",
 );
-
-const hashFn = (children: (string | number | bigint)[]) => poseidon2(children) % SNARK_SCALAR_FIELD;
 
 export type MerkleTreeParams = {
   depth: number;
@@ -21,126 +26,78 @@ export type InclusionProof = {
   root: bigint;
 };
 
+type TreeBinding = RustMerkleTree | RustOrderedMerkleTree;
+
+const unpackProof = (proof: ReturnType<RustMerkleTree["proofAt"]>): InclusionProof => {
+  const unpacked = {
+    siblings: bytesToFields(proof.siblings),
+    index: proof.index,
+    leaf: bytesToField(proof.leaf),
+    root: bytesToField(proof.root),
+  };
+  proof.free();
+  return unpacked;
+};
+
+/** Rust-backed depth-N binary Poseidon tree with the SDK's stable wrapper API. */
 export class MerkleTree {
-  private tree: IMT;
-  private reverseIndex: Map<bigint, number> = new Map();
-  private currentIndex: number = 0;
+  private tree: TreeBinding;
+  private ordered: boolean;
 
   constructor({ depth }: MerkleTreeParams) {
-    this.tree = new IMT(hashFn, depth, ZERO_VALUE, ARITY);
+    this.tree = createRustMerkleTree(depth);
+    this.ordered = false;
   }
 
-  /**
-   * Bulk-build a tree from an ordered leaf log (e.g. the on-chain CommittedNotes
-   * stream during sync). The IMT constructor builds bottom-up in O(n) hashes,
-   * vs O(n·depth) for insert-per-leaf — the difference between seconds and
-   * minutes when cold-rebuilding a large tree client-side.
-   */
+  /** Bulk-build a value-indexed note tree and reject duplicate commitments. */
   static fromLeaves({ depth }: MerkleTreeParams, leaves: bigint[]): MerkleTree {
     const tree = new MerkleTree({ depth });
-    if (leaves.length === 0) return tree;
-    leaves.forEach((leaf, index) => {
-      if (tree.reverseIndex.has(leaf)) throw new Error(`Leaf ${leaf} already exists in the tree`);
-      tree.reverseIndex.set(leaf, index);
-    });
-    // Copy: the IMT constructor ADOPTS the array as its internal leaf level
-    // (`_nodes[0] = leaves`) and appends into it on insert — aliasing the
-    // caller's array corrupts both sides.
-    tree.tree = new IMT(hashFn, depth, ZERO_VALUE, ARITY, [...leaves]);
-    tree.currentIndex = leaves.length;
+    tree.tree.free();
+    tree.tree = createRustMerkleTreeFromLeaves(depth, leaves);
     return tree;
   }
 
-  /**
-   * Build an index-addressed tree from an ordered leaf array where leaf VALUES may
-   * repeat (unlike {@link fromLeaves}, which dedups by value for unique note ids).
-   * Use this when the position carries the meaning — e.g. the per-token gas-fee tree
-   * where leaf[tokenId] = gas cost and two tokens may legitimately share a cost.
-   * Inclusion proofs must be taken via {@link createInclusionProofAtIndex}.
-   */
+  /** Bulk-build a position-addressed public vector whose values may repeat. */
   static fromOrderedLeaves({ depth }: MerkleTreeParams, leaves: bigint[]): MerkleTree {
     const tree = new MerkleTree({ depth });
-    // Copy: the IMT constructor ADOPTS the array as its internal leaf level.
-    tree.tree = new IMT(hashFn, depth, ZERO_VALUE, ARITY, [...leaves]);
-    tree.currentIndex = leaves.length;
-    // reverseIndex intentionally left empty — this tree is addressed by position.
+    tree.tree.free();
+    tree.tree = createRustOrderedMerkleTreeFromLeaves(depth, leaves);
+    tree.ordered = true;
     return tree;
   }
 
-  /**
-   * Inclusion proof for the leaf at `index`, regardless of its value (values may
-   * repeat). Counterpart to {@link createInclusionProof}, which looks up by value.
-   */
   createInclusionProofAtIndex(index: number): InclusionProof {
-    const rawProof = this.tree.createProof(index);
-    return {
-      siblings: rawProof.siblings.map((sib) => BigInt(sib[0])),
-      index,
-      leaf: BigInt(rawProof.leaf as unknown as bigint),
-      root: this.root(),
-    };
+    return unpackProof(this.tree.proofAt(index));
   }
 
   insert(value: bigint): void {
-    if (this.reverseIndex.has(value)) {
-      throw new Error(`Leaf ${value} already exists in the tree`);
-    }
-    this.reverseIndex.set(value, this.currentIndex);
-    this.tree.insert(value);
-    this.currentIndex++;
+    this.tree.insert(fieldToBytes(value));
   }
 
   insertMany(values: bigint[]): void {
-    values.forEach((value) => {
-      this.insert(value);
-    });
+    if (values.length > 0) this.tree.insertMany(fieldsToBytes(values));
   }
 
   root(): bigint {
-    return BigInt(this.tree.root);
+    return bytesToField(this.tree.root());
   }
 
   getIndex(value: bigint): number | null {
-    const idx = this.reverseIndex.get(value);
-    return idx === undefined ? null : idx;
+    if (this.ordered) return null;
+    const index = (this.tree as RustMerkleTree).getIndex(fieldToBytes(value));
+    return index ?? null;
   }
 
   createInclusionProof(value: bigint): InclusionProof {
-    const index = this.getIndex(value);
-    if (index === null) {
-      throw new Error(`Leaf ${value} not found in the tree`);
-    }
-    const rawProof = this.tree.createProof(index);
-    return {
-      siblings: rawProof.siblings.map((sib) => BigInt(sib[0])),
-      index,
-      leaf: value,
-      root: this.root(),
-    };
-  }
-
-  private computePathIndices(index: number, depth: number): number[] {
-    const indices: number[] = [];
-    let i = index;
-    for (let d = 0; d < depth; d++) {
-      indices.push(i % 2);
-      i = Math.floor(i / 2);
-    }
-    return indices;
+    if (this.ordered) throw new Error("Position-addressed trees require createInclusionProofAtIndex");
+    return unpackProof((this.tree as RustMerkleTree).proof(fieldToBytes(value)));
   }
 
   getCurrentIndex(): number {
-    return this.currentIndex;
+    return this.tree.leafCount;
   }
 
   verifyProof(proof: InclusionProof): boolean {
-    const { siblings, leaf, index, root } = proof;
-    const pathIndices = this.computePathIndices(index, this.tree.depth);
-    return this.tree.verifyProof({
-      siblings: siblings.map((sib) => [sib]),
-      leaf,
-      pathIndices,
-      root,
-    } as IMTMerkleProof);
+    return verifyRustMerkleProof(proof.leaf, proof.index, proof.siblings, proof.root);
   }
 }

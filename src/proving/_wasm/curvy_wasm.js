@@ -367,6 +367,114 @@ export class NotesFrontierCompletedShard {
 if (Symbol.dispose) NotesFrontierCompletedShard.prototype[Symbol.dispose] = NotesFrontierCompletedShard.prototype.free;
 
 /**
+ * Position-addressed tree for public vectors whose values may repeat.
+ */
+export class OrderedMerkleTree {
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(OrderedMerkleTree.prototype);
+        obj.__wbg_ptr = ptr;
+        OrderedMerkleTreeFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        OrderedMerkleTreeFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_orderedmerkletree_free(ptr, 0);
+    }
+    /**
+     * @returns {number}
+     */
+    get depth() {
+        const ret = wasm.wasmorderedmerkletree_depth(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @param {number} depth
+     * @param {Uint8Array} packed_leaves
+     * @returns {OrderedMerkleTree}
+     */
+    static fromLeaves(depth, packed_leaves) {
+        const ptr0 = passArray8ToWasm0(packed_leaves, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmorderedmerkletree_fromLeaves(depth, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return OrderedMerkleTree.__wrap(ret[0]);
+    }
+    /**
+     * @param {Uint8Array} leaf
+     * @returns {number}
+     */
+    insert(leaf) {
+        const ptr0 = passArray8ToWasm0(leaf, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmorderedmerkletree_insert(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] >>> 0;
+    }
+    /**
+     * @param {Uint8Array} packed_leaves
+     */
+    insertMany(packed_leaves) {
+        const ptr0 = passArray8ToWasm0(packed_leaves, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmorderedmerkletree_insertMany(this.__wbg_ptr, ptr0, len0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * @returns {number}
+     */
+    get leafCount() {
+        const ret = wasm.wasmorderedmerkletree_leafCount(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @param {number} depth
+     */
+    constructor(depth) {
+        const ret = wasm.wasmorderedmerkletree_new(depth);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0] >>> 0;
+        OrderedMerkleTreeFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * @param {number} index
+     * @returns {ShardedInclusionProof}
+     */
+    proofAt(index) {
+        const ret = wasm.wasmorderedmerkletree_proofAt(this.__wbg_ptr, index);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ShardedInclusionProof.__wrap(ret[0]);
+    }
+    /**
+     * @returns {Uint8Array}
+     */
+    root() {
+        const ret = wasm.wasmorderedmerkletree_root(this.__wbg_ptr);
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+}
+if (Symbol.dispose) OrderedMerkleTree.prototype[Symbol.dispose] = OrderedMerkleTree.prototype.free;
+
+/**
  * One [`scan`] candidate: `index` into the input arrays + the derived keys.
  */
 export class ScanMatch {
@@ -1411,6 +1519,9 @@ const MerkleTreeFinalization = (typeof FinalizationRegistry === 'undefined')
 const NotesFrontierFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_notesfrontier_free(ptr >>> 0, 1));
+const OrderedMerkleTreeFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_orderedmerkletree_free(ptr >>> 0, 1));
 const ShardedOwnedNoteWitnessFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_shardedownednotewitness_free(ptr >>> 0, 1));

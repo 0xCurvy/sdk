@@ -8,6 +8,7 @@ import type { PrivacyPassInternalState } from "@/privacy-pass/tokens";
 import type { MerkleTree } from "@/proving";
 import type { CircuitKeyCache } from "@/proving/circuitKeyCache";
 import type { Prover } from "@/proving/prover";
+import type { RustCoreThreads } from "@/proving/rustCore";
 import type { MultiRpc } from "@/rpc/multi";
 import type { SessionKeystore } from "@/session-keystore";
 import type { CurvyAccountData } from "@/types/account";
@@ -192,6 +193,8 @@ export type CreateCurvyConfigParameters = {
   timerProvider?: TimerProvider;
   /** Notes-sync engine for `syncNotes`/`getSpendWitnesses`. Defaults to "sharded". */
   notesSyncEngine?: NotesSyncEngine;
+  /** Opt into the Rayon browser build. `auto` uses it only when the page is cross-origin isolated. */
+  rustCoreThreads?: RustCoreThreads;
   /** Groth16 prover for the client-proving actions. Defaults to snarkjs (`snarkjsProver`). */
   prover?: Prover;
   /** CDN/host base URL that `s3://` circuit-key paths are rewritten against (see `CurvyConfig.circuitKeysBaseUrl`). */

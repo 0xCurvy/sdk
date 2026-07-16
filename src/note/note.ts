@@ -83,9 +83,8 @@ export class Note {
       deliveryTag: {
         // R as the "x.y" decimal-point string.
         ephemeralKey: `${this.ephemeralKey[0]}.${this.ephemeralKey[1]}`,
-        // padStart(2): the Go-WASM scan slices viewTag[:2]; a 1-char hex tag
-        // (e.g. "0" for viewTag 0n) would panic the scan batch. Value-neutral
-        // for downstream BigInt() parsing and not part of the aggregation hash.
+        // Keep the delivery tag byte-aligned for stable persisted/wire encoding.
+        // It is value-neutral for BigInt parsing and not part of the aggregation hash.
         viewTag: this.viewTag.toString(16).padStart(2, "0"),
       },
     };

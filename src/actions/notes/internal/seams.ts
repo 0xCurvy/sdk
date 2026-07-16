@@ -259,8 +259,8 @@ export function coreOwnershipResolver(config: CurvyConfig, accountId: string): O
       v,
       discoverable.map((l) => ({
         ephemeralKey: `${BigInt(l.ephemeralKey[0])}.${BigInt(l.ephemeralKey[1])}`,
-        // padStart: the Go-WASM scan slices viewTag[:2] — a 1-char hex tag
-        // (e.g. "0" from zero/legacy tags) panics the whole batch.
+        // Keep the delivery tag byte-aligned for stable compatibility with
+        // persisted values created by the original scanner.
         viewTag: (l.viewTag ?? 0).toString(16).padStart(2, "0"),
       })),
     );

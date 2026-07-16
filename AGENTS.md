@@ -13,7 +13,7 @@ Reference + working guide for **AI agents** (and humans) editing or consuming th
 - **Tests:** `vitest` (`pnpm test` == `vitest run src`). Real‑WASM `Core` tests run offline in Node.
 - **Subpath exports (tree‑shakeable):** import from the root for convenience, or a subpath for granular bundles:
   `.` · `./actions` · `./config` · `./utils` · `./note` · `./solana` · `./rpc` · `./core` · `./http` · `./storage` · `./storage/idb` · `./errors` · `./types`.
-- ⚠️ **Go runtime install must not be tree‑shaken.** `core/wasm-exec.js` installs `globalThis.Go`; `Core.#initWasm` loads it via a **dynamic `import("./wasm-exec.js")`** (a top‑level side‑effect import gets hoisted into a hashed chunk and dropped by consumer bundlers → `Go is not defined` in browsers). `sideEffects: ["**/wasm-exec.js"]` is kept as belt‑and‑suspenders — leave both as‑is.
+- Crypto, stealth scanning, Poseidon, note cipher, and Merkle state share one Rust/WASM module. Cross-origin-isolated browsers may opt into its Rayon build; other browsers and Node use the single-threaded build.
 
 ```bash
 pnpm --filter @0xcurvy/curvy-sdk build      # tsup + postbuild (assets → dist/assets)
@@ -157,10 +157,10 @@ The **root** (`@0xcurvy/curvy-sdk`) re‑exports nearly everything below (all of
 ### `@0xcurvy/curvy-sdk/config`
 `createCurvyConfig`, `destroyConfig`, `getCurvyConfig` (throws), `peekCurvyConfig` (→ `CurvyConfig | null`), `setCurvyConfig`, `resolveConfig`, `getActiveNetworks`, `getEnvironment`, `refreshPrices`, `startPriceRefresh` (recurring; `PRICE_UPDATE_INTERVAL = 5 min`), `stopPriceRefresh`, `createStore`. Types: `CurvyConfig`, `CurvyConfigInternal` (the `_internal` wiring — plain underscore field, **not** behind a Proxy; treat as private), `CurvyState`, `CreateCurvyConfigParameters`, `WithConfig`, `Store`, `StoreListener`, `SubscribeOptions`, `ScanStatus`.
 
-`CreateCurvyConfigParameters`: `{ environment?, apiBaseUrl?, storage?, wasmUrl?, wasmModule?, core?, enableKeystore?, customFetch?, timerProvider? }` — inject `core`/`storage`/`timerProvider` for testing or MV3.
+`CreateCurvyConfigParameters`: `{ environment?, apiBaseUrl?, storage?, wasmUrl?, wasmModule?, core?, enableKeystore?, customFetch?, timerProvider?, rustCoreThreads? }` — inject `core`/`storage`/`timerProvider` for testing or MV3; set `rustCoreThreads: "auto"` to use Rayon only in cross-origin-isolated browsers.
 
 ### `@0xcurvy/curvy-sdk/core`
-`Core` *(class)* — `new Core(wasmUrl?, wasmModule?)`, implements `ICore`. WASM crypto: `generateKeyPairs`, `getCurvyKeys`, `send`/`sendNote`, `scan` (spend), `viewerScan` (view‑only), `getBabyJubjubPublicKey`, `signWithBabyJubjubPrivateKey`, `getNoteOwnershipData`, `generateNoteOwnershipProof`, `unpackAuthenticatedNotes`. WASM/eddsa/zk assets are **lazily** loaded via per‑instance `lazySingleton`s (race‑safe; `reset()` for MV3 crash recovery). `loadWasm`/`loadEddsa`/`loadNoteProvingUtils` pre‑warm (optional).
+`Core` *(class)* — `new Core(wasmUrl?, wasmModule?)`, implements `ICore` as a compatibility adapter over the shared Rust module. WASM crypto: `generateKeyPairs`, `getCurvyKeys`, `send`/`sendNote`, `scan` (spend), `viewerScan` (view‑only), `getBabyJubjubPublicKey`, and `signWithBabyJubjubPrivateKey`. `loadWasm` pre-warms the shared idempotent module.
 
 ### `@0xcurvy/curvy-sdk/http`
 `HttpClient` *(class)* — `new HttpClient(apiBaseUrl?, customFetch?)`. Retry/backoff + timeouts + bearer‑token + `X‑Request‑ID`; emits unauthorized.
@@ -213,7 +213,7 @@ The shared contract/domain types and guards: `Network`, `Currency`, `BalanceEntr
 - **Crypto / proof‑system / key‑derivation decisions go through an external crypto advisor + an ADR** (`knowledge/adrs/`) — produce open questions, don't unilaterally commit.
 - **Before finishing:** `tsc --noEmit` clean, `biome check --write src` clean, `vitest run src` green. When changing shared types, check downstream consumers.
 - **`import { Buffer } from "buffer"`** per file (no global `Buffer`); hot byte paths hand‑roll hex to stay Buffer‑free in browser bundles.
-- **WASM/zk asset loading (`core/index.ts`)** — assets live in `assets/{core,note-ownership}/` (copied to `dist/assets` by postbuild), resolved relative to the compiled module. Two rules, both load‑bearing for browser consumers: (1) keep the browser `new URL(__CURVY_*_URL__, import.meta.url)` args as the **bare `define`‑injected literals** — a template/variable defeats bundlers' static asset emission (Vite/webpack/Rollup won't copy the file); (2) load `wasm-exec.js` via the **dynamic import** in `#initWasm`, never a top‑level `import`. The per‑format relative paths are injected by tsup `define` (`../assets` for the ESM chunk, `../../assets` for a CJS entry).
+- **WASM asset loading (`proving/rustCore.ts`)** — the single-thread and Rayon binaries live in `assets/core-rs/` (copied to `dist/assets` by postbuild), resolved relative to the compiled module through bare `define`-injected URL literals. A template/variable defeats bundlers' static asset emission.
 
 ---
 

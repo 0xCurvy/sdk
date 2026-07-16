@@ -7,7 +7,7 @@ import { coreOwnershipResolver } from "./seams";
 
 // Real-WASM coverage for the local-ECDH resolver. Unlike seams.test.ts (which
 // drives a FAKE core.scanNotes and only proves the format bridge in isolation),
-// this exercises the genuine Go WASM scan to prove the END-TO-END wiring: a v3
+// this exercises the genuine Rust WASM scan to prove the END-TO-END wiring: a v3
 // indexer leaf — ephemeralKey as a [x, y] decimal pair, viewTag as a NUMBER —
 // bridged to the scan's "x.y" + unpadded-hex shape actually claims the note.
 // This is the silent-failure surface a fake core can't catch.

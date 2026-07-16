@@ -1,20 +1,19 @@
-import { Base8, mulPointEscalar } from "@zk-kit/baby-jubjub";
-import { derivePublicKey, signMessage } from "@zk-kit/eddsa-poseidon";
-import { Buffer } from "buffer";
 import type { Signature } from "@/types/core";
+import {
+  ephemeralPubKey as rustEphemeralPubKey,
+  pubFromPrivateKey as rustPubFromPrivateKey,
+  sign as rustSign,
+} from "./rustCore";
 
 // BabyJubjub / EdDSA-Poseidon primitives shared by the circuit-witness builders:
 // ephemeral public-key derivation, public-key recovery, and message signing.
 //
-// Backed by @zk-kit/baby-jubjub + @zk-kit/eddsa-poseidon (stateless). These are
-// byte-identical to the circomlibjs `buildEddsa()` API they replaced as long as
-// the private key is passed as the SAME `Buffer.from(hex, "hex")` encoding (a
-// raw hex *string* hashes differently — always go through the Buffer).
+// Backed by the shared Rust/WASM core and byte-identical to the circomlibjs
+// `buildEddsa()` API (covered by committed parity vectors).
 
 /** BabyJubjub public key `[x, y]` derived from a hex private key (`prv2pub`). */
 export const pubFromPrivateKey = (privateKeyHex: string): [bigint, bigint] => {
-  const [x, y] = derivePublicKey(Buffer.from(privateKeyHex, "hex"));
-  return [x, y];
+  return rustPubFromPrivateKey(privateKeyHex);
 };
 
 /**
@@ -26,16 +25,11 @@ export const pubFromPrivateKey = (privateKeyHex: string): [bigint, bigint] => {
  * public `R`, never the private `r` (the recipient never sees `r`).
  */
 export const ephemeralPubKey = (scalar: bigint): [bigint, bigint] => {
-  const [x, y] = mulPointEscalar(Base8, scalar);
-  return [x, y];
+  return rustEphemeralPubKey(scalar);
 };
 
 // EdDSA-Poseidon signature; same primitive the v2 circuits verify per output
 // note (aggregation) and per withdrawal.
 export const sign = (message: bigint, privateKeyHex: string): Signature => {
-  const signature = signMessage(Buffer.from(privateKeyHex, "hex"), message);
-  return {
-    R8: [signature.R8[0], signature.R8[1]],
-    S: signature.S,
-  };
+  return rustSign(message, privateKeyHex);
 };

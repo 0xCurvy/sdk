@@ -49,6 +49,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     customFetch,
     timerProvider = defaultTimerProvider(),
     notesSyncEngine = "sharded",
+    rustCoreThreads = false,
     prover,
     circuitKeysBaseUrl,
     circuitKeyCache,
@@ -58,7 +59,8 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
   // Sharded sync and witness construction use synchronous Rust/WASM methods
   // after startup. Initialize their shared module before any tree is created;
   // concurrent configs reuse the same promise.
-  await initRustCore();
+  const rustCoreSource = wasmModule ? { module: wasmModule } : wasmUrl ? { url: wasmUrl } : undefined;
+  await initRustCore(rustCoreSource, { threads: rustCoreThreads });
 
   const api = new ApiClient(apiBaseUrl, customFetch, {
     metadataBaseUrl,

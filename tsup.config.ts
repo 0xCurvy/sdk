@@ -43,15 +43,9 @@ const codeEntries: Record<string, string> = {
   "storage/idb/index": "src/storage/idb/index.ts",
   errors: "src/errors.ts",
   "types/index": "src/types/index.ts",
-  // Side-effect module that installs `globalThis.Go`. Emitted as its own file so
-  // the package.json `sideEffects` carve-out can match it by name and stop
-  // consumers' tree-shakers from dropping the Go runtime install.
-  "core/wasm-exec": "src/core/wasm-exec.js",
 };
 
-// Types: same entries minus the export-less wasm-exec shim (no meaningful .d.ts).
 const typeEntries: Record<string, string> = { ...codeEntries };
-delete typeEntries["core/wasm-exec"];
 
 // Per-format asset path literals injected via esbuild `define`. `rel` is the
 // path from the emitted module to dist/assets: "../assets" from the ESM chunk at
@@ -61,8 +55,8 @@ delete typeEntries["core/wasm-exec"];
 // downstream bundlers (Vite/webpack/Rollup), which need that to emit the assets.
 const assetDefines = (rel: string): Record<string, string> => ({
   __CURVY_ASSETS_REL__: JSON.stringify(rel),
-  __CURVY_CORE_WASM_URL__: JSON.stringify(`${rel}/core/curvy-core-v1.0.2.wasm`),
   __CURVY_CORE_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_bg.wasm`),
+  __CURVY_CORE_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_threads_bg.wasm`),
 });
 
 export default defineConfig(() => {
@@ -83,17 +77,9 @@ export default defineConfig(() => {
     platform: "neutral",
     treeshake: "recommended",
     sourcemap: true,
-    // Bundle the BabyJubjub/EdDSA crypto into the dist instead of externalizing
-    // it. @zk-kit/eddsa-poseidon (ESM) imports blakejs (CJS) via named exports
-    // that node's ESM loader can't resolve at runtime ("Named export
-    // 'blake2bFinal' not found"); bundling lets esbuild resolve the interop at
-    // build time, so consumers (devenv vitest, app bundlers, external npm users)
-    // get a self-contained module with no special config.
     // @cloudflare/privacypass-ts + blindrsa-ts are ESM-only — bundle them (and
     // their small codec deps) so the CJS pass doesn't emit require() of ESM.
     noExternal: [
-      "@zk-kit/eddsa-poseidon",
-      "@zk-kit/baby-jubjub",
       /^@cloudflare\/(privacypass-ts|blindrsa-ts|voprf-ts)/,
       "asn1-parser",
       "quicvarint",

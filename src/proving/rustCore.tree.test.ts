@@ -7,9 +7,11 @@ import {
   bytesToField,
   bytesToFields,
   createRustNotesFrontier,
+  createRustOrderedMerkleTreeFromLeaves,
   createRustShardedNotesTree,
   fieldsToBytes,
   fieldToBytes,
+  getCoreRuntimeStatus,
   initCore,
   restoreRustNotesFrontier,
   restoreRustShardedNotesTreeParts,
@@ -24,7 +26,28 @@ beforeAll(async () => {
 });
 
 describe("Rust tree adapters", () => {
-  it("keeps the compact frontier byte-identical to the independent TypeScript IMT", () => {
+  it("uses the single-threaded Rust fallback in Node", () => {
+    expect(getCoreRuntimeStatus()).toEqual({ mode: "single-threaded", threadCount: 1 });
+  });
+
+  it("keeps duplicate public leaves addressable by position", () => {
+    const tree = createRustOrderedMerkleTreeFromLeaves(4, [7n, 7n, 9n]);
+    const proof = tree.proofAt(1);
+    expect(bytesToField(proof.leaf)).toBe(7n);
+    expect(proof.index).toBe(1);
+    expect(
+      verifyRustMerkleProof(
+        bytesToField(proof.leaf),
+        proof.index,
+        bytesToFields(proof.siblings),
+        bytesToField(proof.root),
+      ),
+    ).toBe(true);
+    proof.free();
+    tree.free();
+  });
+
+  it("keeps the compact frontier byte-identical to the full Rust tree", () => {
     const leaves = Array.from({ length: 21 }, (_, index) => BigInt(index + 1));
     const frontier = createRustNotesFrontier(8, 3);
     const emittedRoots: bigint[] = [];

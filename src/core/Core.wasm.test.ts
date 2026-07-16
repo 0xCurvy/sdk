@@ -2,10 +2,9 @@ import { describe, expect, it } from "vitest";
 import { Core } from "@/core";
 
 // Real-WASM Core coverage. Unlike the action/planner tests (which use the fake
-// `ICore` from @/test/fixtures), these tests instantiate the genuine Go WASM
-// module and load the note-ownership zkey from packages/sdk/assets. They run fully
-// offline but are noticeably slower than the unit suite, hence the per-test
-// timeouts.
+// `ICore` from @/test/fixtures), these tests instantiate the genuine Rust WASM
+// module. They run fully offline; the generous timeouts also cover cold WASM
+// startup on CI.
 
 const AMOUNT = 10n ** 18n;
 const TOKEN = 1n;

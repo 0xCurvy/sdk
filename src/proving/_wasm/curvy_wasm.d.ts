@@ -59,6 +59,22 @@ export class NotesFrontierCompletedShard {
 }
 
 /**
+ * Position-addressed tree for public vectors whose values may repeat.
+ */
+export class OrderedMerkleTree {
+    free(): void;
+    [Symbol.dispose](): void;
+    static fromLeaves(depth: number, packed_leaves: Uint8Array): OrderedMerkleTree;
+    insert(leaf: Uint8Array): number;
+    insertMany(packed_leaves: Uint8Array): void;
+    constructor(depth: number);
+    proofAt(index: number): ShardedInclusionProof;
+    root(): Uint8Array;
+    readonly depth: number;
+    readonly leafCount: number;
+}
+
+/**
  * One [`scan`] candidate: `index` into the input arrays + the derived keys.
  */
 export class ScanMatch {
@@ -259,6 +275,7 @@ export interface InitOutput {
     readonly __wbg_notesfrontier_free: (a: number, b: number) => void;
     readonly __wbg_notesfrontierappend_free: (a: number, b: number) => void;
     readonly __wbg_notesfrontiercompletedshard_free: (a: number, b: number) => void;
+    readonly __wbg_orderedmerkletree_free: (a: number, b: number) => void;
     readonly __wbg_scanmatch_free: (a: number, b: number) => void;
     readonly __wbg_shardedinclusionproof_free: (a: number, b: number) => void;
     readonly __wbg_shardednotestree_free: (a: number, b: number) => void;
@@ -318,6 +335,13 @@ export interface InitOutput {
     readonly wasmnotesfrontier_shardHeight: (a: number) => number;
     readonly wasmnotesfrontier_shardSize: (a: number) => number;
     readonly wasmnotesfrontier_snapshot: (a: number) => [number, number];
+    readonly wasmorderedmerkletree_fromLeaves: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmorderedmerkletree_insert: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmorderedmerkletree_insertMany: (a: number, b: number, c: number) => [number, number];
+    readonly wasmorderedmerkletree_leafCount: (a: number) => number;
+    readonly wasmorderedmerkletree_new: (a: number) => [number, number, number];
+    readonly wasmorderedmerkletree_proofAt: (a: number, b: number) => [number, number, number];
+    readonly wasmorderedmerkletree_root: (a: number) => [number, number];
     readonly wasmownednotewitness_frozen: (a: number) => number;
     readonly wasmownednotewitness_noteId: (a: number) => [number, number];
     readonly wasmownednotewitness_withinShardSiblings: (a: number) => [number, number];
@@ -346,6 +370,7 @@ export interface InitOutput {
     readonly wasmshardednotestree_witness: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmmerkletree_depth: (a: number) => number;
     readonly wasmnotesfrontier_depth: (a: number) => number;
+    readonly wasmorderedmerkletree_depth: (a: number) => number;
     readonly wasmownednotewitness_leafIndex: (a: number) => number;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

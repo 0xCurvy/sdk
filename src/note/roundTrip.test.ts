@@ -41,7 +41,7 @@ describe("balanceEntryToNote <-> noteToBalanceEntry round-trip", () => {
     expect(recovered.owner.sharedSecret).toBe(entry.owner.sharedSecret);
 
     // Delivery tag survives the round-trip (viewTag is zero-padded to ≥2 hex chars
-    // so the Go-WASM scan's viewTag[:2] slice never sees a 1-char tag).
+    // so the Rust scan's two-character view-tag prefix is always available).
     expect(recovered.deliveryTag.ephemeralKey).toBe(entry.deliveryTag.ephemeralKey);
     expect(recovered.deliveryTag.viewTag).toBe("06");
   });

@@ -180,7 +180,7 @@ describe("coreOwnershipResolver (local-ECDH)", () => {
     const leaf: SyncedLeaf = { index: 0, noteId: "n1", ephemeralKey: ["5", "9"], viewTag: 789 };
     await resolve.prescan?.([leaf]);
 
-    // R packed as "x.y"; viewTag as hex PADDED to >= 2 chars — the Go-WASM scan
+    // R packed as "x.y"; viewTag as hex PADDED to >= 2 chars — the Rust scan
     // slices viewTag[:2], so a 1-char tag (e.g. "0") would panic the batch.
     expect(scanNotes).toHaveBeenCalledTimes(1);
     expect(scanNotes).toHaveBeenCalledWith(account.keyPairs.s, account.keyPairs.v, [
