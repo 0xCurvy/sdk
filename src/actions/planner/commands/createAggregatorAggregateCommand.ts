@@ -22,6 +22,10 @@ import { generateNewNote } from "./generateNewNote";
 import { normalizeCommandNotes } from "./normalizeCommandNotes";
 import type { Command, CommandContext, CommandEstimate } from "./types";
 
+// Match the batch prover cadence while preserving the existing two-minute timeout.
+const SELF_AGGREGATION_SYNC_POLL_INTERVAL_MS = 30_000;
+const SELF_AGGREGATION_SYNC_POLL_ATTEMPTS = 4;
+
 /** The aggregate command stores its freshly-minted (estimate-time) output note on the estimate. */
 interface CurvyCommandEstimateWithNote extends CommandEstimate {
   note: Note;
@@ -214,8 +218,8 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
         return balances.find((b) => b.networkSlug === networkSlug && b.id === target);
       },
       (found) => found !== undefined,
-      240,
-      500,
+      SELF_AGGREGATION_SYNC_POLL_ATTEMPTS,
+      SELF_AGGREGATION_SYNC_POLL_INTERVAL_MS,
     );
     invariant(entry, "Aggregation output did not become available before the sync timeout.");
     return entry;
