@@ -410,6 +410,7 @@
     "poseidon-lite": "^0.2.1",
     "publint": "^0.3.21",
     "rimraf": "^6.0.1",
+    "snarkjs": "^0.7.5",
     "tsup": "8.5.0",
     "typescript": "^5.9.3",
     "vitest": "3.1.4"
@@ -430,7 +431,6 @@
     "emittery": "^1.2.0",
     "ethers": "^6.14.4",
     "lodash.merge": "^4.6.2",
-    "snarkjs": "^0.7.5",
     "uuid": "^13.0.0",
     "viem": "^2.50.4"
   },

@@ -28,6 +28,6 @@ export type ProveWithdrawalParameters = WithConfig<{
  */
 export async function proveWithdrawal(parameters: ProveWithdrawalParameters): Promise<ProofResult> {
   const config = resolveConfig(parameters.config);
-  const { wasm, zkey, zkeySha256 } = resolveCircuitArtifacts(config, "withdrawal", parameters.networkSlug);
-  return loadArtifactsAndProve(config, { wasm, zkey, zkeySha256 }, flattenWithdrawalCircuitInputs(parameters.witness));
+  const artifacts = resolveCircuitArtifacts(config, "withdrawal", parameters.networkSlug);
+  return loadArtifactsAndProve(config, artifacts, flattenWithdrawalCircuitInputs(parameters.witness));
 }

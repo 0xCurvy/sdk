@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { type CircuitKeyCache, loadCircuitKey } from "./circuitKeyCache";
+import { type CircuitKeyCache, evictCircuitKey, loadCircuitKey } from "./circuitKeyCache";
 
 /** In-memory cache that records calls, for asserting hit/miss + store behaviour. */
 function makeFakeCache(seed: Record<string, Uint8Array> = {}) {
@@ -9,6 +9,9 @@ function makeFakeCache(seed: Record<string, Uint8Array> = {}) {
       get: vi.fn(async (key: string) => store.get(key) ?? null),
       put: vi.fn(async (key: string, bytes: Uint8Array) => {
         store.set(key, bytes);
+      }),
+      delete: vi.fn(async (key: string) => {
+        store.delete(key);
       }),
     } satisfies CircuitKeyCache,
     store,
@@ -84,6 +87,15 @@ describe("loadCircuitKey", () => {
     expect(Array.from(newKey as Uint8Array)).toEqual([2]);
     expect(Array.from(rollbackKey as Uint8Array)).toEqual([1]);
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("evicts the digest-versioned entry after Rust rejects cached bytes", async () => {
+    const digest = "ab".repeat(32);
+    const key = `${URL}?__curvy_sha256=${digest}`;
+    const { cache, store } = makeFakeCache({ [key]: new Uint8Array([1]) });
+
+    expect(await evictCircuitKey(cache, URL, digest)).toBe(true);
+    expect(store.has(key)).toBe(false);
   });
 
   it("falls back to the URL when the fetch is non-2xx (never blocks proving on the cache layer)", async () => {

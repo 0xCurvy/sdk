@@ -2,6 +2,18 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export class WasmCircuitProver {
+    free(): void;
+    [Symbol.dispose](): void;
+    constructor(zkey: Uint8Array, expected_zkey_sha256: string, witness_graph: Uint8Array, expected_graph_sha256: string);
+    /**
+     * Calculate, prove, and self-verify directly from circuit input JSON.
+     */
+    prove(input_json: string): string;
+    readonly numConstraints: number;
+    readonly numPublic: number;
+}
+
 export class WasmProver {
     free(): void;
     [Symbol.dispose](): void;
@@ -30,11 +42,16 @@ export function wbg_rayon_start_worker(receiver: number): void;
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
+    readonly __wbg_wasmcircuitprover_free: (a: number, b: number) => void;
     readonly __wbg_wasmprover_free: (a: number, b: number) => void;
+    readonly wasmcircuitprover_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number];
+    readonly wasmcircuitprover_numConstraints: (a: number) => number;
+    readonly wasmcircuitprover_numPublic: (a: number) => number;
+    readonly wasmcircuitprover_prove: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmprover_new: (a: number, b: number, c: number, d: number) => [number, number, number];
-    readonly wasmprover_numConstraints: (a: number) => number;
-    readonly wasmprover_numPublic: (a: number) => number;
     readonly wasmprover_prove: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmprover_numPublic: (a: number) => number;
+    readonly wasmprover_numConstraints: (a: number) => number;
     readonly __wbg_wbg_rayon_poolbuilder_free: (a: number, b: number) => void;
     readonly initThreadPool: (a: number) => any;
     readonly wbg_rayon_poolbuilder_build: (a: number) => void;

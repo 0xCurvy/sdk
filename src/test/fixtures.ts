@@ -8,7 +8,7 @@ import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { NotesTreeView } from "@/note/notesTreeView";
-import { MerkleTree, snarkjsProver } from "@/proving";
+import { type CircuitKeyCache, createRustProver, MerkleTree } from "@/proving";
 import type { Prover } from "@/proving/prover";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
@@ -237,6 +237,7 @@ export type CreateFakeConfigOverrides = {
   api?: IApiClient;
   rpc?: MultiRpc;
   prover?: Prover;
+  circuitKeyCache?: CircuitKeyCache;
   circuitKeysBaseUrl?: string;
 };
 
@@ -298,7 +299,8 @@ export function createFakeConfig(overrides: CreateFakeConfigOverrides = {}): Cur
     setState: store.setState,
     subscribe: store.subscribe,
     notesSyncEngine: "sharded",
-    prover: overrides.prover ?? snarkjsProver,
+    prover: overrides.prover ?? createRustProver({ threads: false }),
+    circuitKeyCache: overrides.circuitKeyCache,
     circuitKeysBaseUrl: overrides.circuitKeysBaseUrl,
     getRpc: () => rpc,
     async destroy() {

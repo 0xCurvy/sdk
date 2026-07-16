@@ -2,15 +2,14 @@ import { isNode } from "@/utils/common";
 import type { ZKArtifact } from "./prover";
 
 /**
- * A persistent cache for downloaded circuit proving artifacts (wasm + zkey).
+ * A persistent cache for downloaded circuit proving artifacts (graph + zkey).
  *
- * These are large (wasm ~MBs, zkey ~tens of MBs), published as immutable
+ * These are large (graphs ~MBs, zkeys ~tens of MBs), published as immutable
  * objects, and fetched on every prove. A metadata-provided digest also versions
  * the cache identity, so a same-URL emergency rotation cannot reuse old bytes.
- * The zkey in particular is
- * read by snarkjs via HTTP Range requests, which the browser HTTP cache handles
- * unreliably; caching the full bytes here lets us hand the prover an in-memory
- * buffer instead (no Range, no network after the first fetch, works offline).
+ * Caching full bytes lets the Rust prover initialize without more network reads
+ * and supports proving offline after the first successful fetch. Rust verifies
+ * each metadata-provided SHA-256 before parsing cached or downloaded bytes.
  *
  * This is deliberately NOT `config.storage` (the small structured account-data
  * store, which on some platforms is backed by size-limited KV like RN
@@ -22,6 +21,8 @@ export interface CircuitKeyCache {
   get(key: string): Promise<Uint8Array | null>;
   /** Store `bytes` for `key`. Best-effort: a failed put just means the next read misses. */
   put(key: string, bytes: Uint8Array): Promise<void>;
+  /** Remove one corrupt/stale entry when supported. */
+  delete?(key: string): Promise<void>;
 }
 
 const CACHE_NAME = "curvy-circuit-keys-v1";
@@ -53,6 +54,14 @@ export function createCacheApiCircuitKeyCache(): CircuitKeyCache {
           key,
           new Response(bytes as BodyInit, { headers: { "Content-Type": "application/octet-stream" } }),
         );
+      } catch {
+        // best-effort
+      }
+    },
+    async delete(key) {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.delete(key);
       } catch {
         // best-effort
       }
@@ -109,6 +118,14 @@ export function createFsCircuitKeyCache(dir?: string): CircuitKeyCache {
         // best-effort
       }
     },
+    async delete(key) {
+      try {
+        const { fs } = await ready;
+        await fs.unlink(await fileFor(key));
+      } catch {
+        // best-effort
+      }
+    },
   };
 }
 
@@ -144,9 +161,7 @@ export async function loadCircuitKey(
   // Key rotations normally change the artifact URL. Including the metadata
   // digest also makes same-URL rotations safe and avoids serving stale bytes
   // that the Rust integrity gate would correctly reject.
-  const cacheKey = integrity
-    ? `${artifact}${artifact.includes("?") ? "&" : "?"}__curvy_sha256=${encodeURIComponent(integrity.toLowerCase())}`
-    : artifact;
+  const cacheKey = circuitCacheKey(artifact, integrity);
   const hit = await cache.get(cacheKey);
   if (hit) return hit;
 
@@ -159,4 +174,21 @@ export async function loadCircuitKey(
   } catch {
     return artifact;
   }
+}
+
+/** Evict a remote artifact after Rust reports an integrity failure. */
+export async function evictCircuitKey(
+  cache: CircuitKeyCache | undefined,
+  artifact: ZKArtifact,
+  integrity?: string,
+): Promise<boolean> {
+  if (!cache?.delete || typeof artifact !== "string" || !/^https?:\/\//i.test(artifact)) return false;
+  await cache.delete(circuitCacheKey(artifact, integrity));
+  return true;
+}
+
+function circuitCacheKey(artifact: string, integrity?: string): string {
+  return integrity
+    ? `${artifact}${artifact.includes("?") ? "&" : "?"}__curvy_sha256=${encodeURIComponent(integrity.toLowerCase())}`
+    : artifact;
 }

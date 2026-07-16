@@ -3,7 +3,8 @@ import type { CurvyConfig } from "@/config/types";
 import type { CircuitId, ZKArtifact } from "@/proving/prover";
 
 export type ResolvedCircuitArtifacts = {
-  wasm: ZKArtifact;
+  witnessGraph: ZKArtifact;
+  witnessGraphSha256?: string;
   zkey: ZKArtifact;
   zkeySha256?: string;
   maxInputs: number;
@@ -12,7 +13,7 @@ export type ResolvedCircuitArtifacts = {
 };
 
 /**
- * Resolve a circuit's proving artifacts (wasm + zkey) for a network from the
+ * Resolve a circuit's proving artifacts (witness graph + zkey) for a network from the
  * `CircuitConfig` the backend advertises via GetNetworks — the single source of
  * truth for which keys + dimensions a network's deployed circuit uses. No keys
  * are bundled in the SDK.
@@ -32,12 +33,19 @@ export function resolveCircuitArtifacts(
 
   const proving = getProtocol({ config }).proving;
   const circuitConfig = kind === "aggregation" ? proving.aggregation : proving.withdrawal;
-  if (!circuitConfig?.wasmPath || !circuitConfig?.zkeyPath) {
-    throw new Error(`prove: protocol has no ${kind} circuit config (missing wasmPath/zkeyPath)`);
+  if (!circuitConfig) {
+    throw new Error(`prove: protocol has no ${kind} circuit config`);
+  }
+  if (circuitConfig.witnessEngine !== "curvy-graph-v1") {
+    throw new Error(`prove: protocol has unsupported ${kind} witness engine`);
+  }
+  if (!circuitConfig.witnessGraphPath || !circuitConfig.zkeyPath) {
+    throw new Error(`prove: protocol has no ${kind} circuit config (missing witnessGraphPath/zkeyPath)`);
   }
 
   return {
-    wasm: resolveKeyUri(config, circuitConfig.wasmPath),
+    witnessGraph: resolveKeyUri(config, circuitConfig.witnessGraphPath),
+    witnessGraphSha256: circuitConfig.witnessGraphSha256,
     zkey: resolveKeyUri(config, circuitConfig.zkeyPath),
     zkeySha256: circuitConfig.zkeySha256,
     maxInputs: circuitConfig.maxInputs,

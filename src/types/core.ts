@@ -57,7 +57,10 @@ type CoreViewerScanReturnType = {
 };
 
 type CircuitConfig = {
-  wasmPath?: string;
+  /** Curvy's versioned Rust witness evaluator format. */
+  witnessEngine?: "curvy-graph-v1";
+  witnessGraphPath?: string;
+  witnessGraphSha256?: string;
   zkeyPath?: string;
   /** SHA-256 of the exact zkey bytes, published with the rotatable protocol metadata. */
   zkeySha256?: string;

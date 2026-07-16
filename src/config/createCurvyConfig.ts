@@ -148,11 +148,10 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     setState: store.setState,
     subscribe: store.subscribe,
     notesSyncEngine,
-    // Default prover: the Rust/arkworks Groth16 backend. Its temporary witness
-    // seam still consumes Circom WASM until Rust witness generation lands.
+    // Default prover: Curvy's Rust witness evaluator and arkworks Groth16 backend.
     prover: activeProver,
     circuitKeysBaseUrl,
-    // Cache downloaded wasm/zkey so the large keys are fetched once, not per prove.
+    // Cache downloaded graph/zkey artifacts so they are fetched once, not per prove.
     // `false` disables; otherwise use the caller's cache or the platform default.
     circuitKeyCache: circuitKeyCache === false ? undefined : (circuitKeyCache ?? defaultCircuitKeyCache()),
     getRpc() {

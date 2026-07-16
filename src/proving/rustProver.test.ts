@@ -10,8 +10,11 @@ describe("createRustProver", () => {
   it("cannot be reused after its parsed-key cache is destroyed", async () => {
     const prover = createRustProver();
     await prover.destroy?.();
-    await expect(prover.prove({}, new Uint8Array(), new Uint8Array(), { zkeySha256: "00".repeat(32) })).rejects.toThrow(
-      /destroyed/,
-    );
+    await expect(
+      prover.prove({}, new Uint8Array(), new Uint8Array(), {
+        witnessGraphSha256: "00".repeat(32),
+        zkeySha256: "00".repeat(32),
+      }),
+    ).rejects.toThrow(/destroyed/);
   });
 });

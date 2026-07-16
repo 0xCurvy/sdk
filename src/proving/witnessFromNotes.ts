@@ -16,15 +16,12 @@ import { MerkleTree } from "./merkleTree";
 import { generateRandomBigInt } from "./utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// From-REAL-notes witness builders for the v2 single-* circuits + the flatten
-// step snarkjs needs.
+// From-REAL-notes input builders for the v2 single-* circuits + their flat ABI.
 //
 // Why flatten: circom_runtime (0.1.28) consumes circom 2.2 `bus` inputs as FLAT
-// arrays in field-declaration order, NOT nested `{field: value}` objects.
-// Passing a NoteBus object directly to groth16.fullProve fails with
-// "Not enough values for input signal inputNotes". These helpers convert the
-// bus-typed `*CircuitInputs` (the SDK's logical witness shape) into the flat
-// arrays fullProve accepts.
+// arrays in field-declaration order, NOT nested `{field: value}` objects. These
+// helpers convert the bus-typed logical shape into the flat signal arrays the
+// Rust graph evaluator consumes.
 //
 // Why from-notes: a witness must build inclusion proofs against the SAME tree
 // the protocol committed — a fresh/synthetic IMT yields a `notesRoot` that is
@@ -160,7 +157,7 @@ const zeroPadNote = (owner: [bigint, bigint], token: bigint): Note =>
     viewTag: 0n,
   });
 
-// ── Flatten (bus-typed witness → snarkjs flat witness) ──────────────────────
+// ── Flatten (bus-typed input → Circom-compatible flat signal ABI) ──────────
 const flatNote = (n: NoteBus): bigint[] => [
   n.owner.ownerBabyJub[0],
   n.owner.ownerBabyJub[1],

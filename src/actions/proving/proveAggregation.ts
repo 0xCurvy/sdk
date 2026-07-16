@@ -28,6 +28,6 @@ export type ProveAggregationParameters = WithConfig<{
  */
 export async function proveAggregation(parameters: ProveAggregationParameters): Promise<ProofResult> {
   const config = resolveConfig(parameters.config);
-  const { wasm, zkey, zkeySha256 } = resolveCircuitArtifacts(config, "aggregation", parameters.networkSlug);
-  return loadArtifactsAndProve(config, { wasm, zkey, zkeySha256 }, flattenAggregationCircuitInputs(parameters.witness));
+  const artifacts = resolveCircuitArtifacts(config, "aggregation", parameters.networkSlug);
+  return loadArtifactsAndProve(config, artifacts, flattenAggregationCircuitInputs(parameters.witness));
 }

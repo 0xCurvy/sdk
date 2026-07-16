@@ -1,6 +1,5 @@
-import { type CircuitSignals, type Groth16Proof, type PublicSignals, wtns } from "snarkjs";
 import * as plainProverWasm from "./_prover_wasm/curvy_prover.js";
-import type { ProofResult, Prover, ProverContext, ZKArtifact } from "./prover";
+import type { Groth16Proof, ProofResult, Prover, ProverContext, PublicSignals, ZKArtifact } from "./prover";
 import type { CoreWasmSource, RustCoreRuntimeStatus, RustCoreThreads } from "./rustCore";
 
 declare const __CURVY_ASSETS_REL__: string;
@@ -17,8 +16,7 @@ const isNode = typeof process !== "undefined" && !!process.versions?.node;
 
 type WasmBindings = typeof plainProverWasm;
 type ThreadedWasmBindings = WasmBindings & { initThreadPool(threadCount: number): Promise<unknown> };
-type WasmProver = InstanceType<typeof plainProverWasm.WasmProver>;
-type InMemoryWitness = { type: "mem"; data?: Uint8Array };
+type WasmCircuitProver = InstanceType<typeof plainProverWasm.WasmCircuitProver>;
 
 export type RustProverOptions = {
   threads?: RustCoreThreads;
@@ -152,64 +150,61 @@ export async function initRustProver(options: RustProverOptions = {}): Promise<v
 export const getRustProverRuntimeStatus = (): RustCoreRuntimeStatus => ({ ...runtimeStatus });
 
 /**
- * Arkworks Groth16 with the existing Circom witness generator as a temporary
- * seam. Proving keys are authenticated and parsed once per adapter instance.
+ * Curvy's authenticated Rust witness evaluator and arkworks Groth16 prover.
+ * Graphs and keys are parsed once per adapter instance.
  */
 export function createRustProver(options: RustProverOptions = {}): Prover {
-  const provers = new Map<string, Promise<WasmProver>>();
+  const circuits = new Map<string, Promise<WasmCircuitProver>>();
   let destroyed = false;
 
-  const getProver = (zkey: ZKArtifact, expectedSha256: string): Promise<WasmProver> => {
-    const cacheKey = expectedSha256.toLowerCase();
-    const cached = provers.get(cacheKey);
+  const getCircuit = (
+    witnessGraph: ZKArtifact,
+    expectedGraphSha256: string,
+    zkey: ZKArtifact,
+    expectedZkeySha256: string,
+  ): Promise<WasmCircuitProver> => {
+    const cacheKey = `${expectedGraphSha256.toLowerCase()}:${expectedZkeySha256.toLowerCase()}`;
+    const cached = circuits.get(cacheKey);
     if (cached) return cached;
-    const loading = loadArtifactBytes(zkey)
-      .then((bytes) => new wasm.WasmProver(bytes, expectedSha256))
+    const loading = Promise.all([loadArtifactBytes(zkey), loadArtifactBytes(witnessGraph)])
+      .then(
+        ([zkeyBytes, graphBytes]) =>
+          new wasm.WasmCircuitProver(zkeyBytes, expectedZkeySha256, graphBytes, expectedGraphSha256),
+      )
       .catch((error) => {
-        provers.delete(cacheKey);
+        circuits.delete(cacheKey);
         throw error;
       });
-    provers.set(cacheKey, loading);
+    circuits.set(cacheKey, loading);
     return loading;
   };
 
   return {
-    async prove(input: object, witnessWasm: ZKArtifact, zkey: ZKArtifact, context?: ProverContext) {
+    async prove(input: object, witnessGraph: ZKArtifact, zkey: ZKArtifact, context?: ProverContext) {
       if (destroyed) throw new Error("Curvy Rust prover has been destroyed");
       if (!context?.zkeySha256) {
         throw new Error("Curvy Rust prover requires CircuitConfig.zkeySha256 from protocol metadata");
       }
+      if (!context.witnessGraphSha256) {
+        throw new Error("Curvy Rust prover requires CircuitConfig.witnessGraphSha256 from protocol metadata");
+      }
       await initRustProver(options);
-      const [witnessBytes, prover] = await Promise.all([
-        calculateWitness(input, witnessWasm),
-        getProver(zkey, context.zkeySha256),
-      ]);
-      return parseProofResult(prover.prove(witnessBytes));
+      const circuit = await getCircuit(witnessGraph, context.witnessGraphSha256, zkey, context.zkeySha256);
+      return parseProofResult(circuit.prove(stringifyCircuitInput(input)));
     },
     async destroy() {
       destroyed = true;
-      const settled = await Promise.allSettled(provers.values());
+      const settled = await Promise.allSettled(circuits.values());
       for (const result of settled) {
         if (result.status === "fulfilled") result.value.free();
       }
-      provers.clear();
+      circuits.clear();
     },
   };
 }
 
-async function calculateWitness(input: object, witnessWasm: ZKArtifact): Promise<Uint8Array> {
-  const output: InMemoryWitness = { type: "mem" };
-  await wtns.calculate(input as CircuitSignals, await normalizeWitnessArtifact(witnessWasm), output);
-  if (!(output.data instanceof Uint8Array)) {
-    throw new Error("Circom witness calculator did not return in-memory .wtns bytes");
-  }
-  return output.data;
-}
-
-async function normalizeWitnessArtifact(artifact: ZKArtifact): Promise<ZKArtifact> {
-  if (!isNode || typeof artifact !== "string" || !artifact.startsWith("file:")) return artifact;
-  const { fileURLToPath } = await import("node:url");
-  return fileURLToPath(artifact);
+function stringifyCircuitInput(input: object): string {
+  return JSON.stringify(input, (_, value: unknown) => (typeof value === "bigint" ? value.toString(10) : value));
 }
 
 async function loadArtifactBytes(artifact: ZKArtifact): Promise<Uint8Array> {
@@ -219,7 +214,7 @@ async function loadArtifactBytes(artifact: ZKArtifact): Promise<Uint8Array> {
     return new Uint8Array(await readFile(artifact.startsWith("file:") ? fileURLToPath(artifact) : artifact));
   }
   const response = await fetch(artifact);
-  if (!response.ok) throw new Error(`Failed to fetch proving key: HTTP ${response.status}`);
+  if (!response.ok) throw new Error(`Failed to fetch proving artifact: HTTP ${response.status}`);
   return new Uint8Array(await response.arrayBuffer());
 }
 

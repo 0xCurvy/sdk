@@ -2,6 +2,82 @@
 // AUTO-GENERATED from packages/core-rs. Do not edit.
 /* @ts-self-types="./curvy_prover.d.ts" */
 
+export class WasmCircuitProver {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmCircuitProverFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmcircuitprover_free(ptr, 0);
+    }
+    /**
+     * @param {Uint8Array} zkey
+     * @param {string} expected_zkey_sha256
+     * @param {Uint8Array} witness_graph
+     * @param {string} expected_graph_sha256
+     */
+    constructor(zkey, expected_zkey_sha256, witness_graph, expected_graph_sha256) {
+        const ptr0 = passArray8ToWasm0(zkey, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(expected_zkey_sha256, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passArray8ToWasm0(witness_graph, wasm.__wbindgen_malloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(expected_graph_sha256, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmcircuitprover_new(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0] >>> 0;
+        WasmCircuitProverFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * @returns {number}
+     */
+    get numConstraints() {
+        const ret = wasm.wasmcircuitprover_numConstraints(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @returns {number}
+     */
+    get numPublic() {
+        const ret = wasm.wasmcircuitprover_numPublic(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Calculate, prove, and self-verify directly from circuit input JSON.
+     * @param {string} input_json
+     * @returns {string}
+     */
+    prove(input_json) {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const ptr0 = passStringToWasm0(input_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.wasmcircuitprover_prove(this.__wbg_ptr, ptr0, len0);
+            var ptr2 = ret[0];
+            var len2 = ret[1];
+            if (ret[3]) {
+                ptr2 = 0; len2 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred3_0 = ptr2;
+            deferred3_1 = len2;
+            return getStringFromWasm0(ptr2, len2);
+        } finally {
+            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+        }
+    }
+}
+if (Symbol.dispose) WasmCircuitProver.prototype[Symbol.dispose] = WasmCircuitProver.prototype.free;
+
 export class WasmProver {
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
@@ -190,6 +266,9 @@ function __wbg_get_imports() {
     };
 }
 
+const WasmCircuitProverFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmcircuitprover_free(ptr >>> 0, 1));
 const WasmProverFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_wasmprover_free(ptr >>> 0, 1));

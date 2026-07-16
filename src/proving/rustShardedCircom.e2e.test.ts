@@ -16,7 +16,10 @@ import { flattenWithdrawalCircuitInputs, generateWithdrawalCircuitInputsFromNote
 
 const zkRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../../zk-keys/v2/withdrawal");
 const circuit = {
-  wasm: join(zkRoot, "verifySingleWithdrawalNoHashing_2_30.wasm"),
+  graph: join(
+    zkRoot,
+    "verifySingleWithdrawalNoHashing_2_30.71295ae000c466d2111969cb335597f63c1a1a3d3990878d4b996757fa9998d3.graph.bin",
+  ),
   zkey: join(zkRoot, "verifySingleWithdrawalNoHashing_2_30_0001.zkey"),
 };
 const enabled = process.env.RUST_TREE_E2E === "1";
@@ -39,7 +42,7 @@ const randomField = (): bigint => {
 
 const ownerKey = "0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9";
 
-maybe("Rust sharded SDK ↔ independent Node IMT ↔ Circom ↔ arkworks", () => {
+maybe("Rust sharded SDK ↔ independent Node IMT ↔ Rust witness/prover", () => {
   it("matches across a depth-14 rollover and verifies a Rust Groth16 proof with snarkjs", async () => {
     const shardHeight = 14;
     const shardSize = 1 << shardHeight;
@@ -105,11 +108,12 @@ maybe("Rust sharded SDK ↔ independent Node IMT ↔ Circom ↔ arkworks", () =>
     const prover = createRustProver({ threads: false });
     try {
       const zkeySha256 = createHash("sha256").update(readFileSync(circuit.zkey)).digest("hex");
+      const witnessGraphSha256 = createHash("sha256").update(readFileSync(circuit.graph)).digest("hex");
       const { proof, publicSignals } = await prover.prove(
         flattenWithdrawalCircuitInputs(witness),
-        circuit.wasm,
+        circuit.graph,
         circuit.zkey,
-        { zkeySha256 },
+        { witnessGraphSha256, zkeySha256 },
       );
       const verificationKey = await zKey.exportVerificationKey(circuit.zkey);
       expect(await groth16.verify(verificationKey, publicSignals, proof)).toBe(true);
