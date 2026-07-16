@@ -18,7 +18,7 @@ import type {
   TransferSettlement,
   TxHistoryEntry,
 } from "@/types/storage";
-import { CurvyDatabase } from "./database";
+import { CurvyDatabase, type HotOverlayRecord } from "./database";
 
 /**
  * IndexedDB storage adapter backed by Dexie. Persists across reloads — the
@@ -165,11 +165,11 @@ export class IndexedDBStorage extends BaseStorage {
 
   // ── Reversible hot projection + workflow history ──
   protected async _replaceHotOverlay(replacement: HotOverlayReplacement) {
-    const tables = [this.db.hotSyncStates, this.db.hotBlocks, this.db.hotNoteStates, this.db.txHistory];
+    const tables = [this.db.hotOverlays, this.db.hotNoteStates, this.db.txHistory];
     await this.db.transaction("rw", tables, async () => {
-      await this.db.hotSyncStates.put(replacement.state);
-      await this.db.hotBlocks.where({ networkSlug: replacement.state.networkSlug }).delete();
-      if (replacement.blocks.length > 0) await this.db.hotBlocks.bulkPut(replacement.blocks);
+      const blocks = replacement.blocks.map(({ networkSlug: _networkSlug, ...block }) => block);
+      const overlay: HotOverlayRecord = { ...replacement.state, blocks };
+      await this.db.hotOverlays.put(overlay);
       // The hot head is global, so no account may retain the previous projection.
       const staleNotes = await this.db.hotNoteStates
         .filter((note) => note.networkSlug === replacement.state.networkSlug)
@@ -184,30 +184,26 @@ export class IndexedDBStorage extends BaseStorage {
     });
   }
   protected async _clearHotOverlay(networkSlug: string, _accountId?: string) {
-    await this.db.transaction(
-      "rw",
-      this.db.hotSyncStates,
-      this.db.hotBlocks,
-      this.db.hotNoteStates,
-      this.db.txHistory,
-      async () => {
-        await this.db.hotSyncStates.delete(networkSlug);
-        await this.db.hotBlocks.where({ networkSlug }).delete();
-        const staleNotes = await this.db.hotNoteStates.filter((note) => note.networkSlug === networkSlug).primaryKeys();
-        if (staleNotes.length > 0) await this.db.hotNoteStates.bulkDelete(staleNotes);
-        const hotHistory = await this.db.txHistory
-          .filter((entry) => entry.networkSlug === networkSlug && entry.finality === "hot")
-          .primaryKeys();
-        if (hotHistory.length > 0) await this.db.txHistory.bulkDelete(hotHistory);
-      },
-    );
+    await this.db.transaction("rw", this.db.hotOverlays, this.db.hotNoteStates, this.db.txHistory, async () => {
+      await this.db.hotOverlays.delete(networkSlug);
+      const staleNotes = await this.db.hotNoteStates.filter((note) => note.networkSlug === networkSlug).primaryKeys();
+      if (staleNotes.length > 0) await this.db.hotNoteStates.bulkDelete(staleNotes);
+      const hotHistory = await this.db.txHistory
+        .filter((entry) => entry.networkSlug === networkSlug && entry.finality === "hot")
+        .primaryKeys();
+      if (hotHistory.length > 0) await this.db.txHistory.bulkDelete(hotHistory);
+    });
   }
   protected async _getHotSyncState(networkSlug: string) {
-    return this.db.hotSyncStates.get(networkSlug);
+    const overlay = await this.db.hotOverlays.get(networkSlug);
+    if (!overlay) return undefined;
+    const { blocks: _blocks, ...state } = overlay;
+    return state;
   }
   protected async _getHotBlocks(networkSlug: string) {
-    const rows = await this.db.hotBlocks.where({ networkSlug }).toArray();
-    return rows.sort((a, b) => a.number - b.number);
+    const overlay = await this.db.hotOverlays.get(networkSlug);
+    if (!overlay) return [];
+    return overlay.blocks.map((block) => ({ ...block, networkSlug })).sort((a, b) => a.number - b.number);
   }
   protected async _getHotNoteStates(accountId: string, networkSlug: string) {
     return this.db.hotNoteStates.where("[accountId+networkSlug]").equals([accountId, networkSlug]).toArray();
@@ -282,8 +278,7 @@ export class IndexedDBStorage extends BaseStorage {
       this.db.liveShards.clear(),
       this.db.txHistory.clear(),
       this.db.tokenPouches.clear(),
-      this.db.hotSyncStates.clear(),
-      this.db.hotBlocks.clear(),
+      this.db.hotOverlays.clear(),
       this.db.hotNoteStates.clear(),
       this.db.transferIntents.clear(),
       this.db.transferAttempts.clear(),

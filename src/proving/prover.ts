@@ -29,6 +29,8 @@ export type ProverContext = {
  * implementations receive an authenticated witness graph plus proving key.
  */
 export interface Prover {
+  /** `prover` means the implementation owns remote artifact caching/loading. */
+  artifactLoading?: "caller" | "prover";
   prove(input: object, witnessGraph: ZKArtifact, zkey: ZKArtifact, context?: ProverContext): Promise<ProofResult>;
   /** Release parsed graphs, keys, or platform workers owned by this instance. */
   destroy?(): void | Promise<void>;

@@ -1,10 +1,12 @@
 import * as plainProverWasm from "./_prover_wasm/curvy_prover.js";
 import type { Groth16Proof, ProofResult, Prover, ProverContext, PublicSignals, ZKArtifact } from "./prover";
 import type { CoreWasmSource, RustCoreRuntimeStatus, RustCoreThreads } from "./rustCore";
+import type { RustProverWorkerRequest, RustProverWorkerResponse } from "./rustProverProtocol";
 
 declare const __CURVY_ASSETS_REL__: string;
 declare const __CURVY_PROVER_RS_WASM_URL__: string;
 declare const __CURVY_PROVER_RS_THREADS_WASM_URL__: string;
+declare const __CURVY_PROVER_WORKER_URL__: string;
 
 const NODE_ASSETS_REL = typeof __CURVY_ASSETS_REL__ === "string" ? __CURVY_ASSETS_REL__ : "../../assets";
 const NODE_PROVER_WASM = `${NODE_ASSETS_REL}/core-rs/curvy_prover_bg.wasm`;
@@ -20,6 +22,8 @@ type WasmCircuitProver = InstanceType<typeof plainProverWasm.WasmCircuitProver>;
 
 export type RustProverOptions = {
   threads?: RustCoreThreads;
+  /** Disable the dedicated browser worker for tests or custom runtimes. */
+  worker?: boolean;
   /** Test/custom-hosting overrides; normal SDK consumers use the shipped assets. */
   wasm?: { single?: CoreWasmSource; threaded?: CoreWasmSource };
 };
@@ -92,7 +96,8 @@ const resolveThreadCount = (threads: Exclude<RustCoreThreads, false>): number =>
     throw new RangeError("Rust prover thread count must be a positive integer");
   }
   const hardwareThreads = typeof navigator === "undefined" ? 1 : Math.max(1, navigator.hardwareConcurrency || 1);
-  const requested = threads === "auto" ? hardwareThreads : threads;
+  // Keep one logical core available for rendering and wallet/network work.
+  const requested = threads === "auto" ? Math.max(1, hardwareThreads - 1) : threads;
   return Math.min(requested, hardwareThreads, MAX_BROWSER_THREADS);
 };
 
@@ -153,7 +158,7 @@ export const getRustProverRuntimeStatus = (): RustCoreRuntimeStatus => ({ ...run
  * Curvy's authenticated Rust witness evaluator and arkworks Groth16 prover.
  * Graphs and keys are parsed once per adapter instance.
  */
-export function createRustProver(options: RustProverOptions = {}): Prover {
+export function createInProcessRustProver(options: RustProverOptions = {}): Prover {
   const circuits = new Map<string, Promise<WasmCircuitProver>>();
   let destroyed = false;
 
@@ -201,6 +206,108 @@ export function createRustProver(options: RustProverOptions = {}): Prover {
       circuits.clear();
     },
   };
+}
+
+interface PendingWorkerRequest {
+  resolve(result: ProofResult): void;
+  reject(error: Error): void;
+}
+
+function createBrowserWorkerProver(options: RustProverOptions): Prover {
+  const pending = new Map<number, PendingWorkerRequest>();
+  let nextRequestId = 1;
+  let worker: Worker | undefined;
+  let destroyed = false;
+
+  const rejectPending = (error: Error): void => {
+    for (const request of pending.values()) request.reject(error);
+    pending.clear();
+  };
+
+  const resetWorker = (error: Error): void => {
+    worker?.terminate();
+    worker = undefined;
+    rejectPending(error);
+  };
+
+  const getWorker = (): Worker => {
+    if (worker) return worker;
+    const workerUrl = new URL(__CURVY_PROVER_WORKER_URL__, import.meta.url);
+    const created = new Worker(workerUrl, { type: "module", name: "curvy-rust-prover" });
+    created.addEventListener("message", (event: MessageEvent<RustProverWorkerResponse>) => {
+      const response = event.data;
+      const request = pending.get(response.id);
+      if (!request) return;
+      pending.delete(response.id);
+      if (response.ok) {
+        runtimeStatus = response.runtimeStatus;
+        request.resolve(response.result);
+      } else {
+        const error = new Error(response.error.message);
+        error.name = response.error.name;
+        if (response.error.stack) error.stack = response.error.stack;
+        request.reject(error);
+      }
+    });
+    created.addEventListener("error", (event) => {
+      resetWorker(new Error(event.message || "Curvy Rust prover worker failed"));
+    });
+    created.addEventListener("messageerror", () => {
+      resetWorker(new Error("Curvy Rust prover worker returned an unreadable response"));
+    });
+    worker = created;
+    return created;
+  };
+
+  return {
+    artifactLoading: "prover",
+    prove(input: object, witnessGraph: ZKArtifact, zkey: ZKArtifact, context?: ProverContext): Promise<ProofResult> {
+      if (destroyed) return Promise.reject(new Error("Curvy Rust prover has been destroyed"));
+      if (!context?.zkeySha256) {
+        return Promise.reject(new Error("Curvy Rust prover requires CircuitConfig.zkeySha256 from protocol metadata"));
+      }
+      if (!context.witnessGraphSha256) {
+        return Promise.reject(
+          new Error("Curvy Rust prover requires CircuitConfig.witnessGraphSha256 from protocol metadata"),
+        );
+      }
+
+      const id = nextRequestId++;
+      const request: RustProverWorkerRequest = {
+        id,
+        type: "prove",
+        input,
+        witnessGraph,
+        zkey,
+        context,
+        threads: options.threads ?? false,
+        wasm: {
+          singleUrl: new URL(__CURVY_PROVER_RS_WASM_URL__, import.meta.url).href,
+          threadedUrl: new URL(__CURVY_PROVER_RS_THREADS_WASM_URL__, import.meta.url).href,
+        },
+      };
+      return new Promise<ProofResult>((resolve, reject) => {
+        pending.set(id, { resolve, reject });
+        try {
+          getWorker().postMessage(request);
+        } catch (error) {
+          pending.delete(id);
+          reject(error instanceof Error ? error : new Error(String(error)));
+        }
+      });
+    },
+    destroy(): void {
+      destroyed = true;
+      resetWorker(new Error("Curvy Rust prover has been destroyed"));
+      runtimeStatus = { mode: "uninitialized", threadCount: 0 };
+    },
+  };
+}
+
+/** Create a non-blocking browser prover, or the direct in-process runtime on Node/custom hosts. */
+export function createRustProver(options: RustProverOptions = {}): Prover {
+  const canUseWorker = !isNode && options.worker !== false && !options.wasm && typeof Worker === "function";
+  return canUseWorker ? createBrowserWorkerProver(options) : createInProcessRustProver(options);
 }
 
 function stringifyCircuitInput(input: object): string {

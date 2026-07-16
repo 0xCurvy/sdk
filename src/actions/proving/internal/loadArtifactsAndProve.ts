@@ -1,5 +1,5 @@
 import type { CurvyConfig } from "@/config/types";
-import { evictCircuitKey, loadCircuitKey } from "@/proving/circuitKeyCache";
+import { loadCachedArtifactsAndProve } from "@/proving/loadCachedArtifactsAndProve";
 import type { ProofResult, ZKArtifact } from "@/proving/prover";
 
 /**
@@ -17,26 +17,12 @@ export async function loadArtifactsAndProve(
   },
   flattenedInputs: object,
 ): Promise<ProofResult> {
-  const prove = async () => {
-    const [graphArtifact, zkeyArtifact] = await Promise.all([
-      loadCircuitKey(config.circuitKeyCache, artifacts.witnessGraph, fetch, artifacts.witnessGraphSha256),
-      loadCircuitKey(config.circuitKeyCache, artifacts.zkey, fetch, artifacts.zkeySha256),
-    ]);
-    return config.prover.prove(flattenedInputs, graphArtifact, zkeyArtifact, {
+  if (config.prover.artifactLoading === "prover") {
+    return config.prover.prove(flattenedInputs, artifacts.witnessGraph, artifacts.zkey, {
       witnessGraphSha256: artifacts.witnessGraphSha256,
       zkeySha256: artifacts.zkeySha256,
     });
-  };
-
-  try {
-    return await prove();
-  } catch (error) {
-    if (!(error instanceof Error) || !error.message.includes("SHA-256 mismatch")) throw error;
-    const evicted = await Promise.all([
-      evictCircuitKey(config.circuitKeyCache, artifacts.witnessGraph, artifacts.witnessGraphSha256),
-      evictCircuitKey(config.circuitKeyCache, artifacts.zkey, artifacts.zkeySha256),
-    ]);
-    if (!evicted.some(Boolean)) throw error;
-    return prove();
   }
+
+  return loadCachedArtifactsAndProve(config.prover, config.circuitKeyCache, artifacts, flattenedInputs);
 }

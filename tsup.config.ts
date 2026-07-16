@@ -59,19 +59,20 @@ const assetDefines = (rel: string): Record<string, string> => ({
   __CURVY_CORE_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_threads_bg.wasm`),
   __CURVY_PROVER_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_prover_bg.wasm`),
   __CURVY_PROVER_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_prover_threads_bg.wasm`),
+  __CURVY_PROVER_WORKER_URL__: JSON.stringify("./proving/rustProverWorker.js"),
 });
 
 export default defineConfig(() => {
   const isProd = process.env.NODE_ENV === "production";
   const buildPass = process.env.CURVY_SDK_PASS;
-  const selectPasses = (js: Options, dts: Options): Options[] => {
+  const selectPasses = (js: Options[], dts: Options[]): Options[] => {
     if (buildPass === "js") {
-      return [js];
+      return js;
     }
     if (buildPass === "dts") {
-      return [dts];
+      return dts;
     }
-    return [js, dts];
+    return [...js, ...dts];
   };
 
   const shared: Options = {
@@ -105,6 +106,23 @@ export default defineConfig(() => {
     },
   };
 
+  // The consumer creates this file with `new Worker(new URL(...))`. Bundle it
+  // without shared chunks so Vite/webpack may copy or inline it without leaving
+  // relative SDK imports that cannot resolve from a blob/data worker URL.
+  const esmWorker: Options = {
+    ...shared,
+    entry: { rustProverWorker: "src/proving/rustProver.worker.ts" },
+    format: ["esm"],
+    outDir: "dist/_esm/proving",
+    splitting: false,
+    minify: isProd,
+    dts: false,
+    clean: false,
+    esbuildOptions: (options) => {
+      options.define = { ...options.define, ...assetDefines("../../assets") };
+    },
+  };
+
   // Pass 2: ESM type declarations (.d.ts) for the "import" condition. Every
   // internal workspace consumer is ESM and typechecks against these via tsc, so
   // they ship in every build.
@@ -124,12 +142,12 @@ export default defineConfig(() => {
   // `pnpm run build:publish`) adds them back. CURVY_SDK_PASS lets package
   // scripts run JS and DTS separately so declaration bundling gets its own heap.
   if (!process.env.CURVY_SDK_PUBLISH) {
-    return selectPasses(esm, esmDts);
+    return selectPasses([esm, esmWorker], [esmDts]);
   }
 
   const publishFormat = process.env.CURVY_SDK_FORMAT;
   if (publishFormat === "esm") {
-    return selectPasses(esm, esmDts);
+    return selectPasses([esm, esmWorker], [esmDts]);
   }
 
   // Pass 3: CJS — esbuild can't code-split CJS, so each entry is self-contained.
@@ -159,14 +177,14 @@ export default defineConfig(() => {
   };
 
   if (publishFormat === "cjs") {
-    return selectPasses(cjs, cjsDts);
+    return selectPasses([cjs], [cjsDts]);
   }
   if (buildPass === "js") {
-    return [esm, cjs];
+    return [esm, esmWorker, cjs];
   }
   if (buildPass === "dts") {
     return [esmDts, cjsDts];
   }
 
-  return [esm, cjs, esmDts, cjsDts];
+  return [esm, esmWorker, cjs, esmDts, cjsDts];
 });

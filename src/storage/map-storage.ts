@@ -42,8 +42,7 @@ export class MapStorage extends BaseStorage {
   readonly #liveShards = new Map<string, LiveShardRecord>();
   readonly #txHistory = new Map<string, TxHistoryEntry>();
   readonly #tokenPouches = new Map<string, string[]>();
-  readonly #hotSyncStates = new Map<string, HotSyncState>();
-  readonly #hotBlocks = new Map<string, HotBlockRecord>();
+  readonly #hotOverlays = new Map<string, { state: HotSyncState; blocks: HotBlockRecord[] }>();
   readonly #hotNoteStates = new Map<string, HotNoteState>();
   readonly #transferIntents = new Map<string, TransferHistoryRecord>();
   readonly #transferAttempts = new Map<string, TransferAttempt>();
@@ -221,10 +220,10 @@ export class MapStorage extends BaseStorage {
   // ── Reversible hot projection + workflow history ──
   protected async _replaceHotOverlay(replacement: HotOverlayReplacement) {
     await this._clearHotOverlay(replacement.state.networkSlug);
-    this.#hotSyncStates.set(replacement.state.networkSlug, replacement.state);
-    for (const block of replacement.blocks) {
-      this.#hotBlocks.set(`${block.networkSlug}\u0000${block.number}`, block);
-    }
+    this.#hotOverlays.set(replacement.state.networkSlug, {
+      state: replacement.state,
+      blocks: [...replacement.blocks],
+    });
     for (const note of replacement.noteStates ?? []) {
       this.#hotNoteStates.set(this.#accountNetworkKey(note.accountId, note.networkSlug, note.noteId), note);
     }
@@ -233,8 +232,7 @@ export class MapStorage extends BaseStorage {
     }
   }
   protected async _clearHotOverlay(networkSlug: string, _accountId?: string) {
-    this.#hotSyncStates.delete(networkSlug);
-    for (const [key, block] of this.#hotBlocks) if (block.networkSlug === networkSlug) this.#hotBlocks.delete(key);
+    this.#hotOverlays.delete(networkSlug);
     for (const [key, note] of this.#hotNoteStates) {
       if (note.networkSlug === networkSlug) this.#hotNoteStates.delete(key);
     }
@@ -246,12 +244,10 @@ export class MapStorage extends BaseStorage {
     }
   }
   protected async _getHotSyncState(networkSlug: string) {
-    return this.#hotSyncStates.get(networkSlug);
+    return this.#hotOverlays.get(networkSlug)?.state;
   }
   protected async _getHotBlocks(networkSlug: string) {
-    return Array.from(this.#hotBlocks.values())
-      .filter((block) => block.networkSlug === networkSlug)
-      .sort((a, b) => a.number - b.number);
+    return [...(this.#hotOverlays.get(networkSlug)?.blocks ?? [])].sort((a, b) => a.number - b.number);
   }
   protected async _getHotNoteStates(accountId: string, networkSlug: string) {
     return Array.from(this.#hotNoteStates.values()).filter(
@@ -327,8 +323,7 @@ export class MapStorage extends BaseStorage {
     this.#liveShards.clear();
     this.#txHistory.clear();
     this.#tokenPouches.clear();
-    this.#hotSyncStates.clear();
-    this.#hotBlocks.clear();
+    this.#hotOverlays.clear();
     this.#hotNoteStates.clear();
     this.#transferIntents.clear();
     this.#transferAttempts.clear();
@@ -352,8 +347,7 @@ export class MapStorage extends BaseStorage {
       liveShards: this.#liveShards.size,
       txHistory: this.#txHistory.size,
       tokenPouches: this.#tokenPouches.size,
-      hotSyncStates: this.#hotSyncStates.size,
-      hotBlocks: this.#hotBlocks.size,
+      hotOverlays: this.#hotOverlays.size,
       hotNoteStates: this.#hotNoteStates.size,
       transferIntents: this.#transferIntents.size,
       transferAttempts: this.#transferAttempts.size,

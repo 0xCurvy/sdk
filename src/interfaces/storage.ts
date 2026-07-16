@@ -165,7 +165,7 @@ export interface StorageInterface {
   /** An account's history, newest-first (`observedAt` desc), optionally per network. */
   getTxHistory(accountId: string, filter?: { networkSlug?: string }): Promise<TxHistoryEntry[]>;
 
-  // ── Reversible hot projection (Dexie v8) ──────────────────────────────────
+  // ── Reversible hot projection ──────────────────────────────────────────────
 
   /** Atomically replace one network's disposable canonical hot suffix. */
   replaceHotOverlay(replacement: HotOverlayReplacement): Promise<void>;
