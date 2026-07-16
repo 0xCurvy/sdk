@@ -1083,6 +1083,9 @@ export function get_meta(k, v) {
  */
 export function new_meta() {
     const ret = wasm.new_meta();
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
     var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
     return v1;

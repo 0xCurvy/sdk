@@ -19,16 +19,16 @@
 // like just `0` or whatever, but the code would be less resilient.
 
 function waitForMsgType(target, type) {
-  return new Promise((resolve) => {
-    target.addEventListener("message", function onMsg({ data }) {
+  return new Promise(resolve => {
+    target.addEventListener('message', function onMsg({ data }) {
       if (data?.type !== type) return;
-      target.removeEventListener("message", onMsg);
+      target.removeEventListener('message', onMsg);
       resolve(data);
     });
   });
 }
 
-waitForMsgType(self, "wasm_bindgen_worker_init").then(async ({ init, receiver }) => {
+waitForMsgType(self, 'wasm_bindgen_worker_init').then(async ({ init, receiver }) => {
   // # Note 1
   // Our JS should have been generated in
   // `[out-dir]/snippets/wasm-bindgen-rayon-[hash]/workerHelpers.js`,
@@ -51,9 +51,9 @@ waitForMsgType(self, "wasm_bindgen_worker_init").then(async ({ init, receiver })
   // OTOH, even though it can't be inlined, it should be still reasonably
   // cheap since the requested file is already in cache (it was loaded by
   // the main thread).
-  const pkg = await import("../../../curvy_wasm.js");
+  const pkg = await import('../../../curvy_wasm.js');
   await pkg.default(init);
-  postMessage({ type: "wasm_bindgen_worker_ready" });
+  postMessage({ type: 'wasm_bindgen_worker_ready' });
   pkg.wbg_rayon_start_worker(receiver);
 });
 
@@ -72,9 +72,9 @@ export async function startWorkers(module, memory, builder) {
   }
 
   const workerInit = {
-    type: "wasm_bindgen_worker_init",
+    type: 'wasm_bindgen_worker_init',
     init: { module_or_path: module, memory },
-    receiver: builder.receiver(),
+    receiver: builder.receiver()
   };
 
   const workers = await Promise.all(
@@ -96,13 +96,13 @@ export async function startWorkers(module, memory, builder) {
       // The only way to work around that is to have side effect code
       // in an entry point such as Worker file itself.
       const worker = new Worker(import.meta.url, {
-        type: "module",
+        type: 'module'
       });
       worker.postMessage(workerInit);
-      await waitForMsgType(worker, "wasm_bindgen_worker_ready");
+      await waitForMsgType(worker, 'wasm_bindgen_worker_ready');
       return worker;
-    }),
+    })
   );
-  globalThis[Symbol.for("curvy.rustCoreWorkers")] = workers;
+  globalThis[Symbol.for('curvy.rustCoreWorkers')] = workers;
   builder.build();
 }

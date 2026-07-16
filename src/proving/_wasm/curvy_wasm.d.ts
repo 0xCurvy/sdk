@@ -287,7 +287,7 @@ export interface InitOutput {
     readonly encryptAmountToken: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
     readonly ephemeralPubKey: (a: number, b: number) => [number, number];
     readonly get_meta: (a: number, b: number, c: number, d: number) => [number, number, number, number];
-    readonly new_meta: () => [number, number];
+    readonly new_meta: () => [number, number, number, number];
     readonly noteId: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly nullifier: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly ownerHash: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
