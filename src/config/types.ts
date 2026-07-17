@@ -195,6 +195,8 @@ export type CreateCurvyConfigParameters = {
   notesSyncEngine?: NotesSyncEngine;
   /** Opt into the Rayon browser build. `auto` uses it only when the page is cross-origin isolated. */
   rustCoreThreads?: RustCoreThreads;
+  /** Rayon policy for Rust witness generation/proving. Defaults to `rustCoreThreads` for compatibility. */
+  rustProverThreads?: RustCoreThreads;
   /** Groth16 prover for the client-proving actions. Defaults to Rust/arkworks. */
   prover?: Prover;
   /** CDN/host base URL that `s3://` circuit-key paths are rewritten against (see `CurvyConfig.circuitKeysBaseUrl`). */

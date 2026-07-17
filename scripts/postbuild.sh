@@ -18,3 +18,24 @@ fi
 # dist/_cjs/<group>/index.js entry — both land on dist/assets.
 rm -rf dist/assets
 cp -r assets dist/assets
+
+# wasm-bindgen regenerates this helper. Fail loudly if its self-spawn URL patch
+# disappears instead of shipping a worker that reloads the consumer app chunk.
+if ! grep -q 'curvy.rustCoreRayonWorkerUrl' \
+  src/proving/_wasm_threads/snippets/wasm-bindgen-rayon-*/src/workerHelpers.js; then
+  echo "Generated Rust core Rayon helper is missing the standalone worker URL hook" >&2
+  exit 1
+fi
+
+# Both browser worker entries must stay self-contained. A top-level import can
+# make Rayon evaluate a consumer's document-dependent application chunk.
+for worker in dist/_esm/proving/rustProverWorker.js dist/_esm/proving/rustCoreRayonWorker.js; do
+  if grep -Eq '^import ' "$worker"; then
+    echo "Worker bundle is not self-contained: $worker" >&2
+    exit 1
+  fi
+  if ! grep -q 'wasm_bindgen_worker_init' "$worker"; then
+    echo "Worker bundle is missing the Rayon bootstrap: $worker" >&2
+    exit 1
+  fi
+done

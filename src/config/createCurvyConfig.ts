@@ -50,6 +50,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     timerProvider = defaultTimerProvider(),
     notesSyncEngine = "sharded",
     rustCoreThreads = false,
+    rustProverThreads = rustCoreThreads,
     prover,
     circuitKeysBaseUrl,
     circuitKeyCache,
@@ -61,7 +62,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
   // concurrent configs reuse the same promise.
   const rustCoreSource = wasmModule ? { module: wasmModule } : wasmUrl ? { url: wasmUrl } : undefined;
   await initRustCore(rustCoreSource, { threads: rustCoreThreads });
-  const activeProver = prover ?? createRustProver({ threads: rustCoreThreads });
+  const activeProver = prover ?? createRustProver({ threads: rustProverThreads });
 
   const api = new ApiClient(apiBaseUrl, customFetch, {
     metadataBaseUrl,

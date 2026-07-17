@@ -20,19 +20,21 @@ import * as plainWasm from "./_wasm/curvy_wasm.js";
 declare const __CURVY_ASSETS_REL__: string;
 declare const __CURVY_CORE_RS_WASM_URL__: string;
 declare const __CURVY_CORE_RS_THREADS_WASM_URL__: string;
+declare const __CURVY_CORE_RAYON_WORKER_URL__: string;
 
 const NODE_ASSETS_REL = typeof __CURVY_ASSETS_REL__ === "string" ? __CURVY_ASSETS_REL__ : "../../assets";
 const NODE_CORE_RS_WASM = `${NODE_ASSETS_REL}/core-rs/curvy_core_bg.wasm`;
 const NODE_CORE_RS_THREADS_WASM = `${NODE_ASSETS_REL}/core-rs/curvy_core_threads_bg.wasm`;
 const MAX_BROWSER_THREADS = 8;
 const CORE_WORKERS = Symbol.for("curvy.rustCoreWorkers");
+const CORE_RAYON_WORKER_URL = Symbol.for("curvy.rustCoreRayonWorkerUrl");
 
 const isNode = typeof process !== "undefined" && !!process.versions?.node;
 
 /** Optional explicit wasm source (tests / custom hosting). */
 export type CoreWasmSource = { module?: WebAssembly.Module; bytes?: BufferSource; url?: string };
 
-/** Browser pool selection. `auto` falls back to the ordinary module without COOP/COEP. */
+/** Browser pool selection. `auto` uses Rayon only in a cross-origin-isolated context. */
 export type RustCoreThreads = false | "auto" | number;
 
 export type RustCoreRuntimeOptions = {
@@ -120,11 +122,15 @@ const resolveThreadCount = (threads: Exclude<RustCoreThreads, false>): number =>
 };
 
 function terminateFailedThreadPool(): void {
-  const holder = globalThis as typeof globalThis & { [CORE_WORKERS]?: Array<{ terminate(): void }> };
+  const holder = globalThis as typeof globalThis & {
+    [CORE_WORKERS]?: Array<{ terminate(): void }>;
+    [CORE_RAYON_WORKER_URL]?: string;
+  };
   holder[CORE_WORKERS]?.forEach((worker) => {
     worker.terminate();
   });
   delete holder[CORE_WORKERS];
+  delete holder[CORE_RAYON_WORKER_URL];
 }
 
 async function initialize(source: CoreWasmSource | undefined, options: RustCoreRuntimeOptions): Promise<void> {
@@ -137,7 +143,10 @@ async function initialize(source: CoreWasmSource | undefined, options: RustCoreR
       const browserAssetUrl = isNode ? undefined : new URL(__CURVY_CORE_RS_THREADS_WASM_URL__, import.meta.url);
       await load(bindings, NODE_CORE_RS_THREADS_WASM, browserAssetUrl, source);
       const threadCount = resolveThreadCount(requestedThreads);
+      const holder = globalThis as typeof globalThis & { [CORE_RAYON_WORKER_URL]?: string };
+      holder[CORE_RAYON_WORKER_URL] = new URL(__CURVY_CORE_RAYON_WORKER_URL__, import.meta.url).href;
       await bindings.initThreadPool(threadCount);
+      delete holder[CORE_RAYON_WORKER_URL];
       wasm = bindings;
       runtimeStatus = { mode: "multi-threaded", threadCount };
       return;

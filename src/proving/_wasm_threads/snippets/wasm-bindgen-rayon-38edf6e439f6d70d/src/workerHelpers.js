@@ -95,7 +95,10 @@ export async function startWorkers(module, memory, builder) {
       //
       // The only way to work around that is to have side effect code
       // in an entry point such as Worker file itself.
-      const worker = new Worker(import.meta.url, {
+      // The SDK supplies a self-contained worker entry. Using import.meta.url
+      // here would make a downstream bundler reload one of its shared chunks.
+      const workerUrl = globalThis[Symbol.for('curvy.rustCoreRayonWorkerUrl')] ?? import.meta.url;
+      const worker = new Worker(workerUrl, {
         type: 'module'
       });
       worker.postMessage(workerInit);

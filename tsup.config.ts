@@ -57,6 +57,7 @@ const assetDefines = (rel: string): Record<string, string> => ({
   __CURVY_ASSETS_REL__: JSON.stringify(rel),
   __CURVY_CORE_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_bg.wasm`),
   __CURVY_CORE_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_threads_bg.wasm`),
+  __CURVY_CORE_RAYON_WORKER_URL__: JSON.stringify("./proving/rustCoreRayonWorker.js"),
   __CURVY_PROVER_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_prover_bg.wasm`),
   __CURVY_PROVER_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_prover_threads_bg.wasm`),
   __CURVY_PROVER_WORKER_URL__: JSON.stringify("./proving/rustProverWorker.js"),
@@ -123,6 +124,22 @@ export default defineConfig(() => {
     },
   };
 
+  // Rayon workers must not inherit imports from the consumer's app entry. The
+  // generated helper receives this self-contained asset URL from rustCore.ts.
+  const esmCoreRayonWorker: Options = {
+    ...shared,
+    entry: { rustCoreRayonWorker: "src/proving/rustCoreRayon.worker.ts" },
+    format: ["esm"],
+    outDir: "dist/_esm/proving",
+    splitting: false,
+    minify: isProd,
+    dts: false,
+    clean: false,
+    esbuildOptions: (options) => {
+      options.define = { ...options.define, ...assetDefines("../../assets") };
+    },
+  };
+
   // Pass 2: ESM type declarations (.d.ts) for the "import" condition. Every
   // internal workspace consumer is ESM and typechecks against these via tsc, so
   // they ship in every build.
@@ -142,12 +159,12 @@ export default defineConfig(() => {
   // `pnpm run build:publish`) adds them back. CURVY_SDK_PASS lets package
   // scripts run JS and DTS separately so declaration bundling gets its own heap.
   if (!process.env.CURVY_SDK_PUBLISH) {
-    return selectPasses([esm, esmWorker], [esmDts]);
+    return selectPasses([esm, esmWorker, esmCoreRayonWorker], [esmDts]);
   }
 
   const publishFormat = process.env.CURVY_SDK_FORMAT;
   if (publishFormat === "esm") {
-    return selectPasses([esm, esmWorker], [esmDts]);
+    return selectPasses([esm, esmWorker, esmCoreRayonWorker], [esmDts]);
   }
 
   // Pass 3: CJS — esbuild can't code-split CJS, so each entry is self-contained.
@@ -180,7 +197,7 @@ export default defineConfig(() => {
     return selectPasses([cjs], [cjsDts]);
   }
   if (buildPass === "js") {
-    return [esm, esmWorker, cjs];
+    return [esm, esmWorker, esmCoreRayonWorker, cjs];
   }
   if (buildPass === "dts") {
     return [esmDts, cjsDts];
