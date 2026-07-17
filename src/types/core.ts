@@ -57,6 +57,8 @@ type CoreViewerScanReturnType = {
 };
 
 type CircuitConfig = {
+  /** @deprecated Legacy service only; the current SDK requires the Rust witness graph. */
+  wasmPath?: string;
   /** Curvy's versioned Rust witness evaluator format. */
   witnessEngine?: "curvy-graph-v1";
   witnessGraphPath?: string;
