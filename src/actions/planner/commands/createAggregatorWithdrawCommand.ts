@@ -1,13 +1,19 @@
 import { getQuote } from "@lifi/sdk";
 import { buildWithdrawRequest } from "@/actions/aggregator/buildWithdrawRequest";
+import { isDefinitiveRelayRejection } from "@/actions/aggregator/isDefinitiveRelayRejection";
 import { relaySubmission } from "@/actions/aggregator/relaySubmission";
 import { waitForRelay } from "@/actions/aggregator/waitForRelay";
 import { getSpendWitnesses } from "@/actions/notes/getSpendWitnesses";
+import { syncNotes } from "@/actions/notes/syncNotes";
+import { recordTransferAttempt } from "@/actions/planner/recordTransferAttempt";
+import { recordTransferIntent } from "@/actions/planner/recordTransferIntent";
+import { updateTransferIntentStatus } from "@/actions/planner/updateTransferIntentStatus";
 import { getProtocol } from "@/config/protocol";
 import { vaultV2Abi } from "@/contracts/evm/abi";
 import type { CommandData, Intent } from "@/planner/types";
 import type { EvmRpc } from "@/rpc/evm";
 import { type HexString, isHexString } from "@/types";
+import type { InputFinalityPolicy, TransferAttempt } from "@/types/storage";
 import { invariant } from "@/utils/invariant";
 import { LIFI_BRIDGES_EVM } from "../constants";
 import { normalizeCommandNotes } from "./normalizeCommandNotes";
@@ -27,6 +33,14 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
 
   // --- AbstractAggregatorCommand: validate + normalize input to an array. ---
   const { input, inputNotes, grossAmount } = normalizeCommandNotes(ctx.input);
+
+  const finalityPolicy = async (): Promise<InputFinalityPolicy> => {
+    if (intent.inputFinalityPolicy) return intent.inputFinalityPolicy;
+    const accountId = config.state.activeAccountId;
+    if (!accountId) return "included";
+    const preference = await config.storage.getFinalityPreference(accountId, networkSlug);
+    return preference.requireFinalizedFunds ? "finalized" : "included";
+  };
 
   let estimate = ctx.estimate;
 
@@ -154,25 +168,127 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
 
   const execute = async (): Promise<CommandData> => {
     const tokenId = BigInt(input[0].vaultTokenId);
-
-    // Inclusion proofs for the (committed, synced) input notes — all at one root.
-    const supplied = await getSpendWitnesses({ config, networkSlug, noteIds: inputNotes.map((n) => n.id) });
-
-    const built = await buildWithdrawRequest({
-      config,
+    const accountId = config.state.activeAccountId;
+    invariant(accountId, "No active account to execute withdrawal.");
+    const policy = await finalityPolicy();
+    if (policy === "finalized" && input.some((entry) => entry.finality === "hot")) {
+      throw new Error("withdrawal requires finalized inputs but the plan selected a hot note");
+    }
+    await syncNotes({ config, networkSlug, accountId });
+    const spendable = await config.storage.getProjectedBalances(accountId, networkSlug, policy);
+    if (input.some((entry) => !spendable.some((candidate) => candidate.id === entry.id))) {
+      throw new Error("withdrawal inputs changed finality or canonical status after estimation");
+    }
+    await recordTransferIntent({
+      storage: config.storage,
+      accountId,
+      intentId: ctx.id,
       networkSlug,
-      notes: inputNotes,
-      ownerBjjPrivateKeyHex,
-      destinationAddress: BigInt(getRecipient()),
-      tokenId,
-      supplied,
+      action: "withdrawal",
+      token: tokenId.toString(),
+      amount: netAmount().toString(),
+      recipients: [getRecipient()],
+      input,
+      outputCommitments: [],
+      finalityPolicy: policy,
     });
 
-    const queued = await relaySubmission({ config, request: built });
-    const finalized = await waitForRelay({ config, requestId: queued.requestId });
-    if (finalized.status !== "finalized") {
-      throw new Error(`withdrawal relay did not finalize (status: ${finalized.status})`);
+    let attempt: TransferAttempt | undefined;
+    let built: Awaited<ReturnType<typeof buildWithdrawRequest>>;
+    try {
+      // Inclusion proofs for the input notes must all reference one canonical root.
+      const supplied = await getSpendWitnesses({ config, networkSlug, noteIds: inputNotes.map((n) => n.id) });
+      attempt = await recordTransferAttempt({
+        storage: config.storage,
+        accountId,
+        intentId: ctx.id,
+        networkSlug,
+        environment: config.state.environment,
+        referencedRoot: supplied.notesRoot,
+      });
+
+      built = await buildWithdrawRequest({
+        config,
+        networkSlug,
+        notes: inputNotes,
+        ownerBjjPrivateKeyHex,
+        destinationAddress: BigInt(getRecipient()),
+        tokenId,
+        supplied,
+      });
+    } catch (error) {
+      // No request was broadcast, so this intent can safely release its local input locks.
+      if (attempt) {
+        await config.storage.putTransferAttempt({
+          ...attempt,
+          status: "failed",
+          errorCode: error instanceof Error ? error.message : "proof_preparation_failed",
+        });
+      }
+      await updateTransferIntentStatus({
+        storage: config.storage,
+        accountId,
+        intentId: ctx.id,
+        status: "failed",
+        activeAttemptGeneration: attempt?.generation,
+      });
+      throw error;
     }
+
+    let queued: Awaited<ReturnType<typeof relaySubmission>>;
+    try {
+      queued = await relaySubmission({ config, request: built, intentId: ctx.id });
+    } catch (error) {
+      const rejected = isDefinitiveRelayRejection(error);
+      await config.storage.putTransferAttempt({
+        ...attempt,
+        submittedAt: Date.now(),
+        status: rejected ? "failed" : "submitted",
+        errorCode: rejected ? "relay_rejected" : "relay_outcome_unknown",
+      });
+      await updateTransferIntentStatus({
+        storage: config.storage,
+        accountId,
+        intentId: ctx.id,
+        status: rejected ? "failed" : "submitted",
+        activeAttemptGeneration: attempt.generation,
+      });
+      throw error;
+    }
+    await config.storage.putTransferAttempt({
+      ...attempt,
+      relayRequestId: queued.requestId,
+      relayTxHash: queued.transactionHash,
+      submittedAt: Date.now(),
+      status: "submitted",
+    });
+    await updateTransferIntentStatus({
+      storage: config.storage,
+      accountId,
+      intentId: ctx.id,
+      status: "submitted",
+      activeAttemptGeneration: attempt.generation,
+    });
+    const included = await waitForRelay({ config, requestId: queued.requestId, waitFor: "included" });
+    if (included.status !== "included" && included.status !== "finalized") {
+      throw new Error(`withdrawal relay was not canonically included (status: ${included.status})`);
+    }
+    await config.storage.putTransferAttempt({
+      ...attempt,
+      relayRequestId: queued.requestId,
+      relayTxHash: included.canonicalTransactionHash ?? included.transactionHash,
+      submittedAt: Date.now(),
+      inclusionBlockNumber: included.blockNumber ? Number(included.blockNumber) : undefined,
+      inclusionBlockHash: included.blockHash,
+      includedAt: included.includedAt ? Date.parse(included.includedAt) : Date.now(),
+      status: included.status === "finalized" ? "finalized" : "included",
+    });
+    await updateTransferIntentStatus({
+      storage: config.storage,
+      accountId,
+      intentId: ctx.id,
+      status: included.status === "finalized" ? "finalized" : "input_spend_included",
+    });
 
     return getResultingBalanceEntry();
   };

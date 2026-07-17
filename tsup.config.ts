@@ -29,6 +29,7 @@ const codeEntries: Record<string, string> = {
   "gas/index": "src/gas/index.ts",
   "note/index": "src/note/index.ts",
   "proving/index": "src/proving/index.ts",
+  "rust-core": "src/proving/rustCore.ts",
   "solana/index": "src/solana/index.ts",
   "rpc/index": "src/rpc/index.ts",
   "core/index": "src/core/index.ts",
@@ -42,15 +43,9 @@ const codeEntries: Record<string, string> = {
   "storage/idb/index": "src/storage/idb/index.ts",
   errors: "src/errors.ts",
   "types/index": "src/types/index.ts",
-  // Side-effect module that installs `globalThis.Go`. Emitted as its own file so
-  // the package.json `sideEffects` carve-out can match it by name and stop
-  // consumers' tree-shakers from dropping the Go runtime install.
-  "core/wasm-exec": "src/core/wasm-exec.js",
 };
 
-// Types: same entries minus the export-less wasm-exec shim (no meaningful .d.ts).
 const typeEntries: Record<string, string> = { ...codeEntries };
-delete typeEntries["core/wasm-exec"];
 
 // Per-format asset path literals injected via esbuild `define`. `rel` is the
 // path from the emitted module to dist/assets: "../assets" from the ESM chunk at
@@ -60,20 +55,24 @@ delete typeEntries["core/wasm-exec"];
 // downstream bundlers (Vite/webpack/Rollup), which need that to emit the assets.
 const assetDefines = (rel: string): Record<string, string> => ({
   __CURVY_ASSETS_REL__: JSON.stringify(rel),
-  __CURVY_CORE_WASM_URL__: JSON.stringify(`${rel}/core/curvy-core-v1.0.2.wasm`),
+  __CURVY_CORE_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_bg.wasm`),
+  __CURVY_CORE_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_threads_bg.wasm`),
+  __CURVY_PROVER_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_prover_bg.wasm`),
+  __CURVY_PROVER_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_prover_threads_bg.wasm`),
+  __CURVY_PROVER_WORKER_URL__: JSON.stringify("./proving/rustProverWorker.js"),
 });
 
 export default defineConfig(() => {
   const isProd = process.env.NODE_ENV === "production";
   const buildPass = process.env.CURVY_SDK_PASS;
-  const selectPasses = (js: Options, dts: Options): Options[] => {
+  const selectPasses = (js: Options[], dts: Options[]): Options[] => {
     if (buildPass === "js") {
-      return [js];
+      return js;
     }
     if (buildPass === "dts") {
-      return [dts];
+      return dts;
     }
-    return [js, dts];
+    return [...js, ...dts];
   };
 
   const shared: Options = {
@@ -81,17 +80,9 @@ export default defineConfig(() => {
     platform: "neutral",
     treeshake: "recommended",
     sourcemap: true,
-    // Bundle the BabyJubjub/EdDSA crypto into the dist instead of externalizing
-    // it. @zk-kit/eddsa-poseidon (ESM) imports blakejs (CJS) via named exports
-    // that node's ESM loader can't resolve at runtime ("Named export
-    // 'blake2bFinal' not found"); bundling lets esbuild resolve the interop at
-    // build time, so consumers (devenv vitest, app bundlers, external npm users)
-    // get a self-contained module with no special config.
     // @cloudflare/privacypass-ts + blindrsa-ts are ESM-only — bundle them (and
     // their small codec deps) so the CJS pass doesn't emit require() of ESM.
     noExternal: [
-      "@zk-kit/eddsa-poseidon",
-      "@zk-kit/baby-jubjub",
       /^@cloudflare\/(privacypass-ts|blindrsa-ts|voprf-ts)/,
       "asn1-parser",
       "quicvarint",
@@ -115,6 +106,23 @@ export default defineConfig(() => {
     },
   };
 
+  // The consumer creates this file with `new Worker(new URL(...))`. Bundle it
+  // without shared chunks so Vite/webpack may copy or inline it without leaving
+  // relative SDK imports that cannot resolve from a blob/data worker URL.
+  const esmWorker: Options = {
+    ...shared,
+    entry: { rustProverWorker: "src/proving/rustProver.worker.ts" },
+    format: ["esm"],
+    outDir: "dist/_esm/proving",
+    splitting: false,
+    minify: isProd,
+    dts: false,
+    clean: false,
+    esbuildOptions: (options) => {
+      options.define = { ...options.define, ...assetDefines("../../assets") };
+    },
+  };
+
   // Pass 2: ESM type declarations (.d.ts) for the "import" condition. Every
   // internal workspace consumer is ESM and typechecks against these via tsc, so
   // they ship in every build.
@@ -134,12 +142,12 @@ export default defineConfig(() => {
   // `pnpm run build:publish`) adds them back. CURVY_SDK_PASS lets package
   // scripts run JS and DTS separately so declaration bundling gets its own heap.
   if (!process.env.CURVY_SDK_PUBLISH) {
-    return selectPasses(esm, esmDts);
+    return selectPasses([esm, esmWorker], [esmDts]);
   }
 
   const publishFormat = process.env.CURVY_SDK_FORMAT;
   if (publishFormat === "esm") {
-    return selectPasses(esm, esmDts);
+    return selectPasses([esm, esmWorker], [esmDts]);
   }
 
   // Pass 3: CJS — esbuild can't code-split CJS, so each entry is self-contained.
@@ -169,14 +177,14 @@ export default defineConfig(() => {
   };
 
   if (publishFormat === "cjs") {
-    return selectPasses(cjs, cjsDts);
+    return selectPasses([cjs], [cjsDts]);
   }
   if (buildPass === "js") {
-    return [esm, cjs];
+    return [esm, esmWorker, cjs];
   }
   if (buildPass === "dts") {
     return [esmDts, cjsDts];
   }
 
-  return [esm, cjs, esmDts, cjsDts];
+  return [esm, esmWorker, cjs, esmDts, cjsDts];
 });

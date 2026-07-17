@@ -1,7 +1,7 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { NoActiveAccountError } from "@/errors";
-import type { BalanceEntry } from "@/types/storage";
+import type { BalanceEntry, InputFinalityPolicy } from "@/types/storage";
 import { refreshBalances } from "./refreshBalances";
 
 export type GetBalancesParameters = WithConfig<{
@@ -9,6 +9,8 @@ export type GetBalancesParameters = WithConfig<{
   cached?: boolean;
   /** Target a specific account; defaults to the active account. */
   accountId?: string;
+  /** Override account preference for this read. */
+  inputFinalityPolicy?: InputFinalityPolicy;
 }>;
 
 /**
@@ -30,5 +32,16 @@ export async function getBalances(parameters: GetBalancesParameters = {}): Promi
     await refreshBalances({ accountId, config });
   }
 
-  return config.storage.getBalances(accountId, config.state.environment);
+  const durable = await config.storage.getBalances(accountId, config.state.environment);
+  const slugs = new Set([
+    ...durable.map((entry) => entry.networkSlug),
+    ...config.state.activeNetworks.map((n) => n.slug),
+  ]);
+  const projected: BalanceEntry[] = [];
+  for (const networkSlug of slugs) {
+    const preference = await config.storage.getFinalityPreference(accountId, networkSlug);
+    const policy = parameters.inputFinalityPolicy ?? (preference.requireFinalizedFunds ? "finalized" : "included");
+    projected.push(...(await config.storage.getProjectedBalances(accountId, networkSlug, policy)));
+  }
+  return projected;
 }

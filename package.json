@@ -24,10 +24,7 @@
   ],
   "packageManager": "pnpm@11.4.0",
   "type": "module",
-  "//sideEffects": "core/wasm-exec.js installs the Go WASM runtime (globalThis.Go). Core.#initWasm loads it via a DYNAMIC import so it survives consumer tree-shaking regardless of chunk naming; this carve-out is belt-and-suspenders for bundlers that still honor it. Everything else is side-effect-free.",
-  "sideEffects": [
-    "**/wasm-exec.js"
-  ],
+  "sideEffects": false,
   "main": "./dist/_cjs/index.cjs",
   "module": "./dist/_esm/index.js",
   "types": "./dist/_types/index.d.ts",
@@ -272,6 +269,16 @@
         "default": "./dist/_cjs/proving/index.cjs"
       }
     },
+    "./rust-core": {
+      "import": {
+        "types": "./dist/_types/rust-core.d.ts",
+        "default": "./dist/_esm/rust-core.js"
+      },
+      "require": {
+        "types": "./dist/_types/rust-core.d.cts",
+        "default": "./dist/_cjs/rust-core.cjs"
+      }
+    },
     "./solana": {
       "import": {
         "types": "./dist/_types/solana/index.d.ts",
@@ -396,9 +403,14 @@
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/lodash.merge": "^4.6.9",
     "@types/snarkjs": "^0.7.9",
+    "@zk-kit/baby-jubjub": "^1.0.3",
+    "@zk-kit/eddsa-poseidon": "^1.1.0",
+    "@zk-kit/imt": "2.0.0-beta.8",
     "fake-indexeddb": "^6.0.0",
+    "poseidon-lite": "^0.2.1",
     "publint": "^0.3.21",
     "rimraf": "^6.0.1",
+    "snarkjs": "^0.7.5",
     "tsup": "8.5.0",
     "typescript": "^5.9.3",
     "vitest": "3.1.4"
@@ -411,9 +423,6 @@
     "@solana-program/system": "^0.12.0",
     "@solana-program/token": "^0.13.0",
     "@solana/kit": "^6.8.0",
-    "@zk-kit/baby-jubjub": "^1.0.3",
-    "@zk-kit/eddsa-poseidon": "^1.1.0",
-    "@zk-kit/imt": "2.0.0-beta.8",
     "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "dayjs": "^1.11.13",
@@ -422,8 +431,6 @@
     "emittery": "^1.2.0",
     "ethers": "^6.14.4",
     "lodash.merge": "^4.6.2",
-    "poseidon-lite": "^0.2.1",
-    "snarkjs": "^0.7.5",
     "uuid": "^13.0.0",
     "viem": "^2.50.4"
   },

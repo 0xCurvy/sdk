@@ -75,4 +75,17 @@ describe("MerkleTree", () => {
   it("fromLeaves rejects duplicate leaves", () => {
     expect(() => MerkleTree.fromLeaves({ depth: 8 }, [1n, 2n, 1n])).toThrow(/already exists/);
   });
+
+  it("fromOrderedLeaves accepts duplicates and proves each position", () => {
+    const tree = MerkleTree.fromOrderedLeaves({ depth: 4 }, [7n, 7n, 9n]);
+    const first = tree.createInclusionProofAtIndex(0);
+    const second = tree.createInclusionProofAtIndex(1);
+
+    expect(first.index).toBe(0);
+    expect(second.index).toBe(1);
+    expect(first.leaf).toBe(7n);
+    expect(second.leaf).toBe(7n);
+    expect(tree.verifyProof(first)).toBe(true);
+    expect(tree.verifyProof(second)).toBe(true);
+  });
 });

@@ -6,9 +6,12 @@ import type {
   GetCurvyIdByOwnerAddressReturnType,
   GetNetworksReturnType,
   GetPortalRecordsReturnType,
+  GetSyncHotBlocksReturnType,
+  GetSyncHotMetaReturnType,
   GetSyncMetaReturnType,
   GetSyncNotesReturnType,
   GetSyncNullifiersReturnType,
+  GetSyncPendingReturnType,
   GetSyncShardRootsReturnType,
   InsertEntryPortalRequestBody,
   InsertExitPortalRequestBody,
@@ -74,15 +77,32 @@ interface IApiClient {
   };
 
   /**
-   * The v3 indexer sync streams (append-only, cursor = local count). The
-   * indexer is availability-only — everything fetched here is verified
-   * client-side against a direct chain root read.
+   * Finalized, checkpoint-pinned indexer streams. The indexer is availability
+   * infrastructure; the checkpoint is verified against direct chain RPC.
    */
   sync: {
     GetMeta(chainId: number): Promise<GetSyncMetaReturnType>;
-    GetNotes(chainId: number, fromIndex: number, limit?: number): Promise<GetSyncNotesReturnType>;
-    GetNullifiers(chainId: number, fromIndex: number, limit?: number): Promise<GetSyncNullifiersReturnType>;
-    GetShardRoots(chainId: number, fromIndex: number, limit?: number): Promise<GetSyncShardRootsReturnType>;
+    GetNotes(chainId: number, fromIndex: number, limit?: number, at?: string): Promise<GetSyncNotesReturnType>;
+    GetNullifiers(
+      chainId: number,
+      fromIndex: number,
+      limit?: number,
+      at?: string,
+    ): Promise<GetSyncNullifiersReturnType>;
+    GetPending(chainId: number, fromIndex: number, limit?: number, at?: string): Promise<GetSyncPendingReturnType>;
+    GetShardRoots(
+      chainId: number,
+      fromIndex: number,
+      limit?: number,
+      at?: string,
+    ): Promise<GetSyncShardRootsReturnType>;
+    GetHotMeta(chainId: number, baseCheckpoint: string): Promise<GetSyncHotMetaReturnType>;
+    GetHotBlocks(
+      chainId: number,
+      snapshot: string,
+      fromBlock?: number,
+      limit?: number,
+    ): Promise<GetSyncHotBlocksReturnType>;
   };
 
   /**
@@ -93,6 +113,7 @@ interface IApiClient {
   relay: {
     SubmitProof(body: RelaySubmitRequestBody, privateTokenHeader?: string): Promise<RelaySubmitReturnType>;
     GetSubmissionStatus(requestId: string): Promise<RelaySubmitReturnType>;
+    GetSubmissionByIntent(intentId: string, networkId: number): Promise<RelaySubmitReturnType>;
     GetPaymasterInfo(chainId?: number | string): Promise<PaymasterInfo>;
   };
 }

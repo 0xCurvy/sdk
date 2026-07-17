@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { SerializedCurvyAccount } from "@/types";
-import type { BalanceEntry, CurrencyMetadata, TxHistoryEntry } from "@/types/storage";
+import type { BalanceEntry, CurrencyMetadata, HotOverlayReplacement, TxHistoryEntry } from "@/types/storage";
 import { IndexedDBStorage } from "./idb-storage";
 
 const account = {
@@ -41,6 +41,54 @@ const meta: CurrencyMetadata = {
   environment: "testnet",
 };
 
+function hotReplacement(): HotOverlayReplacement {
+  return {
+    state: {
+      networkSlug: "ethereum",
+      environment: "testnet",
+      generation: 1,
+      baseCheckpoint: "checkpoint-10",
+      baseBlockNumber: 10,
+      baseBlockHash: "0xbase",
+      snapshot: "snapshot-11",
+      hotBlockNumber: 11,
+      hotBlockHash: "0xhot",
+      noteCount: 1,
+      notesRoot: "1",
+      nullifierCount: 0,
+      finalityMode: "finalized",
+      finalityStatus: "normal",
+      observedFinalityLagSeconds: 12,
+      estimatedSecondsToFinality: null,
+      updatedAt: 1,
+    },
+    blocks: [
+      {
+        networkSlug: "ethereum",
+        number: 11,
+        hash: "0xhot",
+        parentHash: "0xbase",
+        timestamp: 1,
+        announcements: [],
+        committedNotes: [],
+        nullifiers: [],
+        postBlockNoteCount: 1,
+        postBlockNotesRoot: "1",
+        postBlockNullifierCount: 0,
+      },
+    ],
+    noteStates: [
+      {
+        accountId: "acc-1",
+        networkSlug: "ethereum",
+        noteId: "1",
+        status: "hot_available",
+        origin: "external",
+      },
+    ],
+  };
+}
+
 let dbCounter = 0;
 let storage: IndexedDBStorage;
 
@@ -49,6 +97,51 @@ describe("IndexedDBStorage (Dexie schema + queries)", () => {
     // Fresh database per test so fake-indexeddb state does not leak.
     dbCounter += 1;
     storage = new IndexedDBStorage(`curvy-test-${dbCounter}`);
+  });
+
+  it("uses one clean schema version and one public hot-overlay store", async () => {
+    await storage.db.open();
+    expect(storage.db.verno).toBe(1);
+    expect(storage.db.tables.map((table) => table.name).sort()).toEqual(
+      [
+        "accounts",
+        "balances",
+        "committedLog",
+        "currencyMetadata",
+        "finalityPreferences",
+        "hotNoteStates",
+        "hotOverlays",
+        "intentDependencies",
+        "liveShards",
+        "noteWitnesses",
+        "notesCheckpoints",
+        "prices",
+        "shardRoots",
+        "tokenPouches",
+        "totalBalances",
+        "transferAttempts",
+        "transferIntents",
+        "transferSettlements",
+        "txHistory",
+      ].sort(),
+    );
+  });
+
+  it("atomically stores hot head metadata and its ordered block journal together", async () => {
+    const replacement = hotReplacement();
+    await storage.replaceHotOverlay(replacement);
+
+    expect(await storage.getHotSyncState("ethereum")).toEqual(replacement.state);
+    expect(await storage.getHotBlocks("ethereum")).toEqual(replacement.blocks);
+    expect(await storage.getHotNoteStates("acc-1", "ethereum")).toEqual(replacement.noteStates);
+
+    const persisted = await storage.db.hotOverlays.get("ethereum");
+    expect(persisted?.blocks[0]).not.toHaveProperty("networkSlug");
+
+    await storage.clearHotOverlay("ethereum");
+    expect(await storage.getHotSyncState("ethereum")).toBeNull();
+    expect(await storage.getHotBlocks("ethereum")).toEqual([]);
+    expect(await storage.getHotNoteStates("acc-1", "ethereum")).toEqual([]);
   });
 
   it("persists an account with scan cursors and round-trips it", async () => {

@@ -8,6 +8,7 @@ import type { PrivacyPassInternalState } from "@/privacy-pass/tokens";
 import type { MerkleTree } from "@/proving";
 import type { CircuitKeyCache } from "@/proving/circuitKeyCache";
 import type { Prover } from "@/proving/prover";
+import type { RustCoreThreads } from "@/proving/rustCore";
 import type { MultiRpc } from "@/rpc/multi";
 import type { SessionKeystore } from "@/session-keystore";
 import type { CurvyAccountData } from "@/types/account";
@@ -69,6 +70,8 @@ export type CurvyConfigInternal = {
    * path until the v3 client-proving API migration.
    */
   notesTrees: Map<string, NotesTreeView>;
+  /** Durable-base trees retained separately from the disposable effective view. */
+  finalizedNotesTrees: Map<string, NotesTreeView>;
 
   /** Privacy Pass client state (challenge cache + single-flight refills); lazily initialized. */
   privacyPass?: PrivacyPassInternalState;
@@ -111,14 +114,14 @@ export type CurvyConfig = {
 
   /**
    * Which engine `syncNotes`/`getSpendWitnesses` use for a network's notes
-   * tree: "global" (default, full in-memory IMT) or "sharded" (lean client).
+   * tree: "sharded" (default, bounded live shard + witnesses) or "global" (legacy full IMT).
    * A consumer-level choice, fixed for the config's lifetime.
    */
   readonly notesSyncEngine: NotesSyncEngine;
 
   /**
    * The Groth16 prover used by the client-proving actions (`proveWithdrawal`,
-   * `proveAggregation`). Defaults to snarkjs (`snarkjsProver`); inject a native
+   * `proveAggregation`). Defaults to the Rust/arkworks backend; inject a native
    * implementation (rapidsnark, a React Native native module) to offload the
    * heavy prove off the JS thread. See {@link Prover}.
    */
@@ -188,9 +191,11 @@ export type CreateCurvyConfigParameters = {
   customFetch?: typeof globalThis.fetch;
   /** Injectable timer scheduler (default wraps setInterval); swap for `chrome.alarms` under MV3. */
   timerProvider?: TimerProvider;
-  /** Notes-sync engine for `syncNotes`/`getSpendWitnesses`. Defaults to "global". */
+  /** Notes-sync engine for `syncNotes`/`getSpendWitnesses`. Defaults to "sharded". */
   notesSyncEngine?: NotesSyncEngine;
-  /** Groth16 prover for the client-proving actions. Defaults to snarkjs (`snarkjsProver`). */
+  /** Opt into the Rayon browser build. `auto` uses it only when the page is cross-origin isolated. */
+  rustCoreThreads?: RustCoreThreads;
+  /** Groth16 prover for the client-proving actions. Defaults to Rust/arkworks. */
   prover?: Prover;
   /** CDN/host base URL that `s3://` circuit-key paths are rewritten against (see `CurvyConfig.circuitKeysBaseUrl`). */
   circuitKeysBaseUrl?: string;

@@ -12,7 +12,7 @@ export type CreateBrowserCurvyConfigParameters = CreateCurvyConfigParameters;
 export async function createBrowserCurvyConfig(
   parameters: CreateBrowserCurvyConfigParameters = {},
 ): Promise<CurvyConfig> {
-  const { storage, enableKeystore = true, notesSyncEngine = "global", ...rest } = parameters;
+  const { storage, enableKeystore = true, notesSyncEngine = "sharded", ...rest } = parameters;
   let resolvedStorage = storage;
   if (!resolvedStorage) {
     const { IndexedDBStorage } = await import("../storage/idb");

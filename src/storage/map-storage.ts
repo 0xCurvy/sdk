@@ -4,10 +4,19 @@ import type {
   BalanceEntry,
   CommittedLogKind,
   CurrencyMetadata,
+  FinalityPreference,
+  HotBlockRecord,
+  HotNoteState,
+  HotOverlayReplacement,
+  HotSyncState,
+  IntentDependency,
   LiveShardRecord,
   NotesCheckpoint,
   SerializedNoteWitness,
   TotalBalance,
+  TransferAttempt,
+  TransferHistoryRecord,
+  TransferSettlement,
   TxHistoryEntry,
 } from "@/types/storage";
 import { BaseStorage } from "./base-storage";
@@ -33,6 +42,13 @@ export class MapStorage extends BaseStorage {
   readonly #liveShards = new Map<string, LiveShardRecord>();
   readonly #txHistory = new Map<string, TxHistoryEntry>();
   readonly #tokenPouches = new Map<string, string[]>();
+  readonly #hotOverlays = new Map<string, { state: HotSyncState; blocks: HotBlockRecord[] }>();
+  readonly #hotNoteStates = new Map<string, HotNoteState>();
+  readonly #transferIntents = new Map<string, TransferHistoryRecord>();
+  readonly #transferAttempts = new Map<string, TransferAttempt>();
+  readonly #transferSettlements = new Map<string, TransferSettlement>();
+  readonly #intentDependencies = new Map<string, IntentDependency>();
+  readonly #finalityPreferences = new Map<string, FinalityPreference>();
 
   // ── Key helpers ──
   #balanceKey(e: { accountId: string; id: string; currencyAddress: string; networkSlug: string }): string {
@@ -55,6 +71,9 @@ export class MapStorage extends BaseStorage {
   }
   #txHistoryKey(accountId: string, id: string): string {
     return `${accountId}-${id}`;
+  }
+  #accountNetworkKey(accountId: string, networkSlug: string, suffix = ""): string {
+    return `${accountId}\u0000${networkSlug}\u0000${suffix}`;
   }
 
   // ── Accounts ──
@@ -198,6 +217,89 @@ export class MapStorage extends BaseStorage {
     return Array.from(this.#txHistory.values()).filter((e) => e.accountId === accountId);
   }
 
+  // ── Reversible hot projection + workflow history ──
+  protected async _replaceHotOverlay(replacement: HotOverlayReplacement) {
+    await this._clearHotOverlay(replacement.state.networkSlug);
+    this.#hotOverlays.set(replacement.state.networkSlug, {
+      state: replacement.state,
+      blocks: [...replacement.blocks],
+    });
+    for (const note of replacement.noteStates ?? []) {
+      this.#hotNoteStates.set(this.#accountNetworkKey(note.accountId, note.networkSlug, note.noteId), note);
+    }
+    for (const entry of replacement.history ?? []) {
+      this.#txHistory.set(this.#txHistoryKey(entry.accountId, entry.id), entry);
+    }
+  }
+  protected async _clearHotOverlay(networkSlug: string, _accountId?: string) {
+    this.#hotOverlays.delete(networkSlug);
+    for (const [key, note] of this.#hotNoteStates) {
+      if (note.networkSlug === networkSlug) this.#hotNoteStates.delete(key);
+    }
+    // One global hot head invalidates every account projection built on it.
+    for (const [key, entry] of this.#txHistory) {
+      if (entry.networkSlug === networkSlug && entry.finality === "hot") {
+        this.#txHistory.delete(key);
+      }
+    }
+  }
+  protected async _getHotSyncState(networkSlug: string) {
+    return this.#hotOverlays.get(networkSlug)?.state;
+  }
+  protected async _getHotBlocks(networkSlug: string) {
+    return [...(this.#hotOverlays.get(networkSlug)?.blocks ?? [])].sort((a, b) => a.number - b.number);
+  }
+  protected async _getHotNoteStates(accountId: string, networkSlug: string) {
+    return Array.from(this.#hotNoteStates.values()).filter(
+      (note) => note.accountId === accountId && note.networkSlug === networkSlug,
+    );
+  }
+  protected async _putTransferIntent(intent: TransferHistoryRecord) {
+    this.#transferIntents.set(this.#accountNetworkKey(intent.accountId, intent.intentId), intent);
+  }
+  protected async _getTransferIntents(accountId: string) {
+    return Array.from(this.#transferIntents.values()).filter((intent) => intent.accountId === accountId);
+  }
+  protected async _putTransferAttempt(attempt: TransferAttempt) {
+    this.#transferAttempts.set(
+      this.#accountNetworkKey(attempt.accountId, attempt.intentId, String(attempt.generation)),
+      attempt,
+    );
+  }
+  protected async _getTransferAttempts(accountId: string, intentId: string) {
+    return Array.from(this.#transferAttempts.values()).filter(
+      (attempt) => attempt.accountId === accountId && attempt.intentId === intentId,
+    );
+  }
+  protected async _putTransferSettlement(settlement: TransferSettlement) {
+    this.#transferSettlements.set(
+      this.#accountNetworkKey(settlement.accountId, settlement.intentId, settlement.outputCommitment),
+      settlement,
+    );
+  }
+  protected async _getTransferSettlements(accountId: string, intentId: string) {
+    return Array.from(this.#transferSettlements.values()).filter(
+      (settlement) => settlement.accountId === accountId && settlement.intentId === intentId,
+    );
+  }
+  protected async _putIntentDependencies(dependencies: IntentDependency[]) {
+    for (const dependency of dependencies) {
+      this.#intentDependencies.set(
+        `${dependency.accountId}\u0000${dependency.fromIntentId}\u0000${dependency.toIntentId}\u0000${dependency.noteId}`,
+        dependency,
+      );
+    }
+  }
+  protected async _getIntentDependencies(accountId: string) {
+    return Array.from(this.#intentDependencies.values()).filter((dependency) => dependency.accountId === accountId);
+  }
+  protected async _putFinalityPreference(preference: FinalityPreference) {
+    this.#finalityPreferences.set(this.#accountNetworkKey(preference.accountId, preference.networkSlug), preference);
+  }
+  protected async _getFinalityPreference(accountId: string, networkSlug: string) {
+    return this.#finalityPreferences.get(this.#accountNetworkKey(accountId, networkSlug));
+  }
+
   // ── Privacy Pass token pouch ──
   protected async _getTokenPouch(scopeKey: string) {
     return this.#tokenPouches.get(scopeKey);
@@ -221,6 +323,13 @@ export class MapStorage extends BaseStorage {
     this.#liveShards.clear();
     this.#txHistory.clear();
     this.#tokenPouches.clear();
+    this.#hotOverlays.clear();
+    this.#hotNoteStates.clear();
+    this.#transferIntents.clear();
+    this.#transferAttempts.clear();
+    this.#transferSettlements.clear();
+    this.#intentDependencies.clear();
+    this.#finalityPreferences.clear();
   }
 
   /** Entry counts per store — a debugging/monitoring aid. */
@@ -238,6 +347,13 @@ export class MapStorage extends BaseStorage {
       liveShards: this.#liveShards.size,
       txHistory: this.#txHistory.size,
       tokenPouches: this.#tokenPouches.size,
+      hotOverlays: this.#hotOverlays.size,
+      hotNoteStates: this.#hotNoteStates.size,
+      transferIntents: this.#transferIntents.size,
+      transferAttempts: this.#transferAttempts.size,
+      transferSettlements: this.#transferSettlements.size,
+      intentDependencies: this.#intentDependencies.size,
+      finalityPreferences: this.#finalityPreferences.size,
     };
   }
 }

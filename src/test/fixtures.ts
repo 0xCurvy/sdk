@@ -8,7 +8,7 @@ import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { StorageInterface } from "@/interfaces/storage";
 import type { NotesTreeView } from "@/note/notesTreeView";
-import { MerkleTree, snarkjsProver } from "@/proving";
+import { type CircuitKeyCache, createRustProver, MerkleTree } from "@/proving";
 import type { Prover } from "@/proving/prover";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
@@ -119,7 +119,10 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
       GetMeta: vi.fn(),
       GetNotes: vi.fn(),
       GetNullifiers: vi.fn(),
+      GetPending: vi.fn(),
       GetShardRoots: vi.fn(),
+      GetHotMeta: vi.fn(),
+      GetHotBlocks: vi.fn(),
       ...overrides.sync,
     },
     privacyPass: {
@@ -137,6 +140,7 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
     relay: {
       SubmitProof: vi.fn(),
       GetSubmissionStatus: vi.fn(),
+      GetSubmissionByIntent: vi.fn(),
       GetPaymasterInfo: vi.fn(),
       ...overrides.relay,
     },
@@ -233,6 +237,7 @@ export type CreateFakeConfigOverrides = {
   api?: IApiClient;
   rpc?: MultiRpc;
   prover?: Prover;
+  circuitKeyCache?: CircuitKeyCache;
   circuitKeysBaseUrl?: string;
 };
 
@@ -276,6 +281,7 @@ export function createFakeConfig(overrides: CreateFakeConfigOverrides = {}): Cur
     rpcCache: new Map<NETWORK_ENVIRONMENT_VALUES, MultiRpc>(),
     notesTree: new MerkleTree({ depth: 30 }),
     notesTrees: new Map<string, NotesTreeView>(),
+    finalizedNotesTrees: new Map<string, NotesTreeView>(),
   };
 
   return {
@@ -293,7 +299,8 @@ export function createFakeConfig(overrides: CreateFakeConfigOverrides = {}): Cur
     setState: store.setState,
     subscribe: store.subscribe,
     notesSyncEngine: "sharded",
-    prover: overrides.prover ?? snarkjsProver,
+    prover: overrides.prover ?? createRustProver({ threads: false }),
+    circuitKeyCache: overrides.circuitKeyCache,
     circuitKeysBaseUrl: overrides.circuitKeysBaseUrl,
     getRpc: () => rpc,
     async destroy() {

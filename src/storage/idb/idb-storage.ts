@@ -6,13 +6,19 @@ import type {
   BalanceEntry,
   CommittedLogKind,
   CurrencyMetadata,
+  FinalityPreference,
+  HotOverlayReplacement,
+  IntentDependency,
   LiveShardRecord,
   NotesCheckpoint,
   SerializedNoteWitness,
   TotalBalance,
+  TransferAttempt,
+  TransferHistoryRecord,
+  TransferSettlement,
   TxHistoryEntry,
 } from "@/types/storage";
-import { CurvyDatabase } from "./database";
+import { CurvyDatabase, type HotOverlayRecord } from "./database";
 
 /**
  * IndexedDB storage adapter backed by Dexie. Persists across reloads — the
@@ -157,6 +163,82 @@ export class IndexedDBStorage extends BaseStorage {
     return this.db.txHistory.where({ accountId }).toArray();
   }
 
+  // ── Reversible hot projection + workflow history ──
+  protected async _replaceHotOverlay(replacement: HotOverlayReplacement) {
+    const tables = [this.db.hotOverlays, this.db.hotNoteStates, this.db.txHistory];
+    await this.db.transaction("rw", tables, async () => {
+      const blocks = replacement.blocks.map(({ networkSlug: _networkSlug, ...block }) => block);
+      const overlay: HotOverlayRecord = { ...replacement.state, blocks };
+      await this.db.hotOverlays.put(overlay);
+      // The hot head is global, so no account may retain the previous projection.
+      const staleNotes = await this.db.hotNoteStates
+        .filter((note) => note.networkSlug === replacement.state.networkSlug)
+        .primaryKeys();
+      if (staleNotes.length > 0) await this.db.hotNoteStates.bulkDelete(staleNotes);
+      const hotHistory = await this.db.txHistory
+        .filter((entry) => entry.networkSlug === replacement.state.networkSlug && entry.finality === "hot")
+        .primaryKeys();
+      if (hotHistory.length > 0) await this.db.txHistory.bulkDelete(hotHistory);
+      if (replacement.noteStates?.length) await this.db.hotNoteStates.bulkPut(replacement.noteStates);
+      if (replacement.history?.length) await this.db.txHistory.bulkPut(replacement.history);
+    });
+  }
+  protected async _clearHotOverlay(networkSlug: string, _accountId?: string) {
+    await this.db.transaction("rw", this.db.hotOverlays, this.db.hotNoteStates, this.db.txHistory, async () => {
+      await this.db.hotOverlays.delete(networkSlug);
+      const staleNotes = await this.db.hotNoteStates.filter((note) => note.networkSlug === networkSlug).primaryKeys();
+      if (staleNotes.length > 0) await this.db.hotNoteStates.bulkDelete(staleNotes);
+      const hotHistory = await this.db.txHistory
+        .filter((entry) => entry.networkSlug === networkSlug && entry.finality === "hot")
+        .primaryKeys();
+      if (hotHistory.length > 0) await this.db.txHistory.bulkDelete(hotHistory);
+    });
+  }
+  protected async _getHotSyncState(networkSlug: string) {
+    const overlay = await this.db.hotOverlays.get(networkSlug);
+    if (!overlay) return undefined;
+    const { blocks: _blocks, ...state } = overlay;
+    return state;
+  }
+  protected async _getHotBlocks(networkSlug: string) {
+    const overlay = await this.db.hotOverlays.get(networkSlug);
+    if (!overlay) return [];
+    return overlay.blocks.map((block) => ({ ...block, networkSlug })).sort((a, b) => a.number - b.number);
+  }
+  protected async _getHotNoteStates(accountId: string, networkSlug: string) {
+    return this.db.hotNoteStates.where("[accountId+networkSlug]").equals([accountId, networkSlug]).toArray();
+  }
+  protected async _putTransferIntent(intent: TransferHistoryRecord) {
+    await this.db.transferIntents.put(intent);
+  }
+  protected async _getTransferIntents(accountId: string) {
+    return this.db.transferIntents.where({ accountId }).toArray();
+  }
+  protected async _putTransferAttempt(attempt: TransferAttempt) {
+    await this.db.transferAttempts.put(attempt);
+  }
+  protected async _getTransferAttempts(accountId: string, intentId: string) {
+    return this.db.transferAttempts.where("[accountId+intentId]").equals([accountId, intentId]).toArray();
+  }
+  protected async _putTransferSettlement(settlement: TransferSettlement) {
+    await this.db.transferSettlements.put(settlement);
+  }
+  protected async _getTransferSettlements(accountId: string, intentId: string) {
+    return this.db.transferSettlements.where("[accountId+intentId]").equals([accountId, intentId]).toArray();
+  }
+  protected async _putIntentDependencies(dependencies: IntentDependency[]) {
+    if (dependencies.length > 0) await this.db.intentDependencies.bulkPut(dependencies);
+  }
+  protected async _getIntentDependencies(accountId: string) {
+    return this.db.intentDependencies.where({ accountId }).toArray();
+  }
+  protected async _putFinalityPreference(preference: FinalityPreference) {
+    await this.db.finalityPreferences.put(preference);
+  }
+  protected async _getFinalityPreference(accountId: string, networkSlug: string) {
+    return this.db.finalityPreferences.get([accountId, networkSlug]);
+  }
+
   // ── Privacy Pass token pouch ──
   protected async _getTokenPouch(scopeKey: string) {
     return (await this.db.tokenPouches.get(scopeKey))?.tokens;
@@ -196,6 +278,13 @@ export class IndexedDBStorage extends BaseStorage {
       this.db.liveShards.clear(),
       this.db.txHistory.clear(),
       this.db.tokenPouches.clear(),
+      this.db.hotOverlays.clear(),
+      this.db.hotNoteStates.clear(),
+      this.db.transferIntents.clear(),
+      this.db.transferAttempts.clear(),
+      this.db.transferSettlements.clear(),
+      this.db.intentDependencies.clear(),
+      this.db.finalityPreferences.clear(),
     ]);
   }
 

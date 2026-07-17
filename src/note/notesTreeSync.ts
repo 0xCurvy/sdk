@@ -35,6 +35,25 @@ export type SyncedLeaf = {
   blockNumber?: number;
   /** The tx that announced the note (submitAggregation / autoShield) — user-action time (tx history). */
   requestTxHash?: string;
+  requestBlockHash?: string;
+  commitBlockNumber?: number;
+  commitBlockHash?: string;
+  commitTxHash?: string;
+};
+
+export type FinalizedSyncCheckpoint = {
+  checkpoint: string;
+  chainId: number;
+  contractAddress: string;
+  treeVersion: number;
+  finalizedBlockNumber: number;
+  finalizedBlockHash: string;
+  notesRoot: string;
+  noteCount: number;
+  nullifierCount: number;
+  shardHeight: number;
+  shardSize: number;
+  shardCount: number;
 };
 
 /** The delta a `LeafSource` returns from the client's cursors to the indexer head. */
@@ -43,6 +62,8 @@ export type SyncDelta = {
   nullifiers: string[];
   /** Chain block the source indexed up to. */
   blockNumber: number;
+  /** Exact finalized source snapshot; absent only for custom/test sources. */
+  checkpoint?: FinalizedSyncCheckpoint;
 };
 
 /** Append-only delta feed — an indexer client, `eth_getLogs`, or a test double. */
@@ -52,7 +73,7 @@ export interface LeafSource {
 
 /** The trust anchor: a DIRECT chain RPC read of the aggregator. Never the indexer. */
 export interface RootVerifier {
-  currentRoot(): Promise<{ root: bigint; noteIndex: number }>;
+  currentRoot(checkpoint?: FinalizedSyncCheckpoint): Promise<{ root: bigint; noteIndex: number }>;
 }
 
 /** The in-memory working set rebuilt from / appended to the chunked logs. */
@@ -129,8 +150,17 @@ export async function reconcileWithChain(
   leafCount: number,
   localRoot: () => bigint,
   mismatchLabel: string,
+  checkpoint?: FinalizedSyncCheckpoint,
 ): Promise<{ caughtUp: boolean; indexerLag: number }> {
-  const { root, noteIndex } = await verifier.currentRoot();
+  const { root, noteIndex } = await verifier.currentRoot(checkpoint);
+  if (checkpoint) {
+    if (noteIndex !== checkpoint.noteCount) {
+      throw new Error(`checkpoint note count ${checkpoint.noteCount} != on-chain note index ${noteIndex}`);
+    }
+    if (root !== BigInt(checkpoint.notesRoot)) {
+      throw new Error(`checkpoint root ${checkpoint.notesRoot} != on-chain root ${root}`);
+    }
+  }
   if (leafCount === noteIndex) {
     const assembled = localRoot();
     if (assembled !== root) {
@@ -190,6 +220,7 @@ export async function syncNotesTree(opts: SyncNotesTreeOptions): Promise<SyncNot
       live.leaves.length,
       () => live.tree.root(),
       "notes-tree sync: rebuilt root",
+      delta.checkpoint,
     ));
   }
 
@@ -213,6 +244,16 @@ export async function syncNotesTree(opts: SyncNotesTreeOptions): Promise<SyncNot
     root: live.tree.root().toString(),
     blockNumber: delta.blockNumber,
     lastSynced: now(),
+    ...(delta.checkpoint
+      ? {
+          checkpoint: delta.checkpoint.checkpoint,
+          finalizedBlockNumber: delta.checkpoint.finalizedBlockNumber,
+          finalizedBlockHash: delta.checkpoint.finalizedBlockHash,
+          contractAddress: delta.checkpoint.contractAddress,
+          treeVersion: delta.checkpoint.treeVersion,
+          shardHeight: delta.checkpoint.shardHeight,
+        }
+      : {}),
   });
 
   return { live, newLeaves, newNullifiers, caughtUp, indexerLag };

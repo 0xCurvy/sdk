@@ -75,7 +75,8 @@ export async function buildAggregateRequest(
   const networkSlug = parameters.networkSlug ?? config.state.activeNetworks[0]?.slug;
   if (!networkSlug) throw new Error("buildAggregateRequest: no active network to target");
 
-  const { wasm, zkey, maxInputs, maxOutputs, treeDepth } = resolveCircuitArtifacts(config, "aggregation", networkSlug);
+  const artifacts = resolveCircuitArtifacts(config, "aggregation", networkSlug);
+  const { maxInputs, maxOutputs, treeDepth } = artifacts;
   // Read the fee config + fee-note key from the contract so the witness matches what the
   // contract enforces on-chain (protocolFee equality, gas-fee root match, fee-note key). The
   // per-token gas-cost table is reconstructed from the vault's latest event (see fetchAggregatorFees).
@@ -155,7 +156,7 @@ export async function buildAggregateRequest(
 
   const { proof, publicSignals } = await loadArtifactsAndProve(
     config,
-    { wasm, zkey },
+    artifacts,
     flattenAggregationCircuitInputs(witness),
   );
   const signals = publicSignals.map(BigInt);

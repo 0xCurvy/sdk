@@ -88,6 +88,10 @@ export async function applySyncResult(params: ApplySyncResultParams): Promise<Ap
       currencyAddress: metadata.address as HexString,
     });
     entry.leafIndex = owned.leafIndex;
+    const leaf = result.newLeaves.find((candidate) => candidate.noteId === owned.noteId);
+    entry.finality = "finalized";
+    entry.commitBlockNumber = leaf?.commitBlockNumber;
+    entry.commitBlockHash = leaf?.commitBlockHash;
     added.push(entry);
   }
 

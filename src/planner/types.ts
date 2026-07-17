@@ -1,6 +1,7 @@
 import type { CurvyId } from "@/types/curvy.js";
 import type { HexString } from "@/types/helper.js";
 import type { BalanceEntry, Currency, CurvyPublicKeys, GenericBalanceEntry, Network } from "@/types/index.js";
+import type { InputFinalityPolicy } from "@/types/storage.js";
 
 export interface CommandEstimate {
   curvyFeeInCurrency: bigint;
@@ -13,6 +14,8 @@ export type BaseIntent = {
   amount: bigint;
   currency: Currency;
   network: Network;
+  /** Per-intent override; account preference/product default applies when omitted. */
+  inputFinalityPolicy?: InputFinalityPolicy;
 };
 
 export type TransferIntent = BaseIntent & {
@@ -139,4 +142,5 @@ export type IntentEstimation = {
   curvyFee: bigint;
   effectiveAmount: bigint;
   bridgeFee?: bigint;
+  inputFinalityPolicy: InputFinalityPolicy;
 };

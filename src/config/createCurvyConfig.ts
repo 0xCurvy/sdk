@@ -4,7 +4,8 @@ import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { Core } from "@/core";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
-import { defaultCircuitKeyCache, MerkleTree, snarkjsProver } from "@/proving";
+import { createRustProver, defaultCircuitKeyCache, MerkleTree } from "@/proving";
+import { initCore as initRustCore } from "@/proving/rustCore";
 import { newMultiRpc } from "@/rpc/factory";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
@@ -47,12 +48,20 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     enableKeystore = false,
     customFetch,
     timerProvider = defaultTimerProvider(),
-    notesSyncEngine = "global",
+    notesSyncEngine = "sharded",
+    rustCoreThreads = false,
     prover,
     circuitKeysBaseUrl,
     circuitKeyCache,
     setAsActive = true,
   } = parameters;
+
+  // Sharded sync and witness construction use synchronous Rust/WASM methods
+  // after startup. Initialize their shared module before any tree is created;
+  // concurrent configs reuse the same promise.
+  const rustCoreSource = wasmModule ? { module: wasmModule } : wasmUrl ? { url: wasmUrl } : undefined;
+  await initRustCore(rustCoreSource, { threads: rustCoreThreads });
+  const activeProver = prover ?? createRustProver({ threads: rustCoreThreads });
 
   const api = new ApiClient(apiBaseUrl, customFetch, {
     metadataBaseUrl,
@@ -82,6 +91,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     rpcCache: new Map(),
     notesTree: new MerkleTree({ depth: 30 }),
     notesTrees: new Map(),
+    finalizedNotesTrees: new Map(),
   };
 
   // The keyring: raw keypairs (ephemeral, in-memory), keyed by account id.
@@ -138,12 +148,10 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     setState: store.setState,
     subscribe: store.subscribe,
     notesSyncEngine,
-    // Default prover: snarkjs (compute-only). Inject a `prover` (rapidsnark, an
-    // RN native module, an MV3 offscreen delegate) to override. Artifacts are
-    // resolved per-network from each network's CircuitConfig, not from the prover.
-    prover: prover ?? snarkjsProver,
+    // Default prover: Curvy's Rust witness evaluator and arkworks Groth16 backend.
+    prover: activeProver,
     circuitKeysBaseUrl,
-    // Cache downloaded wasm/zkey so the large keys are fetched once, not per prove.
+    // Cache downloaded graph/zkey artifacts so they are fetched once, not per prove.
     // `false` disables; otherwise use the caller's cache or the platform default.
     circuitKeyCache: circuitKeyCache === false ? undefined : (circuitKeyCache ?? defaultCircuitKeyCache()),
     getRpc() {
@@ -165,6 +173,7 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
       // them (or keep firing handlers) for the lifetime of the process.
       emitter.clearListeners();
       internal.rpcCache.clear();
+      await activeProver.destroy?.();
     },
     _internal: internal,
   };

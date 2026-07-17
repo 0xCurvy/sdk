@@ -1,21 +1,30 @@
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import { buildAggregateRequest } from "@/actions/aggregator/buildAggregateRequest";
 import { estimateAggregationCosts } from "@/actions/aggregator/internal/estimateAggregationCosts";
+import { isDefinitiveRelayRejection } from "@/actions/aggregator/isDefinitiveRelayRejection";
 import { relaySubmission } from "@/actions/aggregator/relaySubmission";
 import type { AggregateRecipientInput } from "@/actions/aggregator/types";
 import { waitForRelay } from "@/actions/aggregator/waitForRelay";
 import { getSpendWitnesses } from "@/actions/notes/getSpendWitnesses";
 import { syncNotes } from "@/actions/notes/syncNotes";
+import { recordTransferAttempt } from "@/actions/planner/recordTransferAttempt";
+import { recordTransferIntent } from "@/actions/planner/recordTransferIntent";
+import { updateTransferIntentStatus } from "@/actions/planner/updateTransferIntentStatus";
 import { getProtocol } from "@/config/protocol";
 import { type Note, noteToBalanceEntry } from "@/note";
 import type { CommandData } from "@/planner/types";
 import { type HexString, isValidCurvyId } from "@/types";
 import type { CurvyPublicKeys } from "@/types/core";
+import type { BalanceEntry, InputFinalityPolicy, TransferAttempt } from "@/types/storage";
 import { invariant } from "@/utils/invariant";
 import { pollForCriteria } from "@/utils/promise";
 import { generateNewNote } from "./generateNewNote";
 import { normalizeCommandNotes } from "./normalizeCommandNotes";
 import type { Command, CommandContext, CommandEstimate } from "./types";
+
+// Match the batch prover cadence while preserving the existing two-minute timeout.
+const SELF_AGGREGATION_SYNC_POLL_INTERVAL_MS = 30_000;
+const SELF_AGGREGATION_SYNC_POLL_ATTEMPTS = 4;
 
 /** The aggregate command stores its freshly-minted (estimate-time) output note on the estimate. */
 interface CurvyCommandEstimateWithNote extends CommandEstimate {
@@ -40,6 +49,14 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
   const { intent, senderCurvyId, config, networkSlug, ownerBjjPrivateKeyHex } = ctx;
 
   const { input, inputNotes, grossAmount } = normalizeCommandNotes(ctx.input);
+
+  const finalityPolicy = async (): Promise<InputFinalityPolicy> => {
+    if (intent?.inputFinalityPolicy) return intent.inputFinalityPolicy;
+    const accountId = config.state.activeAccountId;
+    if (!accountId) return "included";
+    const preference = await config.storage.getFinalityPreference(accountId, networkSlug);
+    return preference.requireFinalizedFunds ? "finalized" : "included";
+  };
 
   // --- recipient (handle / keys), used by the estimate path + the `recipient` getter ---
   const getRecipient = () => {
@@ -190,53 +207,176 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
 
   // Wait for the freshly-emitted output note to be committed (by the batch-prover)
   // and synced, then return its real, spendable balance entry.
-  const awaitSyncedOutput = async (noteId: bigint): Promise<CommandData> => {
+  const awaitSyncedOutput = async (noteId: bigint): Promise<BalanceEntry> => {
     const accountId = config.state.activeAccountId;
     invariant(accountId, "No active account to sync the aggregation output for.");
     const target = noteId.toString();
     const entry = await pollForCriteria(
       async () => {
         await syncNotes({ config, networkSlug, accountId });
-        const balances = await config.storage.getBalances(accountId, config.state.environment);
+        const balances = await config.storage.getProjectedBalances(accountId, networkSlug, await finalityPolicy());
         return balances.find((b) => b.networkSlug === networkSlug && b.id === target);
       },
       (found) => found !== undefined,
-      240,
-      500,
+      SELF_AGGREGATION_SYNC_POLL_ATTEMPTS,
+      SELF_AGGREGATION_SYNC_POLL_INTERVAL_MS,
     );
-    return entry as CommandData;
+    invariant(entry, "Aggregation output did not become available before the sync timeout.");
+    return entry;
   };
 
   const execute = async (): Promise<CommandData | undefined> => {
     invariant(estimate, "Command not estimated.");
 
-    // Inclusion proofs for the (committed, synced) input notes — all at one root.
-    const supplied = await getSpendWitnesses({ config, networkSlug, noteIds: inputNotes.map((n) => n.id) });
-
-    // Prove locally; the recipient note gets real stealth delivery so it can be
-    // discovered after it commits. The change note is stealth-delivered back to
-    // the sender (changeRecipient) so it too survives a rescan. The fee note is
-    // added by the builder.
-    const self = getActiveKeyPairs(config);
-    const built = await buildAggregateRequest({
-      config,
+    const accountId = config.state.activeAccountId;
+    invariant(accountId, "No active account to execute aggregation.");
+    const policy = await finalityPolicy();
+    if (policy === "finalized" && input.some((entry) => entry.finality === "hot")) {
+      throw new Error("aggregation requires finalized inputs but the plan selected a hot note");
+    }
+    await syncNotes({ config, networkSlug, accountId });
+    const spendable = await config.storage.getProjectedBalances(accountId, networkSlug, policy);
+    if (input.some((entry) => !spendable.some((candidate) => candidate.id === entry.id))) {
+      throw new Error("aggregation inputs changed finality or canonical status after estimation");
+    }
+    const recipient = getRecipient();
+    const recipientLabel = typeof recipient === "string" ? recipient : `${recipient.S}.${recipient.V}`;
+    await recordTransferIntent({
+      storage: config.storage,
+      accountId,
+      intentId: ctx.id,
       networkSlug,
-      inputNotes,
-      ownerBjjPrivateKeyHex,
-      recipients: [buildRecipientInput()],
-      changeRecipient: { S: self.S, V: self.V, babyJubjubPublicKey: self.babyJubjubPublicKey },
-      // Pay the operator paymaster for relaying (resolved at estimate time). Omitted
-      // when no paymaster was reachable — the relay then has no gate to satisfy.
-      operatorRecipient: estimate.operator,
-      operatorFee: estimate.operatorFee,
-      supplied,
+      action: "aggregation",
+      token: inputNotes[0].token.toString(),
+      amount: deliveredRecipientAmount().toString(),
+      recipients: [recipientLabel],
+      input,
+      outputCommitments: [],
+      finalityPolicy: policy,
     });
 
-    const queued = await relaySubmission({ config, request: built });
-    const finalized = await waitForRelay({ config, requestId: queued.requestId });
-    if (finalized.status !== "finalized") {
-      throw new Error(`aggregation relay did not finalize (status: ${finalized.status})`);
+    let attempt: TransferAttempt | undefined;
+    let built: Awaited<ReturnType<typeof buildAggregateRequest>>;
+    try {
+      // Inclusion proofs for the input notes must all reference one canonical root.
+      const supplied = await getSpendWitnesses({ config, networkSlug, noteIds: inputNotes.map((n) => n.id) });
+      attempt = await recordTransferAttempt({
+        storage: config.storage,
+        accountId,
+        intentId: ctx.id,
+        networkSlug,
+        environment: config.state.environment,
+        referencedRoot: supplied.notesRoot,
+      });
+
+      const self = getActiveKeyPairs(config);
+      built = await buildAggregateRequest({
+        config,
+        networkSlug,
+        inputNotes,
+        ownerBjjPrivateKeyHex,
+        recipients: [buildRecipientInput()],
+        changeRecipient: { S: self.S, V: self.V, babyJubjubPublicKey: self.babyJubjubPublicKey },
+        operatorRecipient: estimate.operator,
+        operatorFee: estimate.operatorFee,
+        supplied,
+      });
+    } catch (error) {
+      // No request was broadcast, so this intent can safely release its local input locks.
+      if (attempt) {
+        await config.storage.putTransferAttempt({
+          ...attempt,
+          status: "failed",
+          errorCode: error instanceof Error ? error.message : "proof_preparation_failed",
+        });
+      }
+      await updateTransferIntentStatus({
+        storage: config.storage,
+        accountId,
+        intentId: ctx.id,
+        status: "failed",
+        activeAttemptGeneration: attempt?.generation,
+      });
+      throw error;
     }
+
+    const outputCommitments = (built.outputNotes ?? []).map((note) => note.id.toString());
+    await recordTransferIntent({
+      storage: config.storage,
+      accountId,
+      intentId: ctx.id,
+      networkSlug,
+      action: "aggregation",
+      token: inputNotes[0].token.toString(),
+      amount: deliveredRecipientAmount().toString(),
+      recipients: [recipientLabel],
+      input,
+      outputCommitments,
+      finalityPolicy: policy,
+    });
+    for (const outputCommitment of outputCommitments) {
+      await config.storage.putTransferSettlement({
+        accountId,
+        intentId: ctx.id,
+        outputCommitment,
+        status: "pending",
+      });
+    }
+
+    let queued: Awaited<ReturnType<typeof relaySubmission>>;
+    try {
+      queued = await relaySubmission({ config, request: built, intentId: ctx.id });
+    } catch (error) {
+      const rejected = isDefinitiveRelayRejection(error);
+      await config.storage.putTransferAttempt({
+        ...attempt,
+        submittedAt: Date.now(),
+        status: rejected ? "failed" : "submitted",
+        errorCode: rejected ? "relay_rejected" : "relay_outcome_unknown",
+      });
+      await updateTransferIntentStatus({
+        storage: config.storage,
+        accountId,
+        intentId: ctx.id,
+        status: rejected ? "failed" : "submitted",
+        activeAttemptGeneration: attempt.generation,
+      });
+      throw error;
+    }
+    await config.storage.putTransferAttempt({
+      ...attempt,
+      relayRequestId: queued.requestId,
+      relayTxHash: queued.transactionHash,
+      submittedAt: Date.now(),
+      status: "submitted",
+    });
+    await updateTransferIntentStatus({
+      storage: config.storage,
+      accountId,
+      intentId: ctx.id,
+      status: "submitted",
+      activeAttemptGeneration: attempt.generation,
+    });
+    const included = await waitForRelay({ config, requestId: queued.requestId, waitFor: "included" });
+    if (included.status !== "included" && included.status !== "finalized") {
+      throw new Error(`aggregation relay was not canonically included (status: ${included.status})`);
+    }
+    await config.storage.putTransferAttempt({
+      ...attempt,
+      relayRequestId: queued.requestId,
+      relayTxHash: included.canonicalTransactionHash ?? included.transactionHash,
+      submittedAt: Date.now(),
+      inclusionBlockNumber: included.blockNumber ? Number(included.blockNumber) : undefined,
+      inclusionBlockHash: included.blockHash,
+      includedAt: included.includedAt ? Date.parse(included.includedAt) : Date.now(),
+      status: included.status === "finalized" ? "finalized" : "included",
+    });
+    await updateTransferIntentStatus({
+      storage: config.storage,
+      accountId,
+      intentId: ctx.id,
+      status: goesToOthers() ? "awaiting_output_commit" : "input_spend_included",
+    });
 
     // outputNotes[0] is the recipient note. When value LEAVES the sender we will never
     // sync that note from our OWN storage (it belongs to the recipient), so don't hang
@@ -248,7 +388,23 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
     }
     const recipientNote = built.outputNotes?.[0];
     invariant(recipientNote, "buildAggregateRequest returned no output notes.");
-    return awaitSyncedOutput(recipientNote.id);
+    const result = await awaitSyncedOutput(recipientNote.id);
+    await config.storage.putTransferSettlement({
+      accountId,
+      intentId: ctx.id,
+      outputCommitment: recipientNote.id.toString(),
+      commitBlockNumber: result.commitBlockNumber,
+      commitBlockHash: result.commitBlockHash,
+      leafIndex: result.leafIndex ?? undefined,
+      status: result.finality === "hot" ? "available_hot" : "finalized",
+    });
+    await updateTransferIntentStatus({
+      storage: config.storage,
+      accountId,
+      intentId: ctx.id,
+      status: policy === "finalized" ? "finalized" : "available_hot",
+    });
+    return result;
   };
 
   return {

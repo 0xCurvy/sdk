@@ -1,4 +1,4 @@
-import type { Groth16Proof } from "snarkjs";
+import type { Groth16Proof } from "./prover";
 
 /** A groth16 proof formatted for the on-chain `verifyProof(pA, pB, pC, ...)` ABI. */
 export type SolidityProof = {

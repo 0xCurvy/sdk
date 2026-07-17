@@ -1,10 +1,12 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { groth16 } from "snarkjs";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { Note } from "@/note";
 import { pubFromPrivateKey } from "./babyJubjub";
 import { MerkleTree } from "./merkleTree";
+import { createRustProver } from "./rustProver";
 import { buildAggregationWitnessBundle, flattenAggregationCircuitInputs } from "./witnessFromNotes";
 
 // Validates that the SDK's protocol-fee base matches the DEPLOYED aggregation circuit:
@@ -14,7 +16,10 @@ import { buildAggregationWitnessBundle, flattenAggregationCircuitInputs } from "
 // recipients) the SDK feeNote amount disagreed with the circuit and the proof failed.
 
 const KEYS = resolve(process.cwd(), "../../zk-keys/v2/aggregation");
-const WASM = resolve(KEYS, "verifySingleAggregationNoHashing_2_3_30.wasm");
+const GRAPH = resolve(
+  KEYS,
+  "verifySingleAggregationNoHashing_2_3_30.eec4484ede443daf34947e0e622951da2749d5d919f10cf7560bd19a430e08dd.graph.bin",
+);
 const ZKEY = resolve(KEYS, "verifySingleAggregationNoHashing_2_3_30_0001.zkey");
 const VKEY = JSON.parse(
   readFileSync(resolve(KEYS, "verifySingleAggregationNoHashing_2_3_30_verification_key.json"), "utf8"),
@@ -23,6 +28,20 @@ const VKEY = JSON.parse(
 const OWNER_PRIV = `0x${"22".repeat(31)}`;
 const TOKEN = 1n;
 const DEPTH = 30;
+const prover = createRustProver({ threads: false });
+const artifactContext = {
+  witnessGraphSha256: createHash("sha256").update(readFileSync(GRAPH)).digest("hex"),
+  zkeySha256: createHash("sha256").update(readFileSync(ZKEY)).digest("hex"),
+};
+
+afterAll(async () => {
+  await prover.destroy?.();
+});
+
+async function prove(input: object) {
+  const result = await prover.prove(input, GRAPH, ZKEY, artifactContext);
+  expect(await groth16.verify(VKEY, result.publicSignals, result.proof)).toBe(true);
+}
 
 describe("aggregation self-recipient fee base (deployed circuit)", () => {
   it("charges the protocol fee only on non-sender outputs (self carve-out is fee-exempt)", async () => {
@@ -79,8 +98,7 @@ describe("aggregation self-recipient fee base (deployed circuit)", () => {
     // constraint rejects, since the circuit's own base excludes the self note.)
     expect(feeNote.amount).toBe(500n);
 
-    const { proof, publicSignals } = await groth16.fullProve(flattenAggregationCircuitInputs(witness), WASM, ZKEY);
-    expect(await groth16.verify(VKEY, publicSignals, proof)).toBe(true);
+    await prove(flattenAggregationCircuitInputs(witness));
   }, 60_000);
 
   // COR-8 regression: the old stray `protocolFeeQ <= 999` constraint made the circuit
@@ -127,7 +145,6 @@ describe("aggregation self-recipient fee base (deployed circuit)", () => {
 
     expect(feeNote.amount).toBe(5_000_000_000_000_000n); // 1e18 * 5 / 1000
 
-    const { proof, publicSignals } = await groth16.fullProve(flattenAggregationCircuitInputs(witness), WASM, ZKEY);
-    expect(await groth16.verify(VKEY, publicSignals, proof)).toBe(true);
+    await prove(flattenAggregationCircuitInputs(witness));
   }, 60_000);
 });

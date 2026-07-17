@@ -19,7 +19,7 @@ export type ProveAggregationParameters = WithConfig<{
 /**
  * Prove an aggregation: resolve the network's aggregation circuit artifacts
  * (from its `CircuitConfig`), flatten the supplied witness, and run it through
- * the config's `prover` (default snarkjs). Returns the Groth16 proof + public
+ * the config's `prover` (default Rust/arkworks). Returns the Groth16 proof + public
  * signals, ready for the operator's on-chain submit.
  *
  * @example
@@ -28,6 +28,6 @@ export type ProveAggregationParameters = WithConfig<{
  */
 export async function proveAggregation(parameters: ProveAggregationParameters): Promise<ProofResult> {
   const config = resolveConfig(parameters.config);
-  const { wasm, zkey } = resolveCircuitArtifacts(config, "aggregation", parameters.networkSlug);
-  return loadArtifactsAndProve(config, { wasm, zkey }, flattenAggregationCircuitInputs(parameters.witness));
+  const artifacts = resolveCircuitArtifacts(config, "aggregation", parameters.networkSlug);
+  return loadArtifactsAndProve(config, artifacts, flattenAggregationCircuitInputs(parameters.witness));
 }

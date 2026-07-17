@@ -9,9 +9,12 @@ import type {
   GetCurvyIdByOwnerAddressResponse,
   GetPortalRecordsReturnType,
   GetPortalStatusReturnType,
+  GetSyncHotBlocksReturnType,
+  GetSyncHotMetaReturnType,
   GetSyncMetaReturnType,
   GetSyncNotesReturnType,
   GetSyncNullifiersReturnType,
+  GetSyncPendingReturnType,
   GetSyncShardRootsReturnType,
   NetworksWithCurrenciesResponse,
   PortalStatusResponse,
@@ -295,7 +298,7 @@ class ApiClient extends HttpClient implements IApiClient {
     GetMeta: async (chainId: number) => {
       return await this.request<GetSyncMetaReturnType>({
         method: "GET",
-        path: "/v3/sync/meta",
+        path: "/sync/meta",
         queryParams: { chainId },
         retries: 2,
         timeout: SYNC_TIMEOUT,
@@ -303,33 +306,66 @@ class ApiClient extends HttpClient implements IApiClient {
       });
     },
 
-    GetNotes: async (chainId: number, fromIndex: number, limit = 500) => {
+    GetNotes: async (chainId: number, fromIndex: number, limit = 500, at?: string) => {
       return await this.request<GetSyncNotesReturnType>({
         method: "GET",
-        path: "/v3/sync/notes",
-        queryParams: { chainId, fromIndex, limit },
+        path: "/sync/notes",
+        queryParams: { chainId, fromIndex, limit, ...(at ? { at } : {}) },
         retries: 2,
         timeout: SYNC_TIMEOUT,
         baseUrl: this.indexerUrlFor(chainId),
       });
     },
 
-    GetNullifiers: async (chainId: number, fromIndex: number, limit = 500) => {
+    GetNullifiers: async (chainId: number, fromIndex: number, limit = 500, at?: string) => {
       return await this.request<GetSyncNullifiersReturnType>({
         method: "GET",
-        path: "/v3/sync/nullifiers",
-        queryParams: { chainId, fromIndex, limit },
+        path: "/sync/nullifiers",
+        queryParams: { chainId, fromIndex, limit, ...(at ? { at } : {}) },
         retries: 2,
         timeout: SYNC_TIMEOUT,
         baseUrl: this.indexerUrlFor(chainId),
       });
     },
 
-    GetShardRoots: async (chainId: number, fromIndex: number, limit = 500) => {
+    GetPending: async (chainId: number, fromIndex: number, limit = 500, at?: string) => {
+      return await this.request<GetSyncPendingReturnType>({
+        method: "GET",
+        path: "/sync/pending",
+        queryParams: { chainId, fromIndex, limit, ...(at ? { at } : {}) },
+        retries: 2,
+        timeout: SYNC_TIMEOUT,
+        baseUrl: this.indexerUrlFor(chainId),
+      });
+    },
+
+    GetShardRoots: async (chainId: number, fromIndex: number, limit = 500, at?: string) => {
       return await this.request<GetSyncShardRootsReturnType>({
         method: "GET",
-        path: "/v3/sync/shard-roots",
-        queryParams: { chainId, fromIndex, limit },
+        path: "/sync/shard-roots",
+        queryParams: { chainId, fromIndex, limit, ...(at ? { at } : {}) },
+        retries: 2,
+        timeout: SYNC_TIMEOUT,
+        baseUrl: this.indexerUrlFor(chainId),
+      });
+    },
+
+    GetHotMeta: async (chainId: number, baseCheckpoint: string) => {
+      return await this.request<GetSyncHotMetaReturnType>({
+        method: "GET",
+        path: "/sync/hot/meta",
+        queryParams: { chainId, base: baseCheckpoint },
+        retries: 2,
+        timeout: SYNC_TIMEOUT,
+        baseUrl: this.indexerUrlFor(chainId),
+      });
+    },
+
+    GetHotBlocks: async (chainId: number, snapshot: string, fromBlock?: number, limit = 64) => {
+      return await this.request<GetSyncHotBlocksReturnType>({
+        method: "GET",
+        path: "/sync/hot/blocks",
+        queryParams: { chainId, at: snapshot, limit, ...(fromBlock === undefined ? {} : { fromBlock }) },
         retries: 2,
         timeout: SYNC_TIMEOUT,
         baseUrl: this.indexerUrlFor(chainId),
@@ -359,6 +395,16 @@ class ApiClient extends HttpClient implements IApiClient {
       return await this.request<RelaySubmitReturnType>({
         method: "GET",
         path: `/relay/submission/${requestId}/status`,
+        retries: 2,
+        baseUrl: this.relayerBaseUrl,
+      });
+    },
+
+    GetSubmissionByIntent: async (intentId: string, networkId: number) => {
+      return await this.request<RelaySubmitReturnType>({
+        method: "GET",
+        path: `/relay/intent/${encodeURIComponent(intentId)}/status`,
+        queryParams: { networkId },
         retries: 2,
         baseUrl: this.relayerBaseUrl,
       });

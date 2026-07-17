@@ -1,20 +1,28 @@
 import type { CurvyConfig } from "@/config/types";
-import { loadCircuitKey } from "@/proving/circuitKeyCache";
+import { loadCachedArtifactsAndProve } from "@/proving/loadCachedArtifactsAndProve";
 import type { ProofResult, ZKArtifact } from "@/proving/prover";
 
 /**
- * Load a circuit's wasm + zkey (through the config's key cache) and run the
+ * Load a circuit's graph + zkey (through the config's key cache) and run the
  * flattened inputs through the config's `prover`. Shared by the aggregation +
  * withdrawal build/prove actions so the load-then-prove sequence lives once.
  */
 export async function loadArtifactsAndProve(
   config: CurvyConfig,
-  artifacts: { wasm: ZKArtifact; zkey: ZKArtifact },
+  artifacts: {
+    witnessGraph: ZKArtifact;
+    witnessGraphSha256?: string;
+    zkey: ZKArtifact;
+    zkeySha256?: string;
+  },
   flattenedInputs: object,
 ): Promise<ProofResult> {
-  const [wasmArtifact, zkeyArtifact] = await Promise.all([
-    loadCircuitKey(config.circuitKeyCache, artifacts.wasm),
-    loadCircuitKey(config.circuitKeyCache, artifacts.zkey),
-  ]);
-  return config.prover.prove(flattenedInputs, wasmArtifact, zkeyArtifact);
+  if (config.prover.artifactLoading === "prover") {
+    return config.prover.prove(flattenedInputs, artifacts.witnessGraph, artifacts.zkey, {
+      witnessGraphSha256: artifacts.witnessGraphSha256,
+      zkeySha256: artifacts.zkeySha256,
+    });
+  }
+
+  return loadCachedArtifactsAndProve(config.prover, config.circuitKeyCache, artifacts, flattenedInputs);
 }
