@@ -75,15 +75,15 @@ export async function applyHotNotesOverlay(options: ApplyHotNotesOverlayOptions)
     throw new Error("hot overlay base block does not match its finalized checkpoint");
   }
   let parentHash = finalizedCheckpoint.finalizedBlockHash;
-  let expectedBlock = finalizedCheckpoint.finalizedBlockNumber + 1;
+  let previousBlock = finalizedCheckpoint.finalizedBlockNumber;
   for (const block of options.blocks) {
-    if (block.number !== expectedBlock || block.parentHash !== parentHash) {
+    if (block.number <= previousBlock || (block.number === previousBlock + 1 && block.parentHash !== parentHash)) {
       throw new Error(`hot overlay discontinuity at ${block.number}/${block.hash}`);
     }
-    expectedBlock += 1;
+    previousBlock = block.number;
     parentHash = block.hash;
   }
-  if (expectedBlock !== meta.hotBlockNumber + 1 || parentHash !== meta.hotBlockHash) {
+  if (previousBlock !== meta.hotBlockNumber || parentHash !== meta.hotBlockHash) {
     throw new Error("hot overlay did not end at the pinned head");
   }
 

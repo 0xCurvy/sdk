@@ -57,7 +57,14 @@ export async function syncHotNotesOverlay(options: SyncHotNotesOverlayOptions): 
     ) {
       throw new Error("hot sync page changed its pinned snapshot");
     }
-    if (page.blocks.length === 0 || page.nextBlock !== fromBlock + page.blocks.length) {
+    const lastBlock = page.blocks.at(-1);
+    if (
+      page.blocks.length === 0 ||
+      !lastBlock ||
+      page.blocks[0].number < fromBlock ||
+      page.nextBlock !== lastBlock.number + 1 ||
+      page.nextBlock <= fromBlock
+    ) {
       throw new Error("hot sync page was incomplete");
     }
     blocks.push(...page.blocks);

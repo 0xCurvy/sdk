@@ -82,6 +82,28 @@ function fixture(noteId: bigint): {
 }
 
 describe("applyHotNotesOverlay", () => {
+  it("accepts sparse checkpoints across blocks without Curvy events", async () => {
+    const storage = new MapStorage();
+    const { finalized, checkpoint, meta, block } = fixture(11n);
+    block.number = 20;
+    block.parentHash = `0x${"9".repeat(64)}`;
+    meta.hotBlockNumber = 20;
+    meta.hotBlockHash = block.hash;
+
+    const result = await applyHotNotesOverlay({
+      storage,
+      networkSlug: "ethereum",
+      environment: "testnet",
+      finalizedTree: finalized,
+      finalizedCheckpoint: checkpoint,
+      meta,
+      blocks: [block],
+    });
+
+    expect(result.tree.leafCount).toBe(1);
+    expect((await storage.getHotSyncState("ethereum"))?.hotBlockNumber).toBe(20);
+  });
+
   it("replays into a disposable Rust tree without mutating the finalized base", async () => {
     const storage = new MapStorage();
     const { finalized, checkpoint, meta, block } = fixture(11n);
