@@ -11,20 +11,20 @@ import { recordTransferAttempt } from "@/actions/planner/recordTransferAttempt";
 import { recordTransferIntent } from "@/actions/planner/recordTransferIntent";
 import { updateTransferIntentStatus } from "@/actions/planner/updateTransferIntentStatus";
 import { getProtocol } from "@/config/protocol";
+import { AggregationOutputTimeoutError } from "@/errors";
 import { type Note, noteToBalanceEntry } from "@/note";
 import type { CommandData } from "@/planner/types";
 import { type HexString, isValidCurvyId } from "@/types";
 import type { CurvyPublicKeys } from "@/types/core";
 import type { BalanceEntry, InputFinalityPolicy, TransferAttempt } from "@/types/storage";
 import { invariant } from "@/utils/invariant";
-import { pollForCriteria } from "@/utils/promise";
+import { pollForCriteriaUntil } from "@/utils/promise";
 import { generateNewNote } from "./generateNewNote";
 import { normalizeCommandNotes } from "./normalizeCommandNotes";
 import type { Command, CommandContext, CommandEstimate } from "./types";
 
-// Match the batch prover cadence while preserving the existing two-minute timeout.
-const SELF_AGGREGATION_SYNC_POLL_INTERVAL_MS = 30_000;
-const SELF_AGGREGATION_SYNC_POLL_ATTEMPTS = 4;
+const SELF_AGGREGATION_SYNC_POLL_INTERVAL_MS = 10_000;
+const SELF_AGGREGATION_SYNC_TIMEOUT_MS = 240_000;
 
 /** The aggregate command stores its freshly-minted (estimate-time) output note on the estimate. */
 interface CurvyCommandEstimateWithNote extends CommandEstimate {
@@ -211,17 +211,18 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
     const accountId = config.state.activeAccountId;
     invariant(accountId, "No active account to sync the aggregation output for.");
     const target = noteId.toString();
-    const entry = await pollForCriteria(
-      async () => {
-        await syncNotes({ config, networkSlug, accountId });
+    const entry = await pollForCriteriaUntil(
+      async (signal) => {
+        await syncNotes({ config, networkSlug, accountId, signal });
         const balances = await config.storage.getProjectedBalances(accountId, networkSlug, await finalityPolicy());
         return balances.find((b) => b.networkSlug === networkSlug && b.id === target);
       },
       (found) => found !== undefined,
-      SELF_AGGREGATION_SYNC_POLL_ATTEMPTS,
+      SELF_AGGREGATION_SYNC_TIMEOUT_MS,
       SELF_AGGREGATION_SYNC_POLL_INTERVAL_MS,
+      new AggregationOutputTimeoutError(),
     );
-    invariant(entry, "Aggregation output did not become available before the sync timeout.");
+    invariant(entry, "Aggregation output polling returned without a matching balance.");
     return entry;
   };
 

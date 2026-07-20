@@ -7,6 +7,7 @@ export * from "./auth";
 export * from "./balances";
 export * from "./bridge";
 export * from "./events";
+export * from "./history";
 export * from "./networks";
 export * from "./notes";
 export * from "./planner";

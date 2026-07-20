@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AccountError,
+  AggregationOutputTimeoutError,
   APIError,
   AuthError,
   CommandError,
@@ -21,6 +22,7 @@ describe("domain errors", () => {
       [new NetworkError("x", "ethereum"), "NETWORK_ERROR", "NetworkError"],
       [new AuthError("x"), "AUTH_ERROR", "AuthError"],
       [new AccountError("x", "acc-1"), "ACCOUNT_ERROR", "AccountError"],
+      [new AggregationOutputTimeoutError(), "AGGREGATION_OUTPUT_TIMEOUT", "AggregationOutputTimeoutError"],
     ];
 
     for (const [error, code, name] of cases) {

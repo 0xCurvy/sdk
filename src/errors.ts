@@ -177,6 +177,17 @@ class RelayError extends CurvyError {
   }
 }
 
+/** The relay landed, but the locally-owned aggregation output was not observed before the UI deadline. */
+class AggregationOutputTimeoutError extends CurvyError {
+  constructor() {
+    super(
+      "Aggregation was submitted, but its resulting balance was not detected within 4 minutes. It may still complete in the background; refresh your balances before trying again.",
+      "AGGREGATION_OUTPUT_TIMEOUT",
+    );
+    this.name = "AggregationOutputTimeoutError";
+  }
+}
+
 /** Thrown when a contract address needed for a submission is missing (e.g. the aggregator address). */
 class MissingContractAddressError extends CurvyError {
   constructor(message: string) {
@@ -202,5 +213,6 @@ export {
   ViewKeyRequiredError,
   AggregatorSubmitError,
   RelayError,
+  AggregationOutputTimeoutError,
   MissingContractAddressError,
 };
