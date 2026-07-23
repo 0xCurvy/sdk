@@ -64,26 +64,6 @@ export const NATIVE_SOL_MINT: Address = SYSTEM_PROGRAM_ADDRESS;
  */
 export const WSOL_MINT: Address = address("So11111111111111111111111111111111111111112");
 
-/**
- * Solana SPL on-chain decimals for mints whose decimals DIFFER from the
- * canonical `currencies.decimals` value stored in the database.
- *
- * The `currencies` table holds one decimals value per currency because most
- * tokens agree across chains (USDC=6, WBTC=8, SOL=9). Wormhole-bridged WETH
- * breaks that assumption: 18 decimals on EVM, 8 decimals as the SPL mint on
- * Solana. The SPL vault balance and every amount we hand to the SPL token
- * program / LiFi `fromAmount` are in these on-chain units — so Solana code
- * paths must report this value (not `currency.decimals`) when describing a
- * balance's scale.
- *
- * Only add entries for tokens with a mismatch — a missing entry means the
- * on-chain SPL decimals equal `currency.decimals`.
- */
-export const SOLANA_ONCHAIN_DECIMALS: Record<string, number> = {
-  // Wormhole-bridged WETH — 8 decimals on Solana vs 18 canonical.
-  "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs": 8,
-};
-
 // ─── LiFi routing constants ─────────────────────────────────────────────────
 
 export const ARBITRUM_CHAIN_ID = 42161;
