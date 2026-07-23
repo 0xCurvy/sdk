@@ -64,6 +64,16 @@ export const NATIVE_SOL_MINT: Address = SYSTEM_PROGRAM_ADDRESS;
  */
 export const WSOL_MINT: Address = address("So11111111111111111111111111111111111111112");
 
+/**
+ * On-chain decimals for Solana SPL tokens whose decimals differ from their
+ * canonical (EVM) representation. Keyed by mint/contract address; consumers
+ * fall back to the currency's declared decimals when a mint isn't listed.
+ */
+export const SOLANA_ONCHAIN_DECIMALS: Record<string, number> = {
+  // Wormhole-bridged WETH — 8 decimals on Solana vs 18 canonical.
+  "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs": 8,
+};
+
 // ─── LiFi routing constants ─────────────────────────────────────────────────
 
 export const ARBITRUM_CHAIN_ID = 42161;
