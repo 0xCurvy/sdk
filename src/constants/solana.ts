@@ -42,6 +42,12 @@ export const RELAY_PROGRAM_ID: Address = address("99vQwtBwYtrqqD9YSXbdum3KBdxPAV
 /** Across V4 bridge program — the main production cross-chain bridge. */
 export const ACROSS_PROGRAM_ID: Address = address("DLv3NggMiSaef97YCkew5xKUHDh13tVGZ7tydt3ZeAru");
 
+/** Eco Routes intent program used by LiFi for Solana -> EVM SPL-token routes. */
+export const ECO_PROGRAM_ID: Address = address("EcooiHrTiMnfUBMw297gvPwX55HD8SCxA61tBBLV3yaV");
+
+/** SPL Token-2022 program used in Eco's fixed `fund` account layout. */
+export const TOKEN_2022_PROGRAM_ADDRESS: Address = address("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+
 // ─── Token mints ────────────────────────────────────────────────────────────
 
 /**
@@ -81,8 +87,14 @@ export const ARBITRUM_CHAIN_ID = 42161;
 /** LiFi uses a non-standard chain ID for Solana (not a real EVM chainId). */
 export const LIFI_SOLANA_CHAIN_ID = 1151111081099710;
 
-/** LiFi bridges allowed for Solana -> Arbitrum. Order doesn't imply preference. */
-export const ALLOWED_LIFI_BRIDGES = ["across", "relaydepository"] as const;
+/**
+ * LiFi bridges that the Curvy program can execute from a PDA.
+ *
+ * Across remains available through the dedicated Across instruction builders, but
+ * LiFi no longer advertises Across as a Solana-origin connector. Do not add a tool
+ * here until the on-chain program has a matching, amount-checked CPI integration.
+ */
+export const ALLOWED_LIFI_BRIDGES = ["relaydepository", "eco"] as const;
 
 // ─── Anchor Instruction Discriminators ──────────────────────────────────────
 //
@@ -107,7 +119,14 @@ export const IX_DISC = {
   bridgeRelaySpl: Uint8Array.from([92, 246, 176, 164, 184, 54, 62, 100]),
   bridgeAcrossSol: Uint8Array.from([190, 190, 32, 158, 75, 153, 32, 86]),
   bridgeAcrossSpl: Uint8Array.from([87, 109, 172, 103, 8, 187, 223, 126]),
+  bridgeEcoSpl: Uint8Array.from([80, 79, 216, 219, 154, 122, 7, 131]),
 } as const;
 
 /** Relay Depository `deposit_native` discriminator — used to locate the relay_id inside LiFi's serialized tx. */
 export const DEPOSIT_NATIVE_DISC = [13, 158, 13, 223, 95, 213, 28, 6] as const;
+
+/** Relay Depository `deposit_token` discriminator — SPL-token counterpart of `deposit_native`. */
+export const DEPOSIT_TOKEN_DISC = [11, 156, 96, 218, 39, 163, 180, 19] as const;
+
+/** Eco Routes portal `fund` discriminator. */
+export const ECO_FUND_DISC = [218, 188, 111, 221, 152, 113, 174, 7] as const;

@@ -18,6 +18,9 @@ export {
   ARBITRUM_CHAIN_ID,
   CONFIG_SEED,
   DEPOSIT_NATIVE_DISC,
+  DEPOSIT_TOKEN_DISC,
+  ECO_FUND_DISC,
+  ECO_PROGRAM_ID,
   IX_DISC,
   LIFI_SOLANA_CHAIN_ID,
   NATIVE_SOL_MINT,
@@ -28,6 +31,7 @@ export {
   RECOVERY_DOMAIN,
   RELAY_PROGRAM_ID,
   SOLANA_ONCHAIN_DECIMALS,
+  TOKEN_2022_PROGRAM_ADDRESS,
   WSOL_MINT,
 } from "@/constants/solana";
 export type { AcrossQuoteParams, SolanaPortalBalance } from "@/types/solana";
