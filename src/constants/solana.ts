@@ -113,6 +113,14 @@ export const RECOVER_SPL_DISC = Uint8Array.from([16, 130, 188, 246, 64, 139, 227
  *
  * On-chain the Across variants are named `bridge_sol` / `bridge_spl`. We use
  * `bridgeAcross*` in TypeScript to make the bridge target explicit at call sites.
+ *
+ * `bridge_relay_sol` / `bridge_relay_spl` carry the fee-aware argument list
+ * (`relay_amount` + `fee_amounts`) under their original names, so their discriminators
+ * are unchanged. Anchor decodes instruction args with borsh `deserialize`, which ignores
+ * trailing bytes — a program deployed before that argument change will therefore ACCEPT
+ * this payload and mis-read `relay_id`. The Solana program must be upgraded before any
+ * service that sends these instructions; see the deploy section of
+ * `packages/contracts/solana/README.md`.
  */
 export const IX_DISC = {
   bridgeRelaySol: Uint8Array.from([2, 219, 43, 205, 143, 113, 250, 251]),

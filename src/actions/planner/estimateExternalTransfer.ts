@@ -51,6 +51,12 @@ const lifiChainId = (network: Network): number => {
   return Number(network.chainId);
 };
 
+/**
+ * LiFi validates `fromAddress`/`toAddress` against the chain's address format, so an
+ * estimate that crosses VMs must send BOTH — omitting `toAddress` makes LiFi default it to
+ * `fromAddress`, which then fails validation with `Invalid toAddress` (code 1011) on every
+ * Solana-involving leg. These are quote-only placeholders; nothing is signed or sent.
+ */
 const placeholderAddress = (network: Network): string =>
   network.flavour === NETWORK_FLAVOUR.SOLANA ? PLACEHOLDER_SOLANA_ADDRESS : PLACEHOLDER_EVM_ADDRESS;
 
@@ -127,6 +133,7 @@ export async function estimateExternalTransfer(
       toToken: bridged.contractAddress,
       fromAmount: fromAmount.toString(),
       fromAddress: placeholderAddress(fromNetwork),
+      toAddress: placeholderAddress(shielding),
       integrator: "Curvy-Staging",
       allowBridges: entryBridges,
     });
@@ -162,6 +169,7 @@ export async function estimateExternalTransfer(
     toToken: toCurrency.contractAddress,
     fromAmount: netAfterCurvy.toString(),
     fromAddress: placeholderAddress(shielding),
+    toAddress: placeholderAddress(toNetwork),
     allowBridges: exitBridges,
   });
 
