@@ -2,12 +2,12 @@ import type { CurvyAccount } from "@/account";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { computePrivateKeys } from "@/utils/keys";
-import { processPasskeyPrf } from "@/utils/passkey/processPasskeyPrf";
+import { type PasskeyPrfValue, processPasskeyPrf } from "@/utils/passkey/processPasskeyPrf";
 import { createAndAddAccount } from "./internal/createAndAddAccount";
 import { preLoginChecks } from "./internal/preLoginChecks";
 
 export type LoginWithPasskeyParameters = WithConfig<{
-  prfValue: BufferSource;
+  prfValue: PasskeyPrfValue;
   credId?: ArrayBuffer;
 }>;
 

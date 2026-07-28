@@ -1,7 +1,7 @@
 import { syncNotes } from "@/actions/notes/syncNotes";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
-import { NoActiveAccountError } from "@/errors";
+import { NoActiveAccountError, ScanError } from "@/errors";
 import type { RefreshOptions } from "@/types/account";
 
 export type RefreshBalancesParameters = WithConfig<RefreshOptions & { accountId?: string }>;
@@ -70,6 +70,9 @@ export async function refreshBalances(parameters: RefreshBalancesParameters = {}
         return;
       }
       config.setState({ scan: { status: "error", progress: 0, accountId } });
+      const scanError =
+        error instanceof ScanError ? error : new ScanError(error instanceof Error ? error.message : String(error));
+      if (!parameters.silent) config.emitter.emitBalanceRefreshError({ error: scanError, environment });
       throw error;
     } finally {
       config._internal.scanLocks.set(lockKey, false);

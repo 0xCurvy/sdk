@@ -6,7 +6,41 @@ import { invariant } from "@/utils/invariant";
 
 const PBDKDF2_ITERATIONS = 600_000;
 const HASHED_PRF_LENGTH = 256;
+const PRF_OUTPUT_LENGTH = 32;
 const SALT = encode("Curvy Protocol says 'Zdravo'!");
+
+export type PasskeyPrfValue = BufferSource | string;
+
+function decodeBase64(value: string) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+
+  try {
+    return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+  } catch {
+    throw new TypeError("Passkey PRF value must be a BufferSource or a valid Base64 string.");
+  }
+}
+
+function normalizePrfValue(value: PasskeyPrfValue) {
+  let bytes: Uint8Array<ArrayBuffer>;
+
+  if (typeof value === "string") {
+    bytes = decodeBase64(value);
+  } else if (ArrayBuffer.isView(value)) {
+    bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength).slice();
+  } else if (Object.prototype.toString.call(value) === "[object ArrayBuffer]") {
+    bytes = new Uint8Array(value as ArrayBuffer).slice();
+  } else {
+    throw new TypeError("Passkey PRF value must be a BufferSource or a valid Base64 string.");
+  }
+
+  if (bytes.byteLength !== PRF_OUTPUT_LENGTH) {
+    throw new TypeError(`Passkey PRF value must contain exactly ${PRF_OUTPUT_LENGTH} bytes.`);
+  }
+
+  return bytes;
+}
 
 /**
  * Derives a deterministic secp256k1 signing key from a passkey PRF output and
@@ -23,12 +57,18 @@ const SALT = encode("Curvy Protocol says 'Zdravo'!");
  * const { r, s, prfAddress } = await processPasskeyPrf(prf);
  * // prfAddress -> "0x..." (deterministic for this prf)
  *
- * @throws if the derived signing key reduces to zero.
+ * Base64/Base64URL strings are accepted for auth-callback transports.
+ *
+ * @throws if the PRF value is malformed or the derived signing key reduces to zero.
  */
-export const processPasskeyPrf = async (prfOut: BufferSource) => {
-  const prfCryptoKey = await crypto.subtle.importKey("raw", prfOut, { name: "PBKDF2", hash: "SHA-256" }, false, [
-    "deriveBits",
-  ]);
+export const processPasskeyPrf = async (prfOut: PasskeyPrfValue) => {
+  const prfCryptoKey = await crypto.subtle.importKey(
+    "raw",
+    normalizePrfValue(prfOut),
+    { name: "PBKDF2", hash: "SHA-256" },
+    false,
+    ["deriveBits"],
+  );
 
   const hashedPrf = await crypto.subtle.deriveBits(
     {

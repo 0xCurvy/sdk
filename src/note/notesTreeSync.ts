@@ -224,36 +224,39 @@ export async function syncNotesTree(opts: SyncNotesTreeOptions): Promise<SyncNot
     ));
   }
 
-  // 5. Persist: append only the tail (chunked) + rewrite the small checkpoint.
-  if (newLeaves.length > 0) {
-    await storage.appendCommittedLog(
+  // 5. Persist the log tails and their checkpoint as one snapshot. A tab close
+  // between these writes must not leave a cursor that skips an unpersisted leaf.
+  await storage.runInNotesTransaction(async () => {
+    if (newLeaves.length > 0) {
+      await storage.appendCommittedLog(
+        networkSlug,
+        "leaf",
+        fromLeafCount,
+        newLeaves.map((l) => l.noteId),
+      );
+    }
+    if (newNullifiers.length > 0) {
+      await storage.appendCommittedLog(networkSlug, "nullifier", fromNullifierCount, delta.nullifiers);
+    }
+    await storage.putNotesCheckpoint({
       networkSlug,
-      "leaf",
-      fromLeafCount,
-      newLeaves.map((l) => l.noteId),
-    );
-  }
-  if (newNullifiers.length > 0) {
-    await storage.appendCommittedLog(networkSlug, "nullifier", fromNullifierCount, delta.nullifiers);
-  }
-  await storage.putNotesCheckpoint({
-    networkSlug,
-    environment,
-    leafCount: live.leaves.length,
-    nullifierCount: live.nullifiers.size,
-    root: live.tree.root().toString(),
-    blockNumber: delta.blockNumber,
-    lastSynced: now(),
-    ...(delta.checkpoint
-      ? {
-          checkpoint: delta.checkpoint.checkpoint,
-          finalizedBlockNumber: delta.checkpoint.finalizedBlockNumber,
-          finalizedBlockHash: delta.checkpoint.finalizedBlockHash,
-          contractAddress: delta.checkpoint.contractAddress,
-          treeVersion: delta.checkpoint.treeVersion,
-          shardHeight: delta.checkpoint.shardHeight,
-        }
-      : {}),
+      environment,
+      leafCount: live.leaves.length,
+      nullifierCount: live.nullifiers.size,
+      root: live.tree.root().toString(),
+      blockNumber: delta.blockNumber,
+      lastSynced: now(),
+      ...(delta.checkpoint
+        ? {
+            checkpoint: delta.checkpoint.checkpoint,
+            finalizedBlockNumber: delta.checkpoint.finalizedBlockNumber,
+            finalizedBlockHash: delta.checkpoint.finalizedBlockHash,
+            contractAddress: delta.checkpoint.contractAddress,
+            treeVersion: delta.checkpoint.treeVersion,
+            shardHeight: delta.checkpoint.shardHeight,
+          }
+        : {}),
+    });
   });
 
   return { live, newLeaves, newNullifiers, caughtUp, indexerLag };

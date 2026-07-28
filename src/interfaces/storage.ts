@@ -23,7 +23,18 @@ import type {
 } from "@/types/storage";
 
 export interface StorageInterface {
+  /**
+   * Clear chain-derived wallet cache while preserving account metadata, prices,
+   * finalized transaction history, transfer workflow records, preferences, and
+   * Privacy Pass tokens.
+   */
+  clearCachedData(): Promise<void>;
+
+  /** Destructively clear every SDK-owned storage table. */
   clearStorage(): Promise<void>;
+
+  /** Atomically persist a notes-tree delta and its checkpoint when supported. */
+  runInNotesTransaction<T>(fn: () => Promise<T>): Promise<T>;
 
   /** Persist a registered account's (key-free) metadata. Resets scan cursors. Throws if the id already exists. */
   insertCurvyAccount(account: SerializedCurvyAccount): Promise<void>;

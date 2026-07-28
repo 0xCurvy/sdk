@@ -264,6 +264,58 @@ export class IndexedDBStorage extends BaseStorage {
   }
 
   // ── Lifecycle ──
+  protected async _runInNotesTransaction<T>(fn: () => Promise<T>) {
+    return this.db.transaction(
+      "rw",
+      [this.db.notesCheckpoints, this.db.committedLog, this.db.shardRoots, this.db.noteWitnesses, this.db.liveShards],
+      fn,
+    );
+  }
+
+  protected async _clearCachedData() {
+    const tables = [
+      this.db.accounts,
+      this.db.balances,
+      this.db.totalBalances,
+      this.db.notesCheckpoints,
+      this.db.committedLog,
+      this.db.shardRoots,
+      this.db.noteWitnesses,
+      this.db.liveShards,
+      this.db.txHistory,
+      this.db.hotOverlays,
+      this.db.hotNoteStates,
+    ];
+
+    await this.db.transaction("rw", tables, async () => {
+      await Promise.all([
+        this.db.balances.clear(),
+        this.db.totalBalances.clear(),
+        this.db.notesCheckpoints.clear(),
+        this.db.committedLog.clear(),
+        this.db.shardRoots.clear(),
+        this.db.noteWitnesses.clear(),
+        this.db.liveShards.clear(),
+        this.db.hotOverlays.clear(),
+        this.db.hotNoteStates.clear(),
+      ]);
+
+      const hotHistory = await this.db.txHistory.filter((entry) => entry.finality === "hot").primaryKeys();
+      if (hotHistory.length > 0) await this.db.txHistory.bulkDelete(hotHistory);
+
+      const accounts = await this.db.accounts.toArray();
+      if (accounts.length > 0) {
+        await this.db.accounts.bulkPut(
+          accounts.map((account) => ({
+            ...account,
+            scanCursors: { latest: undefined, oldest: undefined },
+            discoveryCursors: {},
+          })),
+        );
+      }
+    });
+  }
+
   protected async _clearAll() {
     await Promise.all([
       this.db.accounts.clear(),

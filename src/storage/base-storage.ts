@@ -164,6 +164,8 @@ export abstract class BaseStorage implements StorageInterface {
   protected abstract _putTokenPouch(scopeKey: string, tokens: string[]): Promise<void>;
 
   // --- Lifecycle ---
+  protected abstract _runInNotesTransaction<T>(fn: () => Promise<T>): Promise<T>;
+  protected abstract _clearCachedData(): Promise<void>;
   protected abstract _clearAll(): Promise<void>;
 
   /**
@@ -264,6 +266,14 @@ export abstract class BaseStorage implements StorageInterface {
 
   async clearStorage(): Promise<void> {
     await this._clearAll();
+  }
+
+  async clearCachedData(): Promise<void> {
+    await this._clearCachedData();
+  }
+
+  async runInNotesTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    return this._runInNotesTransaction(fn);
   }
 
   async deleteBalanceEntries(entries: BalanceEntry[]): Promise<void> {

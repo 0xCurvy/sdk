@@ -16,6 +16,7 @@ import { type HexString, isHexString } from "@/types";
 import type { InputFinalityPolicy, TransferAttempt } from "@/types/storage";
 import { invariant } from "@/utils/invariant";
 import { LIFI_BRIDGES_EVM } from "../constants";
+import { bridgeFeeInInputCurrency } from "./bridgeFeeInInputCurrency";
 import { normalizeCommandNotes } from "./normalizeCommandNotes";
 import type { Command, CommandContext, CommandEstimate } from "./types";
 
@@ -113,8 +114,7 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
         allowBridges: LIFI_BRIDGES_EVM,
       });
 
-      estimate.bridgeFeeInCurrency =
-        quote.estimate.feeCosts?.reduce((acc, curr) => acc + BigInt(curr.amount), 0n) ?? 0n;
+      estimate.bridgeFeeInCurrency = bridgeFeeInInputCurrency(quote);
     }
 
     // Curvy swap => calculate bridge fee and estimate amount.
@@ -129,8 +129,7 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
         allowBridges: LIFI_BRIDGES_EVM,
       });
 
-      estimate.bridgeFeeInCurrency =
-        quote.estimate.feeCosts?.reduce((acc, curr) => acc + BigInt(curr.amount), 0n) ?? 0n;
+      estimate.bridgeFeeInCurrency = bridgeFeeInInputCurrency(quote);
 
       estimate.bridgeEstimateAmount = quote.estimate.toAmount;
     }

@@ -149,4 +149,20 @@ describe("refreshBalances", () => {
     expect(config.state.scan.status).toBe("idle");
     expect(config._internal.scanLocks.get(`refresh-account-${accountId}`)).toBe(false);
   });
+
+  it("emits a refresh error and leaves the scan in error state when sync fails", async () => {
+    const accountId = accounts[0].id;
+    const config = createFakeConfig({ activeAccountId: accountId });
+    vi.mocked(syncNotes).mockRejectedValueOnce(new Error("indexer unavailable"));
+
+    const errors: string[] = [];
+    config.emitter.on(CURVY_EVENT_TYPES.BALANCE_REFRESH_ERROR, ({ error }) => {
+      errors.push(error.message);
+    });
+
+    await expect(refreshBalances({ accountId, config })).rejects.toThrow("indexer unavailable");
+
+    expect(errors).toEqual(["indexer unavailable"]);
+    expect(config.state.scan.status).toBe("error");
+  });
 });

@@ -223,6 +223,39 @@ describe("syncNotes (production action)", () => {
     expect(await storage.getTxHistory(ACCOUNT)).toHaveLength(1);
   });
 
+  it("backfills an already-synced sharded tree for a second account", async () => {
+    const leaves = [ownableLeaf(0), ...bareLeaves(3, 1)];
+    const { storage, config, flat } = await world({ leaves });
+    await storage.insertCurvyAccount(accounts[0]);
+    await storage.insertCurvyAccount(accounts[1]);
+
+    await syncNotes({
+      accountId: accounts[0].id,
+      config,
+      networkSlug: NET,
+      shardHeight: SHARD_HEIGHT,
+      verifier: verifierFor(flat),
+      resolveOwnership: resolver,
+    });
+
+    // The network tree is now at its head and the second run receives an empty
+    // delta. Account B must still scan the already-persisted range.
+    const [result] = await syncNotes({
+      accountId: accounts[1].id,
+      config,
+      networkSlug: NET,
+      shardHeight: SHARD_HEIGHT,
+      verifier: verifierFor(flat),
+      resolveOwnership: resolver,
+    });
+
+    expect(result.newOwnedCount).toBe(1);
+    expect(await storage.getBalances(accounts[1].id)).toEqual([
+      expect.objectContaining({ id: OWNED_ID.toString(), accountId: accounts[1].id }),
+    ]);
+    expect((await storage.getCurvyAccountDataById(accounts[1].id)).discoveryCursors?.[NET]).toBe(4);
+  });
+
   it("getSpendWitnesses returns proofs at one root from the synced tree", async () => {
     const leaves = [...bareLeaves(5), ownableLeaf(5), ...bareLeaves(4, 6)];
     const { config, flat } = await world({ leaves });

@@ -310,6 +310,33 @@ export class MapStorage extends BaseStorage {
   }
 
   // ── Lifecycle ──
+  protected async _runInNotesTransaction<T>(fn: () => Promise<T>) {
+    return fn();
+  }
+
+  protected async _clearCachedData() {
+    this.#balances.clear();
+    this.#totalBalances.clear();
+    this.#notesCheckpoints.clear();
+    this.#logChunks.clear();
+    this.#shardRootsChunks.clear();
+    this.#noteWitnesses.clear();
+    this.#liveShards.clear();
+    this.#hotOverlays.clear();
+    this.#hotNoteStates.clear();
+
+    for (const [key, entry] of this.#txHistory) {
+      if (entry.finality === "hot") this.#txHistory.delete(key);
+    }
+    for (const [id, account] of this.#accounts) {
+      this.#accounts.set(id, {
+        ...account,
+        scanCursors: { latest: undefined, oldest: undefined },
+        discoveryCursors: {},
+      });
+    }
+  }
+
   protected async _clearAll() {
     this.#accounts.clear();
     this.#balances.clear();

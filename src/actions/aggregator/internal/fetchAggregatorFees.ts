@@ -2,21 +2,18 @@ import type { Address } from "viem";
 import type { CurvyConfig } from "@/config/types";
 import { aggregatorAlphaV2Abi, vaultV2Abi } from "@/contracts/evm/abi";
 import { MissingContractAddressError } from "@/errors";
-import { GAS_FEE_TREE_DEPTH } from "@/proving";
+import { GAS_FEE_TREE_DEPTH, MerkleTree } from "@/proving";
 import type { EvmRpc } from "@/rpc/evm";
 
 /**
- * Read the aggregator's live fee config. These are NOT caller parameters: the aggregation
- * circuit binds them and the contract reverts unless they match — so the builders fetch them
- * here to guarantee a match.
+ * Read one block-pinned snapshot of the aggregator's live fee config. These are
+ * NOT caller parameters: the aggregation circuit binds them and the contract
+ * reverts unless they match.
  *
- * The per-token gas-fee table is no longer stored enumerably on-chain. The vault re-emits the
- * COMPLETE `GasFees[]` table on every `setPerTokenGasFees`, and records the block in
- * `gasFeeUpdateBlock`. We reconstruct the full leaf set from that single event — no historical
- * replay — then the builder rebuilds the depth-`GAS_FEE_TREE_DEPTH` tree and proves the inputs'
- * token's leaf under the aggregator's `commitmentFeeRoot`. The aggregation gas-fee tree commits
- * the COMMITMENT leg only, so each leaf is `GasFees.pendingNoteCommitment` (the deposit path
- * additionally charges `portalDeployment`; withdrawals charge `GasFees.withdrawal`).
+ * Read the enumerable vault getters rather than `gasFeeUpdateBlock`: on
+ * Arbitrum, Solidity `block.number` is not the L2 RPC block number required by
+ * `eth_getLogs`. The aggregation tree commits only
+ * `GasFees.pendingNoteCommitment`; deposit and withdrawal use the other fields.
  */
 export async function fetchAggregatorFees(
   config: CurvyConfig,
@@ -39,56 +36,81 @@ export async function fetchAggregatorFees(
   const aggregator = network.aggregatorContractAddress as Address;
   const vault = network.vaultContractAddress as Address;
 
-  const [protocolFeePerThousand, feeKeyX, feeKeyY, latestBlock] = await Promise.all([
-    rpc.provider.readContract({
-      address: aggregator,
-      abi: aggregatorAlphaV2Abi,
-      functionName: "protocolFeePerThousand",
-    }),
-    rpc.provider.readContract({
-      address: aggregator,
-      abi: aggregatorAlphaV2Abi,
-      functionName: "feeNotePublicKey",
-      args: [0n],
-    }),
-    rpc.provider.readContract({
-      address: aggregator,
-      abi: aggregatorAlphaV2Abi,
-      functionName: "feeNotePublicKey",
-      args: [1n],
-    }),
-    rpc.provider.readContract({ address: vault, abi: vaultV2Abi, functionName: "gasFeeUpdateBlock" }),
-  ]);
+  const blockNumber = await rpc.provider.getBlockNumber();
+  const [protocolFeePerThousand, feeKeyX, feeKeyY, commitmentFeeRoot, numberOfTokens] = await rpc.provider.multicall({
+    allowFailure: false,
+    blockNumber,
+    contracts: [
+      {
+        address: aggregator,
+        abi: aggregatorAlphaV2Abi,
+        functionName: "protocolFeePerThousand",
+      },
+      {
+        address: aggregator,
+        abi: aggregatorAlphaV2Abi,
+        functionName: "feeNotePublicKey",
+        args: [0n],
+      },
+      {
+        address: aggregator,
+        abi: aggregatorAlphaV2Abi,
+        functionName: "feeNotePublicKey",
+        args: [1n],
+      },
+      {
+        address: aggregator,
+        abi: aggregatorAlphaV2Abi,
+        functionName: "commitmentFeeRoot",
+      },
+      {
+        address: vault,
+        abi: vaultV2Abi,
+        functionName: "getNumberOfTokens",
+      },
+    ],
+  });
 
   // Full leaf set of the depth-GAS_FEE_TREE_DEPTH tree, default 0 for unset slots.
-  const commitmentGasCosts = new Array<bigint>(1 << GAS_FEE_TREE_DEPTH).fill(0n);
-  const block = latestBlock as bigint;
-  if (block > 0n) {
-    const logs = await rpc.provider.getContractEvents({
+  const capacity = 1 << GAS_FEE_TREE_DEPTH;
+  if (numberOfTokens < 0n || numberOfTokens >= BigInt(capacity)) {
+    throw new Error(
+      `fetchAggregatorFees: vault token count ${numberOfTokens} exceeds gas-fee tree capacity ${capacity - 1}`,
+    );
+  }
+  const tokenCount = Number(numberOfTokens);
+  const gasFees = (await rpc.provider.multicall({
+    allowFailure: false,
+    blockNumber,
+    contracts: Array.from({ length: tokenCount }, (_, index) => ({
       address: vault,
       abi: vaultV2Abi,
-      eventName: "CommitmentGasCostsUpdated",
-      fromBlock: block,
-      toBlock: block,
-    });
-    // The latest update at this block carries the complete GasFees[] table; take the last log.
-    // The aggregation gas-fee tree commits the COMMITMENT leg, so each leaf is the token's
-    // `pendingNoteCommitment` (portalDeployment is deposit-only; withdrawal is its own leg).
-    const latest = logs[logs.length - 1];
-    const args = latest?.args as
-      | { gasFees?: readonly { tokenId: bigint; pendingNoteCommitment: bigint }[] }
-      | undefined;
-    if (args?.gasFees) {
-      for (const gf of args.gasFees) {
-        const idx = Number(gf.tokenId);
-        if (idx >= 0 && idx < commitmentGasCosts.length) commitmentGasCosts[idx] = BigInt(gf.pendingNoteCommitment);
-      }
+      functionName: "perTokenGasFees" as const,
+      args: [BigInt(index + 1)] as const,
+    })),
+  })) as readonly { tokenId: bigint; pendingNoteCommitment: bigint }[];
+
+  const commitmentGasCosts = new Array<bigint>(capacity).fill(0n);
+  for (const [index, gasFee] of gasFees.entries()) {
+    const expectedTokenId = BigInt(index + 1);
+    if (gasFee.tokenId !== expectedTokenId) {
+      throw new Error(
+        `fetchAggregatorFees: vault returned token ${gasFee.tokenId} for requested token ${expectedTokenId}`,
+      );
     }
+    commitmentGasCosts[index + 1] = gasFee.pendingNoteCommitment;
+  }
+
+  const rebuiltRoot = MerkleTree.fromOrderedLeaves({ depth: GAS_FEE_TREE_DEPTH }, commitmentGasCosts).root();
+  if (rebuiltRoot !== commitmentFeeRoot) {
+    throw new Error(
+      `fetchAggregatorFees: gas-fee table root ${rebuiltRoot} does not match on-chain root ${commitmentFeeRoot} at block ${blockNumber}`,
+    );
   }
 
   return {
-    protocolFeePerThousand: protocolFeePerThousand as bigint,
-    feeNotePublicKey: [feeKeyX as bigint, feeKeyY as bigint],
+    protocolFeePerThousand,
+    feeNotePublicKey: [feeKeyX, feeKeyY],
     commitmentGasCosts,
   };
 }

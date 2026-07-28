@@ -158,12 +158,18 @@ async function syncOneNetwork(
       parameters.resolveOwnership ?? (accountId ? coreOwnershipResolver(config, accountId) : undefined);
     const ownedNullifiers = accountId ? await ownedNullifiersFromBalances(config, accountId, networkSlug) : undefined;
 
-    // The committed-leaf cursor BEFORE this sync — the account may lag it (a new
-    // account, a wallet import, or a sync that advanced the log while logged-out).
-    // applyAccountDiscovery backfills discovery over the gap [cursor, treeCursorBefore).
-    const treeCursorBefore = await config.storage.getCommittedLogCount(networkSlug, "leaf");
-
     const engine = parameters.engine ?? config.notesSyncEngine;
+    // The account may lag the already-persisted network tree (a second/imported
+    // account, or a crash after tree persistence but before account effects).
+    // The global engine's cursor is its leaf log. The lean sharded engine
+    // deliberately stores no full leaf log, so derive its head from the persisted
+    // live-shard record instead. Using the leaf-log count unconditionally left
+    // sharded wallets stuck at zero and made historical notes undiscoverable.
+    const treeCursorBefore =
+      engine === "global"
+        ? await config.storage.getCommittedLogCount(networkSlug, "leaf")
+        : await getPersistedShardedLeafCount(config, networkSlug, environment);
+
     const outcome = await runSyncEngine(engine, {
       storage: config.storage,
       networkSlug,
@@ -265,6 +271,20 @@ async function syncOneNetwork(
   } finally {
     config._internal.scanLocks.set(lockKey, false);
   }
+}
+
+async function getPersistedShardedLeafCount(
+  config: CurvyConfig,
+  networkSlug: string,
+  environment: CurvyConfig["state"]["environment"],
+): Promise<number> {
+  const liveShard = await config.storage.getLiveShard(networkSlug);
+  if (liveShard) return liveShard.startIndex + liveShard.leaves.length;
+
+  // A completed sharded sync always writes the live-shard record before its
+  // checkpoint. Keep the checkpoint fallback for storage migrated from builds
+  // that did not yet persist an empty live shard.
+  return (await config.storage.getNotesCheckpoint(networkSlug, environment))?.leafCount ?? 0;
 }
 
 type SyncEngineOptions = {

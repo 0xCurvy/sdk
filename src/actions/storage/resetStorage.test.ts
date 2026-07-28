@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createFakeConfig, fakeBalanceEntry, fakeCurvyAccount } from "@/test/fixtures";
+import type { TxHistoryEntry } from "@/types/storage";
 import { resetStorage } from "./resetStorage";
 
 describe("resetStorage", () => {
@@ -38,6 +39,51 @@ describe("resetStorage", () => {
     expect(config._internal.timers.price).toBeDefined();
 
     // Cleanup so the interval doesn't leak across tests.
+    config._internal.timers.price?.cancel();
+    config._internal.timers.price = undefined;
+  });
+
+  it("preserves finalized activity while clearing the disposable hot projection", async () => {
+    const account = fakeCurvyAccount();
+    const config = createFakeConfig({
+      activeAccountId: account.id,
+      liveAccounts: new Map([[account.id, account]]),
+    });
+    const history = (finality: TxHistoryEntry["finality"]): TxHistoryEntry => ({
+      id: `ethereum:note-${finality}:receive`,
+      accountId: account.id,
+      networkSlug: "ethereum",
+      environment: "mainnet",
+      kind: "receive",
+      noteId: `note-${finality}`,
+      amount: "100",
+      token: "0xusdc",
+      finality,
+      observedAt: 1,
+    });
+    await config.storage.putTxHistory([history("finalized"), history("hot")]);
+
+    await resetStorage({ config });
+
+    expect(await config.storage.getTxHistory(account.id)).toEqual([expect.objectContaining({ finality: "finalized" })]);
+
+    config._internal.timers.price?.cancel();
+    config._internal.timers.price = undefined;
+  });
+
+  it("does not restore a stale discovery cursor from the in-memory account registry", async () => {
+    const account = fakeCurvyAccount();
+    const config = createFakeConfig({
+      activeAccountId: account.id,
+      liveAccounts: new Map([[account.id, account]]),
+    });
+    const stale = { ...config.state.accounts[account.id], discoveryCursors: { ethereum: 99 } };
+    config.setState({ accounts: { [account.id]: stale } });
+
+    await resetStorage({ config });
+
+    expect((await config.storage.getCurvyAccountDataById(account.id)).discoveryCursors).toEqual({});
+
     config._internal.timers.price?.cancel();
     config._internal.timers.price = undefined;
   });

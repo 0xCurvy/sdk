@@ -3,13 +3,13 @@ import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import type { CurvyId } from "@/types";
 import { computePrivateKeys } from "@/utils/keys";
-import { processPasskeyPrf } from "@/utils/passkey/processPasskeyPrf";
+import { type PasskeyPrfValue, processPasskeyPrf } from "@/utils/passkey/processPasskeyPrf";
 import { preRegistrationChecks } from "./internal/preRegistrationChecks";
 import { registerAndAddAccount } from "./internal/registerAndAddAccount";
 
 export type RegisterWithPasskeyParameters = WithConfig<{
   handle: CurvyId;
-  prfValue: BufferSource;
+  prfValue: PasskeyPrfValue;
   credId?: ArrayBuffer;
 }>;
 

@@ -79,7 +79,7 @@ export async function buildAggregateRequest(
   const { maxInputs, maxOutputs, treeDepth } = artifacts;
   // Read the fee config + fee-note key from the contract so the witness matches what the
   // contract enforces on-chain (protocolFee equality, gas-fee root match, fee-note key). The
-  // per-token gas-cost table is reconstructed from the vault's latest event (see fetchAggregatorFees).
+  // per-token table and root are read and cross-checked at one pinned block (see fetchAggregatorFees).
   const { protocolFeePerThousand, feeNotePublicKey, commitmentGasCosts } = await fetchAggregatorFees(
     config,
     networkSlug,

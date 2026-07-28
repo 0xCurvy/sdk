@@ -1,1 +1,1 @@
-export { processPasskeyPrf } from "./processPasskeyPrf";
+export { type PasskeyPrfValue, processPasskeyPrf } from "./processPasskeyPrf";

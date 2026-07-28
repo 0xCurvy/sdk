@@ -153,49 +153,53 @@ export async function syncShardedNotesTree(opts: SyncShardedNotesTreeOptions): P
     ));
   }
 
-  // 6. Persist the delta: append-only shard roots, the (bounded) live shard,
-  //    witnesses touched this run, the nullifier log tail, the checkpoint.
+  // 6. Persist the delta atomically: a shard rollover updates the roots and live
+  //    shard together, so a tab close cannot leave a reconstructed cursor ahead
+  //    of leaves that account discovery has not processed.
   const snapshot = tree.snapshot();
-  if (snapshot.shardRoots.length > shardCountBefore) {
-    await storage.appendShardRoots(networkSlug, shardCountBefore, snapshot.shardRoots.slice(shardCountBefore));
-  }
-  await storage.putLiveShard({
-    networkSlug,
-    startIndex: tree.leafCount - snapshot.liveLeaves.length,
-    leaves: snapshot.liveLeaves,
-  });
-  for (const w of tree.drainDirtyWitnesses()) {
-    await storage.putNoteWitness({
+  const dirtyWitnesses = tree.drainDirtyWitnesses();
+  await storage.runInNotesTransaction(async () => {
+    if (snapshot.shardRoots.length > shardCountBefore) {
+      await storage.appendShardRoots(networkSlug, shardCountBefore, snapshot.shardRoots.slice(shardCountBefore));
+    }
+    await storage.putLiveShard({
       networkSlug,
-      noteId: w.noteId.toString(),
-      leafIndex: w.leafIndex,
-      shardIndex: w.shardIndex,
-      withinShardSiblings: w.withinShardSiblings?.map(String) ?? null,
+      startIndex: tree.leafCount - snapshot.liveLeaves.length,
+      leaves: snapshot.liveLeaves,
     });
-  }
-  for (const noteId of spentNoteIds) await storage.deleteNoteWitness(networkSlug, noteId.toString());
-  if (delta.nullifiers.length > 0) {
-    await storage.appendCommittedLog(networkSlug, "nullifier", fromNullifierCount, delta.nullifiers);
-  }
-  await storage.putNotesCheckpoint({
-    networkSlug,
-    environment,
-    leafCount: tree.leafCount,
-    nullifierCount: fromNullifierCount + newNullifiers.length,
-    root: tree.root().toString(),
-    blockNumber: delta.blockNumber,
-    lastSynced: now(),
-    shardCount: tree.shardCount,
-    ...(delta.checkpoint
-      ? {
-          checkpoint: delta.checkpoint.checkpoint,
-          finalizedBlockNumber: delta.checkpoint.finalizedBlockNumber,
-          finalizedBlockHash: delta.checkpoint.finalizedBlockHash,
-          contractAddress: delta.checkpoint.contractAddress,
-          treeVersion: delta.checkpoint.treeVersion,
-          shardHeight: delta.checkpoint.shardHeight,
-        }
-      : {}),
+    for (const w of dirtyWitnesses) {
+      await storage.putNoteWitness({
+        networkSlug,
+        noteId: w.noteId.toString(),
+        leafIndex: w.leafIndex,
+        shardIndex: w.shardIndex,
+        withinShardSiblings: w.withinShardSiblings?.map(String) ?? null,
+      });
+    }
+    for (const noteId of spentNoteIds) await storage.deleteNoteWitness(networkSlug, noteId.toString());
+    if (delta.nullifiers.length > 0) {
+      await storage.appendCommittedLog(networkSlug, "nullifier", fromNullifierCount, delta.nullifiers);
+    }
+    await storage.putNotesCheckpoint({
+      networkSlug,
+      environment,
+      leafCount: tree.leafCount,
+      nullifierCount: fromNullifierCount + newNullifiers.length,
+      root: tree.root().toString(),
+      blockNumber: delta.blockNumber,
+      lastSynced: now(),
+      shardCount: tree.shardCount,
+      ...(delta.checkpoint
+        ? {
+            checkpoint: delta.checkpoint.checkpoint,
+            finalizedBlockNumber: delta.checkpoint.finalizedBlockNumber,
+            finalizedBlockHash: delta.checkpoint.finalizedBlockHash,
+            contractAddress: delta.checkpoint.contractAddress,
+            treeVersion: delta.checkpoint.treeVersion,
+            shardHeight: delta.checkpoint.shardHeight,
+          }
+        : {}),
+    });
   });
 
   return { tree, newLeaves, newOwned, newNullifiers, spentNoteIds, caughtUp, indexerLag };

@@ -187,6 +187,81 @@ describe("IndexedDBStorage (Dexie schema + queries)", () => {
     expect((await storage.getPriceFeed()).size).toBe(0);
   });
 
+  it("clears derived cache atomically while preserving metadata and finalized activity", async () => {
+    await storage.insertCurvyAccount(account);
+    await storage.updateCurvyAccountData("acc-1", { discoveryCursors: { ethereum: 12 } });
+    await storage.upsertCurrencyMetadata(new Map([["0xusdc-ethereum", meta]]));
+    await storage.upsertPriceData(new Map([["USDC", { price: "1.00", decimals: 6 }]]));
+    await storage.updateBalanceEntries("acc-1", "ethereum", [makeEntry()]);
+    await storage.putNotesCheckpoint({
+      networkSlug: "ethereum",
+      environment: "testnet",
+      leafCount: 1,
+      nullifierCount: 0,
+      root: "1",
+      blockNumber: 1,
+      lastSynced: 1,
+    });
+    await storage.appendCommittedLog("ethereum", "leaf", 0, ["1"]);
+    await storage.appendShardRoots("ethereum", 0, ["1"]);
+    await storage.putLiveShard({ networkSlug: "ethereum", startIndex: 1, leaves: [] });
+    await storage.replaceHotOverlay(hotReplacement());
+    await storage.putTxHistory([
+      {
+        id: "ethereum:1:receive",
+        accountId: "acc-1",
+        networkSlug: "ethereum",
+        environment: "testnet",
+        kind: "receive",
+        noteId: "1",
+        amount: "100",
+        token: "0xusdc",
+        finality: "finalized",
+        observedAt: 1,
+      },
+      {
+        id: "ethereum:2:receive",
+        accountId: "acc-1",
+        networkSlug: "ethereum",
+        environment: "testnet",
+        kind: "receive",
+        noteId: "2",
+        amount: "100",
+        token: "0xusdc",
+        finality: "hot",
+        observedAt: 2,
+      },
+    ]);
+
+    await storage.clearCachedData();
+
+    expect(await storage.getBalances("acc-1")).toEqual([]);
+    expect(await storage.getNotesCheckpoint("ethereum", "testnet")).toBeNull();
+    expect(await storage.getCommittedLog("ethereum", "leaf")).toEqual([]);
+    expect(await storage.getShardRoots("ethereum")).toEqual([]);
+    expect(await storage.getLiveShard("ethereum")).toBeNull();
+    expect(await storage.getHotSyncState("ethereum")).toBeNull();
+    expect((await storage.getCurvyAccountDataById("acc-1")).discoveryCursors).toEqual({});
+    expect((await storage.getCurrencyMetadata("0xusdc", "ethereum")).symbol).toBe("USDC");
+    expect((await storage.getCurrencyPrice("USDC")).price).toBe("1.00");
+    expect(await storage.getTxHistory("acc-1")).toEqual([
+      expect.objectContaining({ id: "ethereum:1:receive", finality: "finalized" }),
+    ]);
+  });
+
+  it("rolls back every notes-table write when a notes transaction fails", async () => {
+    await expect(
+      storage.runInNotesTransaction(async () => {
+        await storage.appendCommittedLog("ethereum", "leaf", 0, ["1"]);
+        await storage.putLiveShard({ networkSlug: "ethereum", startIndex: 0, leaves: ["1"] });
+        throw new Error("simulated tab failure");
+      }),
+    ).rejects.toThrow("simulated tab failure");
+
+    expect(await storage.getCommittedLog("ethereum", "leaf")).toEqual([]);
+    expect(await storage.getLiveShard("ethereum")).toBeNull();
+  });
+
   it("round-trips the sharded notes-tree stores and clears them", async () => {
     // Shard roots: chunked, append-only from the cursor.
     expect(await storage.getShardRoots("ethereum")).toEqual([]);

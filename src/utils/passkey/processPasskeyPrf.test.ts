@@ -49,9 +49,22 @@ describe("processPasskeyPrf", () => {
     expect(fromBuffer.s).toBe(fromView.s);
   });
 
-  it("rejects malformed (non-BufferSource) input", async () => {
-    // crypto.subtle.importKey throws on invalid keyData rather than returning.
+  it("accepts a Base64 auth-callback value equivalently to its Uint8Array bytes", async () => {
+    const view = fixedPrf();
+    const base64 = btoa(String.fromCharCode(...view));
+    const fromView = await processPasskeyPrf(view);
+    const fromBase64 = await processPasskeyPrf(base64);
+
+    expect(fromBase64.prfAddress).toBe(fromView.prfAddress);
+    expect(fromBase64.r).toBe(fromView.r);
+    expect(fromBase64.s).toBe(fromView.s);
+  });
+
+  it("rejects malformed input before calling WebCrypto", async () => {
     // @ts-expect-error intentionally passing an invalid input type
-    await expect(processPasskeyPrf("not-a-buffer-source")).rejects.toBeTruthy();
+    await expect(processPasskeyPrf({})).rejects.toThrow(
+      "Passkey PRF value must be a BufferSource or a valid Base64 string.",
+    );
+    await expect(processPasskeyPrf("dG9vIHNob3J0")).rejects.toThrow("Passkey PRF value must contain exactly 32 bytes.");
   });
 });
