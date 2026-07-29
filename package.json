@@ -384,6 +384,8 @@
   "scripts": {
     "build": "rimraf dist && CURVY_SDK_PASS=js tsup && NODE_OPTIONS=--max-old-space-size=8192 CURVY_SDK_PASS=dts tsup && bash scripts/postbuild.sh",
     "build:publish": "rimraf dist && CURVY_SDK_PUBLISH=1 CURVY_SDK_FORMAT=esm CURVY_SDK_PASS=js tsup && NODE_OPTIONS=--max-old-space-size=8192 CURVY_SDK_PUBLISH=1 CURVY_SDK_FORMAT=esm CURVY_SDK_PASS=dts tsup && CURVY_SDK_PUBLISH=1 CURVY_SDK_FORMAT=cjs CURVY_SDK_PASS=js tsup && NODE_OPTIONS=--max-old-space-size=8192 CURVY_SDK_PUBLISH=1 CURVY_SDK_FORMAT=cjs CURVY_SDK_PASS=dts tsup && bash scripts/postbuild.sh",
+    "build-win": "node scripts/build.mjs",
+    "build-publish-win": "node scripts/build.mjs --publish",
     "watch": "tsup --watch",
     "clean": "rimraf dist .turbo",
     "typecheck": "tsc --noEmit",
