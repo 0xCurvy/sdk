@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { APIError } from "@/errors";
 import { popPrivateToken } from "@/privacy-pass/tokens";
 import { createFakeApi, createFakeConfig, fixtureNetwork } from "@/test/fixtures";
+import type { RelaySubmitRequestBody } from "@/types/aggregator";
+import { deriveRelayRequestKey, deriveRelaySpendKey } from "@/utils/aggregator";
 import { relaySubmission } from "./relaySubmission";
 import type { AggregatorSubmission } from "./types";
 
@@ -51,6 +53,9 @@ describe("relaySubmission — privacy pass attach + retry", () => {
     expect(result.requestId).toBe("r1");
     expect(submitProof).toHaveBeenCalledTimes(1);
     expect(submitProof.mock.calls[0][1]).toBe("PrivateToken token=t1");
+    const body = submitProof.mock.calls[0][0] as RelaySubmitRequestBody;
+    expect(body.requestKey).toBe(deriveRelayRequestKey(body));
+    expect(body.spendKey).toBe(deriveRelaySpendKey(body));
   });
 
   it("submits tokenless when tokens are off/unavailable", async () => {
@@ -88,6 +93,17 @@ describe("relaySubmission — privacy pass attach + retry", () => {
   it("does not retry non-auth failures", async () => {
     popMock.mockResolvedValue("PrivateToken token=t1");
     const submitProof = vi.fn().mockRejectedValue(new APIError("bad request", 400, undefined, "req-1"));
+    const config = buildConfig(submitProof);
+
+    await expect(relaySubmission({ config, request })).rejects.toMatchObject({ name: "RelayError" });
+    expect(submitProof).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not treat an active-spend 409 as a Privacy Pass retry", async () => {
+    popMock.mockResolvedValue("PrivateToken token=t1");
+    const submitProof = vi
+      .fn()
+      .mockRejectedValue(new APIError("conflict", 409, '{"message":"another proof generation is active"}', "req-1"));
     const config = buildConfig(submitProof);
 
     await expect(relaySubmission({ config, request })).rejects.toMatchObject({ name: "RelayError" });

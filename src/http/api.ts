@@ -374,7 +374,7 @@ class ApiClient extends HttpClient implements IApiClient {
   };
 
   // v3 client-proving relay (anonymous, SDK-owned contract). `retries: 0` on POST
-  // so a network hiccup never double-submits — the `idempotencyKey` is the dedupe
+  // so a network hiccup never double-submits — the exact-payload `requestKey` is the dedupe
   // guard if the relayer DID receive it.
   relay = {
     // `privateTokenHeader` is a single-use, unlinkable Privacy Pass token

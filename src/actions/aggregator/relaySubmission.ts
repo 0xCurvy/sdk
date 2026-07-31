@@ -3,6 +3,7 @@ import type { WithConfig } from "@/config/types";
 import { APIError, RelayError } from "@/errors";
 import { popPrivateToken } from "@/privacy-pass/tokens";
 import type { RelayProofPayload, RelaySubmitRequestBody, RelaySubmitReturnType } from "@/types/aggregator";
+import { deriveRelayRequestKey, deriveRelaySpendKey } from "@/utils/aggregator";
 import type { AggregatorSubmission } from "./types";
 
 export type RelaySubmissionParameters = WithConfig<{
@@ -37,11 +38,7 @@ export async function relaySubmission(parameters: RelaySubmissionParameters): Pr
     c: [proofC[0].toString(), proofC[1].toString()],
   };
 
-  // Derive the idempotency key from the first nullifier (unique per spend) so a
-  // POST retry maps to the SAME relayed tx instead of double-submitting.
-  const dedupe = (request.nullifiers?.[0] ?? request.publicSignals[0] ?? 0n).toString();
-
-  const body: RelaySubmitRequestBody = {
+  const keyMaterial = {
     action: request.action,
     // Relayer is chain-keyed (one signer per EVM chain); send the on-chain chainId,
     // not the indexer's internal network row id.
@@ -49,7 +46,11 @@ export async function relaySubmission(parameters: RelaySubmissionParameters): Pr
     maxInputs: request.contractArg,
     proof,
     publicSignals: request.publicSignals.map((s) => s.toString()),
-    idempotencyKey: `${request.action}:${dedupe}`,
+  } satisfies Omit<RelaySubmitRequestBody, "requestKey" | "spendKey" | "intentId">;
+  const body: RelaySubmitRequestBody = {
+    ...keyMaterial,
+    requestKey: deriveRelayRequestKey(keyMaterial),
+    spendKey: deriveRelaySpendKey(keyMaterial),
     intentId: parameters.intentId,
   };
 
@@ -63,12 +64,11 @@ export async function relaySubmission(parameters: RelaySubmissionParameters): Pr
     return await config.api.relay.SubmitProof(body, privateToken);
   } catch (error) {
     let failure = error as Error;
-    const status = error instanceof APIError ? error.statusCode : undefined;
-    if (status === 401 || status === 409) {
+    if (isPrivacyPassRejection(error)) {
       const retryToken = await popPrivateToken(config, "relayer", { forceRefresh: true });
       if (retryToken && retryToken !== privateToken) {
         try {
-          // Safe to retry: idempotencyKey dedupes if the first POST DID land.
+          // Safe to retry: requestKey dedupes if the first POST DID land.
           return await config.api.relay.SubmitProof(body, retryToken);
         } catch (retryError) {
           failure = retryError as Error;
@@ -85,4 +85,14 @@ export async function relaySubmission(parameters: RelaySubmissionParameters): Pr
     }
     throw new RelayError(`relaySubmission failed: ${failure.message}`, failure);
   }
+}
+
+function isPrivacyPassRejection(error: unknown): error is APIError {
+  if (!(error instanceof APIError)) return false;
+  if (error.statusCode === 401) return true;
+  return (
+    error.statusCode === 409 &&
+    typeof error.responseBody === "string" &&
+    error.responseBody.includes("Token already spent")
+  );
 }

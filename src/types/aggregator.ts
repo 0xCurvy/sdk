@@ -53,24 +53,29 @@ export type RelayProofPayload = {
   c: [string, string];
 };
 
+/** The immutable on-chain payload covered by relay request/spend keys. */
+export type RelaySubmissionKeyMaterial = {
+  action: AggregatorSubmissionAction;
+  networkId: number;
+  maxInputs: number;
+  proof: RelayProofPayload;
+  publicSignals: string[];
+};
+
 /**
  * The body POSTed to relay a client-proved submission. `publicSignals` is an
  * ORDERED, OPAQUE string[] — never a fixed-length tuple — because its length
  * varies per action/circuit and changes as circuits evolve; the on-chain verifier
  * enforces correctness, not this shape.
  */
-export type RelaySubmitRequestBody = {
-  action: AggregatorSubmissionAction;
-  networkId: number;
-  /** The aggregator config arg (e.g. maxInputs). */
-  maxInputs: number;
-  proof: RelayProofPayload;
-  publicSignals: string[];
+export type RelaySubmitRequestBody = RelaySubmissionKeyMaterial & {
   /**
-   * Client-derived (hash of the first nullifier) so a POST retry maps to the SAME
-   * relayed tx instead of double-submitting. The relayer MUST honor it.
+   * Exact immutable-payload identity. A transport retry keeps this key; a rebuilt
+   * proof gets a new key. The relayer recomputes and verifies it.
    */
-  idempotencyKey: string;
+  requestKey: HexString;
+  /** Stable identity of the complete non-padding nullifier set across proof generations. */
+  spendKey: HexString;
   /** Stable wallet intent id shared by retries; contains no private material. */
   intentId?: string;
 };
