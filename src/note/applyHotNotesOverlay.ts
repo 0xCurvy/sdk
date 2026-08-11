@@ -1,8 +1,8 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import { nullifier as rustNullifier } from "@/core/rustCore";
 import type { StorageInterface } from "@/interfaces/storage";
 import { Note } from "@/note/note";
 import { noteToBalanceEntry } from "@/note/noteToBalanceEntry";
-import { nullifier as rustNullifier } from "@/proving/rustCore";
 import type { GetSyncHotMetaReturnType, SyncHotBlock } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import type {
@@ -247,7 +247,7 @@ export async function applyHotNotesOverlay(options: ApplyHotNotesOverlayOptions)
         balanceEntry: provisional?.balanceEntry ?? balanceById.get(noteId),
         origin: provisional?.origin ?? "external",
         originIntentId: provisional?.originIntentId,
-        spentHotBy: nullifier.relaySubmissionId ?? nullifier.transactionHash,
+        spentHotBy: nullifier.transactionHash,
         spentBlockNumber: block.number,
         spentBlockHash: block.hash,
         spendTxHash: nullifier.transactionHash,

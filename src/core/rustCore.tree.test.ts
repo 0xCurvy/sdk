@@ -1,8 +1,6 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { MerkleTree } from "./merkleTree";
+import { MerkleTree } from "@/proving/merkleTree";
+import { RS_CORE_WASM, readPackagedWasm } from "./packagedWasm";
 import {
   bytesToField,
   bytesToFields,
@@ -18,11 +16,10 @@ import {
   verifyRustMerkleProof,
 } from "./rustCore";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const wasmPath = join(here, "../../assets/core-rs/curvy_core_bg.wasm");
-
 beforeAll(async () => {
-  await initCore({ bytes: new Uint8Array(readFileSync(wasmPath)) });
+  // Explicit bytes from the packaged binary — the same path initCore() takes on
+  // Node, exercised here without relying on the shared test setup.
+  await initCore({ bytes: await readPackagedWasm(RS_CORE_WASM) });
 });
 
 describe("Rust tree adapters", () => {

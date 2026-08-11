@@ -1,5 +1,5 @@
+import { noteId as rustNoteId, ownerHash as rustOwnerHash } from "@/core/rustCore";
 import { decryptAmountToken } from "@/proving/balanceCipher";
-import { noteId as rustNoteId, ownerHash as rustOwnerHash } from "@/proving/rustCore";
 import type { SyncedLeaf } from "./notesTreeSync";
 
 // ─────────────────────────────────────────────────────────────────────────────

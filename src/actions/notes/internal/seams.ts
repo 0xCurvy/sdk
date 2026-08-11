@@ -1,10 +1,10 @@
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import type { CurvyConfig } from "@/config/types";
+import { nullifier as rustNullifier } from "@/core/rustCore";
 import type { OwnershipMatch, OwnershipResolver } from "@/note/discoverOwnedNotes";
 import type { FinalizedSyncCheckpoint, LeafSource, RootVerifier, SyncedLeaf } from "@/note/notesTreeSync";
 import type { LeafRangeSource } from "@/note/shardedNotesSync";
 import { DEFAULT_SHARD_HEIGHT } from "@/note/shardedNotesTree";
-import { nullifier as rustNullifier } from "@/proving/rustCore";
 import type { EvmRpc } from "@/rpc";
 
 // ─────────────────────────────────────────────────────────────────────────────

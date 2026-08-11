@@ -225,7 +225,6 @@ type HotBlockRecord = {
     amount?: string;
     token?: string;
     isPlaintext?: boolean;
-    relaySubmissionId?: string | null;
     transactionHash: string;
     transactionIndex: number;
     logIndex: number;
@@ -240,7 +239,6 @@ type HotBlockRecord = {
     token?: string;
     isPlaintext?: boolean;
     batchRunId?: string | null;
-    relaySubmissionId?: string | null;
     commitTransactionHash: string;
     commitTransactionIndex: number;
     commitLogIndex: number;
@@ -251,7 +249,6 @@ type HotBlockRecord = {
   nullifiers: Array<{
     index: number;
     nullifier: string;
-    relaySubmissionId?: string | null;
     transactionHash: string;
     transactionIndex: number;
     logIndex: number;

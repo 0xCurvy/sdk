@@ -1,12 +1,6 @@
+import { type CoreWasmSource, initCore as initRustCore, pubFromPrivateKey, sign, stealthCore } from "@/core/rustCore";
 import type { ICore, NoteDeliveryTag, RawAnnouncement, SendNoteData } from "@/interfaces/core";
 import { Note } from "@/note";
-import {
-  type CoreWasmSource,
-  initCore as initRustCore,
-  pubFromPrivateKey,
-  sign,
-  stealthCore,
-} from "@/proving/rustCore";
 import type { CoreScanReturnType, CurvyKeyPairs, Signature } from "@/types/core";
 import type { HexString, StringifyBigInts } from "@/types/helper";
 

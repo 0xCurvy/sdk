@@ -166,8 +166,6 @@ type SyncCommittedNote = {
   isPlaintext?: boolean;
   /** Batch-prover run id whose commit tx covered this note. Null until committed. */
   batchRunId?: string | null;
-  /** Relay submission id that produced this note (aggregation outputs/fee). Null for shields. */
-  relaySubmissionId?: string | null;
   /** Block of the announce tx — the user-action time (pairs with `requestTxHash`). */
   blockNumber?: number;
   requestBlockHash?: string;
@@ -181,8 +179,6 @@ type SyncCommittedNote = {
 type SyncNullifierRecord = {
   index: number;
   nullifier: string;
-  /** Relay submission id whose tx consumed this nullifier. */
-  relaySubmissionId?: string | null;
   blockNumber?: number;
   blockHash?: string;
   txHash?: string;
@@ -206,7 +202,7 @@ type GetSyncMetaReturnType = {
 
 type SyncPendingNote = Omit<
   SyncCommittedNote,
-  "batchRunId" | "relaySubmissionId" | "requestBlockHash" | "commitBlockNumber" | "commitBlockHash" | "commitTxHash"
+  "batchRunId" | "requestBlockHash" | "commitBlockNumber" | "commitBlockHash" | "commitTxHash"
 > & {
   blockNumber: number;
   blockHash: string;
@@ -251,7 +247,6 @@ type SyncHotAnnouncement = {
   amount?: string;
   token?: string;
   isPlaintext?: boolean;
-  relaySubmissionId?: string | null;
   transactionHash: string;
   transactionIndex: number;
   logIndex: number;
@@ -272,7 +267,6 @@ type SyncHotCommittedNote = SyncHotAnnouncement & {
 type SyncHotNullifier = {
   index: number;
   nullifier: string;
-  relaySubmissionId?: string | null;
   transactionHash: string;
   transactionIndex: number;
   logIndex: number;

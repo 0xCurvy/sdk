@@ -1,4 +1,3 @@
-import type { InclusionProof } from "@/proving/merkleTree";
 import {
   bytesToField,
   bytesToFields,
@@ -7,7 +6,8 @@ import {
   fieldToBytes,
   type RustShardedNotesTree,
   restoreRustShardedNotesTreeParts,
-} from "@/proving/rustCore";
+} from "@/core/rustCore";
+import type { InclusionProof } from "@/proving/merkleTree";
 import type { NotesTreeView } from "./notesTreeView";
 
 export const NOTES_TREE_DEPTH = 30;

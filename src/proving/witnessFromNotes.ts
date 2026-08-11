@@ -175,7 +175,7 @@ const flatEncrypted = (e: EncryptedNoteDataBus): bigint[] => [
   e.viewTag,
 ];
 
-/** Flatten `WithdrawCircuitInputs` into the witness `groth16.fullProve` expects. */
+/** Flatten `WithdrawCircuitInputs` into the signal map consumed by the witness graph. */
 export const flattenWithdrawalCircuitInputs = (w: WithdrawCircuitInputs) => ({
   inputNotes: w.inputNotes.map(flatNote),
   publicKey: w.publicKey,
@@ -186,7 +186,7 @@ export const flattenWithdrawalCircuitInputs = (w: WithdrawCircuitInputs) => ({
   tokenId: w.tokenId,
 });
 
-/** Flatten `AggregationCircuitInputs` into the witness `groth16.fullProve` expects. */
+/** Flatten `AggregationCircuitInputs` into the signal map consumed by the witness graph. */
 export const flattenAggregationCircuitInputs = (a: AggregationCircuitInputs) => ({
   inputNotes: a.inputNotes.map(flatNote),
   inputNoteInclusionProofs: a.inputNoteInclusionProofs.map(flatInclusion),

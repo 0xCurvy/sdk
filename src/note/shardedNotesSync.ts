@@ -1,11 +1,11 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { StorageInterface } from "@/interfaces/storage";
 import {
   bytesToFields,
   createRustMerkleTreeFromLeaves,
   fieldToBytes,
   nullifier as rustNullifier,
-} from "@/proving/rustCore";
+} from "@/core/rustCore";
+import type { StorageInterface } from "@/interfaces/storage";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "./discoverOwnedNotes";
 import { type LeafSource, type RootVerifier, reconcileWithChain, type SyncedLeaf } from "./notesTreeSync";
 import { DEFAULT_SHARD_HEIGHT, NOTES_TREE_DEPTH, ShardedNotesTree } from "./shardedNotesTree";

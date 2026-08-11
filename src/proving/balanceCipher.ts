@@ -1,4 +1,7 @@
-import { decryptAmountToken as rustDecryptAmountToken, encryptAmountToken as rustEncryptAmountToken } from "./rustCore";
+import {
+  decryptAmountToken as rustDecryptAmountToken,
+  encryptAmountToken as rustEncryptAmountToken,
+} from "@/core/rustCore";
 
 export type EncryptedAmountToken = { encryptedAmount: bigint; encryptedToken: bigint };
 

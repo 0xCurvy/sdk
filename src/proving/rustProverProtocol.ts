@@ -1,5 +1,5 @@
+import type { RustCoreRuntimeStatus, RustCoreThreads } from "@/core/rustCore";
 import type { ProofResult, ProverContext, ZKArtifact } from "./prover";
-import type { RustCoreRuntimeStatus, RustCoreThreads } from "./rustCore";
 
 export interface RustProverWorkerRequest {
   id: number;
@@ -9,7 +9,6 @@ export interface RustProverWorkerRequest {
   zkey: ZKArtifact;
   context: ProverContext;
   threads: RustCoreThreads;
-  wasm: { singleUrl: string; threadedUrl: string };
 }
 
 export type RustProverWorkerResponse =

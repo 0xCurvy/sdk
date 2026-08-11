@@ -21,6 +21,13 @@ export async function resolveRecipients(
 ): Promise<Note[]> {
   return Promise.all(
     recipients.map(async (recipient) => {
+      if ("note" in recipient) {
+        if (recipient.note.token !== token) {
+          throw new Error(`aggregate: pre-built recipient note token ${recipient.note.token} does not match ${token}`);
+        }
+        return recipient.note;
+      }
+
       if ("curvyId" in recipient) {
         const { data } = await config.api.user.ResolveCurvyId(recipient.curvyId);
         if (!data) throw new Error(`aggregate: Curvy handle "${recipient.curvyId}" not found`);

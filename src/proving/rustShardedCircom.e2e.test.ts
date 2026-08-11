@@ -6,11 +6,10 @@ import { IMT } from "@zk-kit/imt";
 import { poseidon2 } from "poseidon-lite";
 import { groth16, zKey } from "snarkjs";
 import { describe, expect, it } from "vitest";
-
+import { fieldsToBytes, verifyRustMerkleProof } from "@/core/rustCore";
 import { Note, ShardedNotesTree } from "@/note";
 import { ephemeralPubKey, pubFromPrivateKey } from "./babyJubjub";
 import type { InclusionProof } from "./merkleTree";
-import { fieldsToBytes, verifyRustMerkleProof } from "./rustCore";
 import { createRustProver } from "./rustProver";
 import { flattenWithdrawalCircuitInputs, generateWithdrawalCircuitInputsFromNotes } from "./witnessFromNotes";
 

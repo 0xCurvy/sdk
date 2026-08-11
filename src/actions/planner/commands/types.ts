@@ -28,7 +28,7 @@ export type CommandContext = {
   network: Network;
   /** The input's network slug (the v3 build/sync actions key off this). */
   networkSlug: string;
-  /** Active account's `curvyHandle`, or `null` for ephemeral (STA-claim) accounts. */
+  /** Active account's `curvyHandle`, or `null` for ephemeral accounts. */
   senderCurvyId: CurvyId | null;
   /** The active account's BabyJubjub private key (hex) — owns the input notes, signs the proof. */
   ownerBjjPrivateKeyHex: string;

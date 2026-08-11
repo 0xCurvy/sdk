@@ -8,15 +8,15 @@ Reference + working guide for **AI agents** (and humans) editing or consuming th
 
 ## At a glance
 
-- **Package:** `@0xcurvy/curvy-sdk` (v0.0.7) · **dual ESM + CJS** · `"type": "module"` · Node **≥ 22.16**.
-- **Build:** `tsup` + `scripts/postbuild.sh` → `dist/_esm` (ESM) + `dist/_cjs` (CJS) + `dist/_types` (`.d.ts` for `import`, `.d.cts` for `require`) + `dist/assets` (copied WASM/zk binaries). Lint/format: **Biome** (`biome check --write src`).
+- **Package:** `@0xcurvy/curvy-sdk` (v0.0.8-rc.1) · **dual ESM + CJS** · `"type": "module"` · Node **≥ 22.16**.
+- **Build:** `tsup` + `scripts/postbuild.sh` → `dist/_esm` (ESM) + `dist/_cjs` (CJS) + `dist/_types` (`.d.ts` for `import`, `.d.cts` for `require`). WASM binaries are **not** copied into `dist` — they come from the `@0xcurvy/rs-core-wasm` dependency. Lint/format: **Biome** (`biome check --write src`).
 - **Tests:** `vitest` (`pnpm test` == `vitest run src`). Real‑WASM `Core` tests run offline in Node.
-- **Subpath exports (tree‑shakeable):** import from the root for convenience, or a subpath for granular bundles:
-  `.` · `./actions` · `./config` · `./utils` · `./note` · `./solana` · `./rpc` · `./core` · `./http` · `./storage` · `./storage/idb` · `./errors` · `./types`.
-- Crypto, stealth scanning, Poseidon, note cipher, Merkle state, and Groth16 proving run in Rust/WASM. Cross-origin-isolated browsers may opt into Rayon builds; other browsers and Node use single-threaded builds. Circom WASM remains only as the temporary witness-generation seam.
+- **Public import policy:** the root contains the consumer-facing app API. Use the single `./actions`, `./config`, and curated `./utils` entrypoints; do not add category duplicates. Specialized tooling has deliberate subpaths:
+  `./gas` · `./note` · `./proving` · `./rust-core` · `./solana` · `./rpc` · `./core` · `./contracts` · `./http/api` · `./privacy-pass` · `./storage` · `./storage/idb` · `./vite`.
+- Crypto, stealth scanning, Poseidon, note cipher, Merkle state, witness evaluation, and Groth16 proving run in Rust/WASM. Cross-origin-isolated browsers may opt into Rayon builds; other browsers and Node use single-threaded builds. `snarkjs` is dev-only and remains solely as an independent proof verifier/test oracle.
 
 ```bash
-pnpm --filter @0xcurvy/curvy-sdk build      # tsup + postbuild (assets → dist/assets)
+pnpm --filter @0xcurvy/curvy-sdk build      # tsup + postbuild checks
 pnpm --filter @0xcurvy/curvy-sdk test       # vitest run src
 pnpm --filter @0xcurvy/curvy-sdk check      # biome check --write src
 pnpm --filter @0xcurvy/curvy-sdk exec tsc --noEmit   # typecheck
@@ -49,8 +49,7 @@ A **`CurvyConfig`** is a value‑bag built once by `createCurvyConfig(...)`. It 
 ## Quickstart
 
 ```ts
-import { createCurvyConfig, login, getBalances, on, destroyConfig } from "@0xcurvy/curvy-sdk";
-import { CURVY_EVENT_TYPES } from "@0xcurvy/curvy-sdk/types";
+import { createCurvyConfig, login, getBalances, on, destroyConfig, CURVY_EVENT_TYPES } from "@0xcurvy/curvy-sdk";
 
 const config = await createCurvyConfig({ environment: "mainnet" });   // registers global + needs backend up
 
@@ -69,7 +68,7 @@ await destroyConfig();                       // stop timers; clear global
 
 ## Public API
 
-The **root** (`@0xcurvy/curvy-sdk`) re‑exports nearly everything below (all of `./actions`, `./config`, `./utils`, `./note`, `./rpc`, planner types, errors, network constants, contract ABIs) plus directly: `CurvyAccount`, `Core`, `CurvyEventEmitter`, `MapStorage`, and `solana` (as a namespace: `solana.deriveVaultPda(...)`). Use subpaths for tighter tree‑shaking.
+The **root** (`@0xcurvy/curvy-sdk`) is intentionally consumer-facing: public actions, config creation/lifecycle, domain and planner types, errors, network constants, `CurvyAccount`, `Note`, and the `solana` namespace. RPC classes, contract ABIs, storage implementations, note-sync machinery, proving primitives, and utility functions belong to their explicit subpaths and must not be re-exported from root.
 
 ### `@0xcurvy/curvy-sdk/actions` — auth
 | Symbol | Signature |
@@ -155,48 +154,44 @@ The **root** (`@0xcurvy/curvy-sdk`) re‑exports nearly everything below (all of
 | `resetStorage` | `(p?) => Promise<void>` — clear storage, rebuild from `state.accounts`, refresh balances |
 
 ### `@0xcurvy/curvy-sdk/config`
-`createCurvyConfig`, `destroyConfig`, `getCurvyConfig` (throws), `peekCurvyConfig` (→ `CurvyConfig | null`), `setCurvyConfig`, `resolveConfig`, `getActiveNetworks`, `getEnvironment`, `refreshPrices`, `startPriceRefresh` (recurring; `PRICE_UPDATE_INTERVAL = 5 min`), `stopPriceRefresh`, `createStore`. Types: `CurvyConfig`, `CurvyConfigInternal` (the `_internal` wiring — plain underscore field, **not** behind a Proxy; treat as private), `CurvyState`, `CreateCurvyConfigParameters`, `WithConfig`, `Store`, `StoreListener`, `SubscribeOptions`, `ScanStatus`.
+`createCurvyConfig`, `createBrowserCurvyConfig`, `createServerCurvyConfig`, `destroyConfig`, `getCurvyConfig` (throws), `peekCurvyConfig` (→ `CurvyConfig | null`), `setCurvyConfig`, `getActiveNetworks`, `getEnvironment`, and `getProtocol`. Types: `CurvyConfig`, `CurvyState`, `CreateCurvyConfigParameters`, `CreateBrowserCurvyConfigParameters`, `CreateServerCurvyConfigParameters`, `WithConfig`, and `ScanStatus`. Config internals, the store constructor, config resolution, and price-refresh machinery are not package exports.
 
 `CreateCurvyConfigParameters`: `{ environment?, apiBaseUrl?, storage?, wasmUrl?, wasmModule?, core?, enableKeystore?, customFetch?, timerProvider?, rustCoreThreads?, prover? }` — inject `core`/`storage`/`timerProvider` for testing or MV3; set `rustCoreThreads: "auto"` to use Rayon only in cross-origin-isolated browsers. The default prover is Rust/arkworks; proving-key paths and digests come from protocol metadata, never an SDK manifest.
 
 ### `@0xcurvy/curvy-sdk/core`
 `Core` *(class)* — `new Core(wasmUrl?, wasmModule?)`, implements `ICore` as a compatibility adapter over the shared Rust module. WASM crypto: `generateKeyPairs`, `getCurvyKeys`, `send`/`sendNote`, `scan` (spend), `viewerScan` (view‑only), `getBabyJubjubPublicKey`, and `signWithBabyJubjubPrivateKey`. `loadWasm` pre-warms the shared idempotent module.
 
-### `@0xcurvy/curvy-sdk/http`
-`HttpClient` *(class)* — `new HttpClient(apiBaseUrl?, customFetch?)`. Retry/backoff + timeouts + bearer‑token + `X‑Request‑ID`; emits unauthorized.
-
 ### `@0xcurvy/curvy-sdk/rpc`
 Classes `EvmRpc`, `SolanaRpc`, `MultiRpc`; factories `newRpc(network)`, `newMultiRpc(networks, filter?)`; helpers `toViemChain(network)` (curated `viem/chains` base + metadata overlay) and `buildWagmiNetworkConfig({ chains, transport })` (wagmi adapter, auto-resolves networks from the active config). Types: `RpcCallReturnType`, `RpcBalance`, `RpcBalances`, `VaultBalance`.
 
 ### `@0xcurvy/curvy-sdk/storage` & `…/storage/idb`
-`BaseStorage` (abstract — implements all business logic on `_`‑prefixed CRUD primitives), `MapStorage` (in‑memory, Node/tests), `SessionKeystore` (browser keypair/JWT persistence), type `StorageInterface`. **`./storage/idb`:** `IndexedDBStorage` (Dexie‑backed, production browser), `CurvyDatabase`. `insertCurvyAccount` takes a `SerializedCurvyAccount` (key‑free).
+`BaseStorage` (abstract — implements all business logic on `_`‑prefixed CRUD primitives), `MapStorage` (in‑memory, Node/tests), and type `StorageInterface`. **`./storage/idb`:** `IndexedDBStorage` (Dexie‑backed, production browser). Session-keystore and raw database implementations are internal.
 
 ### `@0xcurvy/curvy-sdk/note`
 `Note` *(class)* — owner + balance + delivery tag; derives `id`/`nullifier`/`ownerHash`; `serialize{Input,Output,Public,Full}Note()`, `static random/generateOwnerHash/deserializeOutputNote`. Converters `balanceEntryToNote`, `noteToBalanceEntry`. Types: `Balance`, `BabyJubjubPublicKey`, `Owner`, `DeliveryTag`, `PublicNote`, `AuthenticatedNote`, `InputNote`, `OutputNote`, `FullNoteData`.
 
-### `@0xcurvy/curvy-sdk/errors`
+### Root errors
 All extend `CurvyError` (has `.code`): `AnnouncementSyncError`, `StorageError`, `APIError`, `NoCurvyConfigError`, `NoActiveAccountError`, `PlanExecutionError`, `PlanEstimationError`, `CommandError`, `ScanError`, `NetworkError`, `AuthError`, `AccountError`, `SpendKeyRequiredError`, `ViewKeyRequiredError`. Discriminate by `instanceof` / `.code` — do **not** convert these to `invariant`.
 
 ### `@0xcurvy/curvy-sdk/utils`
-Pure, IO‑free helpers, grouped by category:
-- **brand** — `Brand<T,B>`, `Unbrand`, `Brander`, `createBrand` (nominal types; zero runtime cost).
+Curated, IO-free helpers:
 - **keys** — `requireSpendKey`, `requireViewKey`, `SpendKey`, `ViewKey` (type + brander), `computePrivateKeys`, `generateAccountId`.
 - **hash** — `poseidonHash`, `hash` (keccak KDF), `shaDigest`, `PoseidonInput`.
-- **encoding** — decimal/bytes/hex conversions, Borsh helpers (`encodeU32LE`/`encodeU64LE`/`encodeBorshVec`), `evmAddressToBytes32`, `serializeAcrossDepositSeedData`, …
-- **encryption** — `encryptData`/`decryptData`, `encryptCurvyMessage`/`decryptCurvyMessage`, `computePasswordHash`, `signMessage`, `bufferSourceToBuffer`.
+- **encoding** — public decimal/bytes/hex point conversions.
 - **address** — `deriveAddress`, `deriveSolanaRecoveryPubkey`, `isValidAddressFormat`, `isValidEvmAddress`.
-- **network** — `filterNetworks`, `findNetwork`, `findCurrency`, `networksToCurrencyMetadata`, `networksToPriceData`, `NetworkFilter`.
+- **network** — `filterNetworks`, `findNetwork`, `findCurrency`, `NetworkFilter`.
 - **eip712** — `getAuthenticationSignatureParams`, `getSignatureParams`.
-- **aggregator** — `generateAggregationHash`, `generateWithdrawalHash`.
-- **promise** — `lazySingleton`/`LazySingleton`, `pollForCriteria`, `sleep`.
+- **aggregator** — aggregation/withdrawal hashes and relay request/spend keys.
+- **promise** — `pollForCriteria`, `pollForCriteriaUntil`.
 - **timer** — `defaultTimerProvider`, `TimerHandle`, `TimerProvider` (injectable; swap for `chrome.alarms` under MV3).
-- **invariant** — `invariant(cond, msg?)` (asserts + narrows; message stripped in production).
-- **format** — `arrayBufferToHex`, `jsonStringify` (bigint‑safe), `toSlug`. **currency** — `parseDecimal`, `NATIVE_CURRENCY_ADDRESS`. **passkey** — `processPasskeyPrf`. **common** — `isNode`, `noop`, `encode`, `textEncoder`.
+- **format/currency** — `jsonStringify`, `parseDecimal`, `NATIVE_CURRENCY_ADDRESS`.
+
+Encryption, passkey, invariant, common, storage-metadata, Borsh/Solana encoding, and other implementation helpers stay in the internal `@/utils` barrel.
 
 ### `@0xcurvy/curvy-sdk/solana`
 PDA derivation (`deriveVaultPda`, `derivePortalMetaPda`, `deriveConfigPda`, `deriveAssociatedTokenAddress`, the `deriveAcross*`/`deriveRelay*` PDAs), recovery (`deriveRecoveryIdentifier`, `signSolRecovery`, `signSplRecovery`, `buildRecoverSolInstruction`, `buildRecoverSplInstruction`, `ownerHashToBytes`), program‑address constants, and types (`AcrossQuoteParams`, `SolanaPortalBalance`).
 
-### `@0xcurvy/curvy-sdk/types`
+### Root domain types
 The shared contract/domain types and guards: `Network`, `Currency`, `BalanceEntry`/`GenericBalanceEntry`/`TotalBalance`, `CurvyAccountData`/`SerializedCurvyAccount`/`ScanCursors`, `CurvyKeyPairs`/`CurvyPrivateKeys`/`CurvyPublicKeys`, `CurvyId` (+ `isValidCurvyId`/`assertCurvyId`), `HexString` (+ `isHexString`/`assertHexString`), `Signature`, `CircuitConfig`, `Core*` arg/return types, `PortalRecord`/`MatchedPortalRecord`/`PortalState`, `AggregationRequest`/`WithdrawRequest`/`AGGREGATOR_ACTIONS`, `CURVY_EVENT_TYPES`/`CURVY_EVENTS`, signature‑data types, and TS utilities (`Prettify`, `StringifyBigInts`, `Tuple`, …). Interfaces (root): `ICore`, `IApiClient`, `StorageInterface`, `ICurvyEventEmitter`.
 
 ---
@@ -207,13 +202,19 @@ The shared contract/domain types and guards: `Network`, `Currency`, `BalanceEntr
 - **Actions take a single options bag** with an optional `config`: `export function doThing(p: WithConfig<{ … }>) { const config = resolveConfig(p.config); … }`. Exceptions (documented): `on`/`off`/`watch*` keep `(eventName/positional, …, options?)` to preserve the natural listener shape.
 - **Naming:** the canonical noun is **`account`**, never `wallet` (`CurvyAccount`, `accountId`, `config.keyring`, `actions/account/`). viem's `WalletClient`/`ethers.Wallet` are deliberately preserved (EVM‑signer concept). Match existing codebase names over inventing ZK‑literature ones.
 - **Types:** co‑locate by owning module (inline or a per‑module `types.ts`); `src/types/` is only for shared contracts/helpers. "Single owner? → co‑locate."
+- **Exports:** prefer the root for the ordinary application API. Add a symbol to `./actions`, `./config`, or curated `./utils` only when consumers are meant to depend on it. Do not publish category aliases or re-export implementation barrels for convenience.
 - **`invariant(cond, msg)`** for internal preconditions / impossible‑state assertions (it narrows + strips the message in prod). Do **not** use it for user‑facing/validation messages or typed domain errors (keep those as `throw new XError`).
 - **Never put private keys in `state`, events, storage, or logs.** Read keys from `config.keyring`; gate spend ops through `requireSpendKey`.
 - **Don't add a default periodic balance poll** to the core — it's deliberately on‑demand/event‑driven (polling belongs at the consumer/React layer).
 - **Crypto / proof‑system / key‑derivation decisions go through an external crypto advisor + an ADR** (`knowledge/adrs/`) — produce open questions, don't unilaterally commit.
 - **Before finishing:** `tsc --noEmit` clean, `biome check --write src` clean, `vitest run src` green. When changing shared types, check downstream consumers.
 - **`import { Buffer } from "buffer"`** per file (no global `Buffer`); hot byte paths hand‑roll hex to stay Buffer‑free in browser bundles.
-- **WASM asset loading (`proving/rustCore.ts`, `proving/rustProver.ts`)** — the single-thread and Rayon binaries live in `assets/core-rs/` (copied to `dist/assets` by postbuild), resolved relative to the compiled module through bare `define`-injected URL literals. A template/variable defeats bundlers' static asset emission.
+- **Rust bindings and WASM (`core/rustCore.ts`, `proving/rustProver.ts`)** — the wasm-bindgen glue and binaries come from **`@0xcurvy/rs-core-wasm`** (published from the rs-core repo on tag; version pinned in `package.json` + the lockfile). Nothing is generated or vendored here. Rules that keep it working:
+  - The dependency stays **external in the ESM build** so the consumer's bundler processes the glue in place and resolves its own `new URL("…_bg.wasm", import.meta.url)` and Rayon's `new Worker(new URL("./workerHelpers.js", …))`. It is `noExternal` only for the CJS pass, which is Node-only. Never add it to the ESM `noExternal`.
+  - Browsers call `bindings.default()` with **no argument**; Node passes explicit bytes via `readPackagedWasm()` (`core/packagedWasm.ts`). `fetch` cannot read `file:` URLs.
+  - The `*-threads` entries are **browser-only and imported lazily** — their Rayon snippet touches `self` at module scope, so a static import would crash Node.
+  - `__CURVY_PROVER_WORKER_URL__` must stay a bare `define`-injected literal inside `new URL(...)` so bundlers can statically emit the SDK's proving worker.
+- **Bumping the Rust core:** tag `rs-core` (its release workflow publishes the matching npm version), then bump the dependency here. There is no sync script and no checked-in binaries.
 
 ---
 
@@ -225,7 +226,6 @@ These exist in the surface but are **groundwork**, pending the upcoming backend/
 - **`BALANCE_REFRESH_INTERVAL`** (constants) is exported but unused — no periodic balance timer exists.
 - **Capability‑typed accounts** — only the *lightweight* `SpendKey`/`ViewKey` branding ships. The deeper `ViewOnly | Spend | Full` discriminated‑union account model is deferred (it has id‑hash + keystore migration cost).
 - **Account‑id scheme** — `CurvyAccount.id = sha256(all keypairs)` vs `generateAccountId(s,v)` (used only as a password salt) are not unified; unifying is crypto‑adjacent (ADR‑gated).
-- **STA "gift link" claim** — the design ("Design C": reuse `verifyNoteOwnership` proof → server returns amount/token, `s`‑only, near‑instant) is recorded but not implemented in the functional SDK.
 - **`api.user.SetBabyJubjubKey`** — present on `IApiClient` but **orphaned** (the `babyJubjubKeyCheck` back‑fill that used it was removed; registration sends the bjj key directly).
 
 ---
@@ -234,4 +234,5 @@ These exist in the surface but are **groundwork**, pending the upcoming backend/
 
 - Functional core is **complete** (legacy class SDK deleted). Consumer migration is ongoing; the production `frontend` still imports the legacy `CurvySDK` and will **not** compile against this SDK yet. `curvy-os` is migrated (a React playground).
 - A `@0xcurvy/curvy-react` hooks wrapper (over the store + `watch*`) is planned but not built; `on(..., { signal })` + `watch*` are the reactive primitives to bridge.
-- Connecting requires the backend up (`createCurvyConfig` fetches networks). The SDK loads its WASM/zk binaries (shipped in `dist/assets`) via bundler‑agnostic `new URL("…", import.meta.url)` — no `?init`/`?url` query‑suffix imports anymore. Vite consumers still need: exclude the SDK from `optimizeDeps` (the dep optimizer would relocate the modules and break the relative URLs), `assetsInclude: ["**/*.zkey"]` (so `.zkey` is treated as an emitted asset; `.wasm` is native), and a `buffer` shim. Non‑Vite bundlers (webpack 5, Rollup) and Node work without special config.
+- Connecting requires the backend up (`createCurvyConfig` fetches networks). WASM and workers are located with `new URL("…", import.meta.url)` / `new Worker(new URL(…), { type: "module" })` — the patterns Vite documents as recommended — so bundlers emit them without query‑suffix imports.
+- **Vite consumers:** add the shipped plugin, `import { curvy } from "@0xcurvy/curvy-sdk/vite"` → `plugins: [curvy()]`. It sets `optimizeDeps.exclude` for the SDK and `@0xcurvy/rs-core-wasm` (the dep optimizer copies dependency code into `node_modules/.vite/deps/`, where those relative URLs resolve to nothing — note that workspace‑**linked** copies are never optimized, so this only bites once installed from npm), `worker.format: "es"` (Rayon's helper dynamically imports the WASM module and Vite's default `iife` worker format cannot code‑split — the build fails outright without it), `assetsInclude: ["**/*.zkey"]`, and dev/preview cross‑origin‑isolation headers. A `buffer` shim is still on the consumer. webpack 5 and Node need no configuration.

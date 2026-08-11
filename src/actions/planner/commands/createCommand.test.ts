@@ -239,6 +239,9 @@ describe("aggregator-aggregate command", () => {
 
     expect(getSpendWitnesses).toHaveBeenCalledTimes(1);
     expect(buildAggregateRequest).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(buildAggregateRequest).mock.calls[0][0].recipients).toEqual([
+      { note: (command.estimate as unknown as { note: Note }).note },
+    ]);
     expect(relaySubmission).toHaveBeenCalledTimes(1);
     expect(waitForRelay).toHaveBeenCalledTimes(1);
     // execute returns the synced (committed) output balance entry.

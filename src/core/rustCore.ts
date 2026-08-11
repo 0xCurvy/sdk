@@ -3,31 +3,18 @@
 // sha256BigInt — with the SAME signatures the TS implementations expose, so they
 // drop in transparently.
 //
-// The real `.wasm` lives at
-// assets/core-rs/curvy_core_bg.wasm and is loaded at runtime — fetched in the
-// browser (via a tsup-injected `new URL(LITERAL, import.meta.url)` the consumer's
-// bundler emits), read from disk in Node. Loading is async, so callers MUST
-// `await initCore()` once before any synchronous primitive (`createCurvyConfig`
-// already does; the Node v3 services should at startup; the vitest suite does via
-// a setup file).
+// The bindings and their `.wasm` come from `@0xcurvy/rs-core-wasm`, published
+// from the rs-core repository. The SDK keeps that dependency EXTERNAL in its ESM
+// build so the consumer's bundler sees the generated glue in place and resolves
+// `new URL("curvy_wasm_bg.wasm", import.meta.url)` itself; Node reads the bytes
+// off disk instead. Loading is async, so callers MUST `await initCore()` once
+// before any synchronous primitive (`createCurvyConfig` already does; the Node
+// v3 services should at startup; the vitest suite does via a setup file).
 
-import * as plainWasm from "./_wasm/curvy_wasm.js";
+import * as plainWasm from "@0xcurvy/rs-core-wasm/core";
+import { RS_CORE_THREADS_WASM, RS_CORE_WASM, readPackagedWasm } from "./packagedWasm";
 
-// Per-format asset path literals injected by tsup `define` (see tsup.config.ts).
-// Undefined in the non-built (vitest) environment → the Node branch uses the
-// fallback; the browser `new URL(__CURVY_CORE_RS_WASM_URL__, …)` branch is only
-// reached inside a real bundle where the define is present.
-declare const __CURVY_ASSETS_REL__: string;
-declare const __CURVY_CORE_RS_WASM_URL__: string;
-declare const __CURVY_CORE_RS_THREADS_WASM_URL__: string;
-declare const __CURVY_CORE_RAYON_WORKER_URL__: string;
-
-const NODE_ASSETS_REL = typeof __CURVY_ASSETS_REL__ === "string" ? __CURVY_ASSETS_REL__ : "../../assets";
-const NODE_CORE_RS_WASM = `${NODE_ASSETS_REL}/core-rs/curvy_core_bg.wasm`;
-const NODE_CORE_RS_THREADS_WASM = `${NODE_ASSETS_REL}/core-rs/curvy_core_threads_bg.wasm`;
 const MAX_BROWSER_THREADS = 8;
-const CORE_WORKERS = Symbol.for("curvy.rustCoreWorkers");
-const CORE_RAYON_WORKER_URL = Symbol.for("curvy.rustCoreRayonWorkerUrl");
 
 const isNode = typeof process !== "undefined" && !!process.versions?.node;
 
@@ -55,12 +42,7 @@ let ready = false;
 let initPromise: Promise<void> | null = null;
 let runtimeStatus: RustCoreRuntimeStatus = { mode: "uninitialized", threadCount: 0 };
 
-async function load(
-  bindings: WasmBindings,
-  nodeAssetPath: string,
-  browserAssetUrl: URL | undefined,
-  source?: CoreWasmSource,
-): Promise<void> {
+async function load(bindings: WasmBindings, nodeWasmSpecifier: string, source?: CoreWasmSource): Promise<void> {
   if (source?.module) {
     bindings.initSync({ module: source.module });
     return;
@@ -80,31 +62,13 @@ async function load(
     return;
   }
   if (isNode) {
-    const { readFile } = await import("node:fs/promises");
-    const { fileURLToPath } = await import("node:url");
-    const { dirname, join } = await import("node:path");
-    const moduleDirectory = dirname(fileURLToPath(import.meta.url));
-    const candidates = [
-      join(moduleDirectory, nodeAssetPath),
-      join(moduleDirectory, "..", "assets", "core-rs", nodeAssetPath.split("/").at(-1) ?? ""),
-      join(moduleDirectory, "..", "..", "assets", "core-rs", nodeAssetPath.split("/").at(-1) ?? ""),
-    ];
-    let bytes: Uint8Array | null = null;
-    let lastError: unknown;
-    for (const candidate of candidates) {
-      try {
-        bytes = new Uint8Array(await readFile(candidate));
-        break;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    if (!bytes) throw lastError;
-    await bindings.default({ module_or_path: bytes });
-  } else {
-    if (!browserAssetUrl) throw new Error("Curvy Rust core browser asset URL is unavailable");
-    await bindings.default({ module_or_path: browserAssetUrl });
+    await bindings.default({ module_or_path: await readPackagedWasm(nodeWasmSpecifier) });
+    return;
   }
+  // Browser: no argument. The generated glue falls back to
+  // `new URL("curvy_wasm_bg.wasm", import.meta.url)`, which the consumer's
+  // bundler has already rewritten to the emitted asset.
+  await bindings.default();
 }
 
 const supportsBrowserThreads = (): boolean => {
@@ -121,44 +85,29 @@ const resolveThreadCount = (threads: Exclude<RustCoreThreads, false>): number =>
   return Math.min(requested, hardwareThreads, MAX_BROWSER_THREADS);
 };
 
-function terminateFailedThreadPool(): void {
-  const holder = globalThis as typeof globalThis & {
-    [CORE_WORKERS]?: Array<{ terminate(): void }>;
-    [CORE_RAYON_WORKER_URL]?: string;
-  };
-  holder[CORE_WORKERS]?.forEach((worker) => {
-    worker.terminate();
-  });
-  delete holder[CORE_WORKERS];
-  delete holder[CORE_RAYON_WORKER_URL];
-}
-
 async function initialize(source: CoreWasmSource | undefined, options: RustCoreRuntimeOptions): Promise<void> {
   const requestedThreads = options.threads ?? false;
   if (requestedThreads !== false && supportsBrowserThreads()) {
     try {
-      const bindings = (await import("./_wasm_threads/curvy_wasm.js")) as unknown as ThreadedWasmBindings;
-      // Keep the define-injected literal directly inside new URL: bundlers only
-      // emit the WASM asset when this call is statically analyzable.
-      const browserAssetUrl = isNode ? undefined : new URL(__CURVY_CORE_RS_THREADS_WASM_URL__, import.meta.url);
-      await load(bindings, NODE_CORE_RS_THREADS_WASM, browserAssetUrl, source);
+      // Browser-only, and imported lazily for two reasons: the threaded binary is
+      // larger, and its Rayon snippet registers a worker listener on `self` at
+      // module scope — importing it in Node would throw.
+      const bindings = (await import("@0xcurvy/rs-core-wasm/core-threads")) as unknown as ThreadedWasmBindings;
+      await load(bindings, RS_CORE_THREADS_WASM, source);
       const threadCount = resolveThreadCount(requestedThreads);
-      const holder = globalThis as typeof globalThis & { [CORE_RAYON_WORKER_URL]?: string };
-      holder[CORE_RAYON_WORKER_URL] = new URL(__CURVY_CORE_RAYON_WORKER_URL__, import.meta.url).href;
+      // wasm-bindgen-rayon spawns and owns its workers; it exposes no teardown,
+      // so a pool that fails midway leaves them for page unload to collect.
       await bindings.initThreadPool(threadCount);
-      delete holder[CORE_RAYON_WORKER_URL];
       wasm = bindings;
       runtimeStatus = { mode: "multi-threaded", threadCount };
       return;
     } catch (error) {
-      terminateFailedThreadPool();
       if (requestedThreads !== "auto") throw error;
     }
   } else if (typeof requestedThreads === "number") {
     throw new Error("Threaded Curvy Rust core requires a cross-origin-isolated browser with Web Workers");
   }
-  const browserAssetUrl = isNode ? undefined : new URL(__CURVY_CORE_RS_WASM_URL__, import.meta.url);
-  await load(plainWasm, NODE_CORE_RS_WASM, browserAssetUrl, source);
+  await load(plainWasm, RS_CORE_WASM, source);
   wasm = plainWasm;
   runtimeStatus = { mode: "single-threaded", threadCount: 1 };
 }
