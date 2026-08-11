@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -44,5 +44,17 @@ if (relative.length > 0) {
 }
 if (!imports.some((specifier) => specifier.startsWith("@0xcurvy/rs-core-wasm"))) {
   console.error(`Worker bundle no longer imports the Rust prover: ${workerBundle}`);
+  process.exit(1);
+}
+
+// Vite only discovers package-owned workers when the URL expression is passed
+// directly to the Worker constructor. Assigning the URL to a variable first
+// makes Vite copy this file as an opaque asset, leaving the worker's bare
+// rs-core import unresolved in the browser.
+const INLINE_WORKER_URL =
+  /new\s+Worker\s*\(\s*new\s+URL\s*\(\s*["']\.\/proving\/rustProverWorker\.js["']\s*,\s*import\.meta\.url\s*\)/;
+const sdkBundles = globSync("dist/_esm/**/*.js");
+if (!sdkBundles.some((bundle) => INLINE_WORKER_URL.test(readFileSync(bundle, "utf8")))) {
+  console.error("SDK bundle no longer constructs the Rust prover worker with an inline static URL");
   process.exit(1);
 }

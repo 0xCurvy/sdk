@@ -194,8 +194,10 @@ function createBrowserWorkerProver(options: RustProverOptions): Prover {
 
   const getWorker = (): Worker => {
     if (worker) return worker;
-    const workerUrl = new URL(__CURVY_PROVER_WORKER_URL__, import.meta.url);
-    const created = new Worker(workerUrl, { type: "module", name: "curvy-rust-prover" });
+    const created = new Worker(new URL(__CURVY_PROVER_WORKER_URL__, import.meta.url), {
+      type: "module",
+      name: "curvy-rust-prover",
+    });
     created.addEventListener("message", (event: MessageEvent<RustProverWorkerResponse>) => {
       const response = event.data;
       const request = pending.get(response.id);
