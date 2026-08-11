@@ -71,7 +71,7 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
       }
     }
 
-    // During STA claim senderCurvyId is null (ephemeral account); that path
+    // For an ephemeral account senderCurvyId is null; that path
     // returns early via the intent branch above.
     if (!senderCurvyId) {
       throw new Error("Active account must have a Curvy Handle to perform aggregator aggregate.");
@@ -127,11 +127,12 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
   // The recipient in the form `buildAggregateRequest` accepts (handle → real ECDH
   // stealth delivery, so the recipient — including self — can DISCOVER the note).
   const buildRecipientInput = (): AggregateRecipientInput => {
-    const amount = deliveredRecipientAmount();
-    if (intent && isValidCurvyId(intent.recipient)) return { amount, curvyId: intent.recipient };
-    if (intent?.recipientPublicKeys) return { amount, publicKeys: intent.recipientPublicKeys };
-    if (!senderCurvyId) throw new Error("Active account must have a Curvy Handle to aggregate to self.");
-    return { amount, curvyId: senderCurvyId };
+    invariant(estimate, "Command not estimated.");
+    // Reuse the note minted during estimation. Besides keeping the reviewed
+    // commitment stable through execution, this is load-bearing for gift links:
+    // the link carries this note's shared secret, so re-randomizing the note at
+    // execute time would strand the gift behind an unreachable commitment.
+    return { note: estimate.note };
   };
 
   const estimateFees = async (): Promise<CommandEstimate> => {

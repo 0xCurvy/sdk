@@ -1,5 +1,6 @@
-// Register wasm-bindgen-rayon's bootstrap listener before nested workers receive their init message.
-import { initThreadPool as initRayonThreadPool } from "./_prover_wasm_threads/curvy_prover.js";
+// The SDK's proving worker: keeps witness generation and Groth16 off the main
+// thread. Rayon's own nested workers are spawned by the generated glue itself
+// (it self-spawns `workerHelpers.js`), so nothing has to be bootstrapped here.
 import { defaultCircuitKeyCache } from "./circuitKeyCache";
 import { loadCachedArtifactsAndProve } from "./loadCachedArtifactsAndProve";
 import type { Prover } from "./prover";
@@ -15,10 +16,6 @@ const scope = globalThis as unknown as WorkerScope;
 const artifactCache = defaultCircuitKeyCache();
 let prover: Prover | undefined;
 
-if (typeof initRayonThreadPool !== "function") {
-  throw new Error("Threaded Rust prover bootstrap is unavailable");
-}
-
 function getProver(options: RustProverOptions): Prover {
   prover ??= createInProcessRustProver({ ...options, worker: false });
   return prover;
@@ -26,13 +23,7 @@ function getProver(options: RustProverOptions): Prover {
 
 async function handleRequest(request: RustProverWorkerRequest): Promise<void> {
   try {
-    const activeProver = getProver({
-      threads: request.threads,
-      wasm: {
-        single: { url: request.wasm.singleUrl },
-        threaded: { url: request.wasm.threadedUrl },
-      },
-    });
+    const activeProver = getProver({ threads: request.threads });
     const result = await loadCachedArtifactsAndProve(
       activeProver,
       artifactCache,

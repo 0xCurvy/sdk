@@ -44,7 +44,7 @@ export type EncryptedNoteDataBus = {
 };
 
 // Witness for VerifySingleAggregationNoHashing(maxInputs, maxOutputs, treeDepth).
-// Public IO of the underlying circuit (snarkjs returns these as publicSignals):
+// Public IO of the underlying circuit (returned in the `publicSignals` proof envelope):
 //   [nullifiers..., outputNoteIds..., encryptedNoteData..., notesRoot,
 //    protocolFeePerThousand, commitPendingNotesGasFeeRoot, feeNotePublicKey.x,
 //    feeNotePublicKey.y]

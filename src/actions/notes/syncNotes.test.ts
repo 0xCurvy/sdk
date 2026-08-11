@@ -277,6 +277,59 @@ describe("syncNotes (production action)", () => {
     );
   });
 
+  it("recovers a witness for an unowned bearer note from its external leaf index", async () => {
+    const leaves = [...bareLeaves(5), ownableLeaf(5), ...bareLeaves(4, 6)];
+    const { config, flat } = await world({ leaves });
+    await syncNotes({
+      config,
+      networkSlug: NET,
+      shardHeight: SHARD_HEIGHT,
+      verifier: verifierFor(flat),
+      resolveOwnership: resolver,
+    });
+
+    const bearerNoteId = BigInt(leaves[1].noteId);
+    const { proofs, notesRoot } = await getSpendWitnesses({
+      config,
+      networkSlug: NET,
+      noteIds: [bearerNoteId],
+      leafIndices: [1],
+    });
+
+    expect(notesRoot).toBe(flat.root());
+    expect(proofs[0].index).toBe(1);
+    expect(flat.verifyProof(proofs[0])).toBe(true);
+    expect((await config.storage.getNoteWitnesses(NET)).map((w) => w.noteId)).toContain(bearerNoteId.toString());
+  });
+
+  it("recovers an ephemeral bearer witness without persisting or retaining it", async () => {
+    const leaves = [...bareLeaves(5), ownableLeaf(5), ...bareLeaves(4, 6)];
+    const { config, flat } = await world({ leaves });
+    await syncNotes({
+      config,
+      networkSlug: NET,
+      shardHeight: SHARD_HEIGHT,
+      verifier: verifierFor(flat),
+      resolveOwnership: resolver,
+    });
+
+    // Index 8 is in the live shard (shard size 4, two completed shards). This is
+    // the reorg-sensitive path: the marker must disappear as soon as the proof
+    // has been copied out.
+    const bearerNoteId = BigInt(leaves[8].noteId);
+    const { proofs } = await getSpendWitnesses({
+      config,
+      networkSlug: NET,
+      noteIds: [bearerNoteId],
+      leafIndices: [8],
+      persistRecoveredWitnesses: false,
+    });
+
+    expect(flat.verifyProof(proofs[0])).toBe(true);
+    expect((await config.storage.getNoteWitnesses(NET)).map((w) => w.noteId)).not.toContain(bearerNoteId.toString());
+    expect(config._internal.notesTrees.get(NET)?.hasWitness(bearerNoteId)).toBe(false);
+  });
+
   it("skips when a sync for the network is already in flight", async () => {
     const { config, flat } = await world({ leaves: [] });
     config._internal.scanLocks.set(`sync-notes-${NET}`, true);

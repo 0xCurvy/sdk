@@ -1,4 +1,5 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import type { RustCoreThreads } from "@/core/rustCore";
 import type { IApiClient } from "@/interfaces/api";
 import type { ICore } from "@/interfaces/core";
 import type { ICurvyEventEmitter } from "@/interfaces/events";
@@ -8,7 +9,6 @@ import type { PrivacyPassInternalState } from "@/privacy-pass/tokens";
 import type { MerkleTree } from "@/proving";
 import type { CircuitKeyCache } from "@/proving/circuitKeyCache";
 import type { Prover } from "@/proving/prover";
-import type { RustCoreThreads } from "@/proving/rustCore";
 import type { MultiRpc } from "@/rpc/multi";
 import type { SessionKeystore } from "@/session-keystore";
 import type { CurvyAccountData } from "@/types/account";

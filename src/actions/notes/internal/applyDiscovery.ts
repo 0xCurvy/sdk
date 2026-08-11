@@ -1,8 +1,8 @@
 import type { CurvyConfig } from "@/config/types";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import { nullifier as rustNullifier } from "@/core/rustCore";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "@/note/discoverOwnedNotes";
 import type { SyncedLeaf } from "@/note/notesTreeSync";
-import { nullifier as rustNullifier } from "@/proving/rustCore";
 import type { CurvyAccountData, SerializedPendingNote } from "@/types/account";
 import type { Network } from "@/types/api";
 import { applySyncResult } from "./applySyncResult";

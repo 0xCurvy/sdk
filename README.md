@@ -47,7 +47,7 @@ Every action accepts a single options object. Pass `config` explicitly for multi
 Use the convenience constructors when you do not need custom storage wiring:
 
 ```ts
-import { createBrowserCurvyConfig } from "@0xcurvy/curvy-sdk/config/browser";
+import { createBrowserCurvyConfig } from "@0xcurvy/curvy-sdk/config";
 
 const config = await createBrowserCurvyConfig({
   apiBaseUrl: "https://api.curvy.box",
@@ -57,8 +57,8 @@ const config = await createBrowserCurvyConfig({
 `createBrowserCurvyConfig` defaults to IndexedDB storage, session keystore rehydration, and the lean sharded notes-sync engine.
 
 ```ts
-import { getBalances } from "@0xcurvy/curvy-sdk/actions/balances";
-import { createServerCurvyConfig } from "@0xcurvy/curvy-sdk/config/server";
+import { getBalances } from "@0xcurvy/curvy-sdk/actions";
+import { createServerCurvyConfig } from "@0xcurvy/curvy-sdk/config";
 
 const config = await createServerCurvyConfig({
   apiBaseUrl: process.env.CURVY_API_BASE_URL,
@@ -95,7 +95,7 @@ For an existing user, call `login({ config, signature })` with the same signatur
 ## Balances
 
 ```ts
-import { getBalances, refreshBalances } from "@0xcurvy/curvy-sdk/actions/balances";
+import { getBalances, refreshBalances } from "@0xcurvy/curvy-sdk/actions";
 
 await refreshBalances({ config });
 
@@ -140,25 +140,34 @@ import { createCurvyConfig, login, getBalances } from "@0xcurvy/curvy-sdk";
 Subpath imports reduce accidental bundle size:
 
 ```ts
-import { login } from "@0xcurvy/curvy-sdk/actions/auth";
-import { getBalances } from "@0xcurvy/curvy-sdk/actions/balances";
-import { poseidonHash } from "@0xcurvy/curvy-sdk/utils/hash";
+import { getBalances, login } from "@0xcurvy/curvy-sdk/actions";
+import { poseidonHash } from "@0xcurvy/curvy-sdk/utils";
 import { IndexedDBStorage } from "@0xcurvy/curvy-sdk/storage/idb";
 ```
 
-Vite browser consumers should exclude the SDK from dependency optimization and include `.zkey` assets:
+Vite browser consumers should add the SDK's plugin:
 
 ```ts
+import { curvy } from "@0xcurvy/curvy-sdk/vite";
+
 export default defineConfig({
-  assetsInclude: ["**/*.zkey"],
-  optimizeDeps: {
-    include: ["buffer"],
-    exclude: ["@0xcurvy/curvy-sdk"],
-  },
+  plugins: [curvy()],
+  optimizeDeps: { include: ["buffer"] },
 });
 ```
 
-The SDK ships its WASM core in `dist/assets` and resolves it via `new URL(..., import.meta.url)`.
+It applies what the WASM core and its workers need: the SDK and `@0xcurvy/rs-core-wasm`
+are excluded from dependency optimization (the optimizer copies dependency code into
+`node_modules/.vite/deps/`, where the generated glue's relative asset and worker URLs no
+longer resolve), workers are emitted in ES format (Rayon's helper dynamically imports the
+WASM module, which Vite's default `iife` worker format cannot code-split), `.zkey` counts
+as an asset, and the dev server sends cross-origin-isolation headers so threaded WASM can
+engage. Pass `curvy({ crossOriginIsolation: "require-corp" })` for the classic COOP/COEP
+pair, or `false` to leave headers alone.
+
+The WASM binaries come from `@0xcurvy/rs-core-wasm`, a normal dependency: the bundler
+resolves them from `new URL("curvy_wasm_bg.wasm", import.meta.url)` inside the generated
+glue and emits them as hashed assets. webpack 5 and Node need no configuration.
 
 ## Lifecycle
 

@@ -1,5 +1,6 @@
 import { resolveConfig } from "@/config/global";
 import type { CurvyConfig, NotesSyncEngine, WithConfig } from "@/config/types";
+import { nullifier as rustNullifier } from "@/core/rustCore";
 import { ScanError } from "@/errors";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "@/note/discoverOwnedNotes";
 import { type LeafSource, type RootVerifier, type SyncedLeaf, syncNotesTree } from "@/note/notesTreeSync";
@@ -7,7 +8,6 @@ import { GlobalNotesTree, type NotesTreeView } from "@/note/notesTreeView";
 import { syncShardedNotesTree } from "@/note/shardedNotesSync";
 import { ShardedNotesTree } from "@/note/shardedNotesTree";
 import { syncHotNotesOverlay } from "@/note/syncHotNotesOverlay";
-import { nullifier as rustNullifier } from "@/proving/rustCore";
 import type { Network } from "@/types/api";
 import { applyAccountDiscovery } from "./internal/applyDiscovery";
 import { applySyncResult } from "./internal/applySyncResult";

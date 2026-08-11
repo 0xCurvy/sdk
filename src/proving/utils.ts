@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
+import { sha256BigInt as rustSha256BigInt } from "@/core/rustCore";
 import { SNARK_SCALAR_FIELD } from "./merkleTree";
-import { sha256BigInt as rustSha256BigInt } from "./rustCore";
 
 export { SNARK_SCALAR_FIELD };
 

@@ -17,7 +17,7 @@ export type RemoveAccountParameters = WithConfig<{ accountId: string }>;
  * when the removed account WAS the active one. This makes it safe to evict an
  * ephemeral/partial account while a different account stays authenticated —
  * the primary use case is cleaning up temp keypairs created via
- * `addPartialAccount` (public-swap, STA-claim). Idempotent: removing an unknown
+ * `addPartialAccount` (for example, a public swap). Idempotent: removing an unknown
  * id is a no-op.
  *
  * @example

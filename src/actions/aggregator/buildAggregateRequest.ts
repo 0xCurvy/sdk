@@ -18,7 +18,7 @@ export type BuildAggregateRequestParameters = WithConfig<{
   inputNotes: Note[];
   /** BabyJubjub private key (hex) that owns the input notes and signs the aggregation. */
   ownerBjjPrivateKeyHex: string;
-  /** Recipients — Curvy handle, explicit keys, or a raw stealth tuple. Change + fee are added for you. */
+  /** Recipients — Curvy handle, explicit keys, a pre-built note, or a raw stealth tuple. Change + fee are added. */
   recipients: AggregateRecipientInput[];
   /**
    * The sender's own public keys, used to stealth-deliver the CHANGE note back to

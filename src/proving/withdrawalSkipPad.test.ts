@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { groth16 } from "snarkjs";
@@ -5,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { Note } from "@/note";
 import { pubFromPrivateKey } from "./babyJubjub";
 import { MerkleTree } from "./merkleTree";
+import { createRustProver } from "./rustProver";
 import { flattenWithdrawalCircuitInputs, generateWithdrawalCircuitInputsFromNotes } from "./witnessFromNotes";
 
 // Verifies that the DEPLOYED withdrawal circuit (verifySingleWithdrawalNoHashing_2_30)
@@ -15,7 +17,10 @@ import { flattenWithdrawalCircuitInputs, generateWithdrawalCircuitInputsFromNote
 // on-chain in the devenv e2e).
 
 const KEYS = resolve(process.cwd(), "../../zk-keys/v2/withdrawal");
-const WASM = resolve(KEYS, "verifySingleWithdrawalNoHashing_2_30.wasm");
+const GRAPH = resolve(
+  KEYS,
+  "verifySingleWithdrawalNoHashing_2_30.71295ae000c466d2111969cb335597f63c1a1a3d3990878d4b996757fa9998d3.graph.bin",
+);
 const ZKEY = resolve(KEYS, "verifySingleWithdrawalNoHashing_2_30_0001.zkey");
 const VKEY = JSON.parse(
   readFileSync(resolve(KEYS, "verifySingleWithdrawalNoHashing_2_30_verification_key.json"), "utf8"),
@@ -25,6 +30,10 @@ const OWNER_PRIV = `0x${"11".repeat(31)}`;
 const TOKEN = 1n;
 const DEPTH = 30;
 const MAX_INPUTS = 2;
+const artifactContext = {
+  witnessGraphSha256: createHash("sha256").update(readFileSync(GRAPH)).digest("hex"),
+  zkeySha256: createHash("sha256").update(readFileSync(ZKEY)).digest("hex"),
+};
 
 describe("withdrawal skip-pad (deployed circuit)", () => {
   it("proves + verifies a single committed note (unused slot zero-padded)", async () => {
@@ -51,8 +60,17 @@ describe("withdrawal skip-pad (deployed circuit)", () => {
       treeDepth: DEPTH,
     });
 
-    const { proof, publicSignals } = await groth16.fullProve(flattenWithdrawalCircuitInputs(witness), WASM, ZKEY);
-    const ok = await groth16.verify(VKEY, publicSignals, proof);
-    expect(ok).toBe(true);
+    const prover = createRustProver({ threads: false });
+    try {
+      const { proof, publicSignals } = await prover.prove(
+        flattenWithdrawalCircuitInputs(witness),
+        GRAPH,
+        ZKEY,
+        artifactContext,
+      );
+      expect(await groth16.verify(VKEY, publicSignals, proof)).toBe(true);
+    } finally {
+      await prover.destroy?.();
+    }
   }, 60_000);
 });

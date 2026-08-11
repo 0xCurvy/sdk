@@ -1,4 +1,4 @@
-import { poseidon } from "@/proving/rustCore";
+import { poseidon } from "@/core/rustCore";
 
 export type PoseidonInput = bigint | number | string;
 

@@ -16,6 +16,7 @@ import type { HexString } from "@/types/helper";
 export type AggregateRecipientInput =
   | { amount: bigint; curvyId: string }
   | { amount: bigint; publicKeys: CurvyPublicKeys }
+  | { note: Note }
   | { amount: bigint; ownerPub: [bigint, bigint]; sharedSecret: bigint };
 
 /** Where a built submission is sent. */
