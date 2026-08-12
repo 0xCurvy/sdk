@@ -41,12 +41,8 @@ type CurvyAccountData = {
   readonly curvyHandle: CurvyId;
   scanCursors: ScanCursors;
   /**
-   * Per-network (keyed by networkSlug — already env-specific) high-water mark of
-   * the committed-leaf index through which THIS account has run note discovery.
-   * The committed-log/tree cursor is account-independent, so without this a second
-   * account, an imported wallet, or an account-less checkpoint advance would never
-   * trial-decrypt notes committed before it first synced. Lagging behind the tree
-   * head triggers a discovery backfill over the gap.
+   * Last committed leaf checked for ownership by this account, keyed by network
+   * slug. Sync uses it to backfill imported or newly-added accounts.
    */
   discoveryCursors?: Record<string, number>;
   /** Per-network notes awaiting currency metadata before they can become balances. */

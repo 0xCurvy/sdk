@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { Currency, Network } from "@/http/contracts";
 import type { DraftPlan, Intent } from "@/planner/types";
 import { fakeBalanceEntry } from "@/test/fixtures";
 import type { BalanceEntry, HexString } from "@/types";
-import type { Currency, Network } from "@/types/api";
 import { generatePlan } from "./generatePlan";
 
 const fakeCurrency = (): Currency =>
@@ -25,11 +25,11 @@ const withdrawIntent = (amount: bigint): Intent => ({
 });
 
 const bal = (id: string, balance: bigint): BalanceEntry => fakeBalanceEntry({ id, balance });
-const deps = { checkBytecode: async () => false, maxInputs: 2 };
+const deps = { maxInputs: 2 };
 
 /** Collect every command name in a draft plan tree. */
 function commandNames(node: DraftPlan, acc: string[] = []): string[] {
-  if (node.type === "command") acc.push(node.name);
+  if (node.type === "command") acc.push(node.kind);
   if (node.type === "serial" || node.type === "parallel") for (const i of node.items) commandNames(i, acc);
   return acc;
 }

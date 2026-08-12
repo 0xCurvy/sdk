@@ -1,9 +1,12 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { StorageInterface } from "@/interfaces/storage";
-import type { TransferAttempt } from "@/types/storage";
+import { CommandError } from "@/errors";
+import type { BalanceStore, NotesStore, TransferStore } from "@/storage/contracts";
+import type { TransferAttempt } from "@/storage/types";
+
+type RecordTransferAttemptStore = TransferStore & NotesStore & Pick<BalanceStore, "getHotSyncState">;
 
 type RecordTransferAttemptOptions = {
-  storage: StorageInterface;
+  storage: RecordTransferAttemptStore;
   accountId: string;
   intentId: string;
   networkSlug: string;
@@ -26,7 +29,9 @@ export async function recordTransferAttempt(options: RecordTransferAttemptOption
       : checkpoint?.root === root && checkpoint.finalizedBlockHash
         ? checkpoint.finalizedBlockHash
         : null;
-  if (!referencedRootBlockHash) throw new Error(`cannot identify the canonical block for notes root ${root}`);
+  if (!referencedRootBlockHash) {
+    throw new CommandError(`Notes root ${root} is no longer available for spending.`);
+  }
   const attempt: TransferAttempt = {
     accountId: options.accountId,
     intentId: options.intentId,

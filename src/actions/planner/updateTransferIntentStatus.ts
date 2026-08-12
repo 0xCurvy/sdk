@@ -1,8 +1,9 @@
-import type { StorageInterface } from "@/interfaces/storage";
-import type { TransferHistoryRecord, TransferIntentStatus } from "@/types/storage";
+import { StorageError } from "@/errors";
+import type { TransferStore } from "@/storage/contracts";
+import type { TransferHistoryRecord, TransferIntentStatus } from "@/storage/types";
 
 type UpdateTransferIntentStatusOptions = {
-  storage: StorageInterface;
+  storage: TransferStore;
   accountId: string;
   intentId: string;
   status: TransferIntentStatus;
@@ -17,7 +18,7 @@ export async function updateTransferIntentStatus(
   const intent = (await options.storage.getTransferIntents(options.accountId)).find(
     (record) => record.intentId === options.intentId,
   );
-  if (!intent) throw new Error(`unknown transfer intent ${options.intentId}`);
+  if (!intent) throw new StorageError(`Transfer intent ${options.intentId} was not found.`);
   const updated: TransferHistoryRecord = {
     ...intent,
     status: options.status,

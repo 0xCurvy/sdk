@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Currency, MatchedPortalRecord } from "@/http/contracts";
 import { EvmRpc } from "@/rpc/evm";
 import type { MultiRpc } from "@/rpc/multi";
 import { SolanaRpc, type SolanaSigner } from "@/rpc/solana";
 import { createFakeConfig, fixtureNetwork } from "@/test/fixtures";
-import type { Currency, MatchedPortalRecord } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { recoverSolanaPortal } from "./recoverSolanaPortal";
 

@@ -1,4 +1,5 @@
 import { div, from, greaterThan } from "dnum";
+import { FeeEstimateUnavailableError } from "@/errors";
 
 type FeeToken = {
   chainId: number;
@@ -39,7 +40,7 @@ export function bridgeFeeInInputCurrency(quote: QuoteWithFees): bigint {
 
     const inputPriceUsd = from(inputToken.priceUSD);
     if (!greaterThan(inputPriceUsd, 0)) {
-      throw new Error("Cannot normalize bridge fee without an input-token USD price.");
+      throw new FeeEstimateUnavailableError("The bridge quote did not include an input-token price.");
     }
 
     const feeInInputCurrency = div(from(fee.amountUSD), inputPriceUsd, {

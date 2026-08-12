@@ -1,67 +1,51 @@
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import { buildAggregateRequest } from "@/actions/aggregator/buildAggregateRequest";
 import { estimateAggregationCosts } from "@/actions/aggregator/internal/estimateAggregationCosts";
-import { isDefinitiveRelayRejection } from "@/actions/aggregator/isDefinitiveRelayRejection";
-import { relaySubmission } from "@/actions/aggregator/relaySubmission";
 import type { AggregateRecipientInput } from "@/actions/aggregator/types";
-import { waitForRelay } from "@/actions/aggregator/waitForRelay";
-import { getSpendWitnesses } from "@/actions/notes/getSpendWitnesses";
 import { syncNotes } from "@/actions/notes/syncNotes";
-import { recordTransferAttempt } from "@/actions/planner/recordTransferAttempt";
-import { recordTransferIntent } from "@/actions/planner/recordTransferIntent";
+import { runSubmittedCommand } from "@/actions/planner/internal/runSubmittedCommand";
+import { resolveInputFinalityPolicy } from "@/actions/planner/resolveInputFinalityPolicy";
 import { updateTransferIntentStatus } from "@/actions/planner/updateTransferIntentStatus";
-import { getProtocol } from "@/config/protocol";
-import { AggregationOutputTimeoutError } from "@/errors";
+import type { CurvyPublicKeys } from "@/core/types";
+import { AccountError, AggregationOutputTimeoutError } from "@/errors";
 import { type Note, noteToBalanceEntry } from "@/note";
-import type { CommandData } from "@/planner/types";
+import { type AggregateDelivery, computeAggregateDelivery } from "@/planner/feeMath";
+import type { DeliveredPlanValue, IntentOutput, PlanValue } from "@/planner/types";
+import type { BalanceEntry } from "@/storage/types";
 import { type HexString, isValidCurvyId } from "@/types";
-import type { CurvyPublicKeys } from "@/types/core";
-import type { BalanceEntry, InputFinalityPolicy, TransferAttempt } from "@/types/storage";
 import { invariant } from "@/utils/invariant";
 import { pollForCriteriaUntil } from "@/utils/promise";
+import { sleepWithTimerProvider } from "@/utils/timer";
 import { generateNewNote } from "./generateNewNote";
 import { normalizeCommandNotes } from "./normalizeCommandNotes";
 import type { Command, CommandContext, CommandEstimate } from "./types";
 
-const SELF_AGGREGATION_SYNC_POLL_INTERVAL_MS = 10_000;
-const SELF_AGGREGATION_SYNC_TIMEOUT_MS = 240_000;
-
-/** The aggregate command stores its freshly-minted (estimate-time) output note on the estimate. */
-interface CurvyCommandEstimateWithNote extends CommandEstimate {
+type AggregateCommandExecution = {
   note: Note;
-  /** Operator paymaster keys + gas-note amount, resolved at estimate time and reused by execute. */
   operator?: CurvyPublicKeys;
-  operatorFee?: bigint;
-}
+  operatorFee: bigint;
+  allocation: AggregateDelivery;
+};
 
 /**
- * Closure-based aggregator-aggregate command (v3 client-proving).
- *
- * If `ctx.intent` is absent, this is an intermediate aggregation that gathers
- * funds to self; otherwise the final step uses the intent's recipient.
- *
- * Execution proves locally ({@link buildAggregateRequest}) and relays the proof,
- * then — because committing is asynchronous in v3 (the batch-prover commits the
- * new PENDING output on its own schedule) — it WAITS for the output note to be
- * committed and synced before returning it, so the next plan step can spend it.
+ * Estimate and execute one aggregation. Intermediate commands return a synced,
+ * spendable note to the active account; the final command reports delivery to
+ * the intent recipient.
  */
 export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
   const { intent, senderCurvyId, config, networkSlug, ownerBjjPrivateKeyHex } = ctx;
 
   const { input, inputNotes, grossAmount } = normalizeCommandNotes(ctx.input);
 
-  const finalityPolicy = async (): Promise<InputFinalityPolicy> => {
-    if (intent?.inputFinalityPolicy) return intent.inputFinalityPolicy;
-    const accountId = config.state.activeAccountId;
-    if (!accountId) return "included";
-    const preference = await config.storage.getFinalityPreference(accountId, networkSlug);
-    return preference.requireFinalizedFunds ? "finalized" : "included";
-  };
+  const finalityPolicy = () =>
+    resolveInputFinalityPolicy({
+      config,
+      accountId: config.state.activeAccountId ?? undefined,
+      networkSlug,
+      intent,
+    });
 
-  // --- recipient (handle / keys), used by the estimate path + the `recipient` getter ---
   const getRecipient = () => {
-    // With multiple aggregation steps the intent is absent and funds aggregate
-    // to self; the final step takes the recipient from the intent.
     if (intent) {
       if (isValidCurvyId(intent.recipient)) {
         return intent.recipient;
@@ -71,139 +55,87 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
       }
     }
 
-    // For an ephemeral account senderCurvyId is null; that path
-    // returns early via the intent branch above.
     if (!senderCurvyId) {
-      throw new Error("Active account must have a Curvy Handle to perform aggregator aggregate.");
+      throw new AccountError("The active account needs a Curvy handle for a self-aggregation.");
     }
     return senderCurvyId;
   };
 
-  // The estimate is mutable and carries the (estimate-time) output note once estimated.
-  let estimate = ctx.estimate as CurvyCommandEstimateWithNote | undefined;
+  let estimate = ctx.estimate;
+  let execution = ctx.execution as AggregateCommandExecution | undefined;
 
-  // --- CurvyCommand.netAmount ---
-  const netAmount = (): bigint => {
-    invariant(estimate, "Command not estimated.");
-    const { curvyFeeInCurrency, gasFeeInCurrency } = estimate;
-    return grossAmount - curvyFeeInCurrency - gasFeeInCurrency;
-  };
-
-  // The amount delivered to the recipient output note. A final step delivering to
-  // an explicit recipient keeps `intent.amount` (the remainder becomes change to
-  // self); intermediate self-folds keep everything (minus fees). `buildAggregateRequest`
-  // adds the change + fee notes itself, so we only pass the recipient amount.
-  const recipientAmount = (): bigint => {
-    // The final, amount-bearing aggregate carves EXACTLY `intent.amount` into the
-    // output note — for a transfer/swap that's the recipient's note; for a
-    // withdrawal carve-out (hex recipient → `buildRecipientInput` falls back to
-    // self) it's a self note of `intent.amount` with the rest kept as change. Only
-    // an intent-less intermediate fold consumes everything into one self note.
-    if (intent) return intent.amount;
-    return netAmount();
-  };
-
-  // True when value LEAVES the sender (a real, non-self recipient) — mirrors the
-  // circuit's `isSender` check + buildAggregationWitnessBundle's `spentToOthers`.
-  // A self-fold (no intent) or a withdrawal carve-out (hex recipient → self) keeps
-  // the value in-house.
-  const goesToOthers = (): boolean =>
+  // Intermediate folds and withdrawal preparation keep value with the sender.
+  // A final Curvy/gift recipient pays the proportional delivery fee.
+  const deliversOutsideAccount =
     !!intent &&
     (isValidCurvyId(intent.recipient) || !!intent.recipientPublicKeys) &&
     intent.recipient !== senderCurvyId;
 
-  // The amount ACTUALLY delivered to the recipient output note at execute time.
-  // Normal case: exactly `intent.amount`, with the fees carved from the change-to-self.
-  // Send-all / no-headroom: degrade to fees-on-amount (recipient = gross − fees) so the
-  // change stays non-negative and the circuit's conservation check can't revert.
-  const deliveredRecipientAmount = (): bigint => {
-    invariant(estimate, "Command not estimated.");
-    if (!intent) return netAmount();
-    const fees = estimate.curvyFeeInCurrency + estimate.gasFeeInCurrency;
-    if (intent.amount + fees > grossAmount) return netAmount(); // == grossAmount − fees
-    return intent.amount;
-  };
-
-  // The recipient in the form `buildAggregateRequest` accepts (handle → real ECDH
-  // stealth delivery, so the recipient — including self — can DISCOVER the note).
-  const buildRecipientInput = (): AggregateRecipientInput => {
-    invariant(estimate, "Command not estimated.");
-    // Reuse the note minted during estimation. Besides keeping the reviewed
-    // commitment stable through execution, this is load-bearing for gift links:
-    // the link carries this note's shared secret, so re-randomizing the note at
-    // execute time would strand the gift behind an unreachable commitment.
-    return { note: estimate.note };
-  };
-
   const estimateFees = async (): Promise<CommandEstimate> => {
-    if (estimate) return estimate;
+    if (estimate && execution) return estimate;
 
-    // Fallback (no paymaster/fees reachable): a coarse groupFee-based protocol estimate.
-    let curvyFeeInCurrency = (grossAmount * BigInt(getProtocol({ config }).proving.aggregation.groupFee)) / 1000n;
-
-    // Operator paymaster gas note, in the aggregation token. Best-effort: when no
-    // paymaster is reachable or the token is unpriced, gas shows as 0 and execute
-    // submits/relays without a gas note (legacy passthrough). `operatorFee` carries
-    // the client buffer so a small price move before the relayer validates won't refuse.
-    let gasFeeInCurrency = 0n;
-    let operator: CurvyPublicKeys | undefined;
-    let operatorFee = 0n;
-    try {
-      // The protocol fee is charged ONLY on value LEAVING the sender. A self-fold or a
-      // withdrawal carve-out (recipient resolves to self) keeps the value in-house, so
-      // spentToOthers = 0 (mirrors the circuit + buildAggregationWitnessBundle).
-      const spentToOthers = goesToOthers() ? recipientAmount() : 0n;
-      const costs = await estimateAggregationCosts({
-        config,
-        networkSlug,
-        token: inputNotes[0].token,
-        spentToOthers,
-      });
-      operator = costs.operator;
-      operatorFee = costs.operatorFee;
-      gasFeeInCurrency = costs.operatorFee; // relayer gas reimbursement (operatorNote)
-      // Curvy feeNote = commitment gas + protocol fee (on spentToOthers), as the contract enforces.
-      curvyFeeInCurrency = costs.protocolFee;
-    } catch {
-      // no paymaster / unpriced token — keep the groupFee fallback, relayer gas 0
+    const costs = await estimateAggregationCosts({
+      config,
+      networkSlug,
+      token: inputNotes[0].token,
+      submissionMode: ctx.submissionMode,
+    });
+    if (ctx.submissionMode === "relay") {
+      invariant(costs.operator, "A relay quote must include the operator's public keys.");
     }
 
+    const allocation = computeAggregateDelivery({
+      grossAmount,
+      requestedAmount: intent?.amount,
+      recipientIsSender: !deliversOutsideAccount,
+      additionalRecipients: costs.relayFee > 0n ? [{ amount: costs.relayFee, isSender: false }] : [],
+      commitmentFee: costs.commitmentFee,
+      protocolFeePerThousand: costs.protocolFeePerThousand,
+    });
+    const note = await generateNewNote(ctx, getRecipient(), input[0].vaultTokenId, allocation.deliveredAmount);
+
+    execution = {
+      note,
+      operator: costs.operator,
+      operatorFee: costs.relayFee,
+      allocation,
+    };
     estimate = {
-      curvyFeeInCurrency,
-      gasFeeInCurrency,
-      operator,
-      operatorFee,
-    } as CurvyCommandEstimateWithNote;
-
-    // The estimate's output note carries the amount the recipient actually RECEIVES
-    // (== execute's recipient note). Fees are accounted against the change-to-self, not
-    // re-deducted from the delivered amount, so the estimate's effectiveAmount matches
-    // what execute delivers (no double-attribution when there is change).
-    estimate.note = await generateNewNote(ctx, getRecipient(), input[0].vaultTokenId, deliveredRecipientAmount());
-
-    // Conservation: delivered recipient amount + fees must never exceed the inputs, else
-    // execute would revert with negative change. The send-all degrade guarantees this.
-    invariant(
-      deliveredRecipientAmount() + curvyFeeInCurrency + gasFeeInCurrency <= grossAmount,
-      "Aggregate estimate violates conservation (delivered amount + fees exceed inputs).",
-    );
+      curvyFeeInCurrency: allocation.feeNoteAmount,
+      gasFeeInCurrency: costs.relayFee,
+      totalFeeInCurrency: allocation.feeNoteAmount + costs.relayFee,
+      deliveredAmount: allocation.deliveredAmount,
+      degradedToFeesOnAmount: allocation.degradedToFeesOnAmount,
+    };
 
     return estimate;
   };
 
   // Estimate-time resulting balance (threaded to the next command during planning).
-  const getResultingBalanceEntry = async (): Promise<CommandData> => {
+  const getResultingData = async (): Promise<PlanValue> => {
     const { symbol, accountId, environment, networkSlug: slug, decimals, currencyAddress } = input[0];
-    invariant(estimate, "Aggregation estimate is required before reading the resulting balance entry.");
+    invariant(execution, "Aggregation estimate is required before reading the resulting balance entry.");
 
-    return noteToBalanceEntry(estimate.note, {
-      symbol,
-      decimals,
-      accountId,
-      environment,
-      networkSlug: slug,
-      currencyAddress: currencyAddress as HexString,
-    });
+    if (deliversOutsideAccount) {
+      const delivered: DeliveredPlanValue = {
+        kind: "delivered",
+        amount: execution.allocation.deliveredAmount,
+        networkSlug: slug,
+        currencyAddress: currencyAddress as HexString,
+      };
+      return delivered;
+    }
+
+    return [
+      noteToBalanceEntry(execution.note, {
+        symbol,
+        decimals,
+        accountId,
+        environment,
+        networkSlug: slug,
+        currencyAddress: currencyAddress as HexString,
+      }),
+    ];
   };
 
   // Wait for the freshly-emitted output note to be committed (by the batch-prover)
@@ -219,174 +151,59 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
         return balances.find((b) => b.networkSlug === networkSlug && b.id === target);
       },
       (found) => found !== undefined,
-      SELF_AGGREGATION_SYNC_TIMEOUT_MS,
-      SELF_AGGREGATION_SYNC_POLL_INTERVAL_MS,
+      config.executionPolicy.aggregationOutputTimeoutMs,
+      config.executionPolicy.aggregationOutputPollIntervalMs,
       new AggregationOutputTimeoutError(),
+      (ms) => sleepWithTimerProvider(config._internal.timerProvider, ms),
     );
     invariant(entry, "Aggregation output polling returned without a matching balance.");
     return entry;
   };
 
-  const execute = async (): Promise<CommandData | undefined> => {
+  const execute = async (): Promise<PlanValue | undefined> => {
     invariant(estimate, "Command not estimated.");
+    invariant(execution, "Command execution data is missing.");
+    const prepared = execution;
 
     const accountId = config.state.activeAccountId;
     invariant(accountId, "No active account to execute aggregation.");
     const policy = await finalityPolicy();
-    if (policy === "finalized" && input.some((entry) => entry.finality === "hot")) {
-      throw new Error("aggregation requires finalized inputs but the plan selected a hot note");
-    }
-    await syncNotes({ config, networkSlug, accountId });
-    const spendable = await config.storage.getProjectedBalances(accountId, networkSlug, policy);
-    if (input.some((entry) => !spendable.some((candidate) => candidate.id === entry.id))) {
-      throw new Error("aggregation inputs changed finality or canonical status after estimation");
-    }
     const recipient = getRecipient();
     const recipientLabel = typeof recipient === "string" ? recipient : `${recipient.S}.${recipient.V}`;
-    await recordTransferIntent({
-      storage: config.storage,
-      accountId,
-      intentId: ctx.id,
-      networkSlug,
+    const self = getActiveKeyPairs(config);
+    const { submission: built } = await runSubmittedCommand({
+      config,
+      commandId: ctx.id,
       action: "aggregation",
-      token: inputNotes[0].token.toString(),
-      amount: deliveredRecipientAmount().toString(),
-      recipients: [recipientLabel],
-      input,
-      outputCommitments: [],
-      finalityPolicy: policy,
-    });
-
-    let attempt: TransferAttempt | undefined;
-    let built: Awaited<ReturnType<typeof buildAggregateRequest>>;
-    try {
-      // Inclusion proofs for the input notes must all reference one canonical root.
-      const supplied = await getSpendWitnesses({ config, networkSlug, noteIds: inputNotes.map((n) => n.id) });
-      attempt = await recordTransferAttempt({
-        storage: config.storage,
-        accountId,
-        intentId: ctx.id,
-        networkSlug,
-        environment: config.state.environment,
-        referencedRoot: supplied.notesRoot,
-      });
-
-      const self = getActiveKeyPairs(config);
-      built = await buildAggregateRequest({
-        config,
-        networkSlug,
-        inputNotes,
-        ownerBjjPrivateKeyHex,
-        recipients: [buildRecipientInput()],
-        changeRecipient: { S: self.S, V: self.V, babyJubjubPublicKey: self.babyJubjubPublicKey },
-        operatorRecipient: estimate.operator,
-        operatorFee: estimate.operatorFee,
-        supplied,
-      });
-    } catch (error) {
-      // No request was broadcast, so this intent can safely release its local input locks.
-      if (attempt) {
-        await config.storage.putTransferAttempt({
-          ...attempt,
-          status: "failed",
-          errorCode: error instanceof Error ? error.message : "proof_preparation_failed",
-        });
-      }
-      await updateTransferIntentStatus({
-        storage: config.storage,
-        accountId,
-        intentId: ctx.id,
-        status: "failed",
-        activeAttemptGeneration: attempt?.generation,
-      });
-      throw error;
-    }
-
-    const outputCommitments = (built.outputNotes ?? []).map((note) => note.id.toString());
-    await recordTransferIntent({
-      storage: config.storage,
       accountId,
-      intentId: ctx.id,
       networkSlug,
-      action: "aggregation",
-      token: inputNotes[0].token.toString(),
-      amount: deliveredRecipientAmount().toString(),
-      recipients: [recipientLabel],
       input,
-      outputCommitments,
+      noteIds: inputNotes.map((note) => note.id),
+      token: inputNotes[0].token.toString(),
+      amount: prepared.allocation.deliveredAmount.toString(),
+      recipients: [recipientLabel],
       finalityPolicy: policy,
-    });
-    for (const outputCommitment of outputCommitments) {
-      await config.storage.putTransferSettlement({
-        accountId,
-        intentId: ctx.id,
-        outputCommitment,
-        status: "pending",
-      });
-    }
-
-    let queued: Awaited<ReturnType<typeof relaySubmission>>;
-    try {
-      queued = await relaySubmission({ config, request: built, intentId: ctx.id });
-    } catch (error) {
-      const rejected = isDefinitiveRelayRejection(error);
-      await config.storage.putTransferAttempt({
-        ...attempt,
-        submittedAt: Date.now(),
-        status: rejected ? "failed" : "submitted",
-        errorCode: rejected ? "relay_rejected" : "relay_outcome_unknown",
-      });
-      await updateTransferIntentStatus({
-        storage: config.storage,
-        accountId,
-        intentId: ctx.id,
-        status: rejected ? "failed" : "submitted",
-        activeAttemptGeneration: attempt.generation,
-      });
-      throw error;
-    }
-    await config.storage.putTransferAttempt({
-      ...attempt,
-      relayRequestId: queued.requestId,
-      relayTxHash: queued.transactionHash,
-      submittedAt: Date.now(),
-      status: "submitted",
-    });
-    await updateTransferIntentStatus({
-      storage: config.storage,
-      accountId,
-      intentId: ctx.id,
-      status: "submitted",
-      activeAttemptGeneration: attempt.generation,
-    });
-    const included = await waitForRelay({ config, requestId: queued.requestId, waitFor: "included" });
-    if (included.status !== "included" && included.status !== "finalized") {
-      throw new Error(`aggregation relay was not canonically included (status: ${included.status})`);
-    }
-    await config.storage.putTransferAttempt({
-      ...attempt,
-      relayRequestId: queued.requestId,
-      relayTxHash: included.canonicalTransactionHash ?? included.transactionHash,
-      submittedAt: Date.now(),
-      inclusionBlockNumber: included.blockNumber ? Number(included.blockNumber) : undefined,
-      inclusionBlockHash: included.blockHash,
-      includedAt: included.includedAt ? Date.parse(included.includedAt) : Date.now(),
-      status: included.status === "finalized" ? "finalized" : "included",
-    });
-    await updateTransferIntentStatus({
-      storage: config.storage,
-      accountId,
-      intentId: ctx.id,
-      status: goesToOthers() ? "awaiting_output_commit" : "input_spend_included",
+      submissionMode: ctx.submissionMode,
+      directSubmitter: ctx.directSubmitter,
+      build: (supplied) =>
+        buildAggregateRequest({
+          config,
+          networkSlug,
+          inputNotes,
+          ownerBjjPrivateKeyHex,
+          recipients: [{ note: prepared.note } satisfies AggregateRecipientInput],
+          changeRecipient: { S: self.S, V: self.V, babyJubjubPublicKey: self.babyJubjubPublicKey },
+          operatorRecipient: prepared.operator,
+          operatorFee: prepared.operatorFee,
+          supplied,
+        }),
+      outputCommitments: (submission) => (submission.outputNotes ?? []).map((note) => note.id.toString()),
+      terminalStatus: () => (deliversOutsideAccount ? "awaiting_output_commit" : "input_spend_included"),
     });
 
-    // outputNotes[0] is the recipient note. When value LEAVES the sender we will never
-    // sync that note from our OWN storage (it belongs to the recipient), so don't hang
-    // ~120s polling for a note we'll never see — return the estimate-derived output
-    // entry instead. For a self-fold / withdrawal carve-out (recipient resolves to self)
-    // the note IS ours, so wait for it to commit + sync and return the spendable entry.
-    if (goesToOthers()) {
-      return getResultingBalanceEntry();
+    // Only self-owned outputs appear in this account's balance sync.
+    if (deliversOutsideAccount) {
+      return getResultingData();
     }
     const recipientNote = built.outputNotes?.[0];
     invariant(recipientNote, "buildAggregateRequest returned no output notes.");
@@ -406,12 +223,12 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
       intentId: ctx.id,
       status: policy === "finalized" ? "finalized" : "available_hot",
     });
-    return result;
+    return [result];
   };
 
   return {
     id: ctx.id,
-    name: "AggregatorAggregateCommand",
+    kind: "aggregator-aggregate",
     get recipient() {
       return getRecipient();
     },
@@ -421,11 +238,11 @@ export function createAggregatorAggregateCommand(ctx: CommandContext): Command {
     get estimate() {
       return estimate;
     },
-    set estimate(value: CommandEstimate | undefined) {
-      estimate = value as CurvyCommandEstimateWithNote | undefined;
-    },
     estimateFees,
-    getResultingBalanceEntry,
+    getResultingData,
+    getExecutionData: () => execution,
+    getIntentOutput: (): IntentOutput | undefined =>
+      intent?.type === "send-to-anyone" && execution ? { kind: "gift", note: execution.note } : undefined,
     execute,
   };
 }

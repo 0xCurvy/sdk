@@ -1,8 +1,6 @@
 /**
  * Minimal, dependency-free reactive store (zustand-style) with selector-based
- * subscriptions. This is the live state container held by a `CurvyConfig`; it
- * replaces the mutable private fields that were scattered across `CurvySDK`,
- * `AccountManager`, and `BalanceScanner`.
+ * subscriptions. This is the live state container held by `CurvyConfig`.
  *
  * - `getState()` returns the current snapshot.
  * - `setState(partial | updater)` shallow-merges and notifies subscribers.

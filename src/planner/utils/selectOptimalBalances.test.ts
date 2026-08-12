@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { InsufficientBalanceError } from "@/errors";
 import { fakeBalanceEntry } from "@/test/fixtures";
 import type { BalanceEntry } from "@/types";
 import { selectOptimalBalances } from "./selectOptimalBalances";
@@ -40,6 +41,11 @@ describe("selectOptimalBalances", () => {
   it("throws when the total balance is insufficient to cover the target", () => {
     const notes = [note("a", 10n), note("b", 20n)];
 
-    expect(() => selectOptimalBalances(notes, 1000n)).toThrow("Insufficient balance to cover the intended amount");
+    expect(() => selectOptimalBalances(notes, 1000n)).toThrow(InsufficientBalanceError);
+    try {
+      selectOptimalBalances(notes, 1000n);
+    } catch (error) {
+      expect(error).toMatchObject({ code: "INSUFFICIENT_BALANCE", required: 1000n, available: 30n });
+    }
   });
 });

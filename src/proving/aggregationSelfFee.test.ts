@@ -9,11 +9,8 @@ import { MerkleTree } from "./merkleTree";
 import { createRustProver } from "./rustProver";
 import { buildAggregationWitnessBundle, flattenAggregationCircuitInputs } from "./witnessFromNotes";
 
-// Validates that the SDK's protocol-fee base matches the DEPLOYED aggregation circuit:
-// the circuit charges the fee only on value LEAVING the sender (its `isSender` check
-// skips sender-owned outputs). So a sender-owned output (e.g. a withdrawal carve-out's
-// self note) must NOT be in `spentToOthers`. With the old code (which summed all
-// recipients) the SDK feeNote amount disagreed with the circuit and the proof failed.
+// The deployed circuit charges protocol fees only on value leaving the sender.
+// Sender-owned outputs must therefore be excluded from `spentToOthers`.
 
 const KEYS = resolve(process.cwd(), "../../zk-keys/v2/aggregation");
 const GRAPH = resolve(
@@ -93,18 +90,14 @@ describe("aggregation self-recipient fee base (deployed circuit)", () => {
       treeDepth: DEPTH,
     });
 
-    // Fee base is the 100k that left the sender ONLY: 100000 * 5 / 1000 = 500.
-    // (Old code summed self+other = 150000 => 750, which the circuit's feeNote
-    // constraint rejects, since the circuit's own base excludes the self note.)
+    // Only the 100k external output is charged: 100000 * 5 / 1000 = 500.
     expect(feeNote.amount).toBe(500n);
 
     await prove(flattenAggregationCircuitInputs(witness));
   }, 60_000);
 
-  // COR-8 regression: the old stray `protocolFeeQ <= 999` constraint made the circuit
-  // UNPROVABLE for any realistic fee. After removing it (and regenerating the key), a
-  // mainnet-scale fee must prove. 1e18 leaves the sender at 0.5% => 5e15 fee (Q far > 999).
-  it("proves a mainnet-scale protocol fee well above the old 999 cap", async () => {
+  // A 1e18 external output at 0.5% produces a 5e15 fee and must remain provable.
+  it("proves a mainnet-scale protocol fee", async () => {
     const ownerPub = pubFromPrivateKey(OWNER_PRIV);
     const otherPub: [bigint, bigint] = [ownerPub[0] + 1n, ownerPub[1] + 1n];
     const feePub: [bigint, bigint] = [ownerPub[0] + 2n, ownerPub[1] + 2n];

@@ -1,5 +1,5 @@
-import type { Network } from "@/types/api";
-import type { CurrencyMetadata } from "@/types/storage";
+import type { Network } from "@/http/contracts";
+import type { CurrencyMetadata } from "@/storage/types";
 import { toSlug } from "@/utils/format/toSlug";
 
 const networksToCurrencyMetadata = (networks: Network[]) => {

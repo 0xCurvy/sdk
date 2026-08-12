@@ -1,4 +1,4 @@
-import type { Network } from "@/types/api";
+import type { Network } from "@/http/contracts";
 import type { AbortOptions } from "@/types/helper";
 import type { RpcBalance, RpcBalances } from "./types";
 

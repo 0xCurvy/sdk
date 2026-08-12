@@ -1,9 +1,9 @@
 import { getAddress } from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Currency, PortalRecord } from "@/http/contracts";
 import { EvmRpc } from "@/rpc/evm";
 import type { MultiRpc } from "@/rpc/multi";
 import { createFakeApi, createFakeConfig, createFakeCore, fakeCurvyAccount, fixtureNetwork } from "@/test/fixtures";
-import type { Currency, PortalRecord } from "@/types/api";
 import { findPortal } from "./findPortal";
 
 const G =

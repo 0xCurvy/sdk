@@ -2,13 +2,13 @@ import { resolveConfig } from "@/config/global";
 import type { CurvyConfig, NotesSyncEngine, WithConfig } from "@/config/types";
 import { nullifier as rustNullifier } from "@/core/rustCore";
 import { ScanError } from "@/errors";
+import type { Network } from "@/http/contracts";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "@/note/discoverOwnedNotes";
 import { type LeafSource, type RootVerifier, type SyncedLeaf, syncNotesTree } from "@/note/notesTreeSync";
 import { GlobalNotesTree, type NotesTreeView } from "@/note/notesTreeView";
 import { syncShardedNotesTree } from "@/note/shardedNotesSync";
 import { ShardedNotesTree } from "@/note/shardedNotesTree";
 import { syncHotNotesOverlay } from "@/note/syncHotNotesOverlay";
-import type { Network } from "@/types/api";
 import { applyAccountDiscovery } from "./internal/applyDiscovery";
 import { applySyncResult } from "./internal/applySyncResult";
 import { apiLeafSource, coreOwnershipResolver, ownedNullifiersFromBalances, rpcRootVerifier } from "./internal/seams";
@@ -56,11 +56,9 @@ export type SyncNotesResult = {
  * tx history). The synced tree is kept on `config._internal.notesTrees` for
  * `getSpendWitnesses`.
  *
- * The working set is chosen by `config.notesSyncEngine` (or the per-call
- * `engine` override): "sharded" (default lean-client profile — shard roots +
- * tracked witnesses, a few MB at any tree size) or "global" (legacy full IMT).
- * See plan-shardtree-curvy.md. Both verify against the same chain anchor
- * and emit identical witnesses downstream.
+ * `engine` selects either the bounded sharded profile (the default) or a full
+ * in-memory tree. Both verify against direct chain RPC and produce the same
+ * spend-witness contract.
  */
 export async function syncNotes(parameters: SyncNotesParameters = {}): Promise<SyncNotesResult[]> {
   const config = resolveConfig(parameters.config);
@@ -159,12 +157,9 @@ async function syncOneNetwork(
     const ownedNullifiers = accountId ? await ownedNullifiersFromBalances(config, accountId, networkSlug) : undefined;
 
     const engine = parameters.engine ?? config.notesSyncEngine;
-    // The account may lag the already-persisted network tree (a second/imported
-    // account, or a crash after tree persistence but before account effects).
-    // The global engine's cursor is its leaf log. The lean sharded engine
-    // deliberately stores no full leaf log, so derive its head from the persisted
-    // live-shard record instead. Using the leaf-log count unconditionally left
-    // sharded wallets stuck at zero and made historical notes undiscoverable.
+    // Account discovery can lag the network tree. The full-tree profile derives
+    // its cursor from the leaf log; the sharded profile derives it from the live
+    // shard because it intentionally does not persist every leaf.
     const treeCursorBefore =
       engine === "global"
         ? await config.storage.getCommittedLogCount(networkSlug, "leaf")
@@ -322,9 +317,8 @@ async function runSyncEngine(engine: NotesSyncEngine, opts: SyncEngineOptions): 
   if (engine === "global") {
     const r = await syncNotesTree({ storage, networkSlug, environment, source, verifier });
     const newOwned = resolveOwnership ? await discoverOwnedNotes(r.newLeaves, resolveOwnership) : [];
-    // Fold THIS window's discovered notes into the reconciliation lookup so a
-    // note received-and-spent in one delta is reported spent (mirrors the
-    // sharded engine; the pre-sync `ownedNullifiers` is stored-balances only).
+    // Include newly discovered notes so a note received and spent in one delta
+    // is reported as spent.
     const reconNullifiers = new Map(ownedNullifiers ?? []);
     for (const note of newOwned) {
       reconNullifiers.set(rustNullifier(note.sharedSecret, note.ownerPub[0], note.ownerPub[1]), BigInt(note.noteId));

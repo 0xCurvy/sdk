@@ -69,6 +69,16 @@
         "default": "./dist/_cjs/config/index.cjs"
       }
     },
+    "./planner": {
+      "import": {
+        "types": "./dist/_types/planner/index.d.ts",
+        "default": "./dist/_esm/planner/index.js"
+      },
+      "require": {
+        "types": "./dist/_types/planner/index.d.cts",
+        "default": "./dist/_cjs/planner/index.cjs"
+      }
+    },
     "./utils": {
       "import": {
         "types": "./dist/_types/utils/index.d.ts",

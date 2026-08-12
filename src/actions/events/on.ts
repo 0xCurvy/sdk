@@ -1,9 +1,9 @@
 import { resolveConfig } from "@/config/global";
 import type { CurvyConfig } from "@/config/types";
-import type { ICurvyEventEmitter } from "@/interfaces/events";
+import type { CurvyEventBus } from "@/events/types";
 import type { CURVY_EVENTS } from "@/types/events";
 
-type Unsubscribe = ReturnType<ICurvyEventEmitter["on"]>;
+type Unsubscribe = ReturnType<CurvyEventBus["on"]>;
 
 export type OnOptions = {
   /** Override the ambient global config. */

@@ -30,11 +30,8 @@ export type GetSpendWitnessesParameters = WithConfig<{
 }>;
 
 /**
- * Produce the `supplied` inclusion proofs for a spend/aggregation from the
- * synced notes tree (sharded or global) — the lean-client bridge the v3
- * client-proving planner commands will call. All proofs share one root (the
- * circuit's single `notesRoot`), regardless of how far apart the notes' leaf
- * indices are.
+ * Produce inclusion proofs for a spend from the synced notes tree. All returned
+ * proofs share the same authenticated root.
  *
  * Under the sharded engine, cold notes (no witness tracked — e.g. restored
  * wallet) are recovered transparently: one shard fetch from the dumb leaf feed,

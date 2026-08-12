@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import type { PortalStatusResponse } from "@/http/contracts";
 import { createFakeApi, createFakeConfig } from "@/test/fixtures";
-import type { PortalStatusResponse } from "@/types/api";
 import { getPortalStatus } from "./getPortalStatus";
 
 describe("getPortalStatus", () => {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { getNotesTreeParameters } from "@/core/rustCore";
+import type { GetSyncHotMetaReturnType, SyncHotBlock } from "@/http/contracts";
 import { MapStorage } from "@/storage/map-storage";
-import type { GetSyncHotMetaReturnType, SyncHotBlock } from "@/types/api";
-import type { NotesCheckpoint } from "@/types/storage";
+import type { NotesCheckpoint } from "@/storage/types";
 import { applyHotNotesOverlay } from "./applyHotNotesOverlay";
 import { ShardedNotesTree } from "./shardedNotesTree";
 
@@ -35,7 +36,7 @@ function fixture(noteId: bigint): {
     baseCheckpoint: "checkpoint-10",
     chainId: 1,
     contractAddress: "0x0000000000000000000000000000000000001234",
-    treeVersion: 1,
+    treeVersion: getNotesTreeParameters().version,
     finalizedBlockNumber: 10,
     finalizedBlockHash: BASE_HASH,
     finalizedTimestamp: 1_000,

@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import { sha256 } from "viem";
+import type { CurvyKeyPairs } from "@/core/types";
 import type { SerializedCurvyAccount } from "@/types/account";
-import type { CurvyKeyPairs } from "@/types/core";
 import type { CurvyId } from "@/types/curvy";
 import { textEncoder } from "@/utils/common";
 
@@ -14,6 +14,12 @@ type CurvyAccountInit = {
   credId?: ArrayBuffer;
 };
 
+/**
+ * Account credential container returned by the authentication actions.
+ *
+ * @deprecated Integrations should use account/auth actions and
+ * `CurvyAccountData`. Direct construction is retained for monorepo migration.
+ */
 class CurvyAccount {
   readonly #keyPairs: CurvyKeyPairs;
 

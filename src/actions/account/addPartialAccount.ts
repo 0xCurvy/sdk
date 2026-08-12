@@ -1,7 +1,7 @@
 import { CurvyAccount } from "@/account";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
-import type { CurvyKeyPairs } from "@/types/core";
+import type { CurvyKeyPairs } from "@/core/types";
 import { addAccount } from "./addAccount";
 
 export type AddPartialAccountParameters = WithConfig<{

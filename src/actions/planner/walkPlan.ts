@@ -1,154 +1,135 @@
+import { type CurvyError, PlanExecutionError } from "@/errors";
 import type {
   CommandData,
   CommandEstimate,
   DraftCommand,
-  EstimatedPlan,
+  IntentOutput,
   Plan,
   PlanData,
-  PlanExecution,
+  PlanFlowControl,
+  PlanResult,
+  PlanValue,
   PlanWait,
 } from "@/planner/types";
 import { accumulateEstimate, mergeEstimates } from "@/planner/utils";
 import type { BalanceEntry } from "@/types";
 import { invariant } from "@/utils/invariant";
 
-export type PlanWalkSuccessResult = {
-  success: true;
-  data?: CommandData;
-  estimate?: CommandEstimate;
-  estimatedPlan?: EstimatedPlan;
-  items?: PlanWalkResult[];
+export type PlanWalkResult<TPreparedPlan = never> = PlanResult<TPreparedPlan>;
+export type PlanWalkSuccessResult<TPreparedPlan = never> = Extract<PlanWalkResult<TPreparedPlan>, { success: true }>;
+export type PlanWalkFailureResult<TPreparedPlan = never> = Extract<PlanWalkResult<TPreparedPlan>, { success: false }>;
+
+export type PlanNodeHandlers<C extends DraftCommand, TPreparedPlan = never> = {
+  command: (plan: C, input: CommandData) => Promise<PlanWalkResult<TPreparedPlan>>;
+  data: (plan: PlanData, input?: PlanValue) => Promise<PlanWalkResult<TPreparedPlan>>;
+  wait: (plan: PlanWait, input?: PlanValue) => Promise<PlanWalkResult<TPreparedPlan>>;
 };
 
-export type PlanWalkFailureResult = {
-  success: false;
-  error: unknown;
-  items?: PlanWalkResult[];
+export type WalkPlanParameters<C extends DraftCommand, TPreparedPlan> = {
+  plan: Plan<C>;
+  handlers: PlanNodeHandlers<C, TPreparedPlan>;
+  input?: PlanValue;
+  /** Build the prepared representation of a serial or parallel node. */
+  mapFlow?: (flow: PlanFlowControl<C>, children: TPreparedPlan[]) => TPreparedPlan;
+  combineFailures?: (causes: CurvyError[]) => CurvyError;
+  onProgress?: (node: Plan<C>, result: PlanWalkResult<TPreparedPlan>) => void;
 };
 
-export type PlanWalkResult = PlanWalkSuccessResult | PlanWalkFailureResult;
-
-function requireEstimatedPlans(results: PlanWalkSuccessResult[]): EstimatedPlan[] {
-  return results.map((result) => {
-    invariant(result.estimatedPlan, "Expected every successful child result to include an estimated plan.");
-    return result.estimatedPlan;
+const preparedChildren = <TPreparedPlan>(results: PlanWalkSuccessResult<TPreparedPlan>[]): TPreparedPlan[] =>
+  results.map((result) => {
+    invariant(result.preparedPlan !== undefined, "Every successful child must include its prepared plan.");
+    return result.preparedPlan;
   });
-}
 
-export type PlanNodeHandlers<C extends DraftCommand> = {
-  command: (plan: C, input: CommandData) => Promise<PlanWalkResult>;
-  data: (plan: PlanData, input?: CommandData) => Promise<PlanWalkResult>;
-  wait: (plan: PlanWait, input?: CommandData) => Promise<PlanWalkResult>;
-};
+/** Traverse a plan, forwarding serial output and aggregating parallel results. */
+export async function walkPlan<C extends DraftCommand, TPreparedPlan = never>(
+  parameters: WalkPlanParameters<C, TPreparedPlan>,
+): Promise<PlanWalkResult<TPreparedPlan>> {
+  const { plan, handlers, input, mapFlow, combineFailures, onProgress } = parameters;
 
-/**
- * Generic plan tree walker (functional port of `Planner.#walkPlan`). Handles
- * parallel/serial flow control uniformly, delegating leaf nodes (command, data,
- * wait) to the provided handlers.
- *
- * For `parallel` nodes it reports aggregate progress via `emitProgress` (the
- * class called `eventEmitter.emitPlanExecutionProgress` here).
- *
- * @example
- * const result = await walkPlan(plan, handlers, undefined, (plan, result) =>
- *   config.emitter.emitPlanExecutionProgress({ plan, result }),
- * );
- */
-export async function walkPlan<C extends DraftCommand>(
-  plan: Plan<C>,
-  handlers: PlanNodeHandlers<C>,
-  input?: CommandData,
-  emitProgress?: (plan: Plan<C>, result: PlanExecution) => void,
-): Promise<PlanWalkResult> {
-  // Parallel flow control
   if (plan.type === "parallel") {
-    const results = await Promise.all(plan.items.map((item) => walkPlan(item, handlers, undefined, emitProgress)));
-    const success = results.every((r) => r.success);
-
-    emitProgress?.(plan, { success, items: results } as PlanExecution);
-
-    if (success) {
-      const hasEstimatedPlans = results[0]?.estimatedPlan !== undefined;
-
-      return {
-        success: true,
-        ...(hasEstimatedPlans && {
-          estimatedPlan: {
-            type: "parallel" as const,
-            name: plan.name,
-            description: plan.description,
-            items: requireEstimatedPlans(results),
-          },
-        }),
+    const results = await Promise.all(
+      plan.items.map((item) => walkPlan({ plan: item, handlers, mapFlow, combineFailures, onProgress })),
+    );
+    const successful = results.filter((result): result is PlanWalkSuccessResult<TPreparedPlan> => result.success);
+    if (successful.length !== results.length) {
+      const causes = results.filter((result) => !result.success).map((result) => result.error);
+      const failure: PlanWalkFailureResult<TPreparedPlan> = {
+        success: false,
         items: results,
-        estimate: mergeEstimates(results),
-        data: results.filter((r) => r.data !== undefined).map((r) => r.data) as BalanceEntry[],
+        error:
+          combineFailures?.(causes) ??
+          new PlanExecutionError("One or more parallel plan branches failed.", undefined, undefined, undefined, causes),
       };
+      onProgress?.(plan, failure);
+      return failure;
     }
 
-    return {
-      success: false,
+    const result: PlanWalkSuccessResult<TPreparedPlan> = {
+      success: true,
       items: results,
-      error: results.filter((r) => !r.success).map((r) => (r as PlanWalkFailureResult).error),
+      estimate: mergeEstimates(results),
+      data: successful.flatMap((child) => {
+        if (child.data === undefined) return [];
+        invariant(Array.isArray(child.data), "Parallel plan branches must produce private note data.");
+        return child.data;
+      }) as BalanceEntry[],
+      output: successful.find((child) => child.output !== undefined)?.output,
+      ...(mapFlow && { preparedPlan: mapFlow(plan, preparedChildren(successful)) }),
     };
+    onProgress?.(plan, result);
+    return result;
   }
 
-  // Serial flow control
   if (plan.type === "serial") {
-    const results: PlanWalkSuccessResult[] = [];
-
     invariant(plan.items.length > 0, "No items in serial node!");
-
+    const results: PlanWalkResult<TPreparedPlan>[] = [];
     let data = input;
+    let output: IntentOutput | undefined;
     const estimate: CommandEstimate = { gasFeeInCurrency: 0n, curvyFeeInCurrency: 0n };
 
     for (const item of plan.items) {
-      const result = await walkPlan(item, handlers, data, emitProgress);
-      if (!result.success) {
-        return {
-          success: false,
-          error: result.error,
-          items: results,
-        };
-      }
-
+      const result = await walkPlan({ plan: item, handlers, input: data, mapFlow, combineFailures, onProgress });
       results.push(result);
-
+      if (!result.success) {
+        const failure: PlanWalkFailureResult<TPreparedPlan> = { success: false, error: result.error, items: results };
+        onProgress?.(plan, failure);
+        return failure;
+      }
       accumulateEstimate(estimate, result.estimate);
       data = result.data;
+      output = result.output ?? output;
     }
 
-    const hasEstimatedPlans = results[0]?.estimatedPlan !== undefined;
-
-    return {
+    const successful = results as PlanWalkSuccessResult<TPreparedPlan>[];
+    const result: PlanWalkSuccessResult<TPreparedPlan> = {
       success: true,
-      ...(hasEstimatedPlans && {
-        estimatedPlan: {
-          type: "serial" as const,
-          name: plan.name,
-          description: plan.description,
-          items: requireEstimatedPlans(results),
-        },
-      }),
       data,
+      output,
       estimate,
       items: results,
+      ...(mapFlow && { preparedPlan: mapFlow(plan, preparedChildren(successful)) }),
     };
+    onProgress?.(plan, result);
+    return result;
   }
 
-  // Leaf nodes — delegate to handlers
   if (plan.type === "command") {
-    invariant(input, "Input is required for command node!");
-    return handlers.command(plan, input);
+    invariant(Array.isArray(input) && input.length > 0, "A command node requires private note input.");
+    const result = await handlers.command(plan, input);
+    onProgress?.(plan, result);
+    return result;
   }
-
   if (plan.type === "data") {
-    return handlers.data(plan, input);
+    const result = await handlers.data(plan, input);
+    onProgress?.(plan, result);
+    return result;
   }
-
   if (plan.type === "wait") {
-    return handlers.wait(plan, input);
+    const result = await handlers.wait(plan, input);
+    onProgress?.(plan, result);
+    return result;
   }
 
-  throw new Error(`Unrecognized type for plan node: ${(plan as Plan).type}`);
+  throw new PlanExecutionError(`Unsupported plan node type: ${(plan as Plan<C>).type}.`);
 }

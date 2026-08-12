@@ -1,12 +1,12 @@
 import type { CurvyConfig } from "@/config/types";
 import type { Intent } from "@/planner/types";
-import type { InputFinalityPolicy } from "@/types/storage";
+import type { InputFinalityPolicy } from "@/storage/types";
 
 type ResolveInputFinalityPolicyOptions = {
   config: CurvyConfig;
-  accountId: string;
+  accountId?: string;
   networkSlug: string;
-  intent: Intent;
+  intent?: Pick<Intent, "inputFinalityPolicy">;
   mandatory?: InputFinalityPolicy;
 };
 
@@ -15,7 +15,8 @@ export async function resolveInputFinalityPolicy(
   options: ResolveInputFinalityPolicyOptions,
 ): Promise<InputFinalityPolicy> {
   if (options.mandatory === "finalized") return "finalized";
-  if (options.intent.inputFinalityPolicy) return options.intent.inputFinalityPolicy;
+  if (options.intent?.inputFinalityPolicy) return options.intent.inputFinalityPolicy;
+  if (!options.accountId) return "included";
   const preference = await options.config.storage.getFinalityPreference(options.accountId, options.networkSlug);
   return preference.requireFinalizedFunds ? "finalized" : "included";
 }

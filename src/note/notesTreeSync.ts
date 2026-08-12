@@ -1,23 +1,11 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { StorageInterface } from "@/interfaces/storage";
+import { getNotesTreeParameters } from "@/core/rustCore";
 import { MerkleTree } from "@/proving/merkleTree";
+import type { CurvyStorage } from "@/storage/contracts";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Notes-tree sync engine — keeps a network's GLOBAL notes tree current and
-// durable, optimized for browser/IndexedDB. The bridge between the chunked
-// committed logs in storage, the in-memory IMT proof generation needs, and the
-// on-chain trust anchor. See plan-sdk-notetree-sync-and-storage.md.
-//
-// Strategy (the optimized browser path):
-//   - committed leaf/nullifier logs are PUBLIC chain data, stored PLAINTEXT and
-//     CHUNKED, so a delta sync rewrites only the tail chunk (not the whole log);
-//   - the IMT is held warm in memory across the session and cold-rebuilt from the
-//     chunked log via `MerkleTree.fromLeaves` (O(n) bulk build, not O(n·depth));
-//   - the rebuilt root is verified against a DIRECT chain RPC read (`RootVerifier`),
-//     never the indexer — the indexer is availability-only;
-//   - the leaf/nullifier sources are SEAMS (`LeafSource`): an indexer client in
-//     production, `eth_getLogs` as the trustless fallback, or in-memory in tests.
-// ─────────────────────────────────────────────────────────────────────────────
+// Full-tree sync profile. Public leaf/nullifier logs are persisted in chunks,
+// bulk-loaded into Rust for witnesses, and verified against direct chain RPC.
+// The indexer supplies data availability but is not the root trust anchor.
 
 /** A committed leaf as delivered by a `LeafSource` — id + (optional) delivery data. */
 export type SyncedLeaf = {
@@ -84,10 +72,12 @@ export type LiveNotesTree = {
   nullifiers: Set<bigint>;
 };
 
-const NOTES_TREE_DEPTH = 30;
-
 /** Bulk-rebuild the working set from the persisted logs (O(n) hashes). */
-export function rebuildNotesTree(leaves: string[], nullifiers: string[], depth = NOTES_TREE_DEPTH): LiveNotesTree {
+export function rebuildNotesTree(
+  leaves: string[],
+  nullifiers: string[],
+  depth = getNotesTreeParameters().depth,
+): LiveNotesTree {
   return {
     tree: MerkleTree.fromLeaves({ depth }, leaves.map(BigInt)),
     leaves: [...leaves],
@@ -96,7 +86,7 @@ export function rebuildNotesTree(leaves: string[], nullifiers: string[], depth =
 }
 
 export type SyncNotesTreeOptions = {
-  storage: StorageInterface;
+  storage: CurvyStorage;
   networkSlug: string;
   environment: NETWORK_ENVIRONMENT_VALUES;
   source: LeafSource;
@@ -180,7 +170,7 @@ export async function reconcileWithChain(
  */
 export async function syncNotesTree(opts: SyncNotesTreeOptions): Promise<SyncNotesTreeResult> {
   const { storage, networkSlug, environment, source, verifier } = opts;
-  const depth = opts.depth ?? NOTES_TREE_DEPTH;
+  const depth = opts.depth ?? getNotesTreeParameters().depth;
   const now = opts.now ?? (() => Date.now());
 
   // 1. Rebuild the warm working set from the persisted chunked logs.

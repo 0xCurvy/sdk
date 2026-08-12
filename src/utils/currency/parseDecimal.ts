@@ -1,5 +1,5 @@
 import { parseUnits } from "viem";
-import type { Currency } from "@/types/api";
+import type { Currency } from "@/http/contracts";
 
 export const NATIVE_CURRENCY_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 

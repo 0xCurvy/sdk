@@ -15,6 +15,7 @@ async function pollForCriteria<T>(
   pollAttempts = 120,
   pollDelay = 10000,
   shouldRetry?: (pollAttempt: number, error: unknown) => boolean,
+  wait: (ms: number) => Promise<void> = sleep,
 ): Promise<T> {
   for (let pollAttempt = 0; pollAttempt < pollAttempts; pollAttempt++) {
     try {
@@ -29,7 +30,7 @@ async function pollForCriteria<T>(
       }
     }
 
-    await sleep(pollDelay);
+    await wait(pollDelay);
   }
 
   throw new Error(`Polling failed!`);

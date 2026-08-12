@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { IApiClient } from "@/interfaces/api";
+import type { CurvyApiClient } from "@/http/types";
 import { MapStorage } from "@/storage/map-storage";
 import { createFakeApi, createFakeConfig, createFakeCore } from "@/test/fixtures";
 import type { CurvyId, CurvyKeyPairs, HexString } from "@/types";
@@ -31,7 +31,7 @@ describe("registerAndAddAccount", () => {
     const api = createFakeApi();
     api.user.RegisterCurvyId = vi.fn(async () => ({
       data: { message: "ok" },
-    })) as unknown as IApiClient["user"]["RegisterCurvyId"];
+    })) as unknown as CurvyApiClient["user"]["RegisterCurvyId"];
     api.user.ResolveCurvyId = vi.fn(async () => ({
       data: {
         createdAt: "2024-03-03T00:00:00.000Z",
@@ -60,7 +60,7 @@ describe("registerAndAddAccount", () => {
     const api = createFakeApi();
     api.user.RegisterCurvyId = vi.fn(async () => ({
       data: { message: "ok" },
-    })) as unknown as IApiClient["user"]["RegisterCurvyId"];
+    })) as unknown as CurvyApiClient["user"]["RegisterCurvyId"];
     api.user.ResolveCurvyId = vi.fn(async () => ({ data: null }));
 
     const config = createFakeConfig({ core, api, storage: new MapStorage() });

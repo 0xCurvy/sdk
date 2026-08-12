@@ -2,8 +2,8 @@ import type { Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import type { CurvyConfig } from "@/config/types";
 import { portalFactoryAbi } from "@/contracts/evm/abi/portal-factory";
+import type { MatchedPortalRecord, Network } from "@/http/contracts";
 import type { EvmRpc } from "@/rpc/evm";
-import type { MatchedPortalRecord, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 
 /**

@@ -1,5 +1,4 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { CurvyAccountData, PriceData } from "@/types";
 import type {
   BalanceEntry,
   CommittedLogKind,
@@ -18,7 +17,8 @@ import type {
   TransferHistoryRecord,
   TransferSettlement,
   TxHistoryEntry,
-} from "@/types/storage";
+} from "@/storage/types";
+import type { CurvyAccountData, PriceData } from "@/types";
 import { BaseStorage } from "./base-storage";
 
 /**

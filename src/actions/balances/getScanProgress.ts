@@ -4,8 +4,7 @@ import type { WithConfig } from "@/config/types";
 export type GetScanProgressParameters = WithConfig;
 
 /**
- * Read the current balance-scan progress (0–100) from the store (port of
- * `BalanceScanner.totalScanProgress`, now sourced from `state.scan.progress`).
+ * Read the current balance-scan progress from 0 to 100.
  *
  * @example
  * const pct = getScanProgress();

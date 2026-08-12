@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import type { CoreAdapter } from "@/core/types";
 import { NoActiveAccountError } from "@/errors";
-import type { ICore } from "@/interfaces/core";
 import { createFakeConfig, createFakeCore, fakeCurvyAccount } from "@/test/fixtures";
 import { signMessageWithBabyJubjub } from "./signMessageWithBabyJubjub";
 
@@ -8,7 +8,9 @@ describe("signMessageWithBabyJubjub", () => {
   it("delegates to core with the message and the active account's spending key", async () => {
     const signature = { S: 1n, R8: [2n, 3n] };
     const core = createFakeCore({
-      signWithBabyJubjubPrivateKey: vi.fn(async () => signature) as unknown as ICore["signWithBabyJubjubPrivateKey"],
+      signWithBabyJubjubPrivateKey: vi.fn(
+        async () => signature,
+      ) as unknown as CoreAdapter["signWithBabyJubjubPrivateKey"],
     });
     const account = fakeCurvyAccount();
     const config = createFakeConfig({

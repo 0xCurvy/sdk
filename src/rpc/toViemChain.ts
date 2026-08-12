@@ -1,7 +1,7 @@
 import { type Chain, defineChain } from "viem";
 import * as viemChains from "viem/chains";
+import type { Network } from "@/http/contracts";
 import type { HexString } from "@/types";
-import type { Network } from "@/types/api";
 
 // Every curated viem chain definition, indexed by numeric chain id. These carry the
 // behavioral truth a bare `defineChain` would drop: accurate native currency, the

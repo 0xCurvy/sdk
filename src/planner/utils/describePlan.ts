@@ -1,8 +1,7 @@
 import type { CommandEstimate, DraftPlan } from "@/planner/types";
 import type { BalanceEntry } from "@/types";
 
-function describeData(data: BalanceEntry | BalanceEntry[]): string {
-  const entries = Array.isArray(data) ? data : [data];
+function describeData(entries: BalanceEntry[]): string {
   if (entries.length === 1) {
     const e = entries[0];
     return `${e.symbol} ${e.balance} (${e.networkSlug})`;
@@ -21,7 +20,7 @@ function nodeLabel(node: DraftPlan): string {
     case "wait":
       return `wait: ${node.name}`;
     case "command": {
-      let label = `command: ${node.name}`;
+      let label = `command: ${node.kind}`;
       if (node.intent) label += ` → ${node.intent.type}`;
       // EstimatedPlan nodes carry an estimate; DraftPlan nodes do not.
       const estimate = (node as { estimate?: CommandEstimate }).estimate;

@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { NoActiveAccountError } from "@/errors";
 import type { Intent } from "@/planner/types";
 import { MapStorage } from "@/storage/map-storage";
 import {
   createFakeConfig,
+  createFakeMultiRpc,
   DEFAULT_TEST_PROTOCOL,
   fakeBalanceEntry,
   fakeCurvyAccount,
@@ -13,7 +14,7 @@ import {
 import type { BalanceEntry, CurvyId, HexString } from "@/types";
 import { estimateIntent } from "./estimateIntent";
 
-const NETWORK = fixtureNetwork();
+const NETWORK = fixtureNetwork({ vaultContractAddress: "0x00000000000000000000000000000000000000a2" });
 
 /** Protocol-global proving config with groupFee 10 on both aggregation and withdrawal (fee = amount*10/1000). */
 const PROTOCOL = {
@@ -52,8 +53,13 @@ async function buildConfig(opts: { withAccount?: boolean; seed?: BalanceEntry[] 
   const { withAccount = true, seed = [] } = opts;
   const storage = new MapStorage();
   if (seed.length > 0) await storage.updateBalanceEntries("account-a", "ethereum", seed);
+  const rpc = createFakeMultiRpc();
+  vi.mocked(rpc.Network).mockReturnValue({
+    provider: { readContract: vi.fn(async () => ({ withdrawal: 0n })) },
+  } as never);
 
   return createFakeConfig({
+    rpc,
     storage,
     networks: [NETWORK],
     protocol: PROTOCOL,
@@ -112,7 +118,7 @@ describe("estimateIntent", () => {
       const last = plan.items[plan.items.length - 1];
       expect(last.type).toBe("command");
       if (last.type === "command") {
-        expect(last.name).toBe("aggregator-withdraw");
+        expect(last.kind).toBe("aggregator-withdraw");
         // The command carries its estimate after estimation.
         expect((last as { estimate?: { curvyFeeInCurrency: bigint } }).estimate?.curvyFeeInCurrency).toBe(10n);
       }

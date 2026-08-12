@@ -7,6 +7,7 @@ export async function pollForCriteriaUntil<T>(
   timeoutMs: number,
   pollDelayMs = 10_000,
   timeoutError: Error = new Error("Polling deadline exceeded."),
+  wait: (ms: number) => Promise<void> = sleep,
 ): Promise<T> {
   const controller = new AbortController();
   const deadlineAt = Date.now() + timeoutMs;
@@ -29,7 +30,7 @@ export async function pollForCriteriaUntil<T>(
         controller.abort(timeoutError);
         throw timeoutError;
       }
-      await Promise.race([sleep(Math.min(pollDelayMs, remainingMs)), deadline]);
+      await Promise.race([wait(Math.min(pollDelayMs, remainingMs)), deadline]);
     }
   } finally {
     if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);

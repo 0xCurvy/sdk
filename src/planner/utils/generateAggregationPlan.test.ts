@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { Currency, Network } from "@/http/contracts";
 import type { DraftPlan, Intent } from "@/planner/types";
 import { isPlanFlowControl } from "@/planner/types";
 import { fakeBalanceEntry } from "@/test/fixtures";
-import type { Currency, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { generateAggregationPlan } from "./generateAggregationPlan";
 
@@ -35,7 +35,7 @@ const fakeIntent = (network: Network): Intent => ({
 });
 
 /** Wrap a balance entry as a `data` plan node. */
-const dataNode = (id: string): DraftPlan => ({ type: "data", data: fakeBalanceEntry({ id }) });
+const dataNode = (id: string): DraftPlan => ({ type: "data", data: [fakeBalanceEntry({ id })] });
 
 describe("generateAggregationPlan", () => {
   it("wraps a single input in a serial Privacy Aggregation plan ending in an aggregate command", () => {
@@ -54,7 +54,7 @@ describe("generateAggregationPlan", () => {
     const command = plan.items[1];
     expect(command.type).toBe("command");
     if (command.type !== "command") throw new Error("expected command");
-    expect(command.name).toBe("aggregator-aggregate");
+    expect(command.kind).toBe("aggregator-aggregate");
     expect(typeof command.id).toBe("string");
     expect(command.id.length).toBeGreaterThan(0);
     expect(command.intent).toBe(intent);
@@ -72,17 +72,20 @@ describe("generateAggregationPlan", () => {
     const last = plan.items[1];
     expect(last.type).toBe("command");
     if (last.type !== "command") throw new Error("expected command");
-    expect(last.name).toBe("aggregator-aggregate");
+    expect(last.kind).toBe("aggregator-aggregate");
     expect(typeof last.id).toBe("string");
     expect(last.id.length).toBeGreaterThan(0);
     expect(last.intent).toBe(intent);
   });
 
-  it("throws when maxInputs is missing", () => {
+  it("rejects a circuit that cannot reduce an input set", () => {
     const intent = fakeIntent(fakeNetwork());
 
     expect(() => generateAggregationPlan([dataNode("a")], 0, intent)).toThrow(
-      "aggregation plan requires a positive maxInputs",
+      "The aggregation circuit must accept at least two inputs.",
+    );
+    expect(() => generateAggregationPlan([dataNode("a")], 1, intent)).toThrow(
+      "The aggregation circuit must accept at least two inputs.",
     );
   });
 });

@@ -2,6 +2,7 @@ import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import type { RelaySubmitReturnType } from "@/types/aggregator";
 import { pollForCriteria } from "@/utils/promise";
+import { sleepWithTimerProvider } from "@/utils/timer";
 
 export type WaitForRelayParameters = WithConfig<{
   /** The `requestId` returned by `relaySubmission`. */
@@ -25,12 +26,13 @@ export async function waitForRelay(parameters: WaitForRelayParameters): Promise<
   return pollForCriteria(
     () => config.api.relay.GetSubmissionStatus(parameters.requestId),
     (res) => res.status === "failed" || (res.status !== "reorged" && rank[res.status] >= rank[waitFor]),
-    parameters.attempts ?? 120,
-    parameters.intervalMs ?? 3000,
+    parameters.attempts ?? config.executionPolicy.relayPollAttempts,
+    parameters.intervalMs ?? config.executionPolicy.relayPollIntervalMs,
     // Keep polling through transient errors (network reset, 5xx, timeout): the
     // relayer runs async for minutes, so a single blip must not surface a spurious
     // "failed" wait for a submission that finalizes on-chain. The attempts cap
     // above still bounds the loop.
     () => true,
+    (ms) => sleepWithTimerProvider(config._internal.timerProvider, ms),
   );
 }

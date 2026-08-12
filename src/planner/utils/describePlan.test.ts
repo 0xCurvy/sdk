@@ -8,7 +8,7 @@ const entry = (symbol: string, balance: bigint) =>
 
 describe("describePlan", () => {
   it("renders a single data node", () => {
-    const plan: DraftPlan = { type: "data", data: entry("USDC", 100n) };
+    const plan: DraftPlan = { type: "data", data: [entry("USDC", 100n)] };
     expect(describePlan(plan)).toBe("data: USDC 100 (ethereum)");
   });
 
@@ -21,9 +21,18 @@ describe("describePlan", () => {
     const plan: DraftPlan = {
       type: "serial",
       items: [
-        { type: "data", data: entry("USDC", 100n) },
-        { type: "command", id: "1", name: "aggregator-withdraw" },
-        { type: "wait", id: "2", name: "Confirming delivery", condition: async () => true },
+        { type: "data", data: [entry("USDC", 100n)] },
+        { type: "command", id: "1", kind: "aggregator-withdraw" },
+        {
+          type: "wait",
+          id: "2",
+          name: "Confirming delivery",
+          condition: {
+            kind: "contract-code",
+            networkSlug: "ethereum",
+            address: "0x0000000000000000000000000000000000000001",
+          },
+        },
       ],
     };
 

@@ -1,6 +1,5 @@
 import Dexie, { type Table } from "dexie";
 import { DEFAULT_DB_NAME } from "@/constants/db";
-import type { CurvyAccountData } from "@/types";
 import type {
   BalanceEntry,
   CommittedLogKind,
@@ -19,7 +18,8 @@ import type {
   TransferHistoryRecord,
   TransferSettlement,
   TxHistoryEntry,
-} from "@/types/storage";
+} from "@/storage/types";
+import type { CurvyAccountData } from "@/types";
 
 /** One row of a chunked committed log (leaf or nullifier ids, decimal strings). */
 export type CommittedLogChunk = {
@@ -48,8 +48,8 @@ export type HotOverlayRecord = HotSyncState & {
 };
 
 /**
- * Dexie schema for the Curvy SDK's IndexedDB storage. Subclass to add legacy
- * migrations or extra tables; {@link IndexedDBStorage} exposes the instance via
+ * Dexie schema for the Curvy SDK's IndexedDB storage. Subclass to add application
+ * tables or schema migrations; {@link IndexedDBStorage} exposes the instance via
  * its `db` property for direct Dexie access.
  *
  * Note: `balance` / `vaultTokenId` are `bigint` and are stored (structured-clone

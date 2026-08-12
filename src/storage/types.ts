@@ -1,3 +1,5 @@
+// Durable storage records shared by storage adapters and SDK actions.
+
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { HexString } from "@/types/helper";
 
@@ -74,8 +76,7 @@ type TotalBalance = {
 /**
  * The two append-only logs that reconstruct one network's GLOBAL notes tree:
  * `"leaf"` = committed note ids in tree order (rebuilds the IMT), `"nullifier"`
- * = the spend log. Both are public chain data, stored PLAINTEXT (encrypting them
- * would only slow the rebuild for no privacy gain — the prior plan's call).
+ * = the spend log. Both contain public chain data and are stored unencrypted.
  *
  * Stored CHUNKED so an incremental sync only rewrites the tail chunk(s), never
  * the whole log — the key IndexedDB optimization for browsers. `appendCommittedLog`
@@ -105,7 +106,7 @@ type NotesCheckpoint = {
   lastSynced: number;
   /** Completed-shard count of the sharded tree (sharded profile only). */
   shardCount?: number;
-  /** Opaque finalized indexer checkpoint. Missing on legacy, untrusted records. */
+  /** Opaque finalized indexer checkpoint; absent until a checkpoint is verified. */
   checkpoint?: string;
   finalizedBlockNumber?: number;
   finalizedBlockHash?: string;
@@ -151,10 +152,8 @@ type LiveShardRecord = {
 type TxHistoryKind = "receive" | "spend";
 
 /**
- * One account-scoped transaction-history entry, derived from the synced chain
- * feeds (leaf + nullifier streams) — the chain-reconstruction fallback of the
- * history design (plan-shardtree-curvy.md §11). Entries are idempotent: the
- * deterministic `id` means re-running a sync upserts rather than duplicates.
+ * One account-scoped transaction-history entry derived from the synced leaf and
+ * nullifier streams. Its deterministic id makes repeated syncs idempotent.
  */
 type TxHistoryEntry = {
   /** Deterministic: `${networkSlug}:${noteId}:${kind}`. */

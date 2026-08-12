@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { Network } from "@/http/contracts";
 import { fixtureNetwork } from "@/test/fixtures";
-import type { Network } from "@/types/api";
 import { findNetwork } from "@/utils/network/findNetwork";
 
 const networks: Network[] = [

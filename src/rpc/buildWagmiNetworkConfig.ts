@@ -2,7 +2,7 @@ import type { Chain, Transport } from "viem";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { NETWORK_FLAVOUR } from "@/constants/networks";
-import type { Network } from "@/types/api";
+import type { Network } from "@/http/contracts";
 import { toViemChain } from "./toViemChain";
 
 /** Identify a wanted network by slug, numeric chainId, or chainId string. */

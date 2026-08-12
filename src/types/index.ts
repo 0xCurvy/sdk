@@ -1,9 +1,11 @@
 // BARREL FILE FOR TYPE EXPORTS
 
+export * from "@/core/types";
+export * from "@/http/contracts";
+export * from "@/proving/types";
+export * from "@/storage/types";
 export * from "./account";
 export * from "./aggregator";
-export * from "./api";
-export * from "./core";
 export * from "./curvy";
 export * from "./events";
 export {
@@ -20,4 +22,3 @@ export {
   type Tuple,
 } from "./helper";
 export * from "./signature";
-export * from "./storage";

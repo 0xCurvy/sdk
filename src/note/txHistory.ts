@@ -1,12 +1,10 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { BalanceEntry, TxHistoryEntry, TxHistoryKind } from "@/types/storage";
+import type { BalanceEntry, TxHistoryEntry, TxHistoryKind } from "@/storage/types";
 import type { OwnedNote } from "./discoverOwnedNotes";
 import type { SyncedLeaf } from "./notesTreeSync";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tx-history reducer — the chain-reconstruction fold of plan-shardtree-curvy.md
-// §11. Pure: takes one sync pass's outcome and emits idempotent history
-// entries (deterministic ids → re-running a sync upserts, never duplicates).
+// Pure chain-history projection. Deterministic ids make repeated syncs
+// idempotent.
 //
 // What the chain feeds can faithfully reconstruct (and what this emits):
 //   receive/deposit   — discovered note with PLAINTEXT delivery (vault shield)
@@ -14,10 +12,8 @@ import type { SyncedLeaf } from "./notesTreeSync";
 //   spend             — an owned note's nullifier appeared (possibly from
 //                       another device); amounts come from the balance entry
 //                       being reconciled away
-// Sender identity and outgoing per-recipient splits are NOT reconstructible
-// from chain state (by design — accepted limitation; see plan §11). The
-// write-ahead intent log remains the richer, primary UX source when present.
-// ─────────────────────────────────────────────────────────────────────────────
+// Sender identity and outgoing recipient splits are private and cannot be
+// reconstructed from chain state; locally-authored intent records add that UX.
 
 export const txHistoryId = (networkSlug: string, noteId: string, kind: TxHistoryKind): string =>
   `${networkSlug}:${noteId}:${kind}`;

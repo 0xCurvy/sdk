@@ -1,6 +1,6 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
-import type { PortalStatusResponse } from "@/types/api";
+import type { PortalStatusResponse } from "@/http/contracts";
 
 export type GetPortalStatusParameters = WithConfig<{
   /** Portal address (EVM hex or Solana base58) to look up. */
