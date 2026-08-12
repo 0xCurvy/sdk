@@ -1,6 +1,6 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
-import type { GetPortalRecordsReturnType } from "@/types/api";
+import type { GetPortalRecordsReturnType } from "@/http/contracts";
 
 export type GetPortalRecordsParameters = WithConfig<{
   /** Opaque keyset cursor from a previous page's `nextCursor`. Omit for the first page. */

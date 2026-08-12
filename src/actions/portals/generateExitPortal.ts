@@ -1,7 +1,7 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import type { NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
-import type { InsertExitPortalRequestBody } from "@/types/api";
+import type { InsertExitPortalRequestBody } from "@/http/contracts";
 import type { HexString } from "@/types/helper";
 
 export type GenerateExitPortalParameters = WithConfig<InsertExitPortalRequestBody>;

@@ -74,7 +74,8 @@ await getBalances({ config, accountId });
 Authentication derives Curvy keys from a signed EIP-712 message.
 
 ```ts
-import { getAuthenticationSignatureParams, register } from "@0xcurvy/curvy-sdk";
+import { register } from "@0xcurvy/curvy-sdk";
+import { getAuthenticationSignatureParams } from "@0xcurvy/curvy-sdk/utils";
 
 const signatureParams = await getAuthenticationSignatureParams(address, "optional-password");
 const signatureResult = await signTypedDataAsync(signatureParams);
@@ -107,10 +108,10 @@ Balance refresh is on-demand. Use `AbortSignal` for cancellation and SDK events 
 
 ## Intents
 
-Curvy asset movement follows `Intent -> estimateIntent -> executePlan`.
+Curvy asset movement follows `Intent -> estimateIntent -> executeIntent`.
 
 ```ts
-import { estimateIntent, executePlan, getNetwork } from "@0xcurvy/curvy-sdk";
+import { estimateIntent, executeIntent, getNetwork } from "@0xcurvy/curvy-sdk";
 import type { TransferIntent } from "@0xcurvy/curvy-sdk";
 
 const network = getNetwork({ config, filter: "ethereum" });
@@ -126,8 +127,73 @@ const intent: TransferIntent = {
 };
 
 const estimation = await estimateIntent({ config, intent });
-const execution = await executePlan({ config, plan: estimation.plan });
+console.log(estimation.prepared.steps); // safe labels for route/progress UI
+const execution = await executeIntent({ config, prepared: estimation.prepared });
 ```
+
+`prepared` is an in-memory execution handle and cannot be serialized. Estimate
+again after a page reload. A `send-to-anyone` estimate also returns an explicit
+`output: { kind: "gift", note }`; treat that bearer note as sensitive and put it
+only in the intended gift link.
+
+Relay submission is the default. To submit planner transactions from the
+integration's own wallet, provide a viem `WalletClient` resolver:
+
+```ts
+const config = await createCurvyConfig({
+  submissionMode: "direct",
+  directSubmitter: async ({ network }) => getWalletClientForChain(network.chainId),
+});
+
+const estimation = await estimateIntent({ config, intent });
+await executeIntent({ config, prepared: estimation.prepared });
+```
+
+The SDK does not accept or retain a submitter private key. The wallet client can
+be backed by an injected wallet, hardware signer, HSM, or server account. You
+may override `submissionMode` on `estimateIntent` and `directSubmitter` on
+`executeIntent`. The selected mode is bound to the prepared estimate because a
+relay reimbursement changes aggregation outputs and fees; changing modes
+requires re-estimation. Direct aggregation does not require paymaster terms.
+Withdrawals still require the vault's on-chain per-token fee because the
+contract deducts it in both modes.
+
+When `estimation.degradedToFeesOnAmount` is true, show
+`estimation.effectiveAmount` before confirmation: fees reduced delivery below
+the requested amount.
+
+Planner failures extend `CurvyError` and carry a stable `code`, such as
+`INSUFFICIENT_BALANCE`, `FEE_ESTIMATE_UNAVAILABLE`, or `PLAN_WAIT_TIMEOUT`.
+Branch on the code instead of matching message text.
+
+## Execution progress
+
+```ts
+import { CURVY_EVENT_TYPES, on } from "@0xcurvy/curvy-sdk";
+
+const unsubscribe = on(
+  CURVY_EVENT_TYPES.PLAN_EXECUTION_PROGRESS,
+  ({ step, status }) => console.log(`${step.index + 1}/${step.total}: ${step.label} — ${status}`),
+  { config },
+);
+```
+
+Progress payloads contain sanitized step metadata, never private note data or
+prepared proof state.
+
+## Custom storage
+
+`createCurvyConfig` accepts the complete `CurvyStorage` contract. Tests and
+specialized hosts can implement only a focused facet where that is the actual
+dependency boundary.
+
+```ts
+import type { BalanceStore, CurvyStorage } from "@0xcurvy/curvy-sdk/storage";
+```
+
+`Core`, `CurvyAccount`, `IntentEstimation.plan`, and `BaseStorage` remain only
+where current monorepo consumers require them. See
+[COMPATIBILITY.md](./COMPATIBILITY.md) for their removal plan.
 
 ## Imports And Bundling
 
@@ -141,6 +207,7 @@ Subpath imports reduce accidental bundle size:
 
 ```ts
 import { getBalances, login } from "@0xcurvy/curvy-sdk/actions";
+import { computeAggregateDelivery, describePlan } from "@0xcurvy/curvy-sdk/planner";
 import { poseidonHash } from "@0xcurvy/curvy-sdk/utils";
 import { IndexedDBStorage } from "@0xcurvy/curvy-sdk/storage/idb";
 ```

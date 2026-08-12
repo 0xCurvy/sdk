@@ -1,6 +1,6 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
-import type { BridgeEstimate, BridgeEstimateRequestBody } from "@/types/api";
+import type { BridgeEstimate, BridgeEstimateRequestBody } from "@/http/contracts";
 
 export type EstimateBridgeParameters = WithConfig<BridgeEstimateRequestBody>;
 

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Currency, PortalRecord } from "@/http/contracts";
 import { EvmRpc } from "@/rpc/evm";
 import type { MultiRpc } from "@/rpc/multi";
 import { createFakeApi, createFakeConfig, createFakeCore, fakeCurvyAccount, fixtureNetwork } from "@/test/fixtures";
-import type { Currency, PortalRecord } from "@/types/api";
 import { findOwnedPortals } from "./findOwnedPortals";
 
 // Minimal native currency so the real `EvmRpc` constructor (which builds a viem

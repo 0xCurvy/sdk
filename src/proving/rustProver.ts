@@ -14,7 +14,8 @@ const MAX_BROWSER_THREADS = 8;
 const isNode = typeof process !== "undefined" && !!process.versions?.node;
 
 type WasmBindings = typeof plainProverWasm;
-type ThreadedWasmBindings = WasmBindings & { initThreadPool(threadCount: number): Promise<unknown> };
+type ThreadedWasmBindings = typeof import("@0xcurvy/rs-core-wasm/prover-threads");
+type AnyWasmBindings = WasmBindings | ThreadedWasmBindings;
 type WasmCircuitProver = InstanceType<typeof plainProverWasm.WasmCircuitProver>;
 
 export type RustProverOptions = {
@@ -25,12 +26,12 @@ export type RustProverOptions = {
   wasm?: { single?: CoreWasmSource; threaded?: CoreWasmSource };
 };
 
-let wasm: WasmBindings = plainProverWasm;
+let wasm: AnyWasmBindings = plainProverWasm;
 let ready = false;
 let initPromise: Promise<void> | null = null;
 let runtimeStatus: RustCoreRuntimeStatus = { mode: "uninitialized", threadCount: 0 };
 
-async function load(bindings: WasmBindings, nodeWasmSpecifier: string, source?: CoreWasmSource): Promise<void> {
+async function load(bindings: AnyWasmBindings, nodeWasmSpecifier: string, source?: CoreWasmSource): Promise<void> {
   if (source?.module) {
     bindings.initSync({ module: source.module });
     return;
@@ -78,7 +79,7 @@ async function initialize(options: RustProverOptions): Promise<void> {
     try {
       // Browser-only and lazily imported: the Rayon snippet touches `self` at
       // module scope, which does not exist in Node.
-      const bindings = (await import("@0xcurvy/rs-core-wasm/prover-threads")) as unknown as ThreadedWasmBindings;
+      const bindings = await import("@0xcurvy/rs-core-wasm/prover-threads");
       await load(bindings, RS_PROVER_THREADS_WASM, options.wasm?.threaded);
       const threadCount = resolveThreadCount(requestedThreads);
       await bindings.initThreadPool(threadCount);

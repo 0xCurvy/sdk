@@ -27,11 +27,8 @@ export async function refreshBalances(parameters: RefreshBalancesParameters = {}
 
   const lockKey = `refresh-account-${accountId}`;
   if (config._internal.scanLocks.get(lockKey)) {
-    // A refresh is already in flight for this account. Coalesce: AWAIT it so a
-    // fresh request (notably `getBalances({ cached: false })`) observes the
-    // freshly-synced data rather than returning stale storage. When the lock is
-    // held with no in-flight scan — paused via `pauseBalanceRefresh`, or an
-    // external hold — there is nothing to await, so short-circuit as before.
+    // Coalesce concurrent refreshes so callers observe the same completed sync.
+    // A lock without a promise represents a paused or externally held refresh.
     const inflight = config._internal.inflightRefreshes.get(lockKey);
     if (inflight) return inflight;
     return;
@@ -51,19 +48,12 @@ export async function refreshBalances(parameters: RefreshBalancesParameters = {}
       config.setState({ scan: { status: "idle", progress: 100, accountId } });
       if (!parameters.silent) config.emitter.emitBalanceRefreshComplete({ accountId, environment });
     } catch (error) {
-      // A caller-initiated abort surfaces via the signal's `reason`, which
-      // `throwIfAborted()` throws verbatim — and callers legitimately pass a plain
-      // string (e.g. the frontend's `controller.abort("env-switch-abort")`), NOT an
-      // Error. Detect cancellation from the signal state, not the thrown value's
-      // type, so `BALANCE_REFRESH_CANCELLED` reliably fires and the frontend's
-      // env-switch recovery re-syncs the newly-selected environment. Gating on
-      // `instanceof Error` swallowed string-reason aborts, leaving the new env
-      // unsynced until a full reload.
+      // Abort reasons may be strings, so the signal state is authoritative.
       const cancelled =
         parameters.signal?.aborted === true ||
         (error instanceof Error && (error.cause === "abort" || error.name === "AbortError"));
       if (cancelled) {
-        // Cancelled, not failed — don't strand the UI in an error state.
+        // Cancellation returns the scan to idle and emits its dedicated event.
         config.setState({ scan: { status: "idle", progress: 0, accountId } });
         const reason = error instanceof Error ? error.message : typeof error === "string" ? error : "aborted";
         config.emitter.emitBalanceRefreshCancelled({ reason, environment });

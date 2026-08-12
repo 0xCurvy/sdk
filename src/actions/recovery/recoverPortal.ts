@@ -2,8 +2,8 @@ import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs"
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { AccountError, NetworkError } from "@/errors";
+import type { MatchedPortalRecord } from "@/http/contracts";
 import type { SolanaSigner } from "@/rpc/solana";
-import type { MatchedPortalRecord } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { recoverEvmPortal } from "./internal/recoverEvmPortal";
 import { recoverSolanaPortal } from "./internal/recoverSolanaPortal";

@@ -34,7 +34,9 @@ describe("domain errors", () => {
   });
 
   it("preserves contextual fields", () => {
-    const exec = new PlanExecutionError("boom", "cmd-1", "Withdraw", new Error("root"), [new Error("a")]);
+    const exec = new PlanExecutionError("boom", "cmd-1", "Withdraw", new Error("root"), [
+      new CurvyError("a", "UNKNOWN_ERROR"),
+    ]);
     expect(exec.commandId).toBe("cmd-1");
     expect(exec.commandName).toBe("Withdraw");
     expect(exec.originalError?.message).toBe("root");

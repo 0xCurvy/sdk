@@ -1,15 +1,5 @@
-// Facade over the Rust crypto core (compiled to wasm). Provides the Domain-B
-// primitives — Poseidon, BabyJubjub/EdDSA, the note cipher, note commitments,
-// sha256BigInt — with the SAME signatures the TS implementations expose, so they
-// drop in transparently.
-//
-// The bindings and their `.wasm` come from `@0xcurvy/rs-core-wasm`, published
-// from the rs-core repository. The SDK keeps that dependency EXTERNAL in its ESM
-// build so the consumer's bundler sees the generated glue in place and resolves
-// `new URL("curvy_wasm_bg.wasm", import.meta.url)` itself; Node reads the bytes
-// off disk instead. Loading is async, so callers MUST `await initCore()` once
-// before any synchronous primitive (`createCurvyConfig` already does; the Node
-// v3 services should at startup; the vitest suite does via a setup file).
+// Typed facade over Curvy's Rust/WASM crypto and Merkle primitives. Call
+// `initCore()` once at process/application startup before synchronous helpers.
 
 import * as plainWasm from "@0xcurvy/rs-core-wasm/core";
 import { RS_CORE_THREADS_WASM, RS_CORE_WASM, readPackagedWasm } from "./packagedWasm";
@@ -34,15 +24,16 @@ export type RustCoreRuntimeStatus = {
 };
 
 type WasmBindings = typeof plainWasm;
-type ThreadedWasmBindings = WasmBindings & { initThreadPool(threadCount: number): Promise<unknown> };
+type ThreadedWasmBindings = typeof import("@0xcurvy/rs-core-wasm/core-threads");
+type AnyWasmBindings = WasmBindings | ThreadedWasmBindings;
 
-let wasm = plainWasm;
+let wasm: AnyWasmBindings = plainWasm;
 
 let ready = false;
 let initPromise: Promise<void> | null = null;
 let runtimeStatus: RustCoreRuntimeStatus = { mode: "uninitialized", threadCount: 0 };
 
-async function load(bindings: WasmBindings, nodeWasmSpecifier: string, source?: CoreWasmSource): Promise<void> {
+async function load(bindings: AnyWasmBindings, nodeWasmSpecifier: string, source?: CoreWasmSource): Promise<void> {
   if (source?.module) {
     bindings.initSync({ module: source.module });
     return;
@@ -92,7 +83,7 @@ async function initialize(source: CoreWasmSource | undefined, options: RustCoreR
       // Browser-only, and imported lazily for two reasons: the threaded binary is
       // larger, and its Rayon snippet registers a worker listener on `self` at
       // module scope — importing it in Node would throw.
-      const bindings = (await import("@0xcurvy/rs-core-wasm/core-threads")) as unknown as ThreadedWasmBindings;
+      const bindings = await import("@0xcurvy/rs-core-wasm/core-threads");
       await load(bindings, RS_CORE_THREADS_WASM, source);
       const threadCount = resolveThreadCount(requestedThreads);
       // wasm-bindgen-rayon spawns and owns its workers; it exposes no teardown,
@@ -197,6 +188,24 @@ export type RustOrderedMerkleTree = InstanceType<typeof plainWasm.OrderedMerkleT
 export type RustShardedNotesTree = InstanceType<typeof plainWasm.ShardedNotesTree>;
 export type RustNotesFrontier = InstanceType<typeof plainWasm.NotesFrontier>;
 
+export type NotesTreeParameters = {
+  version: number;
+  depth: number;
+  shardHeight: number;
+  shardSize: number;
+};
+
+/** Protocol notes-tree geometry reported by the initialized Rust core. */
+export function getNotesTreeParameters(): NotesTreeParameters {
+  ensure();
+  return {
+    version: wasm.notesTreeVersion(),
+    depth: wasm.notesTreeDepth(),
+    shardHeight: wasm.notesShardHeight(),
+    shardSize: wasm.notesShardSize(),
+  };
+}
+
 export function createRustMerkleTree(depth: number): RustMerkleTree {
   ensure();
   return new wasm.MerkleTree(depth);
@@ -245,6 +254,12 @@ export function restoreRustShardedNotesTreeParts(
 export function createRustNotesFrontier(depth: number, shardHeight: number): RustNotesFrontier {
   ensure();
   return new wasm.NotesFrontier(depth, shardHeight);
+}
+
+/** Create an empty frontier with the protocol's production geometry. */
+export function createProductionRustNotesFrontier(): RustNotesFrontier {
+  ensure();
+  return wasm.NotesFrontier.production();
 }
 
 export function restoreRustNotesFrontier(snapshot: Uint8Array): RustNotesFrontier {
@@ -344,11 +359,9 @@ export type StealthScanMatch = { index: number; spendingPubKey: string; spending
 export type StealthViewerMatch = { index: number; spendingPubKey: string };
 
 /**
- * The Domain-A stealth core (wasm). Replaces the Go-WASM `curvy` namespace, but
- * crosses the boundary as TYPED values — not the Go-era JSON strings (the Go core
- * could only marshal strings; wasm-bindgen passes structured values directly). The
- * inner value formats (points as "x.y", hex view tags / priv keys) are unchanged.
- * Each call requires the wasm to be initialized (`await initCore()`).
+ * Stealth-address operations with typed return values. Points use the protocol's
+ * `"x.y"` representation and view tags/private keys use hex strings. Call
+ * `initCore()` before invoking these synchronous methods.
  */
 export const stealthCore = {
   version: (): string => {

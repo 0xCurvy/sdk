@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { CommandError } from "@/errors";
 import { Note } from "@/note";
 import type { CurvyId, CurvyPublicKeys } from "@/types";
 import { generateNewNote } from "./generateNewNote";
@@ -20,6 +21,7 @@ function buildCtx(overrides: Partial<CommandContext> = {}): CommandContext {
     core: { sendNote: vi.fn() } as never,
     signMessage: vi.fn(),
     ...overrides,
+    submissionMode: overrides.submissionMode ?? "relay",
   };
 }
 
@@ -72,9 +74,7 @@ describe("generateNewNote", () => {
   it("throws when the handle cannot be resolved", async () => {
     const ResolveCurvyId = vi.fn(async () => ({ data: null }));
     const ctx = buildCtx({ api: { user: { ResolveCurvyId }, aggregator: {} } as never });
-    await expect(generateNewNote(ctx, "ghost.curvy.name" as CurvyId, 1n, 1n)).rejects.toThrow(
-      "Handle ghost.curvy.name not found",
-    );
+    await expect(generateNewNote(ctx, "ghost.curvy.name" as CurvyId, 1n, 1n)).rejects.toBeInstanceOf(CommandError);
   });
 
   it("throws when the resolved handle has no BabyJubjub key", async () => {
@@ -85,8 +85,6 @@ describe("generateNewNote", () => {
       },
     }));
     const ctx = buildCtx({ api: { user: { ResolveCurvyId }, aggregator: {} } as never });
-    await expect(generateNewNote(ctx, "alice.curvy.name" as CurvyId, 1n, 1n)).rejects.toThrow(
-      "BabyJubjub public key not found for handle alice.curvy.name",
-    );
+    await expect(generateNewNote(ctx, "alice.curvy.name" as CurvyId, 1n, 1n)).rejects.toBeInstanceOf(CommandError);
   });
 });

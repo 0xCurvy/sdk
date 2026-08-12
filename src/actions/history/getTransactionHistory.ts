@@ -7,7 +7,7 @@ import type {
   TransferHistoryRecord,
   TransferIntentStatus,
   TxHistoryEntry,
-} from "@/types/storage";
+} from "@/storage/types";
 
 type TransactionHistoryKind = "deposit" | "receive" | "send" | "withdrawal" | "spend";
 

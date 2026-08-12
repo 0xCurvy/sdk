@@ -32,7 +32,7 @@ A **`CurvyConfig`** is a value‑bag built once by `createCurvyConfig(...)`. It 
 |---|---|---|
 | `config.keyring: Map<id, CurvyKeyPairs>` | **raw keypairs (secrets)** — the only runtime home of key material | ephemeral, in‑memory |
 | `config.state` (reactive store) | serializable state: `accounts` (key‑free `CurvyAccountData`), `activeAccountId`, `networks`, `environment`, `scan` | ephemeral, reactive |
-| `config.storage` (`StorageInterface`) | durable account metadata + balances + prices | persisted (IndexedDB / Map) |
+| `config.storage` (`CurvyStorage`) | durable accounts, balances, note sync, history, and preferences | persisted (IndexedDB / Map) |
 | `SessionKeystore` (browser only) | keypairs + JWT, for page‑refresh survival | session‑scoped |
 
 **Invariants (do not break):**
@@ -68,7 +68,7 @@ await destroyConfig();                       // stop timers; clear global
 
 ## Public API
 
-The **root** (`@0xcurvy/curvy-sdk`) is intentionally consumer-facing: public actions, config creation/lifecycle, domain and planner types, errors, network constants, `CurvyAccount`, `Note`, and the `solana` namespace. RPC classes, contract ABIs, storage implementations, note-sync machinery, proving primitives, and utility functions belong to their explicit subpaths and must not be re-exported from root.
+The **root** (`@0xcurvy/curvy-sdk`) is intentionally consumer-facing: public actions, config creation/lifecycle, domain and planner types, errors, network constants, `Note`, and the `solana` namespace. `CurvyAccount` remains a deprecated compatibility export. RPC classes, contract ABIs, storage implementations, note-sync machinery, proving primitives, and utility functions belong to their explicit subpaths and must not be re-exported from root.
 
 ### `@0xcurvy/curvy-sdk/actions` — auth
 | Symbol | Signature |
@@ -142,11 +142,10 @@ The **root** (`@0xcurvy/curvy-sdk`) is intentionally consumer-facing: public act
 |---|---|
 | `estimateIntent` | `(p: { intent }) => Promise<IntentEstimation>` — full cost of fulfilling an `Intent` |
 | `estimateExternalTransfer` | `(p) => Promise<EstimateExternalTransferResult>` — pre‑deposit estimate (LiFi bridges) |
-| `estimatePlanTree` | `(config, plan, input?) => Promise<PlanEstimation>` |
-| `executePlan` | `(p) => Promise<PlanExecution>` — execute an estimated plan (balance refresh paused) |
-| `executePlanTree` | `(config, plan, input?) => Promise<PlanExecution>` |
-| `walkPlan` | `(plan, handlers, input?, emitProgress?) => Promise<PlanWalkResult>` — generic parallel/serial tree walker |
-| `createCommand`, `createAggregatorAggregateCommand`, `createAggregatorWithdrawCommand`, `generateNewNote` | command‑layer factories (closure‑based) |
+| `executeIntent` | `(p: { prepared }) => Promise<PlanSuccessfulExecution>` — execute the opaque handle returned by `estimateIntent` |
+| `getPlanSteps` | `(plan) => PlanStep[]` — sanitized route metadata; `prepared.steps` is preferred for new integrations |
+
+The tree walker, tree estimator/executor, and command factories are internal. `IntentEstimation.plan` remains only while the frontend route preview migrates to `prepared.steps` and progress events.
 
 ### `@0xcurvy/curvy-sdk/actions` — storage
 | Symbol | Signature |
@@ -154,24 +153,24 @@ The **root** (`@0xcurvy/curvy-sdk`) is intentionally consumer-facing: public act
 | `resetStorage` | `(p?) => Promise<void>` — clear storage, rebuild from `state.accounts`, refresh balances |
 
 ### `@0xcurvy/curvy-sdk/config`
-`createCurvyConfig`, `createBrowserCurvyConfig`, `createServerCurvyConfig`, `destroyConfig`, `getCurvyConfig` (throws), `peekCurvyConfig` (→ `CurvyConfig | null`), `setCurvyConfig`, `getActiveNetworks`, `getEnvironment`, and `getProtocol`. Types: `CurvyConfig`, `CurvyState`, `CreateCurvyConfigParameters`, `CreateBrowserCurvyConfigParameters`, `CreateServerCurvyConfigParameters`, `WithConfig`, and `ScanStatus`. Config internals, the store constructor, config resolution, and price-refresh machinery are not package exports.
+`createCurvyConfig`, `createBrowserCurvyConfig`, `createServerCurvyConfig`, `destroyConfig`, `getCurvyConfig` (throws), `peekCurvyConfig` (→ `CurvyConfig | null`), `setCurvyConfig`, `getActiveNetworks`, `getEnvironment`, and `getProtocol`. Types: `CurvyConfig`, `CurvyState`, `CreateCurvyConfigParameters`, `CreateBrowserCurvyConfigParameters`, `CreateServerCurvyConfigParameters`, `DirectSubmitter`, `SubmissionMode`, `ExecutionPolicy`, `WithConfig`, and `ScanStatus`. Config internals, the store constructor, config resolution, and price-refresh machinery are not package exports.
 
-`CreateCurvyConfigParameters`: `{ environment?, apiBaseUrl?, storage?, wasmUrl?, wasmModule?, core?, enableKeystore?, customFetch?, timerProvider?, rustCoreThreads?, prover? }` — inject `core`/`storage`/`timerProvider` for testing or MV3; set `rustCoreThreads: "auto"` to use Rayon only in cross-origin-isolated browsers. The default prover is Rust/arkworks; proving-key paths and digests come from protocol metadata, never an SDK manifest.
+`CreateCurvyConfigParameters` also accepts `executionPolicy` to tune relay polling, contract waits, settlement delay, and aggregation-output deadlines. `submissionMode` defaults to `relay`; direct planner submission resolves a viem wallet through `directSubmitter` and never accepts a private key. Inject `core`/`storage`/`timerProvider` for tests or specialized hosts; set `rustCoreThreads: "auto"` to use Rayon only in cross-origin-isolated browsers. The default prover is Rust/arkworks; proving-key paths and digests come from protocol metadata.
 
 ### `@0xcurvy/curvy-sdk/core`
-`Core` *(class)* — `new Core(wasmUrl?, wasmModule?)`, implements `ICore` as a compatibility adapter over the shared Rust module. WASM crypto: `generateKeyPairs`, `getCurvyKeys`, `send`/`sendNote`, `scan` (spend), `viewerScan` (view‑only), `getBabyJubjubPublicKey`, and `signWithBabyJubjubPrivateKey`. `loadWasm` pre-warms the shared idempotent module.
+`Core` is a deprecated compatibility adapter used by several monorepo services. New code should initialize and call the focused `./rust-core` functions. Follow `COMPATIBILITY.md` when migrating or removing it.
 
 ### `@0xcurvy/curvy-sdk/rpc`
 Classes `EvmRpc`, `SolanaRpc`, `MultiRpc`; factories `newRpc(network)`, `newMultiRpc(networks, filter?)`; helpers `toViemChain(network)` (curated `viem/chains` base + metadata overlay) and `buildWagmiNetworkConfig({ chains, transport })` (wagmi adapter, auto-resolves networks from the active config). Types: `RpcCallReturnType`, `RpcBalance`, `RpcBalances`, `VaultBalance`.
 
 ### `@0xcurvy/curvy-sdk/storage` & `…/storage/idb`
-`BaseStorage` (abstract — implements all business logic on `_`‑prefixed CRUD primitives), `MapStorage` (in‑memory, Node/tests), and type `StorageInterface`. **`./storage/idb`:** `IndexedDBStorage` (Dexie‑backed, production browser). Session-keystore and raw database implementations are internal.
+`CurvyStorage` is composed from focused contracts: `AccountStore`, `BalanceStore`, `CurrencyStore`, `NotesStore`, `HistoryStore`, `TransferStore`, `PreferenceStore`, `PrivateTokenStore`, and `StorageLifecycleStore`. App-specific methods belong in an intersection type at the app boundary. `MapStorage` is the in-memory implementation; `./storage/idb` exports `IndexedDBStorage` for browsers.
 
 ### `@0xcurvy/curvy-sdk/note`
 `Note` *(class)* — owner + balance + delivery tag; derives `id`/`nullifier`/`ownerHash`; `serialize{Input,Output,Public,Full}Note()`, `static random/generateOwnerHash/deserializeOutputNote`. Converters `balanceEntryToNote`, `noteToBalanceEntry`. Types: `Balance`, `BabyJubjubPublicKey`, `Owner`, `DeliveryTag`, `PublicNote`, `AuthenticatedNote`, `InputNote`, `OutputNote`, `FullNoteData`.
 
 ### Root errors
-All extend `CurvyError` (has `.code`): `AnnouncementSyncError`, `StorageError`, `APIError`, `NoCurvyConfigError`, `NoActiveAccountError`, `PlanExecutionError`, `PlanEstimationError`, `CommandError`, `ScanError`, `NetworkError`, `AuthError`, `AccountError`, `SpendKeyRequiredError`, `ViewKeyRequiredError`. Discriminate by `instanceof` / `.code` — do **not** convert these to `invariant`.
+All extend `CurvyError` and expose a stable `.code`. Planner-facing additions include `InsufficientBalanceError`, `FeeEstimateUnavailableError`, and `PlanWaitTimeoutError`. Discriminate by `instanceof` or `.code`; never match message strings.
 
 ### `@0xcurvy/curvy-sdk/utils`
 Curated, IO-free helpers:
@@ -192,7 +191,7 @@ Encryption, passkey, invariant, common, storage-metadata, Borsh/Solana encoding,
 PDA derivation (`deriveVaultPda`, `derivePortalMetaPda`, `deriveConfigPda`, `deriveAssociatedTokenAddress`, the `deriveAcross*`/`deriveRelay*` PDAs), recovery (`deriveRecoveryIdentifier`, `signSolRecovery`, `signSplRecovery`, `buildRecoverSolInstruction`, `buildRecoverSplInstruction`, `ownerHashToBytes`), program‑address constants, and types (`AcrossQuoteParams`, `SolanaPortalBalance`).
 
 ### Root domain types
-The shared contract/domain types and guards: `Network`, `Currency`, `BalanceEntry`/`GenericBalanceEntry`/`TotalBalance`, `CurvyAccountData`/`SerializedCurvyAccount`/`ScanCursors`, `CurvyKeyPairs`/`CurvyPrivateKeys`/`CurvyPublicKeys`, `CurvyId` (+ `isValidCurvyId`/`assertCurvyId`), `HexString` (+ `isHexString`/`assertHexString`), `Signature`, `CircuitConfig`, `Core*` arg/return types, `PortalRecord`/`MatchedPortalRecord`/`PortalState`, `AggregationRequest`/`WithdrawRequest`/`AGGREGATOR_ACTIONS`, `CURVY_EVENT_TYPES`/`CURVY_EVENTS`, signature‑data types, and TS utilities (`Prettify`, `StringifyBigInts`, `Tuple`, …). Interfaces (root): `ICore`, `IApiClient`, `StorageInterface`, `ICurvyEventEmitter`.
+The shared contract/domain types and guards: `Network`, `Currency`, `BalanceEntry`/`GenericBalanceEntry`/`TotalBalance`, `CurvyAccountData`/`SerializedCurvyAccount`/`ScanCursors`, `CurvyKeyPairs`/`CurvyPrivateKeys`/`CurvyPublicKeys`, `CurvyId` (+ `isValidCurvyId`/`assertCurvyId`), `HexString` (+ `isHexString`/`assertHexString`), `Signature`, `CircuitConfig`, core result types, `PortalRecord`/`MatchedPortalRecord`/`PortalState`, `AggregationRequest`/`WithdrawRequest`/`AGGREGATOR_ACTIONS`, `CURVY_EVENT_TYPES`/`CURVY_EVENTS`, signature‑data types, and TS utilities (`Prettify`, `StringifyBigInts`, `Tuple`, …). Contracts (root): `CoreAdapter`, `CurvyApiClient`, `CurvyStorage`, `CurvyEventBus`.
 
 ---
 
@@ -226,13 +225,13 @@ These exist in the surface but are **groundwork**, pending the upcoming backend/
 - **`BALANCE_REFRESH_INTERVAL`** (constants) is exported but unused — no periodic balance timer exists.
 - **Capability‑typed accounts** — only the *lightweight* `SpendKey`/`ViewKey` branding ships. The deeper `ViewOnly | Spend | Full` discriminated‑union account model is deferred (it has id‑hash + keystore migration cost).
 - **Account‑id scheme** — `CurvyAccount.id = sha256(all keypairs)` vs `generateAccountId(s,v)` (used only as a password salt) are not unified; unifying is crypto‑adjacent (ADR‑gated).
-- **`api.user.SetBabyJubjubKey`** — present on `IApiClient` but **orphaned** (the `babyJubjubKeyCheck` back‑fill that used it was removed; registration sends the bjj key directly).
+- **`api.user.SetBabyJubjubKey`** — present on `CurvyApiClient` but **orphaned** (registration sends the BabyJubjub key directly).
 
 ---
 
 ## Status & gotchas
 
-- Functional core is **complete** (legacy class SDK deleted). Consumer migration is ongoing; the production `frontend` still imports the legacy `CurvySDK` and will **not** compile against this SDK yet. `curvy-os` is migrated (a React playground).
+- Functional actions are the primary API. Remaining class-era adapters and their exact consumers are tracked in `COMPATIBILITY.md`; do not add new consumers.
 - A `@0xcurvy/curvy-react` hooks wrapper (over the store + `watch*`) is planned but not built; `on(..., { signal })` + `watch*` are the reactive primitives to bridge.
 - Connecting requires the backend up (`createCurvyConfig` fetches networks). WASM and workers are located with `new URL("…", import.meta.url)` / `new Worker(new URL(…), { type: "module" })` — the patterns Vite documents as recommended — so bundlers emit them without query‑suffix imports.
 - **Vite consumers:** add the shipped plugin, `import { curvy } from "@0xcurvy/curvy-sdk/vite"` → `plugins: [curvy()]`. It sets `optimizeDeps.exclude` for the SDK and `@0xcurvy/rs-core-wasm` (the dep optimizer copies dependency code into `node_modules/.vite/deps/`, where those relative URLs resolve to nothing — note that workspace‑**linked** copies are never optimized, so this only bites once installed from npm), `worker.format: "es"` (Rayon's helper dynamically imports the WASM module and Vite's default `iife` worker format cannot code‑split — the build fails outright without it), `assetsInclude: ["**/*.zkey"]`, and dev/preview cross‑origin‑isolation headers. A `buffer` shim is still on the consumer. webpack 5 and Node need no configuration.

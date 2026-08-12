@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Network } from "@/types/api";
+import type { Network } from "@/http/contracts";
 import { findCurrency } from "./findCurrency";
 
 const networks = [

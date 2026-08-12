@@ -1,11 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
+import { CurvyError } from "@/errors";
 import type { CommandData, DraftCommand, Plan } from "@/planner/types";
 import { fakeBalanceEntry } from "@/test/fixtures";
 import { type PlanNodeHandlers, type PlanWalkResult, walkPlan } from "./walkPlan";
 
-/** A command node carrying a synthetic estimate keyed by id. */
-const cmd = (id: string): DraftCommand => ({ type: "command", id, name: `cmd-${id}` });
-const dataNode = (id: string): Plan => ({ type: "data", data: fakeBalanceEntry({ id }) });
+const cmd = (id: string): DraftCommand => ({ type: "command", id, kind: "aggregator-aggregate" });
+const dataNode = (id: string): Plan => ({ type: "data", data: [fakeBalanceEntry({ id })] });
+const waitCondition = {
+  kind: "contract-code" as const,
+  networkSlug: "ethereum",
+  address: "0x0000000000000000000000000000000000000001" as const,
+};
 
 /**
  * Stub handlers that record invocation order. The command handler emits a fixed
@@ -20,11 +25,11 @@ function makeHandlers(order: string[]): PlanNodeHandlers<DraftCommand> {
       return {
         success: true,
         estimate: { gasFeeInCurrency: 1n, curvyFeeInCurrency: 2n },
-        data: fakeBalanceEntry({ id: `out-${node.id}`, balance: 100n }),
+        data: [fakeBalanceEntry({ id: `out-${node.id}`, balance: 100n })],
       };
     }),
     data: vi.fn(async (node): Promise<PlanWalkResult> => {
-      const id = (node.data as { id: string }).id;
+      const id = node.data[0].id;
       order.push(`data:${id}`);
       return { success: true, data: node.data };
     }),
@@ -45,7 +50,7 @@ describe("walkPlan", () => {
       items: [dataNode("seed"), cmd("a"), cmd("b")],
     };
 
-    const result = await walkPlan(plan, handlers, undefined);
+    const result = await walkPlan({ plan, handlers });
 
     expect(result.success).toBe(true);
     // Serial preserves declaration order.
@@ -55,7 +60,7 @@ describe("walkPlan", () => {
       expect(result.estimate?.gasFeeInCurrency).toBe(2n);
       expect(result.estimate?.curvyFeeInCurrency).toBe(4n);
       // Last node's output is threaded out as the serial result data.
-      expect((result.data as { id: string }).id).toBe("out-b");
+      expect(Array.isArray(result.data) && result.data[0].id).toBe("out-b");
     }
   });
 
@@ -64,18 +69,18 @@ describe("walkPlan", () => {
     const handlers: PlanNodeHandlers<DraftCommand> = {
       command: async (node, input) => {
         inputs.push(input);
-        return { success: true, data: fakeBalanceEntry({ id: `out-${node.id}` }) };
+        return { success: true, data: [fakeBalanceEntry({ id: `out-${node.id}` })] };
       },
       data: async (node) => ({ success: true, data: node.data }),
       wait: async (_node, input) => ({ success: true, data: input }),
     };
 
     const plan: Plan = { type: "serial", items: [dataNode("seed"), cmd("a"), cmd("b")] };
-    await walkPlan(plan, handlers, undefined);
+    await walkPlan({ plan, handlers });
 
     // cmd:a receives the seed data node's entry; cmd:b receives cmd:a's output.
-    expect((inputs[0] as { id: string }).id).toBe("seed");
-    expect((inputs[1] as { id: string }).id).toBe("out-a");
+    expect(inputs[0]?.[0].id).toBe("seed");
+    expect(inputs[1]?.[0].id).toBe("out-a");
   });
 
   it("runs parallel branches and calls emitProgress with the aggregate result", async () => {
@@ -83,8 +88,7 @@ describe("walkPlan", () => {
     const handlers = makeHandlers(order);
     const emitProgress = vi.fn();
 
-    // Parallel passes `undefined` to each branch (faithful to the legacy walker),
-    // so each branch must self-seed its input via a leading data node.
+    // Each parallel branch seeds its own command input with a data node.
     const plan: Plan = {
       type: "parallel",
       name: "fan-out",
@@ -94,7 +98,12 @@ describe("walkPlan", () => {
       ],
     };
 
-    const result = await walkPlan(plan, handlers, fakeBalanceEntry({ id: "in" }), emitProgress);
+    const result = await walkPlan({
+      plan,
+      handlers,
+      input: [fakeBalanceEntry({ id: "in" })],
+      onProgress: emitProgress,
+    });
 
     expect(result.success).toBe(true);
     // Both branches ran (each: seed data node then its command).
@@ -104,9 +113,11 @@ describe("walkPlan", () => {
       expect(result.estimate?.gasFeeInCurrency).toBe(2n);
       expect(result.estimate?.curvyFeeInCurrency).toBe(4n);
     }
-    // emitProgress was called once for the parallel node with a successful result.
-    expect(emitProgress).toHaveBeenCalledTimes(1);
-    const [emittedPlan, emittedResult] = emitProgress.mock.calls[0];
+    // Every completed node reports progress, including serial-only plans.
+    const [emittedPlan, emittedResult] = emitProgress.mock.calls.find(([node]) => node === plan) as [
+      Plan,
+      PlanWalkResult,
+    ];
     expect(emittedPlan).toBe(plan);
     expect(emittedResult.success).toBe(true);
     expect(emittedResult.items).toHaveLength(2);
@@ -118,14 +129,14 @@ describe("walkPlan", () => {
 
     const plan: Plan = {
       type: "serial",
-      items: [dataNode("seed"), { type: "wait", id: "w1", name: "Waiting", condition: async () => true }],
+      items: [dataNode("seed"), { type: "wait", id: "w1", name: "Waiting", condition: waitCondition }],
     };
 
-    const result = await walkPlan(plan, handlers, undefined);
+    const result = await walkPlan({ plan, handlers });
     expect(result.success).toBe(true);
     expect(order).toEqual(["data:seed", "wait:w1"]);
     // wait threads the prior data through unchanged.
-    if (result.success) expect((result.data as { id: string }).id).toBe("seed");
+    if (result.success && Array.isArray(result.data)) expect(result.data[0].id).toBe("seed");
   });
 
   it("short-circuits a serial node on the first failure", async () => {
@@ -133,15 +144,15 @@ describe("walkPlan", () => {
     const handlers: PlanNodeHandlers<DraftCommand> = {
       command: async (node) => {
         order.push(`command:${node.id}`);
-        if (node.id === "a") return { success: false, error: new Error("a failed") };
-        return { success: true, data: fakeBalanceEntry({ id: `out-${node.id}` }) };
+        if (node.id === "a") return { success: false, error: new CurvyError("a failed", "COMMAND_ERROR") };
+        return { success: true, data: [fakeBalanceEntry({ id: `out-${node.id}` })] };
       },
       data: async (node) => ({ success: true, data: node.data }),
       wait: async (_node, input) => ({ success: true, data: input }),
     };
 
     const plan: Plan = { type: "serial", items: [cmd("a"), cmd("b")] };
-    const result = await walkPlan(plan, handlers, fakeBalanceEntry({ id: "in" }));
+    const result = await walkPlan({ plan, handlers, input: [fakeBalanceEntry({ id: "in" })] });
 
     expect(result.success).toBe(false);
     // cmd:b is never reached.
@@ -152,8 +163,8 @@ describe("walkPlan", () => {
     const emitProgress = vi.fn();
     const handlers: PlanNodeHandlers<DraftCommand> = {
       command: async (node) => {
-        if (node.id === "bad") return { success: false, error: new Error("bad") };
-        return { success: true, data: fakeBalanceEntry({ id: `out-${node.id}` }) };
+        if (node.id === "bad") return { success: false, error: new CurvyError("bad", "COMMAND_ERROR") };
+        return { success: true, data: [fakeBalanceEntry({ id: `out-${node.id}` })] };
       },
       data: async (node) => ({ success: true, data: node.data }),
       wait: async (_node, input) => ({ success: true, data: input }),
@@ -166,22 +177,27 @@ describe("walkPlan", () => {
         { type: "serial", items: [dataNode("s-bad"), cmd("bad")] },
       ],
     };
-    const result = await walkPlan(plan, handlers, fakeBalanceEntry({ id: "in" }), emitProgress);
+    const result = await walkPlan({
+      plan,
+      handlers,
+      input: [fakeBalanceEntry({ id: "in" })],
+      onProgress: emitProgress,
+    });
 
     expect(result.success).toBe(false);
-    expect(emitProgress).toHaveBeenCalledTimes(1);
-    expect(emitProgress.mock.calls[0][1].success).toBe(false);
+    const rootEvent = emitProgress.mock.calls.find(([node]) => node === plan);
+    expect(rootEvent?.[1].success).toBe(false);
   });
 
   it("throws when a command node receives no input", async () => {
     const handlers = makeHandlers([]);
-    const plan: Plan = { type: "command", id: "x", name: "cmd-x" };
-    await expect(walkPlan(plan, handlers, undefined)).rejects.toThrow("Input is required for command node!");
+    const plan: Plan = { type: "command", id: "x", kind: "aggregator-aggregate" };
+    await expect(walkPlan({ plan, handlers })).rejects.toThrow("A command node requires private note input.");
   });
 
   it("throws on an empty serial node", async () => {
     const handlers = makeHandlers([]);
     const plan: Plan = { type: "serial", items: [] };
-    await expect(walkPlan(plan, handlers, undefined)).rejects.toThrow("No items in serial node!");
+    await expect(walkPlan({ plan, handlers })).rejects.toThrow("No items in serial node!");
   });
 });

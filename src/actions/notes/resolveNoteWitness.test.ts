@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { getNotesTreeParameters } from "@/core/rustCore";
+import type { SyncCommittedNote, SyncHotBlock } from "@/http/contracts";
 import { Note } from "@/note/note";
 import type { RootVerifier } from "@/note/notesTreeSync";
 import { ShardedNotesTree } from "@/note/shardedNotesTree";
 import { MerkleTree } from "@/proving/merkleTree";
 import { createFakeApi, createFakeConfig, createFakeCore, fixtureNetwork } from "@/test/fixtures";
-import type { SyncCommittedNote } from "@/types/api";
 import type { ValidNotesRootVerifier } from "./resolveNoteWitness";
 import { resolveNoteWitness } from "./resolveNoteWitness";
 
@@ -12,6 +13,7 @@ const NETWORK = fixtureNetwork({
   aggregatorContractAddress: "0x00000000000000000000000000000000000000aa",
 });
 const CHECKPOINT_HASH = `0x${"f".repeat(64)}`;
+const TREE_PARAMETERS = getNotesTreeParameters();
 
 const leaves = (values: bigint[]): SyncCommittedNote[] =>
   values.map((noteId, index) => ({
@@ -24,7 +26,7 @@ const leaves = (values: bigint[]): SyncCommittedNote[] =>
 
 const treeFor = (items: SyncCommittedNote[]): MerkleTree =>
   MerkleTree.fromLeaves(
-    { depth: 30 },
+    { depth: TREE_PARAMETERS.depth },
     items.map((leaf) => BigInt(leaf.noteId)),
   );
 
@@ -33,7 +35,7 @@ function checkpointFor(items: SyncCommittedNote[], checkpoint: string) {
     checkpoint,
     chainId: 1,
     contractAddress: NETWORK.aggregatorContractAddress as string,
-    treeVersion: 1,
+    treeVersion: TREE_PARAMETERS.version,
     finalizedBlockNumber: 100,
     finalizedBlockHash: CHECKPOINT_HASH,
     notesRoot: treeFor(items).root().toString(),
@@ -41,8 +43,8 @@ function checkpointFor(items: SyncCommittedNote[], checkpoint: string) {
     nullifierCount: 0,
     pendingCount: 0,
     shardCount: 0,
-    shardHeight: 14,
-    shardSize: 1 << 14,
+    shardHeight: TREE_PARAMETERS.shardHeight,
+    shardSize: TREE_PARAMETERS.shardSize,
   };
 }
 
@@ -237,6 +239,163 @@ describe("resolveNoteWitness", () => {
     expect(resolved?.proofs[0]).toMatchObject({ leaf: note.id, index: 1 });
   });
 
+  it("resolves a committed gift from the verified hot suffix without waiting for finality", async () => {
+    const spendingKey = "11".repeat(32);
+    const viewingKey = "22".repeat(32);
+    const note = new Note({
+      amount: 10_000n,
+      token: 7n,
+      owner: { babyJubjubPublicKey: { x: 1n, y: 2n }, sharedSecret: 99n },
+      ephemeralKey: [3n, 4n],
+      viewTag: 5n,
+    });
+    const finalizedItems = leaves([11n]);
+    const targetItem: SyncCommittedNote = {
+      index: 1,
+      noteId: note.id.toString(),
+      commitBlockNumber: 101,
+      commitBlockHash: `0x${"b".repeat(64)}`,
+      commitTxHash: `0x${"d".repeat(64)}`,
+    };
+    const laterItem: SyncCommittedNote = {
+      index: 2,
+      noteId: "44",
+      commitBlockNumber: 101,
+      commitBlockHash: `0x${"b".repeat(64)}`,
+      commitTxHash: `0x${"e".repeat(64)}`,
+    };
+    const hotItems = [...finalizedItems, targetItem, laterItem];
+    const historicalItems = hotItems.slice(0, 2);
+    const checkpoint = checkpointFor(finalizedItems, "checkpoint-hot-base");
+    const hotBlockHash = `0x${"b".repeat(64)}`;
+    const hotBlock: SyncHotBlock = {
+      number: 101,
+      hash: hotBlockHash,
+      parentHash: CHECKPOINT_HASH,
+      timestamp: 1_012,
+      announcements: [],
+      committedNotes: [
+        {
+          index: 1,
+          noteId: note.id.toString(),
+          ephemeralKey: ["3", "4"],
+          viewTag: 5,
+          amount: "10000",
+          token: "7",
+          isPlaintext: true,
+          transactionHash: `0x${"a".repeat(64)}`,
+          transactionIndex: 0,
+          logIndex: 0,
+          eventArrayIndex: 0,
+          commitTransactionHash: targetItem.commitTxHash as string,
+          commitTransactionIndex: 1,
+          commitLogIndex: 0,
+          commitEventArrayIndex: 0,
+        },
+        {
+          index: 2,
+          noteId: laterItem.noteId,
+          transactionHash: `0x${"9".repeat(64)}`,
+          transactionIndex: 2,
+          logIndex: 0,
+          eventArrayIndex: 0,
+          commitTransactionHash: laterItem.commitTxHash as string,
+          commitTransactionIndex: 2,
+          commitLogIndex: 0,
+          commitEventArrayIndex: 0,
+        },
+      ],
+      nullifiers: [],
+      postBlockNoteCount: hotItems.length,
+      postBlockNotesRoot: treeFor(hotItems).root().toString(),
+      postBlockNullifierCount: 0,
+    };
+    const meta = {
+      snapshot: "snapshot-hot-101",
+      baseCheckpoint: checkpoint.checkpoint,
+      chainId: 1,
+      contractAddress: NETWORK.aggregatorContractAddress as string,
+      treeVersion: TREE_PARAMETERS.version,
+      finalizedBlockNumber: 100,
+      finalizedBlockHash: CHECKPOINT_HASH,
+      finalizedTimestamp: 1_000,
+      hotBlockNumber: 101,
+      hotBlockHash,
+      hotTimestamp: 1_012,
+      noteCount: hotItems.length,
+      notesRoot: treeFor(hotItems).root().toString(),
+      nullifierCount: 0,
+      finality: {
+        mode: "finalized" as const,
+        confirmationDepth: null,
+        observedFinalityLagSeconds: 12,
+        estimatedSecondsToFinality: null,
+        status: "normal" as const,
+      },
+    };
+    const scanNotes = vi.fn(async () => ({ spendingPubKeys: ["99.0"], spendingPrivKeys: [] }));
+    const GetHotBlocks = vi.fn(async () => ({
+      snapshot: meta.snapshot,
+      fromBlock: 101,
+      nextBlock: 102,
+      hotBlockNumber: 101,
+      done: true,
+      blocks: [hotBlock],
+    }));
+    const config = createFakeConfig({
+      core: createFakeCore({
+        getBabyJubjubPublicKey: vi.fn(async () => "1.2"),
+        scanNotes,
+      }),
+      api: createFakeApi({
+        sync: {
+          GetMeta: vi.fn(async () => checkpoint),
+          GetNotes: vi.fn(async (_chainId: number, fromIndex: number) => ({
+            checkpoint: checkpoint.checkpoint,
+            fromIndex,
+            notes: finalizedItems.slice(fromIndex),
+            nextIndex: finalizedItems.length,
+            total: finalizedItems.length,
+          })),
+          GetHotMeta: vi.fn(async () => meta),
+          GetHotBlocks,
+        },
+      }),
+      networks: [NETWORK],
+    });
+    const verifier: RootVerifier = {
+      async currentRoot(at) {
+        if (at?.checkpoint === meta.snapshot) {
+          return { root: treeFor(hotItems).root(), noteIndex: hotItems.length };
+        }
+        return { root: treeFor(finalizedItems).root(), noteIndex: finalizedItems.length };
+      },
+    };
+    const isValidRoot = vi.fn(async (root: bigint) => root === treeFor(historicalItems).root());
+
+    const resolved = await resolveNoteWitness({
+      config,
+      networkSlug: NETWORK.slug,
+      scanFrom: 1,
+      spendingKey,
+      viewingKey,
+      matchOwnedNote: (candidate) => candidate.noteId === note.id.toString(),
+      timeoutMs: 0,
+      verifier,
+      validRootVerifier: { isValidRoot },
+    });
+
+    expect(GetHotBlocks).toHaveBeenCalledWith(1, meta.snapshot, 101, 64);
+    expect(scanNotes).toHaveBeenCalledWith(spendingKey, viewingKey, [{ ephemeralKey: "3.4", viewTag: "05" }]);
+    expect(resolved?.ownedNote).toMatchObject({ noteId: note.id.toString(), leafIndex: 1, amount: 10_000n });
+    expect(resolved?.proofs[0]).toMatchObject({
+      leaf: note.id,
+      index: 1,
+      root: treeFor(historicalItems).root(),
+    });
+    expect(isValidRoot).toHaveBeenCalledWith(treeFor(historicalItems).root());
+  });
+
   it("stops after the matching commitment batch and anchors its historical root", async () => {
     const items = leaves([11n, 22n, 33n]);
     const nextBatch = items[2];
@@ -279,7 +438,7 @@ describe("resolveNoteWitness", () => {
   });
 
   it("bootstraps completed shard roots and downloads leaves only from the hinted shard", async () => {
-    const shardSize = 1 << 14;
+    const shardSize = TREE_PARAMETERS.shardSize;
     const prefix = Array.from({ length: shardSize }, (_, index) => BigInt(index + 1));
     const sourceTree = new ShardedNotesTree();
     sourceTree.appendMany(prefix);
@@ -305,7 +464,7 @@ describe("resolveNoteWitness", () => {
       shardRoots: [prefixRoot.toString()],
       nextIndex: 1,
       total: 1,
-      shardHeight: 14,
+      shardHeight: TREE_PARAMETERS.shardHeight,
       shardSize,
     }));
     const GetNotes = vi.fn(async (_chainId: number, fromIndex: number) => ({

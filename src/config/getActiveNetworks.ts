@@ -1,4 +1,4 @@
-import type { Network } from "@/types/api";
+import type { Network } from "@/http/contracts";
 import { resolveConfig } from "./global";
 import type { WithConfig } from "./types";
 

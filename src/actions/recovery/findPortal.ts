@@ -2,7 +2,7 @@ import { getAddress } from "viem";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { NETWORK_FLAVOUR } from "@/constants/networks";
-import type { MatchedPortalRecord, Network } from "@/types/api";
+import type { MatchedPortalRecord, Network } from "@/http/contracts";
 import { type HexString, isHexString } from "@/types/helper";
 import { findOwnedEvmPortals } from "./internal/findOwnedEvmPortals";
 import { findSolanaPortal } from "./internal/findSolanaPortal";

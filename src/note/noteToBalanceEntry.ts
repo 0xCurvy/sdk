@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import type { BalanceEntry, HexString } from "@/types";
 import type { Note } from "./note";
@@ -42,6 +41,6 @@ export function noteToBalanceEntry(
     balance: amount,
     owner,
     deliveryTag,
-    lastUpdated: +dayjs(), // TODO: @vanja remove
+    lastUpdated: Date.now(),
   };
 }

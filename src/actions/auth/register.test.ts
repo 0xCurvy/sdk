@@ -1,7 +1,7 @@
 import { parseSignature } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { IApiClient } from "@/interfaces/api";
+import type { CurvyApiClient } from "@/http/types";
 import { MapStorage } from "@/storage/map-storage";
 import { createFakeApi, createFakeConfig, createFakeCore } from "@/test/fixtures";
 import type { CurvyId, CurvyKeyPairs, EvmSignatureData } from "@/types";
@@ -67,7 +67,7 @@ describe("register (happy path)", () => {
       });
     api.user.RegisterCurvyId = vi.fn(async () => ({
       data: { message: "ok" },
-    })) as unknown as IApiClient["user"]["RegisterCurvyId"];
+    })) as unknown as CurvyApiClient["user"]["RegisterCurvyId"];
     api.auth.GetBearerTotp = vi.fn(async () => "nonce");
     api.auth.CreateBearerToken = vi.fn(async () => "token");
 

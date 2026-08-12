@@ -1,5 +1,6 @@
 import { type Instruction, type Address as SolanaAddress, address as toSolanaAddress } from "@solana/kit";
 import type { CurvyConfig } from "@/config/types";
+import type { MatchedPortalRecord, Network } from "@/http/contracts";
 import { SolanaRpc, type SolanaSigner } from "@/rpc/solana";
 import {
   buildRecoverSolInstruction,
@@ -13,7 +14,6 @@ import {
   signSolRecovery,
   signSplRecovery,
 } from "@/solana";
-import type { MatchedPortalRecord, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 
 /**

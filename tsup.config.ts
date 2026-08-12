@@ -6,6 +6,7 @@ const codeEntries: Record<string, string> = {
   index: "src/index.ts",
   "actions/index": "src/actions/index.ts",
   "config/index": "src/config/index.ts",
+  "planner/index": "src/planner/index.ts",
   "utils/index": "src/public/utils.ts",
   "gas/index": "src/gas/index.ts",
   "note/index": "src/note/index.ts",

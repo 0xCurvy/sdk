@@ -1,4 +1,4 @@
-import type { Currency, Network } from "@/types/api";
+import type { Currency, Network } from "@/http/contracts";
 import { parseUsdPrice } from "./gasCostInToken";
 
 /** The native + token USD prices (fixed-point) + decimals needed for a conversion. */

@@ -1,15 +1,18 @@
 import { resolveConfig } from "@/config/global";
 import type { CurvyConfig, WithConfig } from "@/config/types";
+import { getNotesTreeParameters } from "@/core/rustCore";
+import type { GetSyncHotBlocksReturnType, GetSyncHotMetaReturnType, SyncHotBlock } from "@/http/contracts";
 import type { OwnedNote, OwnershipMatch, OwnershipResolver } from "@/note/discoverOwnedNotes";
 import { discoverOwnedNotes } from "@/note/discoverOwnedNotes";
 import type { FinalizedSyncCheckpoint, RootVerifier, SyncedLeaf } from "@/note/notesTreeSync";
 import { reconcileWithChain } from "@/note/notesTreeSync";
-import { DEFAULT_SHARD_HEIGHT, NOTES_TREE_DEPTH, ShardedNotesTree } from "@/note/shardedNotesTree";
+import { ShardedNotesTree } from "@/note/shardedNotesTree";
 import type { SuppliedInclusionProofs } from "@/proving/witnessFromNotes";
 import type { EvmRpc } from "@/rpc";
 import { rpcRootVerifier } from "./internal/seams";
 
 const DEFAULT_PAGE_SIZE = 500;
+const HOT_BLOCK_PAGE_SIZE = 64;
 const DEFAULT_TIMEOUT_MS = 240_000;
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
 const PRIVATE_KEY_PATTERN = /^(?:[0-9a-fA-F]{2}){1,32}$/;
@@ -18,9 +21,9 @@ type ResolveNoteWitnessBase = {
   networkSlug: string;
   /** Public lower-bound hint. Discovery never considers leaves below it. */
   scanFrom: number;
-  /** Overall wait for a not-yet-finalized note. Defaults to four minutes. */
+  /** Overall wait for a not-yet-committed note. Defaults to four minutes. */
   timeoutMs?: number;
-  /** Delay between finalized-checkpoint polls after reaching the current head. */
+  /** Delay between commitment polls after reaching the current finalized and hot heads. */
   pollIntervalMs?: number;
   /** Fixed page size used for sequential leaf and shard-root requests. */
   pageSize?: number;
@@ -80,6 +83,7 @@ function validateCheckpoint(
   checkpoint: FinalizedSyncCheckpoint,
   expected: { chainId: number; contractAddress: string },
 ): void {
+  const production = getNotesTreeParameters();
   if (checkpoint.chainId !== expected.chainId) {
     throw new Error(`note witness scan: checkpoint chain ${checkpoint.chainId} does not match ${expected.chainId}`);
   }
@@ -88,10 +92,10 @@ function validateCheckpoint(
       `note witness scan: checkpoint contract ${checkpoint.contractAddress} does not match ${expected.contractAddress}`,
     );
   }
-  if (checkpoint.treeVersion !== 1) {
+  if (checkpoint.treeVersion !== production.version) {
     throw new Error(`note witness scan: unsupported tree version ${checkpoint.treeVersion}`);
   }
-  if (checkpoint.shardHeight !== DEFAULT_SHARD_HEIGHT || checkpoint.shardSize !== 1 << DEFAULT_SHARD_HEIGHT) {
+  if (checkpoint.shardHeight !== production.shardHeight || checkpoint.shardSize !== production.shardSize) {
     throw new Error(`note witness scan: unsupported shard geometry h${checkpoint.shardHeight}/${checkpoint.shardSize}`);
   }
 }
@@ -207,15 +211,89 @@ async function loadShardPrefix(
   return shardRoots;
 }
 
+function validateHotMeta(
+  meta: GetSyncHotMetaReturnType,
+  checkpoint: FinalizedSyncCheckpoint,
+  expected: { chainId: number; contractAddress: string },
+): void {
+  if (meta.baseCheckpoint !== checkpoint.checkpoint) {
+    throw new Error(`note witness scan: hot base ${meta.baseCheckpoint} does not match ${checkpoint.checkpoint}`);
+  }
+  if (meta.chainId !== expected.chainId) {
+    throw new Error(`note witness scan: hot chain ${meta.chainId} does not match ${expected.chainId}`);
+  }
+  if (meta.contractAddress.toLowerCase() !== expected.contractAddress.toLowerCase()) {
+    throw new Error(
+      `note witness scan: hot contract ${meta.contractAddress} does not match ${expected.contractAddress}`,
+    );
+  }
+  if (meta.treeVersion !== checkpoint.treeVersion) {
+    throw new Error(`note witness scan: hot tree version ${meta.treeVersion} does not match ${checkpoint.treeVersion}`);
+  }
+  if (
+    meta.finalizedBlockNumber !== checkpoint.finalizedBlockNumber ||
+    meta.finalizedBlockHash !== checkpoint.finalizedBlockHash
+  ) {
+    throw new Error("note witness scan: hot base block does not match its finalized checkpoint");
+  }
+  if (meta.noteCount < checkpoint.noteCount || meta.nullifierCount < checkpoint.nullifierCount) {
+    throw new Error("note witness scan: hot cursors regressed below their finalized checkpoint");
+  }
+  if (meta.finality.status === "provider_disagreement" || meta.finality.status === "deep_reorg") {
+    throw new Error(`note witness scan: hot sync disabled while indexer status is ${meta.finality.status}`);
+  }
+}
+
+async function loadHotBlocks(
+  config: CurvyConfig,
+  chainId: number,
+  meta: GetSyncHotMetaReturnType,
+  signal?: AbortSignal,
+): Promise<SyncHotBlock[] | null> {
+  const blocks: SyncHotBlock[] = [];
+  let fromBlock = meta.finalizedBlockNumber + 1;
+  while (fromBlock <= meta.hotBlockNumber) {
+    signal?.throwIfAborted();
+    let page: GetSyncHotBlocksReturnType;
+    try {
+      page = await config.api.sync.GetHotBlocks(chainId, meta.snapshot, fromBlock, HOT_BLOCK_PAGE_SIZE);
+    } catch {
+      // Hot snapshots are short-lived and can be invalidated by a reorg. Let the
+      // outer poll obtain a new pinned snapshot instead of failing the claim.
+      return null;
+    }
+    if (
+      page.snapshot !== meta.snapshot ||
+      page.fromBlock !== fromBlock ||
+      page.hotBlockNumber !== meta.hotBlockNumber
+    ) {
+      throw new Error("note witness scan: hot page changed its pinned snapshot");
+    }
+    const lastBlock = page.blocks.at(-1);
+    if (
+      page.blocks.length === 0 ||
+      !lastBlock ||
+      page.blocks[0].number < fromBlock ||
+      page.nextBlock !== lastBlock.number + 1 ||
+      page.nextBlock <= fromBlock
+    ) {
+      throw new Error("note witness scan: hot page was incomplete");
+    }
+    blocks.push(...page.blocks);
+    fromBlock = page.nextBlock;
+  }
+  return blocks;
+}
+
 /**
  * Resolve a note by scanning forward from a public lower-bound hint.
  *
  * Only completed shard roots before the hint's shard are fetched; individual
  * leaves begin at that shard boundary. A caller can select an exact commitment
  * by note ID, or discover owned notes locally and provide its own selection
- * predicate. After a match, scanning finishes that commit transaction and proves
- * against its historical root, which the V2 aggregator permanently records in
- * validNotesRoot.
+ * predicate. Finalized leaves are checked first, followed by the checkpoint-pinned
+ * hot suffix. After a match, scanning finishes that commit transaction and proves
+ * against its historical root, which the V2 aggregator records in validNotesRoot.
  */
 export async function resolveNoteWitness(
   parameters: ResolveNoteWitnessParameters,
@@ -277,25 +355,166 @@ export async function resolveNoteWitness(
     : undefined;
   const verifier = parameters.verifier ?? rpcRootVerifier(config, parameters.networkSlug);
   const validRootVerifier = parameters.validRootVerifier ?? rpcValidNotesRootVerifier(config, parameters.networkSlug);
-  const startShard = Math.floor(parameters.scanFrom / (1 << DEFAULT_SHARD_HEIGHT));
-  const shardStart = startShard * (1 << DEFAULT_SHARD_HEIGHT);
+  const productionTree = getNotesTreeParameters();
+  const startShard = Math.floor(parameters.scanFrom / productionTree.shardSize);
+  const shardStart = startShard * productionTree.shardSize;
   const deadline = Date.now() + timeoutMs;
   let tree: ShardedNotesTree | undefined;
   let targetId: bigint | undefined;
   let targetCommitTx: string | undefined;
   let ownedNote: OwnedNote | undefined;
 
-  const finish = async (): Promise<ResolvedNoteWitness> => {
-    if (!tree || targetId === undefined) throw new Error("note witness scan: internal missing target state");
-    const proof = tree.witness(targetId);
+  const verifyProof = async (
+    proof: ReturnType<ShardedNotesTree["witness"]>,
+    selectedOwnedNote?: OwnedNote,
+  ): Promise<ResolvedNoteWitness> => {
     if (!(await validRootVerifier.isValidRoot(proof.root))) {
       throw new Error(`note witness scan: assembled historical root ${proof.root} is not valid on-chain`);
     }
     return {
       proofs: [proof],
       notesRoot: proof.root,
-      ...(ownedNote ? { ownedNote } : {}),
+      ...(selectedOwnedNote ? { ownedNote: selectedOwnedNote } : {}),
     };
+  };
+
+  const finish = async (): Promise<ResolvedNoteWitness> => {
+    if (!tree || targetId === undefined) throw new Error("note witness scan: internal missing target state");
+    return await verifyProof(tree.witness(targetId), ownedNote);
+  };
+
+  const resolveFromHotSuffix = async (
+    checkpoint: FinalizedSyncCheckpoint,
+    finalizedTree: ShardedNotesTree,
+  ): Promise<ResolvedNoteWitness | null> => {
+    let meta: GetSyncHotMetaReturnType | undefined;
+    try {
+      meta = await config.api.sync.GetHotMeta(chainId, checkpoint.checkpoint);
+    } catch {
+      // A deployment without hot-sync support still retains finalized polling.
+      return null;
+    }
+    if (!meta) return null;
+    validateHotMeta(meta, checkpoint, { chainId, contractAddress: network.aggregatorContractAddress as string });
+
+    const blocks = await loadHotBlocks(config, chainId, meta, parameters.signal);
+    if (!blocks) return null;
+
+    let previousBlock = checkpoint.finalizedBlockNumber;
+    let previousHash = checkpoint.finalizedBlockHash;
+    for (const block of blocks) {
+      if (block.number <= previousBlock || (block.number === previousBlock + 1 && block.parentHash !== previousHash)) {
+        throw new Error(`note witness scan: hot block discontinuity at ${block.number}/${block.hash}`);
+      }
+      previousBlock = block.number;
+      previousHash = block.hash;
+    }
+    if (previousBlock !== meta.hotBlockNumber || previousHash !== meta.hotBlockHash) {
+      throw new Error("note witness scan: hot blocks did not end at the pinned head");
+    }
+
+    const hotTree = ShardedNotesTree.fromSnapshot(finalizedTree.snapshot());
+    const candidates = blocks.flatMap((block) =>
+      block.committedNotes.map(
+        (note): SyncedLeaf =>
+          normalizeLeaf({
+            index: note.index,
+            noteId: note.noteId,
+            ephemeralKey: note.ephemeralKey,
+            viewTag: note.viewTag,
+            amount: note.amount,
+            token: note.token,
+            isPlaintext: note.isPlaintext,
+            blockNumber: note.announcementBlockNumber ?? block.number,
+            requestTxHash: note.transactionHash,
+            commitBlockNumber: block.number,
+            commitBlockHash: block.hash,
+            commitTxHash: note.commitTransactionHash,
+          }),
+      ),
+    );
+    const discoverable = discoversOwnedNotes ? candidates.filter((leaf) => leaf.index >= parameters.scanFrom) : [];
+    const discovered = ownership ? await discoverOwnedNotes(discoverable, ownership) : [];
+    const discoveredByIndex = new Map(discovered.map((note) => [note.leafIndex, note]));
+
+    let hotTargetId: bigint | undefined;
+    let hotTargetCommitTx: string | undefined;
+    let hotOwnedNote: OwnedNote | undefined;
+    let hotProof: ReturnType<ShardedNotesTree["witness"]> | undefined;
+    let candidateIndex = 0;
+    let nullifierCount = checkpoint.nullifierCount;
+    for (const block of blocks) {
+      for (const committed of block.committedNotes) {
+        const leaf = candidates[candidateIndex++];
+        if (!leaf) throw new Error("note witness scan: missing normalized hot leaf");
+        if (hotTargetCommitTx && committed.commitTransactionHash !== hotTargetCommitTx && !hotProof) {
+          if (hotTargetId === undefined) throw new Error("note witness scan: internal missing hot target");
+          hotProof = hotTree.witness(hotTargetId);
+        }
+        if (leaf.index !== hotTree.leafCount) {
+          throw new Error(`note witness scan: hot leaf gap — expected index ${hotTree.leafCount}, got ${leaf.index}`);
+        }
+
+        const leafId = BigInt(leaf.noteId);
+        const candidate = discoveredByIndex.get(leaf.index);
+        const matchesOwnedNote =
+          discoversOwnedNotes && candidate !== undefined && ownedNoteSelector?.matchOwnedNote(candidate) === true;
+        const matchesNoteId = !discoversOwnedNotes && leaf.index >= parameters.scanFrom && leafId === expectedNoteId;
+        if (hotTargetId === undefined && (matchesOwnedNote || matchesNoteId)) {
+          hotTree.mark(leafId, leaf.index);
+          hotTargetId = leafId;
+          hotTargetCommitTx = committed.commitTransactionHash;
+          hotOwnedNote = matchesOwnedNote ? candidate : undefined;
+        }
+        hotTree.append(leafId);
+      }
+
+      for (const nullifier of block.nullifiers) {
+        if (nullifier.index !== nullifierCount) {
+          throw new Error(
+            `note witness scan: hot nullifier gap — expected index ${nullifierCount}, got ${nullifier.index}`,
+          );
+        }
+        nullifierCount += 1;
+      }
+      if (nullifierCount !== block.postBlockNullifierCount) {
+        throw new Error(`note witness scan: hot nullifier count mismatch at ${block.number}/${block.hash}`);
+      }
+      if (hotTree.leafCount !== block.postBlockNoteCount || hotTree.root() !== BigInt(block.postBlockNotesRoot)) {
+        throw new Error(`note witness scan: hot post-block root/count mismatch at ${block.number}/${block.hash}`);
+      }
+    }
+    if (hotTree.leafCount !== meta.noteCount || hotTree.root() !== BigInt(meta.notesRoot)) {
+      throw new Error("note witness scan: hot final root/count does not match its pinned snapshot");
+    }
+    if (nullifierCount !== meta.nullifierCount) {
+      throw new Error("note witness scan: hot final nullifier count does not match its pinned snapshot");
+    }
+
+    await reconcileWithChain(
+      verifier,
+      hotTree.leafCount,
+      () => hotTree.root(),
+      "note witness scan: hot assembled root",
+      {
+        checkpoint: meta.snapshot,
+        chainId: meta.chainId,
+        contractAddress: meta.contractAddress,
+        treeVersion: meta.treeVersion,
+        finalizedBlockNumber: meta.hotBlockNumber,
+        finalizedBlockHash: meta.hotBlockHash,
+        notesRoot: meta.notesRoot,
+        noteCount: meta.noteCount,
+        nullifierCount: meta.nullifierCount,
+        shardHeight: checkpoint.shardHeight,
+        shardSize: checkpoint.shardSize,
+        shardCount: Math.floor(meta.noteCount / checkpoint.shardSize),
+      },
+    );
+
+    if (hotTargetId === undefined) return null;
+    hotProof ??= hotTree.witness(hotTargetId);
+    return await verifyProof(hotProof, hotOwnedNote);
   };
 
   while (true) {
@@ -320,8 +539,8 @@ export async function resolveNoteWitness(
       } else {
         const shardRoots = await loadShardPrefix(config, chainId, startShard, checkpoint, pageSize, parameters.signal);
         tree = ShardedNotesTree.fromSnapshot({
-          depth: NOTES_TREE_DEPTH,
-          shardHeight: DEFAULT_SHARD_HEIGHT,
+          depth: productionTree.depth,
+          shardHeight: productionTree.shardHeight,
           shardRoots,
           liveLeaves: [],
           witnesses: [],
@@ -397,6 +616,9 @@ export async function resolveNoteWitness(
       if (!reconciled.caughtUp) {
         throw new Error(`note witness scan: finalized checkpoint is ${reconciled.indexerLag} leaves behind the chain`);
       }
+
+      const hot = await resolveFromHotSuffix(checkpoint, assembledTree);
+      if (hot) return hot;
     }
 
     const remaining = deadline - Date.now();

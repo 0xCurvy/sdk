@@ -19,8 +19,7 @@ export async function refreshPrices(config: CurvyConfig): Promise<void> {
 }
 
 /**
- * Start the recurring price-refresh timer (port of `CurvySDK.#startPriceIntervalUpdate`).
- * Throws if one is already running.
+ * Start recurring price refresh. Throws if one is already running.
  */
 export function startPriceRefresh(
   config: CurvyConfig,
@@ -33,7 +32,7 @@ export function startPriceRefresh(
   }, PRICE_UPDATE_INTERVAL);
 }
 
-/** Stop the recurring price-refresh timer (port of `CurvySDK.#stopPriceIntervalUpdate`). */
+/** Stop recurring price refresh. */
 export function stopPriceRefresh(config: CurvyConfig): void {
   if (config._internal.timers.price) {
     config._internal.timers.price.cancel();

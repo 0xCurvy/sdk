@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Currency, MatchedPortalRecord } from "@/http/contracts";
 import { EvmRpc } from "@/rpc/evm";
 import type { MultiRpc } from "@/rpc/multi";
 import { createFakeApi, createFakeConfig, createFakeCore, fakeCurvyAccount, fixtureNetwork } from "@/test/fixtures";
-import type { Currency, MatchedPortalRecord } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { recoverPortal } from "./recoverPortal";
 

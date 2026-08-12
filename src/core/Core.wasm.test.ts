@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Core } from "@/core";
 
 // Real-WASM Core coverage. Unlike the action/planner tests (which use the fake
-// `ICore` from @/test/fixtures), these tests instantiate the genuine Rust WASM
+// structural core fake from @/test/fixtures), these tests instantiate the genuine Rust WASM
 // module. They run fully offline; the generous timeouts also cover cold WASM
 // startup on CI.
 

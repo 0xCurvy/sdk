@@ -1,17 +1,14 @@
 import type { TransactionReceipt, WalletClient } from "viem";
+import type { CurvyPublicKeys } from "@/core/types";
 import type { Note } from "@/note";
 import type { SolidityProof } from "@/proving/groth16";
 import type { AggregatorSubmissionAction, RelaySubmitReturnType } from "@/types/aggregator";
-import type { CurvyPublicKeys } from "@/types/core";
 import type { HexString } from "@/types/helper";
 
 /**
- * A recipient of an aggregation output, accepted by the builders in three forms:
- *  - a Curvy handle (`curvyId`)        — resolved + stealth-delivered for you
- *  - explicit recipient `publicKeys`   — same, without the handle lookup
- *  - a raw stealth tuple               — you already ran ECDH (tests / self-notes)
- * The first two produce a DISCOVERABLE note (real ECDH stealth delivery via
- * `core.sendNote`); the raw form uses a random ephemeral key (undiscoverable).
+ * Recipient input accepted by `buildAggregateRequest`. Prefer a Curvy id,
+ * explicit public keys, or a pre-built note. The raw owner tuple is intended for
+ * callers that already manage note delivery data.
  */
 export type AggregateRecipientInput =
   | { amount: bigint; curvyId: string }
@@ -28,11 +25,9 @@ export type ChainSubmitResult = { transactionHash: HexString; receipt: Transacti
 /**
  * A finished, submit-ready aggregator proof plus its decoded post-state.
  *
- * This is PLAIN, SERIALIZABLE DATA — safe to `structuredClone`, `postMessage` to a
- * worker, or persist. It has no methods. The `build*Request` actions return a
- * {@link SubmittableSubmission} (this data + `.submit()` / `.relay()` sugar); after
- * a structured clone you are back to a bare `AggregatorSubmission` and use the
- * `submitToChain` / `relaySubmission` free actions instead.
+ * Its enumerable fields are serializable and can cross a worker boundary. The
+ * builder result also has non-enumerable `submit` and `relay` convenience methods;
+ * use the free submission actions after serialization.
  */
 export type AggregatorSubmission = {
   /** Which contract entry point this targets. */
@@ -53,12 +48,12 @@ export type AggregatorSubmission = {
   /** All public signals (bigints), in the verifier's declared order. */
   publicSignals: bigint[];
 
-  // ── decoded conveniences (so you never re-slice publicSignals by hand) ──
+  // Decoded values from the ordered public signals.
   /** Spent-note nullifiers (aggregation + withdrawal). */
   nullifiers?: bigint[];
   /** New output note ids (aggregation). */
   outputNoteIds?: bigint[];
-  /** The new PENDING output notes — COMMIT them before they can be spent (aggregation). */
+  /** New output notes; they become spendable after commitment. */
   outputNotes?: Note[];
   /** The protocol fee note (aggregation). */
   feeNote?: Note;
@@ -78,9 +73,8 @@ export type AggregatorSubmission = {
 
 /**
  * What the `build*Request` actions return: an {@link AggregatorSubmission} plus the
- * `.submit()` / `.relay()` chaining sugar. The methods are NON-ENUMERABLE closures,
- * so `JSON.stringify` / `structuredClone` still round-trip the data (and drop the
- * methods, leaving a plain `AggregatorSubmission`).
+ * `.submit()` / `.relay()` convenience methods. They are non-enumerable and are
+ * intentionally dropped by serialization.
  */
 export type SubmittableSubmission = AggregatorSubmission & {
   /** Submit on-chain with the user's own wallet client (the user is the sender + pays gas). */

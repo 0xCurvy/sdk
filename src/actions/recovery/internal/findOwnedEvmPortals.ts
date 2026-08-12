@@ -1,11 +1,11 @@
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import type { CurvyConfig } from "@/config/types";
 import { portalFactoryAbi } from "@/contracts/evm/abi/portal-factory";
+import { ownerHash as computeOwnerHash } from "@/core/rustCore";
+import type { MatchedPortalRecord, Network } from "@/http/contracts";
 import { EvmRpc } from "@/rpc/evm";
-import type { MatchedPortalRecord, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { deriveAddress } from "@/utils/address/deriveAddress";
-import { poseidonHash } from "@/utils/hash/poseidonHash";
 
 /**
  * Enumerate every EVM portal owned by the active account's keys on `network`.
@@ -58,7 +58,7 @@ export async function findOwnedEvmPortals(config: CurvyConfig, network: Network)
       const recoveryAddress = deriveAddress(spendingPubKey, "evm");
 
       const sharedSecret = spendingPubKey.split(".")[0];
-      const ownerHash = poseidonHash([BigInt(bjjX), BigInt(bjjY), BigInt(sharedSecret)]).toString();
+      const ownerHash = computeOwnerHash(BigInt(bjjX), BigInt(bjjY), BigInt(sharedSecret)).toString();
 
       matched.push({ index: i, spendingPubKey, recoveryAddress, ownerHash });
     }

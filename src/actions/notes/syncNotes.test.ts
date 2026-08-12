@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
+import { getNotesTreeParameters } from "@/core/rustCore";
 import type { OwnershipResolver } from "@/note/discoverOwnedNotes";
 import type { RootVerifier, SyncedLeaf } from "@/note/notesTreeSync";
 import { MerkleTree } from "@/proving/merkleTree";
 import { MapStorage } from "@/storage/map-storage";
+import type { CurrencyMetadata } from "@/storage/types";
 import {
   accounts,
   createFakeApi,
@@ -13,7 +15,6 @@ import {
   fakeCurvyAccount,
   fixtureNetwork,
 } from "@/test/fixtures";
-import type { CurrencyMetadata } from "@/types/storage";
 import { poseidonHash } from "@/utils/hash/poseidonHash";
 import { getSpendWitnesses } from "./getSpendWitnesses";
 import { syncNotes } from "./syncNotes";
@@ -21,6 +22,7 @@ import { syncNotes } from "./syncNotes";
 const NET = "ethereum";
 const SHARD_HEIGHT = 2;
 const ACCOUNT = accounts[0].id;
+const TREE_PARAMETERS = getNotesTreeParameters();
 
 const aggNetwork = fixtureNetwork({ aggregatorContractAddress: "0x00000000000000000000000000000000000000aa" });
 
@@ -33,16 +35,16 @@ function fakeSyncApi(leaves: SyncedLeaf[], nullifiers: string[] = []) {
       checkpoint,
       chainId: 1,
       contractAddress: aggNetwork.aggregatorContractAddress as string,
-      treeVersion: 1,
+      treeVersion: TREE_PARAMETERS.version,
       finalizedBlockNumber: 7,
       finalizedBlockHash: `0x${"f".repeat(64)}`,
       notesRoot: root,
       noteCount: leaves.length,
       nullifierCount: nullifiers.length,
       pendingCount: 0,
-      shardCount: Math.floor(leaves.length / (1 << 14)),
-      shardHeight: 14,
-      shardSize: 1 << 14,
+      shardCount: Math.floor(leaves.length / TREE_PARAMETERS.shardSize),
+      shardHeight: TREE_PARAMETERS.shardHeight,
+      shardSize: TREE_PARAMETERS.shardSize,
     })),
     GetNotes: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const notes = leaves.slice(fromIndex, fromIndex + limit).map((note) => ({
@@ -74,7 +76,7 @@ const bareLeaves = (n: number, from = 0): SyncedLeaf[] =>
 
 const flatOver = (leaves: SyncedLeaf[]): MerkleTree =>
   MerkleTree.fromLeaves(
-    { depth: 30 },
+    { depth: TREE_PARAMETERS.depth },
     leaves.map((l) => BigInt(l.noteId)),
   );
 

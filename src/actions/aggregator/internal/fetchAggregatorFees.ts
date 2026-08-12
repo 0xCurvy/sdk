@@ -1,7 +1,7 @@
 import type { Address } from "viem";
 import type { CurvyConfig } from "@/config/types";
 import { aggregatorAlphaV2Abi, vaultV2Abi } from "@/contracts/evm/abi";
-import { MissingContractAddressError } from "@/errors";
+import { FeeEstimateUnavailableError, MissingContractAddressError, NetworkError } from "@/errors";
 import { GAS_FEE_TREE_DEPTH, MerkleTree } from "@/proving";
 import type { EvmRpc } from "@/rpc/evm";
 
@@ -24,7 +24,7 @@ export async function fetchAggregatorFees(
   commitmentGasCosts: bigint[];
 }> {
   const network = config.state.networks.find((n) => n.slug === networkSlug);
-  if (!network) throw new Error(`fetchAggregatorFees: unknown network "${networkSlug}"`);
+  if (!network) throw new NetworkError(`Unknown network "${networkSlug}".`, networkSlug);
   if (!network.aggregatorContractAddress) {
     throw new MissingContractAddressError(`network "${networkSlug}" has no aggregatorContractAddress`);
   }
@@ -74,8 +74,8 @@ export async function fetchAggregatorFees(
   // Full leaf set of the depth-GAS_FEE_TREE_DEPTH tree, default 0 for unset slots.
   const capacity = 1 << GAS_FEE_TREE_DEPTH;
   if (numberOfTokens < 0n || numberOfTokens >= BigInt(capacity)) {
-    throw new Error(
-      `fetchAggregatorFees: vault token count ${numberOfTokens} exceeds gas-fee tree capacity ${capacity - 1}`,
+    throw new FeeEstimateUnavailableError(
+      `The vault's token table exceeds the supported fee-tree capacity of ${capacity - 1}.`,
     );
   }
   const tokenCount = Number(numberOfTokens);
@@ -94,8 +94,8 @@ export async function fetchAggregatorFees(
   for (const [index, gasFee] of gasFees.entries()) {
     const expectedTokenId = BigInt(index + 1);
     if (gasFee.tokenId !== expectedTokenId) {
-      throw new Error(
-        `fetchAggregatorFees: vault returned token ${gasFee.tokenId} for requested token ${expectedTokenId}`,
+      throw new FeeEstimateUnavailableError(
+        `The vault returned token ${gasFee.tokenId} while reading token ${expectedTokenId}.`,
       );
     }
     commitmentGasCosts[index + 1] = gasFee.pendingNoteCommitment;
@@ -103,8 +103,8 @@ export async function fetchAggregatorFees(
 
   const rebuiltRoot = MerkleTree.fromOrderedLeaves({ depth: GAS_FEE_TREE_DEPTH }, commitmentGasCosts).root();
   if (rebuiltRoot !== commitmentFeeRoot) {
-    throw new Error(
-      `fetchAggregatorFees: gas-fee table root ${rebuiltRoot} does not match on-chain root ${commitmentFeeRoot} at block ${blockNumber}`,
+    throw new FeeEstimateUnavailableError(
+      `The vault fee table did not match its committed root at block ${blockNumber}.`,
     );
   }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import type { TxHistoryEntry } from "@/storage/types";
 import { createFakeConfig, fakeBalanceEntry, fakeCurvyAccount } from "@/test/fixtures";
-import type { TxHistoryEntry } from "@/types/storage";
 import { resetStorage } from "./resetStorage";
 
 describe("resetStorage", () => {

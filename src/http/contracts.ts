@@ -1,8 +1,8 @@
-//#region API Types
+//#region HTTP and protocol metadata contracts
 
 import type { NETWORK_FLAVOUR_VALUES } from "@/constants/networks";
+import type { CircuitConfig } from "@/proving/types";
 import type { AggregatorRequestStatus } from "@/types/aggregator";
-import type { CircuitConfig } from "@/types/core";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
 
@@ -26,7 +26,8 @@ type Network = {
   name: string;
   alchemyName: string;
   slug: string;
-  group: string; // @TODO: remove
+  /** @deprecated Display grouping supplied by metadata; do not use for routing. */
+  group: string;
   testnet: boolean;
   slip0044: number;
   flavour: NETWORK_FLAVOUR_VALUES;
@@ -39,7 +40,8 @@ type Network = {
   aggregatorContractAddress?: string;
   portalFactoryContractAddress?: string;
   portalProgramAddress?: string;
-  nativeCurrency: string | null; // TODO: Why is this string?
+  /** Native currency identifier supplied by metadata, when present. */
+  nativeCurrency: string | null;
   chainId: string;
   blockExplorerUrl: string;
   rpcUrl: string;
@@ -52,11 +54,7 @@ type Network = {
 /** The protocol fee collector's Curvy public keys (decimal `x.y` field-element pairs). */
 type FeeCollector = { S: string; V: string; babyJubjubPublicKey: string };
 
-/**
- * Protocol-global config served by `GET /protocol` — proving parameters (identical
- * across networks; tied to the deployed aggregator) + the fee collector. De-duplicated
- * out of the per-network blob the legacy `/currency/latest` returned.
- */
+/** Protocol-wide proving parameters and fee-collector public keys. */
 type ProtocolConfig = {
   proving: {
     aggregation: CircuitConfig;

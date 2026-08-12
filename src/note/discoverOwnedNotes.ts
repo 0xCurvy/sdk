@@ -2,16 +2,8 @@ import { noteId as rustNoteId, ownerHash as rustOwnerHash } from "@/core/rustCor
 import { decryptAmountToken } from "@/proving/balanceCipher";
 import type { SyncedLeaf } from "./notesTreeSync";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Decrypt-local note discovery (7.2). Because aggregation outputs now carry the
-// amount/token encrypted (CTR field-OTP) in the on-chain delivery data, a client
-// can discover AND value its owned notes purely from the public synced leaf feed
-// — no per-note backend ownership round-trip (the old O(N) `noteScan` path).
-//
-// The viewTag pre-filter + ECDH ownership match (viewing key × ephemeral `R`)
-// live in the WASM `Core`, so they're injected as an `OwnershipResolver`; this
-// module owns the decrypt + the integrity gate.
-// ─────────────────────────────────────────────────────────────────────────────
+// Local note discovery: Rust performs view-tag/ECDH ownership matching, then
+// this module decrypts the value and verifies its on-chain note commitment.
 
 /** ECDH result for a leaf the resolver claims as ours. */
 export type OwnershipMatch = {
@@ -26,11 +18,8 @@ export type OwnershipMatch = {
  * `sharedSecret` + owner pubkey. Injected: production wires the WASM `Core`
  * viewTag trial-decryption; tests supply a known map. Return `null` to skip.
  *
- * Optional `prescan` is a batch warm-up: `discoverOwnedNotes` calls it once with
- * the whole delta before per-leaf resolution, letting a resolver trial-decrypt
- * the entire batch in a single pass (the WASM-Core resolver issues ONE
- * `scanNotes` for the delta instead of one call per leaf). A resolver without it
- * is treated purely per-leaf — backward compatible with map-backed resolvers.
+ * `prescan` optionally resolves a batch before per-leaf lookups, avoiding one
+ * Rust boundary crossing per note.
  */
 export type OwnershipResolver = ((leaf: SyncedLeaf) => Promise<OwnershipMatch | null>) & {
   prescan?: (leaves: SyncedLeaf[]) => Promise<void>;

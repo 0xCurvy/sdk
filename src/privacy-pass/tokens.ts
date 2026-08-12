@@ -1,6 +1,6 @@
 import { genericBatched, publicVerif, TokenChallenge } from "@cloudflare/privacypass-ts";
 import type { CurvyConfig } from "@/config/types";
-import type { PrivacyPassChallengeInfo } from "@/types/api";
+import type { PrivacyPassChallengeInfo } from "@/http/contracts";
 
 const { BlindRSAMode, Client, TokenResponse } = publicVerif;
 

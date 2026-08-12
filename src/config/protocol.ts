@@ -1,4 +1,4 @@
-import type { ProtocolConfig } from "@/types/api";
+import type { ProtocolConfig } from "@/http/contracts";
 import { resolveConfig } from "./global";
 import type { WithConfig } from "./types";
 

@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
+import type { BalanceEntry, CurrencyMetadata, HotOverlayReplacement, TxHistoryEntry } from "@/storage/types";
 import type { SerializedCurvyAccount } from "@/types";
-import type { BalanceEntry, CurrencyMetadata, HotOverlayReplacement, TxHistoryEntry } from "@/types/storage";
 import { IndexedDBStorage } from "./idb-storage";
 
 const account = {

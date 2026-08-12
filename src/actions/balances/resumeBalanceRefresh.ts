@@ -5,8 +5,7 @@ import { NoActiveAccountError } from "@/errors";
 export type ResumeBalanceRefreshParameters = WithConfig<{ accountId?: string }>;
 
 /**
- * Clear the per-account balance-refresh lock so `refreshBalances` for that
- * account may run again (port of `BalanceScanner.resumeBalanceRefreshForAccount`).
+ * Allow balance refreshes for an account after a matching pause.
  *
  * Defaults `accountId` to the active account (`state.activeAccountId`).
  *

@@ -4,14 +4,12 @@ import {
   createRustShardedNotesTree,
   fieldsToBytes,
   fieldToBytes,
+  getNotesTreeParameters,
   type RustShardedNotesTree,
   restoreRustShardedNotesTreeParts,
 } from "@/core/rustCore";
 import type { InclusionProof } from "@/proving/merkleTree";
 import type { NotesTreeView } from "./notesTreeView";
-
-export const NOTES_TREE_DEPTH = 30;
-export const DEFAULT_SHARD_HEIGHT = 14;
 
 /** Witness state for one owned (marked) note. */
 export type NoteWitness = {
@@ -73,8 +71,9 @@ export class ShardedNotesTree implements NotesTreeView {
   private readonly witnessIndices = new Map<bigint, number>();
 
   constructor(params?: ShardedNotesTreeParams) {
-    this.depth = params?.depth ?? NOTES_TREE_DEPTH;
-    this.shardHeight = params?.shardHeight ?? DEFAULT_SHARD_HEIGHT;
+    const production = getNotesTreeParameters();
+    this.depth = params?.depth ?? production.depth;
+    this.shardHeight = params?.shardHeight ?? production.shardHeight;
     this.inner = createRustShardedNotesTree(this.depth, this.shardHeight);
     this.shardSize = this.inner.shardSize;
   }

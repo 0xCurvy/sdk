@@ -4,6 +4,7 @@ import { getProtocol } from "@/config/protocol";
 import type { WithConfig } from "@/config/types";
 import { NETWORK_FLAVOUR } from "@/constants/networks";
 import { LIFI_SOLANA_CHAIN_ID } from "@/constants/solana";
+import { NetworkError, RouteUnavailableError } from "@/errors";
 import type { Currency, Network } from "@/types";
 import { LIFI_BRIDGES_EVM, LIFI_BRIDGES_SOLANA_ENTRY, LIFI_BRIDGES_SOLANA_EXIT } from "./constants";
 
@@ -99,11 +100,16 @@ export async function estimateExternalTransfer(
   let shielding: Network | undefined;
   if (shieldingNetworkSlug) {
     shielding = aggregatorNetworks.find((n) => n.slug === shieldingNetworkSlug);
-    if (!shielding) throw new Error(`Shielding network "${shieldingNetworkSlug}" is not an active aggregator network.`);
+    if (!shielding) {
+      throw new NetworkError(
+        `Shielding network "${shieldingNetworkSlug}" is not an active aggregator network.`,
+        shieldingNetworkSlug,
+      );
+    }
   } else {
     shielding = fromNetwork.aggregatorContractAddress ? fromNetwork : aggregatorNetworks[0];
   }
-  if (!shielding) throw new Error("No shielding-capable network is active.");
+  if (!shielding) throw new NetworkError("No shielding-capable network is active.");
 
   // ── Entry leg ────────────────────────────────────────────────────────────────
   let bridgedCurrency: Currency;
@@ -116,11 +122,13 @@ export async function estimateExternalTransfer(
   } else {
     const bridgedId = fromCurrency.bridgeNetworkIdToCurrencyIdMap?.[shielding.id];
     if (!bridgedId) {
-      throw new Error(`No bridge route from ${fromCurrency.symbol} on ${fromNetwork.name} to the shielding chain.`);
+      throw new RouteUnavailableError(
+        `No bridge route from ${fromCurrency.symbol} on ${fromNetwork.name} to the shielding network.`,
+      );
     }
     const bridged = shielding.currencies.find((c) => c.id === bridgedId);
     if (!bridged) {
-      throw new Error(`Bridged currency id ${bridgedId} not found on the shielding chain.`);
+      throw new RouteUnavailableError(`The shielding network does not support bridged currency ${bridgedId}.`);
     }
     bridgedCurrency = bridged;
 

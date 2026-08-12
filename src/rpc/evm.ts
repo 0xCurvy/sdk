@@ -12,8 +12,8 @@ import {
 import { getBalance, readContract } from "viem/actions";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { evmMulticall3Abi } from "@/contracts/evm/abi/multicall3";
+import type { Currency, Network } from "@/http/contracts";
 import { Rpc } from "@/rpc/abstract";
-import type { Currency, Network } from "@/types/api";
 import type { AbortOptions, HexString } from "@/types/helper";
 import { toSlug } from "@/utils/format";
 import { toViemChain } from "./toViemChain";

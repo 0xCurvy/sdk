@@ -1,6 +1,6 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
-import type { Network } from "@/types/api";
+import type { Network } from "@/http/contracts";
 import { filterNetworks, type NetworkFilter } from "@/utils/network";
 
 export type GetNetworksParameters = WithConfig<{

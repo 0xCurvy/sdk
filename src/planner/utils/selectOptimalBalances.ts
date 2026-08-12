@@ -1,3 +1,4 @@
+import { InsufficientBalanceError } from "@/errors";
 import type { BalanceEntry } from "@/types";
 import { findMinSumSubset } from "./findMinSumSubset";
 
@@ -25,8 +26,7 @@ export const selectOptimalBalances = (balances: BalanceEntry[], target: bigint):
 
   // 2. Find the smallest single note that covers the target.
   //    A single note is extremely cheap: no multi-input aggregation rounds.
-  larger.sort((a, b) => (a.balance > b.balance ? 1 : -1));
-  const smallestLarger = larger.length > 0 ? larger[0] : null;
+  const smallestLarger = [...larger].sort((a, b) => (a.balance > b.balance ? 1 : -1))[0] ?? null;
 
   const smallerSum = smaller.reduce((sum, b) => sum + b.balance, 0n);
 
@@ -35,7 +35,12 @@ export const selectOptimalBalances = (balances: BalanceEntry[], target: bigint):
     if (smallestLarger) {
       return [smallestLarger];
     }
-    throw new Error("Insufficient balance to cover the intended amount");
+    throw new InsufficientBalanceError(
+      target,
+      balances.reduce((sum, balance) => sum + balance.balance, 0n),
+      balances[0]?.networkSlug,
+      balances[0]?.currencyAddress,
+    );
   }
 
   // 3. Use DP to find the minimum-sum subset of smaller notes that reaches target
@@ -52,11 +57,11 @@ export const selectOptimalBalances = (balances: BalanceEntry[], target: bigint):
   }
 
   // 5. Fallback: greedy largest-first (only reached if DP was skipped for >30 notes)
-  smaller.sort((a, b) => (a.balance < b.balance ? 1 : -1));
+  const largestFirst = [...smaller].sort((a, b) => (a.balance < b.balance ? 1 : -1));
   const selected: BalanceEntry[] = [];
   let currentSum = 0n;
 
-  for (const b of smaller) {
+  for (const b of largestFirst) {
     selected.push(b);
     currentSum += b.balance;
     if (currentSum >= target) break;

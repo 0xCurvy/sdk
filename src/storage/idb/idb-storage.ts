@@ -1,7 +1,6 @@
 import { DEFAULT_DB_NAME } from "@/constants/db";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import { BaseStorage } from "@/storage/base-storage";
-import type { CurvyAccountData, PriceData } from "@/types";
 import type {
   BalanceEntry,
   CommittedLogKind,
@@ -17,7 +16,8 @@ import type {
   TransferHistoryRecord,
   TransferSettlement,
   TxHistoryEntry,
-} from "@/types/storage";
+} from "@/storage/types";
+import type { CurvyAccountData, PriceData } from "@/types";
 import { CurvyDatabase, type HotOverlayRecord } from "./database";
 
 /**

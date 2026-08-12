@@ -3,90 +3,52 @@ import type { DraftPlan, Intent, PlanFlowControl } from "@/planner/types";
 import { invariant } from "@/utils/invariant";
 
 /**
- * Build the aggregation sub-plan that folds the given input plans into a single aggregated note.
+ * Fold input plans into one note using the aggregation circuit's input limit.
  *
- * Batches inputs into `maxInputs`-sized rounds, recursing up the tree until a single
- * aggregation remains. When `intent` is provided it is attached to the final aggregation
- * (the recipient/amount-bearing step); when omitted, every aggregation is an intermediate
- * SELF-fold (used by the withdrawal path, which folds excess inputs to self before paying out).
+ * Intermediate rounds send their output back to the active account. The final
+ * round receives `intent`, if provided, and delivers the requested amount to its
+ * recipient.
  *
  * @example
  * const plan = generateAggregationPlan([dataNodeA, dataNodeB], 2, intent);
  * // -> a serial/parallel tree whose final command is "aggregator-aggregate"
  *
- * @throws {Error} when `maxInputs` is missing/zero.
+ * @throws when no inputs are supplied or the circuit cannot combine at least two inputs.
  */
-export const generateAggregationPlan = (items: DraftPlan[], maxInputs: number, intent?: Intent): DraftPlan => {
-  invariant(maxInputs, "aggregation plan requires a positive maxInputs (from protocol.proving.aggregation)");
+export const generateAggregationPlan = (inputs: DraftPlan[], maxInputs: number, intent?: Intent): DraftPlan => {
+  invariant(inputs.length > 0, "An aggregation plan requires at least one input.");
+  invariant(maxInputs >= 2, "The aggregation circuit must accept at least two inputs.");
 
-  // If we have just one sub plan, just aggregate it
-  if (items.length === 1) {
-    return {
-      type: "serial",
-      name: "Privacy Aggregation",
-      description: "Aggregating Funds",
-      items: [
-        items[0],
-        {
-          type: "command",
-          id: uuidV4(),
-          name: "aggregator-aggregate",
-          intent,
-        },
-      ],
-    };
-  }
+  const aggregate = (children: DraftPlan[]): PlanFlowControl => ({
+    type: "serial",
+    items: [
+      children.length === 1 ? children[0] : { type: "parallel", items: children },
+      { type: "command", id: uuidV4(), kind: "aggregator-aggregate" },
+    ],
+  });
 
-  while (items.length > 1) {
-    const nextLevel = [];
+  const fold = (level: DraftPlan[]): PlanFlowControl => {
+    if (level.length <= maxInputs) return aggregate(level);
 
-    for (let i = 0; i < items.length; i += maxInputs) {
-      const children = items.slice(i, i + maxInputs);
-
-      const nextLevelItems: DraftPlan[] = [];
-
-      if (children.length === 1) {
-        nextLevelItems.push(children[0]);
-      } else {
-        nextLevelItems.push(
-          {
-            type: "parallel",
-            items: children,
-          },
-          {
-            type: "command",
-            id: uuidV4(),
-            name: "aggregator-aggregate",
-          },
-        );
-      }
-
-      nextLevel.push({
-        type: "serial",
-        name: items.length > Math.max(1, maxInputs) ? undefined : "Privacy Aggregation",
-        description: items.length > Math.max(1, maxInputs) ? undefined : "Aggregating Funds",
-        items: nextLevelItems,
-      });
+    const nextLevel: DraftPlan[] = [];
+    for (let start = 0; start < level.length; start += maxInputs) {
+      const group = level.slice(start, start + maxInputs);
+      nextLevel.push(group.length === 1 ? group[0] : aggregate(group));
     }
+    return fold(nextLevel);
+  };
 
-    items = nextLevel as DraftPlan[]; // Move up one level
-  }
-
-  const aggregationPlan = items[0] as PlanFlowControl;
-
-  invariant(aggregationPlan.items.length === 2, "Unexpected number of items in aggregation plan");
+  const root = fold([...inputs]);
+  const finalCommand = root.items.at(-1);
   invariant(
-    aggregationPlan.items[1].type === "command" && aggregationPlan.items[1].name === "aggregator-aggregate",
-    "Last item in aggregation plan is not an aggregation command",
+    finalCommand?.type === "command" && finalCommand.kind === "aggregator-aggregate",
+    "An aggregation plan must end with an aggregation command.",
   );
 
-  // Pass the intent to the last aggregation (the recipient/amount-bearing step).
-  // The aggregator-aggregate uses the intent's amount as a signal for how much to keep
-  // as change, and (if the recipient is a Curvy handle) to derive the recipient's note.
-  // Omitted intent => a pure self-fold (the withdrawal path).
-  if (intent) {
-    aggregationPlan.items[1].intent = intent;
-  }
-
-  return aggregationPlan;
+  return {
+    ...root,
+    name: "Privacy Aggregation",
+    description: "Aggregating funds",
+    items: [...root.items.slice(0, -1), { ...finalCommand, intent }],
+  };
 };

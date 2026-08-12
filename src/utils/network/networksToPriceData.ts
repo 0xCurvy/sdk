@@ -1,4 +1,4 @@
-import type { Network } from "@/types/api";
+import type { Network } from "@/http/contracts";
 
 const networksToPriceData = (networks: Network[]) => {
   return networks.reduce((res, network) => {

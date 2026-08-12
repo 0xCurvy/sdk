@@ -1,12 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NoActiveAccountError } from "@/errors";
 import type { EstimatedPlan } from "@/planner/types";
-import { createFakeConfig, fakeBalanceEntry, fakeCurvyAccount } from "@/test/fixtures";
-import type { CurvyId } from "@/types";
+import { hasBytecode } from "@/rpc/hasBytecode";
+import { createFakeConfig, fakeBalanceEntry, fakeCurvyAccount, fixtureNetwork } from "@/test/fixtures";
+import type { CurvyId, HexString } from "@/types";
 import { CURVY_EVENT_TYPES } from "@/types/events";
-import { executePlan } from "./executePlan";
+import { executePreparedPlan } from "./executePlan";
+
+vi.mock("@/rpc/hasBytecode", () => ({ hasBytecode: vi.fn() }));
 
 const LOCK_KEY = "refresh-account-account-a";
+const PORTAL_ADDRESS = "0x0000000000000000000000000000000000000001" as HexString;
 
 /** A config with an active account (state + live map). */
 function buildConfig({ withAccount = true }: { withAccount?: boolean } = {}) {
@@ -24,14 +28,19 @@ function buildConfig({ withAccount = true }: { withAccount?: boolean } = {}) {
         }
       : {},
     liveAccounts: withAccount ? new Map([["account-a", fakeCurvyAccount()]]) : new Map(),
+    networks: [fixtureNetwork()],
   });
 }
 
-describe("executePlan", () => {
+describe("executePreparedPlan", () => {
+  beforeEach(() => {
+    vi.mocked(hasBytecode).mockResolvedValue(true);
+  });
+
   it("throws NoActiveAccountError when there is no active account", async () => {
     const config = buildConfig({ withAccount: false });
-    const plan: EstimatedPlan = { type: "data", data: fakeBalanceEntry({ id: "d" }) };
-    await expect(executePlan({ plan, config })).rejects.toBeInstanceOf(NoActiveAccountError);
+    const plan: EstimatedPlan = { type: "data", data: [fakeBalanceEntry({ id: "d" })] };
+    await expect(executePreparedPlan({ plan, config })).rejects.toBeInstanceOf(NoActiveAccountError);
   });
 
   it("emits started + complete and threads data through a data-only plan", async () => {
@@ -45,13 +54,13 @@ describe("executePlan", () => {
 
     const plan: EstimatedPlan = {
       type: "serial",
-      items: [{ type: "data", data: fakeBalanceEntry({ id: "d1", balance: 500n }) }],
+      items: [{ type: "data", data: [fakeBalanceEntry({ id: "d1", balance: 500n })] }],
     };
 
-    const result = await executePlan({ plan, config });
+    const result = await executePreparedPlan({ plan, config });
 
     expect(result.success).toBe(true);
-    if (result.success) expect((result.data as { id: string }).id).toBe("d1");
+    if (result.success && Array.isArray(result.data)) expect(result.data[0].id).toBe("d1");
     expect(started).toHaveBeenCalledTimes(1);
     expect(complete).toHaveBeenCalledTimes(1);
     expect(error).not.toHaveBeenCalled();
@@ -60,30 +69,27 @@ describe("executePlan", () => {
   it("pauses balance refresh before execution and resumes it after", async () => {
     const config = buildConfig();
 
-    // A wait node lets us observe the lock state mid-execution: pause must have
-    // already fired (lock === true) by the time the plan body runs.
     let lockDuringExecution: boolean | undefined;
+    vi.mocked(hasBytecode).mockImplementation(async () => {
+      lockDuringExecution = config._internal.scanLocks.get(LOCK_KEY);
+      return true;
+    });
     const plan: EstimatedPlan = {
       type: "serial",
       items: [
-        { type: "data", data: fakeBalanceEntry({ id: "d1" }) },
+        { type: "data", data: [fakeBalanceEntry({ id: "d1" })] },
         {
           type: "wait",
           id: "w1",
           name: "probe",
-          condition: async () => {
-            lockDuringExecution = config._internal.scanLocks.get(LOCK_KEY);
-            return true;
-          },
+          condition: { kind: "contract-code", networkSlug: "ethereum", address: PORTAL_ADDRESS },
         },
       ],
     };
 
-    await executePlan({ plan, config });
+    await executePreparedPlan({ plan, config });
 
-    // Paused (true) while executing...
     expect(lockDuringExecution).toBe(true);
-    // ...and resumed (false) once execution completed.
     expect(config._internal.scanLocks.get(LOCK_KEY)).toBe(false);
   });
 
@@ -94,30 +100,23 @@ describe("executePlan", () => {
     config.emitter.on(CURVY_EVENT_TYPES.PLAN_EXECUTION_COMPLETE, complete);
     config.emitter.on(CURVY_EVENT_TYPES.PLAN_EXECUTION_ERROR, error);
 
-    // A throwing condition makes `pollForCriteria` rethrow on the first attempt
-    // (no `shouldRetry` => no polling delay), so the wait handler returns the
-    // timeout-shaped failure without the 30 × 10s polling wall-clock cost.
+    vi.mocked(hasBytecode).mockRejectedValue(new Error("portal not deployed"));
     const plan: EstimatedPlan = {
       type: "serial",
       items: [
-        { type: "data", data: fakeBalanceEntry({ id: "d1" }) },
+        { type: "data", data: [fakeBalanceEntry({ id: "d1" })] },
         {
           type: "wait",
           id: "w-fail",
           name: "never-met",
-          condition: async () => {
-            throw new Error("portal not deployed");
-          },
+          condition: { kind: "contract-code", networkSlug: "ethereum", address: PORTAL_ADDRESS },
         },
       ],
     };
 
-    await expect(executePlan({ plan, config })).rejects.toThrow(
-      "Timeout: never-met condition was not met within the expected time.",
-    );
+    await expect(executePreparedPlan({ plan, config })).rejects.toThrow("Timed out while never-met.");
     expect(error).toHaveBeenCalledTimes(1);
     expect(complete).not.toHaveBeenCalled();
-    // Resume still runs even on failure.
     expect(config._internal.scanLocks.get(LOCK_KEY)).toBe(false);
   });
 });

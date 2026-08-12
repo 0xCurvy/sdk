@@ -1,7 +1,7 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { NoActiveAccountError } from "@/errors";
-import type { BalanceEntry, InputFinalityPolicy } from "@/types/storage";
+import type { BalanceEntry, InputFinalityPolicy } from "@/storage/types";
 import { refreshBalances } from "./refreshBalances";
 
 export type GetBalancesParameters = WithConfig<{

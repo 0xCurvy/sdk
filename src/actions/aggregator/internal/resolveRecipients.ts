@@ -1,4 +1,5 @@
 import type { CurvyConfig } from "@/config/types";
+import { CommandError } from "@/errors";
 import { Note } from "@/note";
 import { ephemeralPubKey, generateRandomBigInt } from "@/proving";
 import type { AggregateRecipientInput } from "../types";
@@ -23,17 +24,23 @@ export async function resolveRecipients(
     recipients.map(async (recipient) => {
       if ("note" in recipient) {
         if (recipient.note.token !== token) {
-          throw new Error(`aggregate: pre-built recipient note token ${recipient.note.token} does not match ${token}`);
+          throw new CommandError(
+            `Recipient note token ${recipient.note.token} does not match aggregation token ${token}.`,
+            "aggregator-aggregate",
+          );
         }
         return recipient.note;
       }
 
       if ("curvyId" in recipient) {
         const { data } = await config.api.user.ResolveCurvyId(recipient.curvyId);
-        if (!data) throw new Error(`aggregate: Curvy handle "${recipient.curvyId}" not found`);
+        if (!data) throw new CommandError(`Curvy handle "${recipient.curvyId}" was not found.`, "aggregator-aggregate");
         const { spendingKey, viewingKey, babyJubjubPublicKey } = data.publicKeys;
         if (!babyJubjubPublicKey) {
-          throw new Error(`aggregate: handle "${recipient.curvyId}" has no BabyJubjub public key`);
+          throw new CommandError(
+            `Curvy handle "${recipient.curvyId}" cannot receive shielded notes.`,
+            "aggregator-aggregate",
+          );
         }
         return config.core.sendNote(spendingKey, viewingKey, {
           ownerBabyJubjubPublicKey: babyJubjubPublicKey,
