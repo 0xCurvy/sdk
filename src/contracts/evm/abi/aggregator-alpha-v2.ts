@@ -201,14 +201,8 @@ export const aggregatorAlphaV2Abi = [
     type: "error",
   },
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "token",
-        type: "address",
-      },
-    ],
-    name: "SafeERC20FailedOperation",
+    inputs: [],
+    name: "SelfShieldDisabled",
     type: "error",
   },
   {
@@ -456,6 +450,19 @@ export const aggregatorAlphaV2Abi = [
       },
     ],
     name: "RoleRevoked",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "enabled",
+        type: "bool",
+      },
+    ],
+    name: "SelfShieldEnabledUpdated",
     type: "event",
   },
   {
@@ -1060,6 +1067,59 @@ export const aggregatorAlphaV2Abi = [
   {
     inputs: [
       {
+        components: [
+          {
+            internalType: "uint256",
+            name: "ownerHash",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "token",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "amount",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256[2]",
+            name: "ephemeralKey",
+            type: "uint256[2]",
+          },
+          {
+            internalType: "uint16",
+            name: "viewTag",
+            type: "uint16",
+          },
+        ],
+        internalType: "struct CurvyTypes.Note",
+        name: "note",
+        type: "tuple",
+      },
+    ],
+    name: "selfShield",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "selfShieldEnabled",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
         internalType: "uint256",
         name: "maxInputs",
         type: "uint256",
@@ -1138,6 +1198,19 @@ export const aggregatorAlphaV2Abi = [
       },
     ],
     name: "setProtocolFees",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bool",
+        name: "enabled",
+        type: "bool",
+      },
+    ],
+    name: "setSelfShieldEnabled",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",

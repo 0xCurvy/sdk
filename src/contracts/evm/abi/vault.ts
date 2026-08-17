@@ -109,6 +109,11 @@ export const vaultAbi = [
   },
   {
     inputs: [],
+    name: "NetAmountNonPositive",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "NoFeesToCollect",
     type: "error",
   },
@@ -624,8 +629,13 @@ export const vaultAbi = [
     inputs: [
       {
         internalType: "address",
-        name: "tokenAddress",
+        name: "from",
         type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "tokenId",
+        type: "uint256",
       },
       {
         internalType: "address",
@@ -639,7 +649,47 @@ export const vaultAbi = [
       },
     ],
     name: "deposit",
-    outputs: [],
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "depositedAmount",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "from",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "tokenId",
+        type: "uint256",
+      },
+      {
+        internalType: "address",
+        name: "to",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+    ],
+    name: "depositDirect",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "depositedAmount",
+        type: "uint256",
+      },
+    ],
     stateMutability: "payable",
     type: "function",
   },

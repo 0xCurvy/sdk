@@ -38,6 +38,16 @@ export const portalFactoryAbi = [
   },
   {
     inputs: [],
+    name: "CloneArgumentsTooLong",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "Create2EmptyBytecode",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "DeploymentFailed",
     type: "error",
   },
@@ -70,6 +80,16 @@ export const portalFactoryAbi = [
   {
     inputs: [],
     name: "InvalidLiFiReceiver",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidOwnerHashOrExitBridgeData",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidRecoveryAddress",
     type: "error",
   },
   {

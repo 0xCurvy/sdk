@@ -16,6 +16,7 @@ export {
   estimateAggregationCosts,
 } from "./internal/estimateAggregationCosts";
 export * from "./relaySubmission";
+export * from "./selfShield";
 export * from "./submitToChain";
 export * from "./types";
 export * from "./waitForRelay";
