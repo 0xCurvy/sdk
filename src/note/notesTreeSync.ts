@@ -21,7 +21,7 @@ export type SyncedLeaf = {
   isPlaintext?: boolean;
   /** Block of the announce tx — the user-action time (pairs with `requestTxHash`; tx history). */
   blockNumber?: number;
-  /** The tx that announced the note (submitAggregation / autoShield) — user-action time (tx history). */
+  /** The tx that announced the note (submitAggregation / portalShield) — user-action time (tx history). */
   requestTxHash?: string;
   requestBlockHash?: string;
   commitBlockNumber?: number;

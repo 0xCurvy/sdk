@@ -297,6 +297,12 @@ export const vaultV2Abi = [
   },
   {
     anonymous: false,
+    inputs: [],
+    name: "EIP712DomainChanged",
+    type: "event",
+  },
+  {
+    anonymous: false,
     inputs: [
       {
         components: [
@@ -647,42 +653,13 @@ export const vaultV2Abi = [
         name: "amount",
         type: "uint256",
       },
+      {
+        internalType: "bool",
+        name: "isPortalShield",
+        type: "bool",
+      },
     ],
     name: "deposit",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "depositedAmount",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "from",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-      {
-        internalType: "address",
-        name: "to",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "depositDirect",
     outputs: [
       {
         internalType: "uint256",
@@ -717,6 +694,49 @@ export const vaultV2Abi = [
     name: "deregisterToken",
     outputs: [],
     stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "eip712Domain",
+    outputs: [
+      {
+        internalType: "bytes1",
+        name: "fields",
+        type: "bytes1",
+      },
+      {
+        internalType: "string",
+        name: "name",
+        type: "string",
+      },
+      {
+        internalType: "string",
+        name: "version",
+        type: "string",
+      },
+      {
+        internalType: "uint256",
+        name: "chainId",
+        type: "uint256",
+      },
+      {
+        internalType: "address",
+        name: "verifyingContract",
+        type: "address",
+      },
+      {
+        internalType: "bytes32",
+        name: "salt",
+        type: "bytes32",
+      },
+      {
+        internalType: "uint256[]",
+        name: "extensions",
+        type: "uint256[]",
+      },
+    ],
+    stateMutability: "view",
     type: "function",
   },
   {

@@ -9,6 +9,7 @@
 export * from "./aggregate";
 export * from "./buildAggregateRequest";
 export * from "./buildWithdrawRequest";
+export * from "./directShield";
 // Operator-paymaster cost estimation (submit-aggregation gas, commit gas, protocol
 // fee) — all in the aggregation token; also sizes the gas-reimbursement note.
 export {
@@ -16,7 +17,6 @@ export {
   estimateAggregationCosts,
 } from "./internal/estimateAggregationCosts";
 export * from "./relaySubmission";
-export * from "./selfShield";
 export * from "./submitToChain";
 export * from "./types";
 export * from "./waitForRelay";

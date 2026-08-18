@@ -1,4 +1,4 @@
-import type { Address } from "viem";
+import { type Address, isAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import type { CurvyConfig } from "@/config/types";
 import { portalFactoryAbi } from "@/contracts/evm/abi/portal-factory";
@@ -23,15 +23,18 @@ export async function recoverEvmPortal(
     recoveryPrivateKey: HexString;
     tokenAddress: HexString;
     destinationAddress: HexString;
+    portalFactoryContractAddress?: HexString;
   },
 ): Promise<HexString> {
-  const { network, portalRecord, recoveryPrivateKey, tokenAddress, destinationAddress } = args;
+  const { network, portalRecord, recoveryPrivateKey, tokenAddress, destinationAddress, portalFactoryContractAddress } =
+    args;
 
   const recoveryAccount = privateKeyToAccount(recoveryPrivateKey);
   const rpc = config.getRpc().Network(network.id) as EvmRpc;
   const publicClient = rpc.provider;
 
-  if (!network.portalFactoryContractAddress) {
+  const configuredFactoryAddress = portalFactoryContractAddress ?? network.portalFactoryContractAddress;
+  if (!configuredFactoryAddress || !isAddress(configuredFactoryAddress)) {
     throw new Error(`Network ${network.name} does not have PortalFactory contract deployed.`);
   }
 
@@ -40,7 +43,7 @@ export async function recoverEvmPortal(
     deployRecoveryTxHash = await rpc.walletClient.writeContract({
       account: recoveryAccount,
       abi: portalFactoryAbi,
-      address: network.portalFactoryContractAddress as HexString,
+      address: configuredFactoryAddress as HexString,
       functionName: "deployRecoveryEntryPortal",
       args: [
         BigInt(portalRecord.ownerHash),
@@ -53,7 +56,7 @@ export async function recoverEvmPortal(
     deployRecoveryTxHash = await rpc.walletClient.writeContract({
       abi: portalFactoryAbi,
       account: recoveryAccount,
-      address: network.portalFactoryContractAddress as HexString,
+      address: configuredFactoryAddress as HexString,
       functionName: "deployRecoveryExitPortal",
       args: [
         portalRecord.exitAddress as Address,

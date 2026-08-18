@@ -14,6 +14,8 @@ export type RecoverPortalParameters = WithConfig<{
   portalRecord: MatchedPortalRecord;
   destinationAddress: HexString | (string & {});
   solanaSigner?: SolanaSigner;
+  /** Override the EVM factory used for recovery, e.g. a retired factory after an upgrade. */
+  portalFactoryContractAddress?: HexString;
 }>;
 
 /**
@@ -77,5 +79,6 @@ export async function recoverPortal(parameters: RecoverPortalParameters): Promis
     recoveryPrivateKey,
     tokenAddress: parameters.tokenAddress as HexString,
     destinationAddress: parameters.destinationAddress as HexString,
+    portalFactoryContractAddress: parameters.portalFactoryContractAddress,
   });
 }

@@ -66,7 +66,7 @@ describe("discoverOwnedNotes (decrypt-local discovery)", () => {
     expect(owned).toHaveLength(0);
   });
 
-  it("reads a plaintext (autoShield) leaf without decrypting", async () => {
+  it("reads a plaintext (portalShield) leaf without decrypting", async () => {
     const kp = generateKeypair();
     const pub = kp.pubKeyBigInt;
     const sharedSecret = 0x55n;
