@@ -4,7 +4,7 @@ import { Note } from "@/note";
 import type { MultiRpc } from "@/rpc/multi";
 import { createFakeConfig, createFakeCore, fakeCurvyAccount, fixtureNetwork } from "@/test/fixtures";
 import type { Currency } from "@/types";
-import { selfShield } from "./selfShield";
+import { directShield } from "./directShield";
 
 const ACCOUNT_ADDRESS = "0x00000000000000000000000000000000000000a1";
 const AGGREGATOR_ADDRESS = "0x00000000000000000000000000000000000000a2";
@@ -29,7 +29,15 @@ function currency(overrides: Partial<Currency> = {}): Currency {
   };
 }
 
-function setup(options: { native: boolean; allowance?: bigint } = { native: true }) {
+function setup(
+  options: {
+    native: boolean;
+    allowance?: bigint;
+    tokenContractAddress?: string;
+    walletChainId?: number;
+    walletHasStaticChain?: boolean;
+  } = { native: true },
+) {
   const note = new Note({
     amount: 1_000n,
     token: options.native ? 1n : 2n,
@@ -54,7 +62,8 @@ function setup(options: { native: boolean; allowance?: bigint } = { native: true
   );
   const walletClient = {
     account: { address: ACCOUNT_ADDRESS },
-    chain: { id: 31_337 },
+    chain: options.walletHasStaticChain === false ? undefined : { id: options.walletChainId ?? 31_337 },
+    getChainId: vi.fn(async () => options.walletChainId ?? 31_337),
     writeContract,
   } as unknown as WalletClient;
   const tokenCurrency = options.native
@@ -63,7 +72,7 @@ function setup(options: { native: boolean; allowance?: bigint } = { native: true
         id: 2,
         name: "Mock",
         symbol: "MOCK",
-        contractAddress: TOKEN_ADDRESS,
+        contractAddress: (options.tokenContractAddress ?? TOKEN_ADDRESS) as Currency["contractAddress"],
         nativeCurrency: false,
         vaultTokenId: "2",
       });
@@ -88,17 +97,17 @@ function setup(options: { native: boolean; allowance?: bigint } = { native: true
   return { config, note, readContract, simulateContract, walletClient, writeContract };
 }
 
-describe("selfShield", () => {
-  it("sends native value to selfShield for the active Curvy account", async () => {
+describe("directShield", () => {
+  it("sends native value to directShield for the active Curvy account", async () => {
     const { config, note, readContract, simulateContract, walletClient, writeContract } = setup();
 
-    const result = await selfShield({ config, networkSlug: "localnet", amount: 1_000n, token: 1n, walletClient });
+    const result = await directShield({ config, networkSlug: "localnet", amount: 1_000n, token: 1n, walletClient });
 
     expect(readContract).not.toHaveBeenCalled();
     expect(simulateContract).toHaveBeenCalledWith(
       expect.objectContaining({
         address: AGGREGATOR_ADDRESS,
-        functionName: "selfShield",
+        functionName: "directShield",
         value: 1_000n,
         args: [
           expect.objectContaining({
@@ -122,7 +131,7 @@ describe("selfShield", () => {
       allowance: 0n,
     });
 
-    const result = await selfShield({ config, networkSlug: "localnet", amount: 1_000n, token: 2n, walletClient });
+    const result = await directShield({ config, networkSlug: "localnet", amount: 1_000n, token: 2n, walletClient });
 
     expect(readContract).toHaveBeenCalledWith(
       expect.objectContaining({ functionName: "allowance", args: [ACCOUNT_ADDRESS, VAULT_ADDRESS] }),
@@ -138,7 +147,7 @@ describe("selfShield", () => {
     );
     expect(simulateContract).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ functionName: "selfShield", value: undefined }),
+      expect.objectContaining({ functionName: "directShield", value: undefined }),
     );
     expect(writeContract).toHaveBeenCalledTimes(2);
     expect(result.approval?.transactionHash).toBe("0xapproval");
@@ -148,18 +157,34 @@ describe("selfShield", () => {
   it("does not send an approval when the existing allowance is sufficient", async () => {
     const { config, simulateContract, walletClient, writeContract } = setup({ native: false, allowance: 1_000n });
 
-    const result = await selfShield({ config, networkSlug: "localnet", amount: 1_000n, token: 2n, walletClient });
+    const result = await directShield({ config, networkSlug: "localnet", amount: 1_000n, token: 2n, walletClient });
 
     expect(simulateContract).toHaveBeenCalledTimes(1);
-    expect(simulateContract).toHaveBeenCalledWith(expect.objectContaining({ functionName: "selfShield" }));
+    expect(simulateContract).toHaveBeenCalledWith(expect.objectContaining({ functionName: "directShield" }));
     expect(writeContract).toHaveBeenCalledTimes(1);
     expect(result.approval).toBeUndefined();
+  });
+
+  it("rejects a mismatched injected wallet chain when static chain metadata is absent", async () => {
+    const { config, walletClient } = setup({ native: true, walletChainId: 1, walletHasStaticChain: false });
+
+    await expect(
+      directShield({ config, networkSlug: "localnet", amount: 1_000n, token: 1n, walletClient }),
+    ).rejects.toThrow("wallet chain 1 does not match localnet (31337)");
+  });
+
+  it("rejects an ERC-20 currency without a valid contract address", async () => {
+    const { config, walletClient } = setup({ native: false, tokenContractAddress: "" });
+
+    await expect(
+      directShield({ config, networkSlug: "localnet", amount: 1_000n, token: 2n, walletClient }),
+    ).rejects.toThrow('currency "MOCK" on network "localnet" has no valid contractAddress');
   });
 
   it("resets a non-zero insufficient allowance before approving", async () => {
     const { config, simulateContract, walletClient, writeContract } = setup({ native: false, allowance: 500n });
 
-    const result = await selfShield({ config, networkSlug: "localnet", amount: 1_000n, token: 2n, walletClient });
+    const result = await directShield({ config, networkSlug: "localnet", amount: 1_000n, token: 2n, walletClient });
 
     expect(simulateContract).toHaveBeenNthCalledWith(
       1,
@@ -169,7 +194,7 @@ describe("selfShield", () => {
       2,
       expect.objectContaining({ functionName: "approve", args: [VAULT_ADDRESS, 1_000n] }),
     );
-    expect(simulateContract).toHaveBeenNthCalledWith(3, expect.objectContaining({ functionName: "selfShield" }));
+    expect(simulateContract).toHaveBeenNthCalledWith(3, expect.objectContaining({ functionName: "directShield" }));
     expect(writeContract).toHaveBeenCalledTimes(3);
     expect(result.approval?.transactionHash).toBe("0xapproval");
     expect(result.transactionHash).toBe("0xshield");

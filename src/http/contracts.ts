@@ -189,7 +189,7 @@ type SyncCommittedNote = {
   /** Block of the announce tx — the user-action time (pairs with `requestTxHash`). */
   blockNumber?: number;
   requestBlockHash?: string;
-  /** The tx that announced the note (submitAggregation / autoShield) — user-action time. */
+  /** The tx that announced the note (submitAggregation / portalShield) — user-action time. */
   requestTxHash?: string;
   commitBlockNumber: number;
   commitBlockHash: string;
