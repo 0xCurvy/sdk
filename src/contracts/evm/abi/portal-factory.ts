@@ -934,7 +934,7 @@ export const portalFactoryAbi = [
     outputs: [
       {
         internalType: "bool",
-        name: "",
+        name: "registered",
         type: "bool",
       },
     ],
