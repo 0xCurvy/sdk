@@ -14,9 +14,10 @@ export type ResolvedCircuitArtifacts = {
 
 /**
  * Resolve a circuit's proving artifacts (witness graph + zkey) for a network from the
- * `CircuitConfig` the backend advertises via GetNetworks — the single source of
- * truth for which keys + dimensions a network's deployed circuit uses. No keys
- * are bundled in the SDK.
+ * `CircuitConfig` the backend advertises via GET /protocol — the single source of
+ * truth for which keys + dimensions a network's deployed aggregator uses. Each
+ * aggregator deployment may run its own dimensions, so this is resolved per network.
+ * No keys are bundled in the SDK.
  *
  * `s3://<bucket>/<key>` paths are rewritten to `${circuitKeysBaseUrl}/<key>` (a
  * client cannot fetch `s3://`); plain paths / `https` URLs pass through. Pass the
@@ -31,7 +32,9 @@ export function resolveCircuitArtifacts(
   const network = config.state.networks.find((n) => n.slug === slug);
   if (!network) throw new Error(`prove: no network "${slug ?? "(none active)"}" to resolve ${kind} circuit artifacts`);
 
-  const proving = getProtocol({ config }).proving;
+  // Circuits are per aggregator deployment, so resolve against THIS network — a
+  // proof built with another chain's dimensions will not verify on it.
+  const proving = getProtocol({ config, network });
   const circuitConfig = kind === "aggregation" ? proving.aggregation : proving.withdrawal;
   if (!circuitConfig) {
     throw new Error(`prove: protocol has no ${kind} circuit config`);

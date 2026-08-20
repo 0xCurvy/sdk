@@ -38,6 +38,13 @@ type Network = {
   tokenBridgeContractAddress?: string;
   minWrappingAmountInNative?: string;
   aggregatorContractAddress?: string;
+  /**
+   * True on the ONE aggregator network per testnet/mainnet group that portals are
+   * routed to when funds land on a chain with no aggregator of its own. Prefer
+   * `getDefaultAggregatorNetwork()` over picking the first network that happens to
+   * carry an `aggregatorContractAddress`.
+   */
+  defaultAggregator?: boolean;
   portalFactoryContractAddress?: string;
   portalProgramAddress?: string;
   /** Native currency identifier supplied by metadata, when present. */
@@ -47,20 +54,35 @@ type Network = {
   rpcUrl: string;
   currencies: Array<Currency>;
   feeCollectorAddress?: string;
-  // Proving config + fee collector are protocol-GLOBAL, not per-network: read them from
-  // `config.state.protocol` (see ProtocolConfig / GET /protocol), never off a Network.
+  // The fee collector is protocol-GLOBAL (one identity shared by every aggregator):
+  // read it from `config.state.protocol` (see ProtocolConfig / GET /protocol).
+  // Proving config is PER-NETWORK — resolve it with `getProtocol({ network })`.
 };
 
 /** The protocol fee collector's Curvy public keys (decimal `x.y` field-element pairs). */
 type FeeCollector = { S: string; V: string; babyJubjubPublicKey: string };
 
-/** Protocol-wide proving parameters and fee-collector public keys. */
+/** The proving parameters of one aggregator deployment. */
+type ProvingConfig = {
+  aggregation: CircuitConfig;
+  withdrawal: CircuitConfig;
+  noteOwnership: CircuitConfig;
+};
+
+/** Proving parameters and fee-collector public keys, from `GET /protocol`. */
 type ProtocolConfig = {
-  proving: {
-    aggregation: CircuitConfig;
-    withdrawal: CircuitConfig;
-    noteOwnership: CircuitConfig;
-  };
+  /**
+   * The DEFAULT aggregator's proving config. Retained so SDK builds that predate
+   * per-network circuits keep working; new code should read `provingByChainId`
+   * via `getProtocol({ network })`, which falls back to this.
+   */
+  proving: ProvingConfig;
+  /**
+   * Proving config per aggregator chain, keyed by decimal chainId. Absent when
+   * talking to a metadata deployment that predates per-network circuits.
+   */
+  provingByChainId?: Record<string, ProvingConfig>;
+  /** Shared by every aggregator deployment — one collector identity protocol-wide. */
   feeCollector?: FeeCollector;
 };
 
@@ -498,6 +520,7 @@ export type {
   Currency,
   FeeCollector,
   ProtocolConfig,
+  ProvingConfig,
   CurrencyPrice,
   NetworksWithCurrenciesResponse,
   PricesResponse,

@@ -3,6 +3,7 @@ export { createCurvyConfig } from "./createCurvyConfig";
 export { destroyConfig } from "./destroyConfig";
 export { DEFAULT_EXECUTION_POLICY } from "./executionPolicy";
 export { getActiveNetworks } from "./getActiveNetworks";
+export { getDefaultAggregatorNetwork } from "./getDefaultAggregatorNetwork";
 export { getEnvironment } from "./getEnvironment";
 export { getCurvyConfig, peekCurvyConfig, setCurvyConfig } from "./global";
 export { getProtocol } from "./protocol";

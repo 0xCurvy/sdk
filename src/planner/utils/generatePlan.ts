@@ -8,7 +8,7 @@ import { selectOptimalBalances } from "./selectOptimalBalances";
  * Protocol inputs required to generate a plan without performing IO.
  */
 export type GeneratePlanDeps = {
-  /** Aggregation circuit `maxInputs` (protocol-global; from `config.state.protocol`). */
+  /** Aggregation circuit `maxInputs` for the intent's network (see `getProtocol`). */
   maxInputs: number;
   /** Destination settlement delay applied after the entry portal appears. */
   shieldSettleDelayMs?: number;

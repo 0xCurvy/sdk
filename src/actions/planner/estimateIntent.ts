@@ -53,7 +53,9 @@ export async function estimateIntent(parameters: EstimateIntentParameters): Prom
 
   const resolvedIntent = { ...intent, inputFinalityPolicy } as Intent;
   const { plan: draftPlan, usedBalances } = generatePlan(balances, resolvedIntent, {
-    maxInputs: getProtocol({ config }).proving.aggregation.maxInputs,
+    // Per-network: how many notes one aggregation can consume is set by the
+    // circuit that intent's own aggregator runs.
+    maxInputs: getProtocol({ config, network: intent.network }).aggregation.maxInputs,
     shieldSettleDelayMs: config.executionPolicy.shieldSettleDelayMs,
   });
 

@@ -1,4 +1,5 @@
 import { getQuote } from "@lifi/sdk";
+import { getDefaultAggregatorNetwork } from "@/config/getDefaultAggregatorNetwork";
 import { resolveConfig } from "@/config/global";
 import { getProtocol } from "@/config/protocol";
 import type { WithConfig } from "@/config/types";
@@ -94,8 +95,9 @@ export async function estimateExternalTransfer(
 
   // Pick the shielding network. Multi-aggregator safe: an explicit slug wins;
   // otherwise shield on the SOURCE chain when it has its own aggregator (no entry
-  // bridge — mirrors the backend deposit rule); otherwise the first active
-  // aggregator network. (Value-tiered selection lands with the planner expansion.)
+  // bridge — mirrors the backend deposit rule); otherwise the environment's DEFAULT
+  // aggregator, which is the same network portal-broadcaster bridges deposits to.
+  // (Value-tiered selection lands with the planner expansion.)
   const aggregatorNetworks = config.state.activeNetworks.filter((n) => !!n.aggregatorContractAddress);
   let shielding: Network | undefined;
   if (shieldingNetworkSlug) {
@@ -107,7 +109,7 @@ export async function estimateExternalTransfer(
       );
     }
   } else {
-    shielding = fromNetwork.aggregatorContractAddress ? fromNetwork : aggregatorNetworks[0];
+    shielding = fromNetwork.aggregatorContractAddress ? fromNetwork : getDefaultAggregatorNetwork({ config });
   }
   if (!shielding) throw new NetworkError("No shielding-capable network is active.");
 
@@ -151,7 +153,9 @@ export async function estimateExternalTransfer(
   }
 
   // ── Curvy fee ────────────────────────────────────────────────────────────────
-  const groupFee = BigInt(getProtocol({ config }).proving.withdrawal.groupFee);
+  // The fee is charged by the aggregator the funds are shielded on, so read that
+  // deployment's withdrawal circuit rather than the protocol default.
+  const groupFee = BigInt(getProtocol({ config, network: shielding }).withdrawal.groupFee);
   const curvyFee = (amountAfterEntry * groupFee) / 1000n;
   const netAfterCurvy = amountAfterEntry - curvyFee;
 

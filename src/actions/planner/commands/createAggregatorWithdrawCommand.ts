@@ -75,7 +75,9 @@ export function createAggregatorWithdrawCommand(ctx: CommandContext): Command {
       throw new FeeEstimateUnavailableError("Could not read the current on-chain withdrawal fee.", { cause: error });
     }
 
-    const curvyFeeInCurrency = (grossAmount * BigInt(getProtocol({ config }).proving.withdrawal.groupFee)) / 1000n;
+    // The group fee is a property of the withdrawal circuit this network's
+    // aggregator runs, so read it off that deployment.
+    const curvyFeeInCurrency = (grossAmount * BigInt(getProtocol({ config, network }).withdrawal.groupFee)) / 1000n;
     const deliveredAmount = grossAmount - curvyFeeInCurrency - gasFeeInCurrency;
     estimate = {
       curvyFeeInCurrency,

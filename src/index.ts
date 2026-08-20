@@ -163,6 +163,7 @@ export {
   type ExecutionPolicy,
   getActiveNetworks,
   getCurvyConfig,
+  getDefaultAggregatorNetwork,
   getEnvironment,
   getProtocol,
   peekCurvyConfig,
