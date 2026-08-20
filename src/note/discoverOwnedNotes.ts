@@ -44,7 +44,7 @@ const noteIdOf = (ownerHash: bigint, amount: bigint, token: bigint): bigint => r
 
 /**
  * Discover the owned notes in a batch of synced leaves. For each leaf the
- * resolver claims: decrypt amount/token (or read plaintext for autoShield
+ * resolver claims: decrypt amount/token (or read plaintext for portalShield
  * notes), recompute `noteId = Poseidon([ownerHash, amount, token])`, and KEEP
  * only leaves whose recomputed id matches the on-chain leaf. The commitment is
  * the MAC — a corrupted/forged ciphertext yields a wrong id and is dropped, so

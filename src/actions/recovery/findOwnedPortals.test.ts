@@ -29,6 +29,7 @@ const G =
   "55066263022277343669578718895168534326250603453777594175500187360389116729240.32670510020758816978083085130507043184471273380659243275938904335757337482424";
 
 const DERIVED_PORTAL = "0x00000000000000000000000000000000000000ff";
+const LEGACY_FACTORY = "0x00000000000000000000000000000000000000fb";
 
 function entryPortal(overrides: Partial<PortalRecord> = {}): PortalRecord {
   return {
@@ -128,6 +129,21 @@ describe("findOwnedPortals", () => {
     // multicall called with a getEntryPortalAddress call against the factory.
     const callArg = multicall.mock.calls[0][0] as { contracts: { functionName: string }[] };
     expect(callArg.contracts[0].functionName).toBe("getEntryPortalAddress");
+  });
+
+  it("can derive portals through a retired factory override", async () => {
+    const network = evmNetwork();
+    const { config, multicall } = configWithEvmRpc({
+      network,
+      portals: [entryPortal()],
+      total: 1,
+      spendingPubKeys: [G],
+    });
+
+    await findOwnedPortals({ config, network, portalFactoryContractAddress: LEGACY_FACTORY });
+
+    const callArg = multicall.mock.calls[0][0] as { contracts: { address: string }[] };
+    expect(callArg.contracts[0].address).toBe(LEGACY_FACTORY);
   });
 
   it("skips unmatched announcements (empty spendingPubKey) and never multicalls", async () => {

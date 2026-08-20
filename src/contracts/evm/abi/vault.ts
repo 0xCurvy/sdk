@@ -647,42 +647,13 @@ export const vaultAbi = [
         name: "amount",
         type: "uint256",
       },
+      {
+        internalType: "bool",
+        name: "isPortalShield",
+        type: "bool",
+      },
     ],
     name: "deposit",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "depositedAmount",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "from",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-      {
-        internalType: "address",
-        name: "to",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "depositDirect",
     outputs: [
       {
         internalType: "uint256",

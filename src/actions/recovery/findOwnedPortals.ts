@@ -2,10 +2,13 @@ import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { NETWORK_FLAVOUR } from "@/constants/networks";
 import type { MatchedPortalRecord, Network } from "@/http/contracts";
+import type { HexString } from "@/types/helper";
 import { findOwnedEvmPortals } from "./internal/findOwnedEvmPortals";
 
 export type FindOwnedPortalsParameters = WithConfig<{
   network: Network;
+  /** Override the EVM factory used to derive portals, e.g. a retired factory after an upgrade. */
+  portalFactoryContractAddress?: HexString;
 }>;
 
 /**
@@ -26,5 +29,5 @@ export async function findOwnedPortals(parameters: FindOwnedPortalsParameters): 
     // Solana portals must be queried by address; this action has no address input.
     return [];
   }
-  return findOwnedEvmPortals(config, network);
+  return findOwnedEvmPortals(config, network, parameters.portalFactoryContractAddress);
 }

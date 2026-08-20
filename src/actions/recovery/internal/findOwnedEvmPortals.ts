@@ -1,3 +1,4 @@
+import { isAddress } from "viem";
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import type { CurvyConfig } from "@/config/types";
 import { portalFactoryAbi } from "@/contracts/evm/abi/portal-factory";
@@ -16,10 +17,15 @@ import { deriveAddress } from "@/utils/address/deriveAddress";
  * address via a `portalFactory` multicall (`getEntryPortalAddress` /
  * `getExitPortalAddress`). Internal helper: takes `config` as a plain arg.
  */
-export async function findOwnedEvmPortals(config: CurvyConfig, network: Network): Promise<MatchedPortalRecord[]> {
+export async function findOwnedEvmPortals(
+  config: CurvyConfig,
+  network: Network,
+  portalFactoryContractAddress?: HexString,
+): Promise<MatchedPortalRecord[]> {
   const keyPairs = getActiveKeyPairs(config);
+  const configuredFactoryAddress = portalFactoryContractAddress ?? network.portalFactoryContractAddress;
 
-  if (!network.portalFactoryContractAddress) {
+  if (!configuredFactoryAddress || !isAddress(configuredFactoryAddress)) {
     throw new Error(`Provided network ${network.name} does not have PortalFactory contract deployed.`);
   }
 
@@ -29,7 +35,7 @@ export async function findOwnedEvmPortals(config: CurvyConfig, network: Network)
     throw new Error(`Unsupported network ${network.name}`);
   }
 
-  const factoryAddress = network.portalFactoryContractAddress as HexString;
+  const factoryAddress = configuredFactoryAddress as HexString;
 
   const BATCH_SIZE = 200;
   let cursor: string | undefined;

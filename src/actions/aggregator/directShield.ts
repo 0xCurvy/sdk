@@ -1,4 +1,4 @@
-import { type Address, erc20Abi, parseEventLogs, type TransactionReceipt, type WalletClient } from "viem";
+import { type Address, erc20Abi, isAddress, parseEventLogs, type TransactionReceipt, type WalletClient } from "viem";
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
@@ -24,7 +24,7 @@ const erc20ApproveAbi = [
   },
 ] as const;
 
-export type SelfShieldParameters = WithConfig<{
+export type DirectShieldParameters = WithConfig<{
   /** Network whose aggregator receives the deposit. */
   networkSlug: string;
   /** Gross amount deposited, in token base units (fees are deducted on-chain). */
@@ -41,17 +41,17 @@ export type SelfShieldParameters = WithConfig<{
   vaultContractAddress?: HexString;
 }>;
 
-export type SelfShieldPendingNote = {
+export type DirectShieldPendingNote = {
   noteId: bigint;
   amount: bigint;
   token: bigint;
 };
 
-export type SelfShieldResult = ChainSubmitResult & {
+export type DirectShieldResult = ChainSubmitResult & {
   /** Final approval that established the required ERC-20 allowance, when one was needed. */
   approval?: ChainSubmitResult;
   /** Decoded from the aggregator's PendingNotes event when present in the receipt. */
-  pendingNote?: SelfShieldPendingNote;
+  pendingNote?: DirectShieldPendingNote;
 };
 
 /**
@@ -61,48 +61,60 @@ export type SelfShieldResult = ChainSubmitResult & {
  * reset first for USDT-style tokens. The vault pulls directly from the wallet;
  * native deposits attach `amount` as `msg.value`.
  */
-export async function selfShield(parameters: SelfShieldParameters): Promise<SelfShieldResult> {
+export async function directShield(parameters: DirectShieldParameters): Promise<DirectShieldResult> {
   const { walletClient, amount, token } = parameters;
   const config = resolveConfig(parameters.config);
 
   if (!walletClient.account) {
-    throw new AggregatorSubmitError("selfShield: walletClient has no account to send from");
+    throw new AggregatorSubmitError("directShield: walletClient has no account to send from");
   }
   if (amount <= 0n) {
-    throw new AggregatorSubmitError("selfShield: amount must be greater than zero");
+    throw new AggregatorSubmitError("directShield: amount must be greater than zero");
   }
 
   const network = config.state.networks.find((candidate) => candidate.slug === parameters.networkSlug);
   if (!network) {
-    throw new AggregatorSubmitError(`selfShield: unknown network "${parameters.networkSlug}"`);
+    throw new AggregatorSubmitError(`directShield: unknown network "${parameters.networkSlug}"`);
   }
   if (network.flavour !== "evm") {
-    throw new AggregatorSubmitError(`selfShield: network "${network.slug}" is not an EVM network`);
+    throw new AggregatorSubmitError(`directShield: network "${network.slug}" is not an EVM network`);
   }
-  if (walletClient.chain && walletClient.chain.id !== Number(network.chainId)) {
+  const walletChainId = await walletClient.getChainId();
+  if (walletChainId !== Number(network.chainId)) {
     throw new AggregatorSubmitError(
-      `selfShield: wallet chain ${walletClient.chain.id} does not match ${network.slug} (${network.chainId})`,
+      `directShield: wallet chain ${walletChainId} does not match ${network.slug} (${network.chainId})`,
     );
   }
 
   const resolvedAddress = parameters.contractAddress ?? (network.aggregatorContractAddress as HexString | undefined);
-  if (!resolvedAddress) {
-    throw new MissingContractAddressError(`network "${network.slug}" has no aggregatorContractAddress`);
+  if (!resolvedAddress || !isAddress(resolvedAddress)) {
+    throw new MissingContractAddressError(`network "${network.slug}" has no valid aggregatorContractAddress`);
   }
   const address = resolvedAddress as Address;
 
   const currency = network.currencies.find((candidate) => candidate.vaultTokenId === token.toString());
   if (!currency) {
-    throw new AggregatorSubmitError(`selfShield: vault token ${token} is not configured on network "${network.slug}"`);
+    throw new AggregatorSubmitError(
+      `directShield: vault token ${token} is not configured on network "${network.slug}"`,
+    );
   }
   const vaultAddress = parameters.vaultContractAddress ?? (network.vaultContractAddress as HexString | undefined);
-  if (!currency.nativeCurrency && !vaultAddress) {
-    throw new MissingContractAddressError(`network "${network.slug}" has no vaultContractAddress`);
+  if (!currency.nativeCurrency && (!vaultAddress || !isAddress(vaultAddress))) {
+    throw new MissingContractAddressError(`network "${network.slug}" has no valid vaultContractAddress`);
+  }
+  let tokenAddress: Address | undefined;
+  if (!currency.nativeCurrency) {
+    if (typeof currency.contractAddress !== "string" || !isAddress(currency.contractAddress)) {
+      throw new MissingContractAddressError(
+        `currency "${currency.symbol}" on network "${network.slug}" has no valid contractAddress`,
+      );
+    }
+    tokenAddress = currency.contractAddress;
   }
 
   const recipient = getActiveKeyPairs(config, parameters.accountId);
   if (!recipient.S || !recipient.V || !recipient.babyJubjubPublicKey) {
-    throw new AggregatorSubmitError("selfShield: the receiving Curvy account is missing public keys");
+    throw new AggregatorSubmitError("directShield: the receiving Curvy account is missing public keys");
   }
   const note = await config.core.sendNote(recipient.S, recipient.V, {
     ownerBabyJubjubPublicKey: recipient.babyJubjubPublicKey,
@@ -110,15 +122,14 @@ export async function selfShield(parameters: SelfShieldParameters): Promise<Self
     token,
   });
   if (note.viewTag < 0n || note.viewTag > 65_535n) {
-    throw new AggregatorSubmitError("selfShield: generated note viewTag does not fit uint16");
+    throw new AggregatorSubmitError("directShield: generated note viewTag does not fit uint16");
   }
 
   const rpc = config.getRpc().Network(network.id) as EvmRpc;
   let approval: ChainSubmitResult | undefined;
 
   try {
-    if (!currency.nativeCurrency) {
-      const tokenAddress = currency.contractAddress as Address;
+    if (tokenAddress !== undefined) {
       const allowance = await rpc.provider.readContract({
         address: tokenAddress,
         abi: erc20Abi,
@@ -150,7 +161,7 @@ export async function selfShield(parameters: SelfShieldParameters): Promise<Self
       account: walletClient.account,
       address,
       abi: aggregatorAlphaV2Abi,
-      functionName: "selfShield",
+      functionName: "directShield",
       args: [
         {
           ownerHash: note.ownerHash,
@@ -164,7 +175,7 @@ export async function selfShield(parameters: SelfShieldParameters): Promise<Self
     });
     const transactionHash = (await walletClient.writeContract(request)) as HexString;
     const receipt = await rpc.provider.waitForTransactionReceipt({ hash: transactionHash });
-    assertSuccessfulReceipt("selfShield", transactionHash, receipt);
+    assertSuccessfulReceipt("directShield", transactionHash, receipt);
 
     const pendingLog = parseEventLogs({
       abi: aggregatorAlphaV2Abi,
@@ -183,7 +194,7 @@ export async function selfShield(parameters: SelfShieldParameters): Promise<Self
     return { transactionHash, receipt, approval, pendingNote };
   } catch (error) {
     if (error instanceof AggregatorSubmitError) throw error;
-    throw new AggregatorSubmitError(`selfShield failed: ${(error as Error).message}`, error as Error);
+    throw new AggregatorSubmitError(`directShield failed: ${(error as Error).message}`, error as Error);
   }
 }
 
