@@ -1,7 +1,5 @@
-// `proving` module — primitives for building / consuming ZK proofs:
-// the v2 note-data cipher (`encryptAmountToken`/`decryptAmountToken`,
-// AES-256-CTR additive field-OTP), `MerkleTree` (IMT), BabyJubjub/EdDSA primitives,
-// and the v2 circuit witness builders (aggregation, withdrawal, pending-notes-commitment).
+// Primitives for local proof construction: note-data encryption, Rust-backed
+// Merkle trees, BabyJubjub/EdDSA, circuit witnesses, and Groth16 proving.
 //
 // The `Note` class itself lives in the `note` domain module (`@/note`); it is
 // re-exported here so circuit-witness consumers can `import { Note } from
@@ -18,5 +16,6 @@ export * from "./merkleTree";
 export * from "./pendingNotesCommitmentInputs";
 export * from "./prover";
 export * from "./rustProver";
+export * from "./types";
 export * from "./utils";
 export * from "./witnessFromNotes";

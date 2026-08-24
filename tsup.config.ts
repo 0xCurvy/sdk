@@ -1,39 +1,21 @@
 import { defineConfig, type Options } from "tsup";
 
-const actionEntryNames = ["account", "auth", "balances", "networks", "planner", "portals"] as const;
-
-const utilsEntryNames = ["address", "encoding", "hash", "keys", "network"] as const;
-
-const actionEntries = Object.fromEntries(
-  actionEntryNames.map((name) => [`actions/${name}/index`, `src/actions/${name}/index.ts`]),
-);
-
-const utilsEntries = Object.fromEntries(
-  utilsEntryNames.map((name) => [`utils/${name}/index`, `src/utils/${name}/index.ts`]),
-);
-
 // One entry per public subpath (see package.json `exports`). Object form gives
 // each entry a stable, predictable output path (e.g. dist/_esm/storage/idb/index.js).
 const codeEntries: Record<string, string> = {
   index: "src/index.ts",
   "actions/index": "src/actions/index.ts",
-  ...actionEntries,
   "config/index": "src/config/index.ts",
-  "config/browser": "src/config/browser.ts",
-  "config/server": "src/config/server.ts",
-  "utils/index": "src/utils/index.ts",
-  ...utilsEntries,
-  "utils/brand": "src/utils/brand.ts",
-  "utils/invariant": "src/utils/invariant.ts",
-  "utils/timer": "src/utils/timer.ts",
+  "planner/index": "src/planner/index.ts",
+  "utils/index": "src/public/utils.ts",
   "gas/index": "src/gas/index.ts",
   "note/index": "src/note/index.ts",
   "proving/index": "src/proving/index.ts",
-  "rust-core": "src/proving/rustCore.ts",
+  "rust-core": "src/core/rustCore.ts",
   "solana/index": "src/solana/index.ts",
   "rpc/index": "src/rpc/index.ts",
   "core/index": "src/core/index.ts",
-  "http/index": "src/http/index.ts",
+  "contracts/index": "src/contracts/index.ts",
   // The concrete ApiClient (constructible for advanced/e2e use; normally built
   // by createCurvyConfig). Own entry — re-exporting it from http/index would
   // make index ⇄ api circular (ApiClient extends HttpClient defined in index).
@@ -41,26 +23,24 @@ const codeEntries: Record<string, string> = {
   "privacy-pass/index": "src/privacy-pass/index.ts",
   "storage/index": "src/storage/index.ts",
   "storage/idb/index": "src/storage/idb/index.ts",
-  errors: "src/errors.ts",
-  "types/index": "src/types/index.ts",
+  // Build-time only: the Vite plugin that applies the SDK's bundler requirements.
+  vite: "src/vite.ts",
 };
 
 const typeEntries: Record<string, string> = { ...codeEntries };
 
-// Per-format asset path literals injected via esbuild `define`. `rel` is the
-// path from the emitted module to dist/assets: "../assets" from the ESM chunk at
-// dist/_esm/, "../../assets" from a dist/_cjs/<group>/index entry. The full
-// per-asset paths are injected as single string literals so the browser's
-// `new URL(LITERAL, import.meta.url)` calls stay statically analyzable by
-// downstream bundlers (Vite/webpack/Rollup), which need that to emit the assets.
-const assetDefines = (rel: string): Record<string, string> => ({
-  __CURVY_ASSETS_REL__: JSON.stringify(rel),
-  __CURVY_CORE_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_bg.wasm`),
-  __CURVY_CORE_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_core_threads_bg.wasm`),
-  __CURVY_CORE_RAYON_WORKER_URL__: JSON.stringify("./proving/rustCoreRayonWorker.js"),
-  __CURVY_PROVER_RS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_prover_bg.wasm`),
-  __CURVY_PROVER_RS_THREADS_WASM_URL__: JSON.stringify(`${rel}/core-rs/curvy_prover_threads_bg.wasm`),
-  __CURVY_PROVER_WORKER_URL__: JSON.stringify("./proving/rustProverWorker.js"),
+// The WASM binaries are NOT an SDK asset: they ship inside
+// `@0xcurvy/rs-core-wasm`, which stays external so the consumer's bundler
+// resolves the generated glue's own `new URL("…_bg.wasm", import.meta.url)`.
+//
+// What the SDK does own is its proving worker, and each format reaches it from a
+// different depth: ESM chunks sit at dist/_esm/, the worker bundle itself at
+// dist/_esm/proving/. It is injected as one whole string literal so the
+// `new URL(LITERAL, import.meta.url)` call stays statically analyzable by
+// Vite/webpack/Rollup — that is what makes them emit the worker. (The CJS path
+// is nominal: `createRustProver` only uses a worker in the browser.)
+const workerDefines = (proverWorkerPath: string): Record<string, string> => ({
+  __CURVY_PROVER_WORKER_URL__: JSON.stringify(proverWorkerPath),
 });
 
 export default defineConfig(() => {
@@ -103,13 +83,14 @@ export default defineConfig(() => {
     dts: false,
     clean: false,
     esbuildOptions: (options) => {
-      options.define = { ...options.define, ...assetDefines("../assets") };
+      options.define = { ...options.define, ...workerDefines("./proving/rustProverWorker.js") };
     },
   };
 
-  // The consumer creates this file with `new Worker(new URL(...))`. Bundle it
-  // without shared chunks so Vite/webpack may copy or inline it without leaving
-  // relative SDK imports that cannot resolve from a blob/data worker URL.
+  // The SDK's proving worker, created by the consumer's bundler from
+  // `new Worker(new URL(...), { type: "module" })`. It is bundled without shared
+  // chunks so nothing but the external WASM package is imported from a worker
+  // URL — Rayon's own nested workers are spawned by that package, not from here.
   const esmWorker: Options = {
     ...shared,
     entry: { rustProverWorker: "src/proving/rustProver.worker.ts" },
@@ -120,23 +101,7 @@ export default defineConfig(() => {
     dts: false,
     clean: false,
     esbuildOptions: (options) => {
-      options.define = { ...options.define, ...assetDefines("../../assets") };
-    },
-  };
-
-  // Rayon workers must not inherit imports from the consumer's app entry. The
-  // generated helper receives this self-contained asset URL from rustCore.ts.
-  const esmCoreRayonWorker: Options = {
-    ...shared,
-    entry: { rustCoreRayonWorker: "src/proving/rustCoreRayon.worker.ts" },
-    format: ["esm"],
-    outDir: "dist/_esm/proving",
-    splitting: false,
-    minify: isProd,
-    dts: false,
-    clean: false,
-    esbuildOptions: (options) => {
-      options.define = { ...options.define, ...assetDefines("../../assets") };
+      options.define = { ...options.define, ...workerDefines("./rustProverWorker.js") };
     },
   };
 
@@ -159,15 +124,18 @@ export default defineConfig(() => {
   // `pnpm run build:publish`) adds them back. CURVY_SDK_PASS lets package
   // scripts run JS and DTS separately so declaration bundling gets its own heap.
   if (!process.env.CURVY_SDK_PUBLISH) {
-    return selectPasses([esm, esmWorker, esmCoreRayonWorker], [esmDts]);
+    return selectPasses([esm, esmWorker], [esmDts]);
   }
 
   const publishFormat = process.env.CURVY_SDK_FORMAT;
   if (publishFormat === "esm") {
-    return selectPasses([esm, esmWorker, esmCoreRayonWorker], [esmDts]);
+    return selectPasses([esm, esmWorker], [esmDts]);
   }
 
   // Pass 3: CJS — esbuild can't code-split CJS, so each entry is self-contained.
+  // The WASM package is ESM-only, so `require()` consumers get it bundled rather
+  // than externalized. That is Node-only territory: it never reaches the browser
+  // asset/worker paths the ESM build is shaped for.
   const cjs: Options = {
     ...shared,
     entry: codeEntries,
@@ -177,8 +145,9 @@ export default defineConfig(() => {
     minify: isProd,
     dts: false,
     clean: false,
+    noExternal: [...(shared.noExternal ?? []), "@0xcurvy/rs-core-wasm"],
     esbuildOptions: (options) => {
-      options.define = { ...options.define, ...assetDefines("../../assets") };
+      options.define = { ...options.define, ...workerDefines("../proving/rustProverWorker.js") };
     },
   };
 
@@ -197,7 +166,7 @@ export default defineConfig(() => {
     return selectPasses([cjs], [cjsDts]);
   }
   if (buildPass === "js") {
-    return [esm, esmWorker, esmCoreRayonWorker, cjs];
+    return [esm, esmWorker, cjs];
   }
   if (buildPass === "dts") {
     return [esmDts, cjsDts];

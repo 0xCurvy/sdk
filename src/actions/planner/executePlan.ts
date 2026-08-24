@@ -2,65 +2,61 @@ import { getActiveAccount } from "@/actions/account/getActiveAccount";
 import { pauseBalanceRefresh } from "@/actions/balances/pauseBalanceRefresh";
 import { resumeBalanceRefresh } from "@/actions/balances/resumeBalanceRefresh";
 import { resolveConfig } from "@/config/global";
-import type { WithConfig } from "@/config/types";
-import { NoActiveAccountError } from "@/errors";
-import type { EstimatedPlan, PlanExecution } from "@/planner/types";
+import type { DirectSubmitter, SubmissionMode, WithConfig } from "@/config/types";
+import { NoActiveAccountError, normalizeCurvyError } from "@/errors";
+import type { EstimatedPlan, PlanSuccessfulExecution } from "@/planner/types";
 import { executePlanTree } from "./executePlanTree";
+import { getPlanSteps } from "./getPlanSteps";
 
-export type ExecutePlanParameters = WithConfig<{ plan: EstimatedPlan }>;
+type ExecutePreparedPlanParameters = WithConfig<{
+  plan: EstimatedPlan;
+  submissionMode?: SubmissionMode;
+  directSubmitter?: DirectSubmitter;
+}>;
 
-/**
- * Execute an already-estimated plan (functional port of `Planner.execute`).
- * Pauses the active account's balance refresh for the duration of execution,
- * walks the plan tree, then resumes refresh and emits the appropriate
- * completion/error event.
- *
- * @example
- * const result = await executePlan({ plan });
- *
- * @throws {NoActiveAccountError} when no account is active.
- * @throws the underlying error when execution fails.
- */
-export async function executePlan(parameters: ExecutePlanParameters): Promise<PlanExecution> {
+/** Internal executor behind the opaque prepared-intent API. */
+export async function executePreparedPlan(parameters: ExecutePreparedPlanParameters): Promise<PlanSuccessfulExecution> {
   const config = resolveConfig(parameters.config);
   const { plan } = parameters;
-
-  config.emitter.emitPlanExecutionStarted({ plan });
 
   const activeAccount = getActiveAccount({ config });
   if (!activeAccount) throw new NoActiveAccountError();
   const activeAccountId = activeAccount.id;
+  const executionId = crypto.randomUUID();
+  const steps = getPlanSteps(plan);
+  const stepsById = new Map(steps.map((step) => [step.id, step]));
+  config.emitter.emitPlanExecutionStarted({ executionId, steps });
 
-  // Capture the PRIOR pause state so we restore it rather than unconditionally
-  // resuming: a nested executePlan (or any outer caller that paused) must keep its
-  // lock held when our inner scope finishes — clearing it would silently re-enable
-  // refresh while the outer plan is still executing. (Key mirrors pauseBalanceRefresh.)
+  // Restore the caller's pause state after execution; an outer operation may
+  // already own the refresh lock.
   const lockKey = `refresh-account-${activeAccountId}`;
   const wasAlreadyPaused = config._internal.scanLocks.get(lockKey) === true;
 
   pauseBalanceRefresh({ accountId: activeAccountId, config });
 
-  // try/finally: a structural throw from walkPlan (the `invariant` sites fire
-  // ABOVE the per-node handler try/catch) must still resume refresh, else the
-  // account's scanLock stays paused for the rest of the session.
-  let result: PlanExecution;
   try {
-    result = await executePlanTree(config, plan, undefined);
+    const result = await executePlanTree({
+      config,
+      plan,
+      submissionMode: parameters.submissionMode ?? config.submissionMode,
+      directSubmitter: parameters.directSubmitter ?? config.directSubmitter,
+      onStep: ({ id, status, error }) => {
+        const step = stepsById.get(id);
+        if (!step) return;
+        const progress = { executionId, step, status, error };
+        config.emitter.emitPlanExecutionProgress(progress);
+      },
+    });
+    if (!result.success) throw result.error;
+    config.emitter.emitPlanExecutionComplete({ executionId, steps });
+    return result;
+  } catch (error) {
+    const normalized = normalizeCurvyError(error, "Plan execution failed.");
+    config.emitter.emitPlanExecutionError({ executionId, steps, error: normalized });
+    throw normalized;
   } finally {
     if (!wasAlreadyPaused) {
       resumeBalanceRefresh({ accountId: activeAccountId, config });
     }
   }
-
-  if (result.success) {
-    config.emitter.emitPlanExecutionComplete({ plan, result });
-  } else {
-    config.emitter.emitPlanExecutionError({ plan, result });
-  }
-
-  if (!result.success) {
-    throw result.error;
-  }
-
-  return result;
 }

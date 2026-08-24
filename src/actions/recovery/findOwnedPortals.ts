@@ -1,22 +1,22 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { NETWORK_FLAVOUR } from "@/constants/networks";
-import type { MatchedPortalRecord, Network } from "@/types/api";
+import type { MatchedPortalRecord, Network } from "@/http/contracts";
+import type { HexString } from "@/types/helper";
 import { findOwnedEvmPortals } from "./internal/findOwnedEvmPortals";
 
 export type FindOwnedPortalsParameters = WithConfig<{
   network: Network;
+  /** Override the EVM factory used to derive portals, e.g. a retired factory after an upgrade. */
+  portalFactoryContractAddress?: HexString;
 }>;
 
 /**
  * Enumerate every portal owned by the active account's keys on the given network.
  *
- * Used by /recover to surface
- * both entry and exit portals from a single toolkit (the user only has the
- * keys; the actual portal addresses are recovered by scanning the global
- * portal table and re-deriving from each candidate's stored ephemeral).
- * Solana support is entry-only and TODO — Solana exits don't exist yet, so
- * the Solana branch returns `[]`.
+ * EVM portals are discovered from public portal records and verified against
+ * the active account's keys. Solana portal enumeration is not supported and
+ * returns an empty array.
  *
  * @example
  * await findOwnedPortals({ network });
@@ -26,9 +26,8 @@ export async function findOwnedPortals(parameters: FindOwnedPortalsParameters): 
   const { network } = parameters;
 
   if (network.flavour === NETWORK_FLAVOUR.SOLANA) {
-    // Solana has one entry portal per (keys, network) and no exit portals;
-    // enumeration needs an address we don't have here, so return [] for now.
+    // Solana portals must be queried by address; this action has no address input.
     return [];
   }
-  return findOwnedEvmPortals(config, network);
+  return findOwnedEvmPortals(config, network, parameters.portalFactoryContractAddress);
 }

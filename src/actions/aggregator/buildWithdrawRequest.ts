@@ -1,5 +1,6 @@
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
+import { CommandError } from "@/errors";
 import type { Note } from "@/note";
 import type { MerkleTree, SuppliedInclusionProofs } from "@/proving";
 import { formatGroth16ProofForSolidity } from "@/proving/groth16";
@@ -10,7 +11,7 @@ import { attachSubmissionSugar } from "./internal/attachSugar";
 import type { SubmittableSubmission } from "./types";
 
 export type BuildWithdrawRequestParameters = WithConfig<{
-  /** The real committed notes to spend (exactly the circuit's maxInputs, all one token + owner). */
+  /** One to `maxInputs` committed notes with the same token and owner. */
   notes: Note[];
   /** BabyJubjub private key (hex) that owns the notes and signs the withdrawal. */
   ownerBjjPrivateKeyHex: string;
@@ -27,9 +28,8 @@ export type BuildWithdrawRequestParameters = WithConfig<{
 }>;
 
 /**
- * Build a submit-ready WITHDRAWAL proof from committed notes. Returns a plain-data
- * {@link AggregatorSubmission} (with `.submit()` / `.relay()` sugar) exposing the
- * decoded `withdrawnAmount` + `nullifiers`.
+ * Build a submit-ready withdrawal proof from committed notes. Proving runs
+ * locally; the result can be submitted by wallet or relay.
  *
  * @example
  * const w = await buildWithdrawRequest({ notes, ownerBjjPrivateKeyHex, destinationAddress, tokenId: 1n });
@@ -38,16 +38,14 @@ export type BuildWithdrawRequestParameters = WithConfig<{
 export async function buildWithdrawRequest(parameters: BuildWithdrawRequestParameters): Promise<SubmittableSubmission> {
   const config = resolveConfig(parameters.config);
   const networkSlug = parameters.networkSlug ?? config.state.activeNetworks[0]?.slug;
-  if (!networkSlug) throw new Error("buildWithdrawRequest: no active network to target");
+  if (!networkSlug) {
+    throw new CommandError("Select an active network before building a withdrawal.", "aggregator-withdraw");
+  }
 
-  // The destination is committed by the proof but the contract truncates it via
-  // address(uint160(...)). A value with bits above 159 would prove valid yet pay a
-  // DIFFERENT (likely unrecoverable) address than the one signed — reject early.
+  // Reject values that would be truncated by `address(uint160(...))` on-chain.
   const { destinationAddress } = parameters;
   if (destinationAddress < 0n || destinationAddress >= 1n << 160n) {
-    throw new Error(
-      `buildWithdrawRequest: destinationAddress must be a valid 160-bit address (0 <= addr < 2**160); got ${destinationAddress}`,
-    );
+    throw new CommandError("The withdrawal destination must be a valid 160-bit EVM address.", "aggregator-withdraw");
   }
 
   const artifacts = resolveCircuitArtifacts(config, "withdrawal", networkSlug);

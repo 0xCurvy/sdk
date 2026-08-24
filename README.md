@@ -47,7 +47,7 @@ Every action accepts a single options object. Pass `config` explicitly for multi
 Use the convenience constructors when you do not need custom storage wiring:
 
 ```ts
-import { createBrowserCurvyConfig } from "@0xcurvy/curvy-sdk/config/browser";
+import { createBrowserCurvyConfig } from "@0xcurvy/curvy-sdk/config";
 
 const config = await createBrowserCurvyConfig({
   apiBaseUrl: "https://api.curvy.box",
@@ -57,8 +57,8 @@ const config = await createBrowserCurvyConfig({
 `createBrowserCurvyConfig` defaults to IndexedDB storage, session keystore rehydration, and the lean sharded notes-sync engine.
 
 ```ts
-import { getBalances } from "@0xcurvy/curvy-sdk/actions/balances";
-import { createServerCurvyConfig } from "@0xcurvy/curvy-sdk/config/server";
+import { getBalances } from "@0xcurvy/curvy-sdk/actions";
+import { createServerCurvyConfig } from "@0xcurvy/curvy-sdk/config";
 
 const config = await createServerCurvyConfig({
   apiBaseUrl: process.env.CURVY_API_BASE_URL,
@@ -74,7 +74,8 @@ await getBalances({ config, accountId });
 Authentication derives Curvy keys from a signed EIP-712 message.
 
 ```ts
-import { getAuthenticationSignatureParams, register } from "@0xcurvy/curvy-sdk";
+import { register } from "@0xcurvy/curvy-sdk";
+import { getAuthenticationSignatureParams } from "@0xcurvy/curvy-sdk/utils";
 
 const signatureParams = await getAuthenticationSignatureParams(address, "optional-password");
 const signatureResult = await signTypedDataAsync(signatureParams);
@@ -95,7 +96,7 @@ For an existing user, call `login({ config, signature })` with the same signatur
 ## Balances
 
 ```ts
-import { getBalances, refreshBalances } from "@0xcurvy/curvy-sdk/actions/balances";
+import { getBalances, refreshBalances } from "@0xcurvy/curvy-sdk/actions";
 
 await refreshBalances({ config });
 
@@ -107,10 +108,10 @@ Balance refresh is on-demand. Use `AbortSignal` for cancellation and SDK events 
 
 ## Intents
 
-Curvy asset movement follows `Intent -> estimateIntent -> executePlan`.
+Curvy asset movement follows `Intent -> estimateIntent -> executeIntent`.
 
 ```ts
-import { estimateIntent, executePlan, getNetwork } from "@0xcurvy/curvy-sdk";
+import { estimateIntent, executeIntent, getNetwork } from "@0xcurvy/curvy-sdk";
 import type { TransferIntent } from "@0xcurvy/curvy-sdk";
 
 const network = getNetwork({ config, filter: "ethereum" });
@@ -126,8 +127,73 @@ const intent: TransferIntent = {
 };
 
 const estimation = await estimateIntent({ config, intent });
-const execution = await executePlan({ config, plan: estimation.plan });
+console.log(estimation.prepared.steps); // safe labels for route/progress UI
+const execution = await executeIntent({ config, prepared: estimation.prepared });
 ```
+
+`prepared` is an in-memory execution handle and cannot be serialized. Estimate
+again after a page reload. A `send-to-anyone` estimate also returns an explicit
+`output: { kind: "gift", note }`; treat that bearer note as sensitive and put it
+only in the intended gift link.
+
+Relay submission is the default. To submit planner transactions from the
+integration's own wallet, provide a viem `WalletClient` resolver:
+
+```ts
+const config = await createCurvyConfig({
+  submissionMode: "direct",
+  directSubmitter: async ({ network }) => getWalletClientForChain(network.chainId),
+});
+
+const estimation = await estimateIntent({ config, intent });
+await executeIntent({ config, prepared: estimation.prepared });
+```
+
+The SDK does not accept or retain a submitter private key. The wallet client can
+be backed by an injected wallet, hardware signer, HSM, or server account. You
+may override `submissionMode` on `estimateIntent` and `directSubmitter` on
+`executeIntent`. The selected mode is bound to the prepared estimate because a
+relay reimbursement changes aggregation outputs and fees; changing modes
+requires re-estimation. Direct aggregation does not require paymaster terms.
+Withdrawals still require the vault's on-chain per-token fee because the
+contract deducts it in both modes.
+
+When `estimation.degradedToFeesOnAmount` is true, show
+`estimation.effectiveAmount` before confirmation: fees reduced delivery below
+the requested amount.
+
+Planner failures extend `CurvyError` and carry a stable `code`, such as
+`INSUFFICIENT_BALANCE`, `FEE_ESTIMATE_UNAVAILABLE`, or `PLAN_WAIT_TIMEOUT`.
+Branch on the code instead of matching message text.
+
+## Execution progress
+
+```ts
+import { CURVY_EVENT_TYPES, on } from "@0xcurvy/curvy-sdk";
+
+const unsubscribe = on(
+  CURVY_EVENT_TYPES.PLAN_EXECUTION_PROGRESS,
+  ({ step, status }) => console.log(`${step.index + 1}/${step.total}: ${step.label} — ${status}`),
+  { config },
+);
+```
+
+Progress payloads contain sanitized step metadata, never private note data or
+prepared proof state.
+
+## Custom storage
+
+`createCurvyConfig` accepts the complete `CurvyStorage` contract. Tests and
+specialized hosts can implement only a focused facet where that is the actual
+dependency boundary.
+
+```ts
+import type { BalanceStore, CurvyStorage } from "@0xcurvy/curvy-sdk/storage";
+```
+
+`Core`, `CurvyAccount`, `IntentEstimation.plan`, and `BaseStorage` remain only
+where current monorepo consumers require them. See
+[COMPATIBILITY.md](./COMPATIBILITY.md) for their removal plan.
 
 ## Imports And Bundling
 
@@ -140,25 +206,35 @@ import { createCurvyConfig, login, getBalances } from "@0xcurvy/curvy-sdk";
 Subpath imports reduce accidental bundle size:
 
 ```ts
-import { login } from "@0xcurvy/curvy-sdk/actions/auth";
-import { getBalances } from "@0xcurvy/curvy-sdk/actions/balances";
-import { poseidonHash } from "@0xcurvy/curvy-sdk/utils/hash";
+import { getBalances, login } from "@0xcurvy/curvy-sdk/actions";
+import { computeAggregateDelivery, describePlan } from "@0xcurvy/curvy-sdk/planner";
+import { poseidonHash } from "@0xcurvy/curvy-sdk/utils";
 import { IndexedDBStorage } from "@0xcurvy/curvy-sdk/storage/idb";
 ```
 
-Vite browser consumers should exclude the SDK from dependency optimization and include `.zkey` assets:
+Vite browser consumers should add the SDK's plugin:
 
 ```ts
+import { curvy } from "@0xcurvy/curvy-sdk/vite";
+
 export default defineConfig({
-  assetsInclude: ["**/*.zkey"],
-  optimizeDeps: {
-    include: ["buffer"],
-    exclude: ["@0xcurvy/curvy-sdk"],
-  },
+  plugins: [curvy()],
+  optimizeDeps: { include: ["buffer"] },
 });
 ```
 
-The SDK ships its WASM core in `dist/assets` and resolves it via `new URL(..., import.meta.url)`.
+It applies what the WASM core and its workers need: the SDK and `@0xcurvy/rs-core-wasm`
+are excluded from dependency optimization (the optimizer copies dependency code into
+`node_modules/.vite/deps/`, where the generated glue's relative asset and worker URLs no
+longer resolve), workers are emitted in ES format (Rayon's helper dynamically imports the
+WASM module, which Vite's default `iife` worker format cannot code-split), `.zkey` counts
+as an asset, and the dev server sends cross-origin-isolation headers so threaded WASM can
+engage. Pass `curvy({ crossOriginIsolation: "require-corp" })` for the classic COOP/COEP
+pair, or `false` to leave headers alone.
+
+The WASM binaries come from `@0xcurvy/rs-core-wasm`, a normal dependency: the bundler
+resolves them from `new URL("curvy_wasm_bg.wasm", import.meta.url)` inside the generated
+glue and emits them as hashed assets. webpack 5 and Node need no configuration.
 
 ## Lifecycle
 

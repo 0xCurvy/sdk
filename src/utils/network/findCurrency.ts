@@ -1,4 +1,4 @@
-import type { Currency, Network } from "@/types/api";
+import type { Currency, Network } from "@/http/contracts";
 import { toSlug } from "@/utils/format/toSlug";
 
 /**

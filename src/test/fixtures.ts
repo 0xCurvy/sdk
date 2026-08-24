@@ -1,23 +1,24 @@
 import { vi } from "vitest";
 import { CurvyAccount } from "@/account";
+import { DEFAULT_EXECUTION_POLICY } from "@/config/executionPolicy";
 import { createStore } from "@/config/store";
-import type { CurvyConfig, CurvyState } from "@/config/types";
+import type { CurvyConfig, CurvyState, ExecutionPolicy } from "@/config/types";
 import { NETWORK_ENVIRONMENT, type NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
+import { getNotesTreeParameters } from "@/core/rustCore";
+import type { CoreAdapter, CurvyKeyPairs } from "@/core/types";
 import { CurvyEventEmitter } from "@/events";
-import type { IApiClient } from "@/interfaces/api";
-import type { ICore } from "@/interfaces/core";
-import type { StorageInterface } from "@/interfaces/storage";
+import type { Network, ProtocolConfig } from "@/http/contracts";
+import type { CurvyApiClient } from "@/http/types";
 import type { NotesTreeView } from "@/note/notesTreeView";
 import { type CircuitKeyCache, createRustProver, MerkleTree } from "@/proving";
 import type { Prover } from "@/proving/prover";
 import type { MultiRpc } from "@/rpc/multi";
+import type { CurvyStorage } from "@/storage/contracts";
 import { MapStorage } from "@/storage/map-storage";
+import type { BalanceEntry } from "@/storage/types";
 import type { CurvyAccountData } from "@/types/account";
-import type { Network, ProtocolConfig } from "@/types/api";
-import type { CurvyKeyPairs } from "@/types/core";
 import type { CurvyId } from "@/types/curvy";
 import type { HexString } from "@/types/helper";
-import type { BalanceEntry } from "@/types/storage";
 import { defaultTimerProvider } from "@/utils/timer";
 
 /** Protocol-global config seeded into fake configs (the `_2_3_30` aggregation / `_2_30` withdrawal dims). */
@@ -54,7 +55,7 @@ export const accounts: CurvyAccountData[] = [
   },
 ];
 
-export function createFakeCore(overrides: Partial<ICore> = {}): ICore {
+export function createFakeCore(overrides: Partial<CoreAdapter> = {}): CoreAdapter {
   return {
     generateKeyPairs: vi.fn(),
     getCurvyKeys: vi.fn(),
@@ -69,21 +70,21 @@ export function createFakeCore(overrides: Partial<ICore> = {}): ICore {
     isValidSECP256k1Point: vi.fn(() => true),
     version: vi.fn(() => "fake-core"),
     ...overrides,
-  } as unknown as ICore;
+  } as unknown as CoreAdapter;
 }
 
 export type FakeApiOverrides = {
-  network?: Partial<IApiClient["network"]>;
-  portal?: Partial<IApiClient["portal"]>;
-  user?: Partial<IApiClient["user"]>;
-  auth?: Partial<IApiClient["auth"]>;
-  sync?: Partial<IApiClient["sync"]>;
-  privacyPass?: Partial<IApiClient["privacyPass"]>;
-  relay?: Partial<IApiClient["relay"]>;
+  network?: Partial<CurvyApiClient["network"]>;
+  portal?: Partial<CurvyApiClient["portal"]>;
+  user?: Partial<CurvyApiClient["user"]>;
+  auth?: Partial<CurvyApiClient["auth"]>;
+  sync?: Partial<CurvyApiClient["sync"]>;
+  privacyPass?: Partial<CurvyApiClient["privacyPass"]>;
+  relay?: Partial<CurvyApiClient["relay"]>;
 };
 
-/** Fake `IApiClient`; override individual resource methods per test. */
-export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
+/** Fake API client; override individual resource methods per test. */
+export function createFakeApi(overrides: FakeApiOverrides = {}): CurvyApiClient {
   return {
     updateBearerToken: vi.fn(),
     get bearerToken() {
@@ -126,7 +127,7 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
       ...overrides.sync,
     },
     privacyPass: {
-      // "off" by default so actions behave exactly as before tokens existed.
+      // Most tests do not exercise Privacy Pass issuance.
       GetChallenge: vi.fn(async () => ({
         mode: "off" as const,
         challenge: "",
@@ -144,7 +145,7 @@ export function createFakeApi(overrides: FakeApiOverrides = {}): IApiClient {
       GetPaymasterInfo: vi.fn(),
       ...overrides.relay,
     },
-  } as unknown as IApiClient;
+  } as unknown as CurvyApiClient;
 }
 
 export function createFakeMultiRpc(): MultiRpc {
@@ -232,13 +233,16 @@ export type CreateFakeConfigOverrides = {
   activeNetworks?: Network[];
   /** Protocol-global config in state; defaults to {@link DEFAULT_TEST_PROTOCOL}. Pass `null` to test the unloaded path. */
   protocol?: ProtocolConfig | null;
-  storage?: StorageInterface;
-  core?: ICore;
-  api?: IApiClient;
+  storage?: CurvyStorage;
+  core?: CoreAdapter;
+  api?: CurvyApiClient;
   rpc?: MultiRpc;
   prover?: Prover;
   circuitKeyCache?: CircuitKeyCache;
   circuitKeysBaseUrl?: string;
+  executionPolicy?: Partial<ExecutionPolicy>;
+  submissionMode?: CurvyConfig["submissionMode"];
+  directSubmitter?: CurvyConfig["directSubmitter"];
 };
 
 /** Build a fully-typed `CurvyConfig` backed by fakes; safe to use offline. */
@@ -279,7 +283,7 @@ export function createFakeConfig(overrides: CreateFakeConfigOverrides = {}): Cur
     scanLocks: new Map<string, boolean>(),
     inflightRefreshes: new Map<string, Promise<void>>(),
     rpcCache: new Map<NETWORK_ENVIRONMENT_VALUES, MultiRpc>(),
-    notesTree: new MerkleTree({ depth: 30 }),
+    notesTree: new MerkleTree({ depth: getNotesTreeParameters().depth }),
     notesTrees: new Map<string, NotesTreeView>(),
     finalizedNotesTrees: new Map<string, NotesTreeView>(),
   };
@@ -299,6 +303,9 @@ export function createFakeConfig(overrides: CreateFakeConfigOverrides = {}): Cur
     setState: store.setState,
     subscribe: store.subscribe,
     notesSyncEngine: "sharded",
+    executionPolicy: { ...DEFAULT_EXECUTION_POLICY, ...overrides.executionPolicy },
+    submissionMode: overrides.submissionMode ?? "relay",
+    directSubmitter: overrides.directSubmitter,
     prover: overrides.prover ?? createRustProver({ threads: false }),
     circuitKeyCache: overrides.circuitKeyCache,
     circuitKeysBaseUrl: overrides.circuitKeysBaseUrl,

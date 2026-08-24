@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
+import { getNotesTreeParameters } from "@/core/rustCore";
 import type { OwnershipResolver } from "@/note/discoverOwnedNotes";
 import type { SyncedLeaf } from "@/note/notesTreeSync";
 import { MapStorage } from "@/storage/map-storage";
+import type { CurrencyMetadata } from "@/storage/types";
 import { accounts, createFakeApi, createFakeConfig, fixtureNetwork } from "@/test/fixtures";
-import type { CurrencyMetadata } from "@/types/storage";
 import { poseidonHash } from "@/utils/hash/poseidonHash";
 import { applyAccountDiscovery } from "./applyDiscovery";
 
@@ -12,6 +13,7 @@ const NET = "ethereum";
 const MAINNET = NETWORK_ENVIRONMENT.MAINNET;
 const network = fixtureNetwork({ aggregatorContractAddress: "0x00000000000000000000000000000000000000aa" });
 const ACCOUNT = accounts[0].id;
+const TREE_PARAMETERS = getNotesTreeParameters();
 
 // An ownable plaintext note with the real id algebra, so discovery's integrity gate passes.
 const OWNER_PUB: [bigint, bigint] = [3n, 4n];
@@ -54,7 +56,7 @@ function fakeSyncApi(leaves: SyncedLeaf[]) {
       checkpoint,
       chainId: 1,
       contractAddress: network.aggregatorContractAddress as string,
-      treeVersion: 1,
+      treeVersion: TREE_PARAMETERS.version,
       finalizedBlockNumber: 7,
       finalizedBlockHash: `0x${"f".repeat(64)}`,
       notesRoot: "0",
@@ -62,8 +64,8 @@ function fakeSyncApi(leaves: SyncedLeaf[]) {
       nullifierCount: 0,
       pendingCount: 0,
       shardCount: 0,
-      shardHeight: 14,
-      shardSize: 1 << 14,
+      shardHeight: TREE_PARAMETERS.shardHeight,
+      shardSize: TREE_PARAMETERS.shardSize,
     })),
     GetNotes: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const notes = leaves.slice(fromIndex, fromIndex + limit).map((note) => ({

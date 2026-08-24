@@ -2,8 +2,8 @@ import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs"
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { AccountError, NetworkError } from "@/errors";
+import type { MatchedPortalRecord } from "@/http/contracts";
 import type { SolanaSigner } from "@/rpc/solana";
-import type { MatchedPortalRecord } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { recoverEvmPortal } from "./internal/recoverEvmPortal";
 import { recoverSolanaPortal } from "./internal/recoverSolanaPortal";
@@ -14,6 +14,8 @@ export type RecoverPortalParameters = WithConfig<{
   portalRecord: MatchedPortalRecord;
   destinationAddress: HexString | (string & {});
   solanaSigner?: SolanaSigner;
+  /** Override the EVM factory used for recovery, e.g. a retired factory after an upgrade. */
+  portalFactoryContractAddress?: HexString;
 }>;
 
 /**
@@ -77,5 +79,6 @@ export async function recoverPortal(parameters: RecoverPortalParameters): Promis
     recoveryPrivateKey,
     tokenAddress: parameters.tokenAddress as HexString,
     destinationAddress: parameters.destinationAddress as HexString,
+    portalFactoryContractAddress: parameters.portalFactoryContractAddress,
   });
 }

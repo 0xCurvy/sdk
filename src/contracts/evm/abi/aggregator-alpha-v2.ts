@@ -63,6 +63,11 @@ export const aggregatorAlphaV2Abi = [
     type: "error",
   },
   {
+    inputs: [],
+    name: "DirectShieldDisabled",
+    type: "error",
+  },
+  {
     inputs: [
       {
         internalType: "address",
@@ -201,17 +206,6 @@ export const aggregatorAlphaV2Abi = [
     type: "error",
   },
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "token",
-        type: "address",
-      },
-    ],
-    name: "SafeERC20FailedOperation",
-    type: "error",
-  },
-  {
     inputs: [],
     name: "UUPSUnauthorizedCallContext",
     type: "error",
@@ -306,6 +300,19 @@ export const aggregatorAlphaV2Abi = [
       },
     ],
     name: "CommittedNullifiers",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "enabled",
+        type: "bool",
+      },
+    ],
+    name: "DirectShieldEnabledUpdated",
     type: "event",
   },
   {
@@ -545,46 +552,6 @@ export const aggregatorAlphaV2Abi = [
   {
     inputs: [
       {
-        components: [
-          {
-            internalType: "uint256",
-            name: "ownerHash",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "token",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "amount",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256[2]",
-            name: "ephemeralKey",
-            type: "uint256[2]",
-          },
-          {
-            internalType: "uint16",
-            name: "viewTag",
-            type: "uint16",
-          },
-        ],
-        internalType: "struct CurvyTypes.Note",
-        name: "note",
-        type: "tuple",
-      },
-    ],
-    name: "autoShield",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
         internalType: "uint256",
         name: "batchSize",
         type: "uint256",
@@ -693,6 +660,59 @@ export const aggregatorAlphaV2Abi = [
         internalType: "contract ICurvyVault",
         name: "",
         type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        components: [
+          {
+            internalType: "uint256",
+            name: "ownerHash",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "token",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "amount",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256[2]",
+            name: "ephemeralKey",
+            type: "uint256[2]",
+          },
+          {
+            internalType: "uint16",
+            name: "viewTag",
+            type: "uint16",
+          },
+        ],
+        internalType: "struct CurvyTypes.Note",
+        name: "note",
+        type: "tuple",
+      },
+    ],
+    name: "directShield",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "directShieldEnabled",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
       },
     ],
     stateMutability: "view",
@@ -989,6 +1009,46 @@ export const aggregatorAlphaV2Abi = [
     type: "function",
   },
   {
+    inputs: [
+      {
+        components: [
+          {
+            internalType: "uint256",
+            name: "ownerHash",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "token",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "amount",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256[2]",
+            name: "ephemeralKey",
+            type: "uint256[2]",
+          },
+          {
+            internalType: "uint16",
+            name: "viewTag",
+            type: "uint16",
+          },
+        ],
+        internalType: "struct CurvyTypes.Note",
+        name: "note",
+        type: "tuple",
+      },
+    ],
+    name: "portalShield",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
     inputs: [],
     name: "protocolFeePerThousand",
     outputs: [
@@ -1089,6 +1149,19 @@ export const aggregatorAlphaV2Abi = [
       },
     ],
     name: "setCommitmentGasFeeRoot",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bool",
+        name: "enabled",
+        type: "bool",
+      },
+    ],
+    name: "setDirectShieldEnabled",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",

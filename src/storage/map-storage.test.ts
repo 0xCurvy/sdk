@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { SerializedCurvyAccount } from "@/types";
 import type {
   BalanceEntry,
   CurrencyMetadata,
@@ -7,7 +6,8 @@ import type {
   HotOverlayReplacement,
   SerializedNoteWitness,
   TxHistoryEntry,
-} from "@/types/storage";
+} from "@/storage/types";
+import type { SerializedCurvyAccount } from "@/types";
 import { MapStorage } from "./map-storage";
 
 const account = {
@@ -241,8 +241,7 @@ describe("MapStorage (BaseStorage business logic)", () => {
     const all = ["n0", "n1", "n2", "n3", "n4", "n5"].map((id) => makeEntry({ id, balance: 100n }));
     await s.updateBalanceEntries("acc-1", "ethereum", all);
 
-    // Spend n2 — the other five notes MUST survive (regression: the old impl
-    // passed only the spent entry to updateBalanceEntries, deleting all others).
+    // Removing one spent note must preserve every unrelated balance entry.
     await s.removeSpentBalanceEntries([makeEntry({ id: "n2", balance: 100n })]);
 
     const remaining = await s.getBalances("acc-1");

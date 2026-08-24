@@ -19,8 +19,8 @@ import { findAssociatedTokenPda, TOKEN_PROGRAM_ADDRESS } from "@solana-program/t
 import { Buffer } from "buffer";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { NATIVE_SOL_MINT } from "@/constants/solana";
+import type { Currency, Network } from "@/http/contracts";
 import { Rpc } from "@/rpc/abstract";
-import type { Currency, Network } from "@/types/api";
 import type { AbortOptions, HexString } from "@/types/helper";
 import { toSlug } from "@/utils/format";
 import type { RpcBalance, RpcBalances } from "./types";

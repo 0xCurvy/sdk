@@ -1,6 +1,6 @@
 import type { CurvyConfig } from "@/config/types";
+import type { CurvyKeyPairs } from "@/core/types";
 import { NoActiveAccountError } from "@/errors";
-import type { CurvyKeyPairs } from "@/types/core";
 
 /**
  * Resolve an account's keypairs from `config.keyring` — by explicit `accountId`,

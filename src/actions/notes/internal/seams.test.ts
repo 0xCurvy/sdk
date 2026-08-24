@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { getNotesTreeParameters } from "@/core/rustCore";
 import type { SyncedLeaf } from "@/note/notesTreeSync";
 import type { MultiRpc } from "@/rpc/multi";
 import { MapStorage } from "@/storage/map-storage";
@@ -15,7 +16,6 @@ import { poseidonHash } from "@/utils/hash/poseidonHash";
 import {
   apiLeafSource,
   apiRangeSource,
-  balanceOwnershipResolver,
   coreOwnershipResolver,
   ownedNullifiersFromBalances,
   rpcRootVerifier,
@@ -24,6 +24,7 @@ import {
 const NET = "ethereum";
 const CONTRACT = "0x00000000000000000000000000000000000000aa";
 const CHECKPOINT = "checkpoint-1";
+const TREE_PARAMETERS = getNotesTreeParameters();
 
 /** A fake `api.sync` backed by fixed in-memory streams (with real pagination math). */
 function fakeSyncApi(leaves: SyncedLeaf[], nullifiers: string[], lastIndexedBlock = 7) {
@@ -32,7 +33,7 @@ function fakeSyncApi(leaves: SyncedLeaf[], nullifiers: string[], lastIndexedBloc
       checkpoint: CHECKPOINT,
       chainId: 1,
       contractAddress: CONTRACT,
-      treeVersion: 1,
+      treeVersion: TREE_PARAMETERS.version,
       finalizedBlockNumber: lastIndexedBlock,
       finalizedBlockHash: `0x${"f".repeat(64)}`,
       notesRoot: "0",
@@ -40,8 +41,8 @@ function fakeSyncApi(leaves: SyncedLeaf[], nullifiers: string[], lastIndexedBloc
       nullifierCount: nullifiers.length,
       pendingCount: 0,
       shardCount: 0,
-      shardHeight: 14,
-      shardSize: 1 << 14,
+      shardHeight: TREE_PARAMETERS.shardHeight,
+      shardSize: TREE_PARAMETERS.shardSize,
     })),
     GetNotes: vi.fn(async (_chainId: number, fromIndex: number, limit = 500) => {
       const notes = leaves.slice(fromIndex, fromIndex + limit).map((note) => ({
@@ -133,7 +134,7 @@ describe("rpcRootVerifier", () => {
   });
 });
 
-describe("balance-derived ownership seams", () => {
+describe("balance-derived nullifier seam", () => {
   const owner = { babyJubjubPublicKey: { x: "11", y: "12" }, sharedSecret: "13" };
 
   const seededConfig = async () => {
@@ -145,13 +146,6 @@ describe("balance-derived ownership seams", () => {
     ]);
     return config;
   };
-
-  it("balanceOwnershipResolver claims exactly the account's notes on that network", async () => {
-    const resolve = await balanceOwnershipResolver(await seededConfig(), accounts[0].id, NET);
-    expect(await resolve({ index: 0, noteId: "777" })).toEqual({ sharedSecret: 13n, ownerPub: [11n, 12n] });
-    expect(await resolve({ index: 1, noteId: "888" })).toBeNull(); // other network
-    expect(await resolve({ index: 2, noteId: "999" })).toBeNull(); // not ours
-  });
 
   it("ownedNullifiersFromBalances maps poseidon(ss, x, y) → noteId", async () => {
     const map = await ownedNullifiersFromBalances(await seededConfig(), accounts[0].id, NET);

@@ -1,4 +1,4 @@
-import type { Network } from "@/types/api";
+import type { Network } from "@/http/contracts";
 import { filterNetworks, type NetworkFilter } from "@/utils/network/filterNetworks";
 
 export function findNetwork(networks: Network[], networkFilter: NetworkFilter): Network | undefined {

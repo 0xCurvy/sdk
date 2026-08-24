@@ -2,7 +2,7 @@ import { getAddress } from "viem";
 import { resolveConfig } from "@/config/global";
 import type { WithConfig } from "@/config/types";
 import { NETWORK_FLAVOUR } from "@/constants/networks";
-import type { MatchedPortalRecord, Network } from "@/types/api";
+import type { MatchedPortalRecord, Network } from "@/http/contracts";
 import { type HexString, isHexString } from "@/types/helper";
 import { findOwnedEvmPortals } from "./internal/findOwnedEvmPortals";
 import { findSolanaPortal } from "./internal/findSolanaPortal";
@@ -10,6 +10,8 @@ import { findSolanaPortal } from "./internal/findSolanaPortal";
 export type FindPortalParameters = WithConfig<{
   address: HexString | (string & {});
   network: Network;
+  /** Override the EVM factory used to derive portals, e.g. a retired factory after an upgrade. */
+  portalFactoryContractAddress?: HexString;
 }>;
 
 /**
@@ -32,7 +34,7 @@ export async function findPortal(parameters: FindPortalParameters): Promise<Matc
   if (!isHexString(address)) {
     throw new Error(`EVM recovery requires a hex address; got "${address}".`);
   }
-  const owned = await findOwnedEvmPortals(config, network);
+  const owned = await findOwnedEvmPortals(config, network, parameters.portalFactoryContractAddress);
   const checksummedTarget = getAddress(address, +network.chainId);
   return owned.find((p) => getAddress(p.contractAddress as HexString, +network.chainId) === checksummedTarget) ?? null;
 }

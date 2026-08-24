@@ -1,17 +1,17 @@
 import type { CommandEstimate } from "@/planner/types";
 
 /**
- * Sums all estimates from serial nodes into `target` (pure module helper moved
- * out of `Planner`). `bridgeFeeInCurrency` is treated as optional and only set
- * on `target` when at least one source contributes one.
- *
- * Mutates `target` in place (matching the legacy behaviour).
+ * Add one command estimate to a serial-plan total. Mutates `target`.
  */
 export function accumulateEstimate(target: CommandEstimate, source?: CommandEstimate): void {
-  const { gasFeeInCurrency = 0n, curvyFeeInCurrency = 0n, bridgeFeeInCurrency = 0n } = source || {};
+  const { gasFeeInCurrency = 0n, curvyFeeInCurrency = 0n, bridgeFeeInCurrency = 0n, totalFeeInCurrency } = source || {};
   target.gasFeeInCurrency += gasFeeInCurrency;
   target.curvyFeeInCurrency += curvyFeeInCurrency;
-  if (bridgeFeeInCurrency)
-    if (!target.bridgeFeeInCurrency) target.bridgeFeeInCurrency = bridgeFeeInCurrency;
-    else target.bridgeFeeInCurrency += bridgeFeeInCurrency;
+  if (bridgeFeeInCurrency) {
+    target.bridgeFeeInCurrency = (target.bridgeFeeInCurrency ?? 0n) + bridgeFeeInCurrency;
+  }
+  if (totalFeeInCurrency !== undefined) {
+    target.totalFeeInCurrency = (target.totalFeeInCurrency ?? 0n) + totalFeeInCurrency;
+  }
+  if (source?.degradedToFeesOnAmount) target.degradedToFeesOnAmount = true;
 }

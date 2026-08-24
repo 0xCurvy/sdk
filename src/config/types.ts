@@ -1,19 +1,19 @@
+import type { WalletClient } from "viem";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { IApiClient } from "@/interfaces/api";
-import type { ICore } from "@/interfaces/core";
-import type { ICurvyEventEmitter } from "@/interfaces/events";
-import type { StorageInterface } from "@/interfaces/storage";
+import type { RustCoreThreads } from "@/core/rustCore";
+import type { CoreAdapter, CurvyKeyPairs } from "@/core/types";
+import type { CurvyEventBus } from "@/events/types";
+import type { Network, ProtocolConfig } from "@/http/contracts";
+import type { CurvyApiClient } from "@/http/types";
 import type { NotesTreeView } from "@/note/notesTreeView";
 import type { PrivacyPassInternalState } from "@/privacy-pass/tokens";
 import type { MerkleTree } from "@/proving";
 import type { CircuitKeyCache } from "@/proving/circuitKeyCache";
 import type { Prover } from "@/proving/prover";
-import type { RustCoreThreads } from "@/proving/rustCore";
 import type { MultiRpc } from "@/rpc/multi";
 import type { SessionKeystore } from "@/session-keystore";
+import type { CurvyStorage } from "@/storage/contracts";
 import type { CurvyAccountData } from "@/types/account";
-import type { Network, ProtocolConfig } from "@/types/api";
-import type { CurvyKeyPairs } from "@/types/core";
 import type { TimerHandle, TimerProvider } from "@/utils/timer";
 import type { Store } from "./store";
 
@@ -21,6 +21,26 @@ export type ScanStatus = "idle" | "scanning" | "error";
 
 /** Notes-tree sync engine selector — see the `syncNotes` action. */
 export type NotesSyncEngine = "sharded" | "global";
+
+/** How planner proofs are submitted after they are built. */
+export type SubmissionMode = "relay" | "direct";
+
+/**
+ * Resolve the viem wallet client that submits a direct planner transaction.
+ * The SDK never needs the underlying private key; the client may be backed by a
+ * browser wallet, hardware signer, HSM, or server-side account.
+ */
+export type DirectSubmitter = (parameters: { network: Network }) => WalletClient | Promise<WalletClient>;
+
+export type ExecutionPolicy = {
+  relayPollAttempts: number;
+  relayPollIntervalMs: number;
+  planWaitAttempts: number;
+  planWaitIntervalMs: number;
+  aggregationOutputTimeoutMs: number;
+  aggregationOutputPollIntervalMs: number;
+  shieldSettleDelayMs: number;
+};
 
 /**
  * The reactive state held by a `CurvyConfig`. Holds only serializable data;
@@ -33,11 +53,7 @@ export type CurvyState = {
   environment: NETWORK_ENVIRONMENT_VALUES;
   networks: Network[];
   activeNetworks: Network[];
-  /**
-   * Protocol-global proving config + fee collector (from `GET /protocol`), fetched once
-   * at bootstrap. Also re-attached onto each vault-enabled network (so consumers can read
-   * it off the `Network`); kept here as the single canonical source. `null` until ready.
-   */
+  /** Protocol proving dimensions and fee collector. `null` until bootstrap completes. */
   protocol: ProtocolConfig | null;
   accounts: Record<string, CurvyAccountData>;
   activeAccountId: string | null;
@@ -49,7 +65,7 @@ export type CurvyConfigInternal = {
   timers: { price?: TimerHandle; jwtRefresh?: TimerHandle };
   /** Injectable timer scheduler (default wraps setInterval); swap for `chrome.alarms` under MV3. */
   timerProvider: TimerProvider;
-  /** Per-`accountId` balance-refresh locks (replaces `BalanceScanner #semaphore`). */
+  /** Per-operation locks that prevent overlapping refresh/sync work. */
   scanLocks: Map<string, boolean>;
   /**
    * In-flight `refreshBalances` promises keyed by `refresh-account-${accountId}`.
@@ -57,17 +73,16 @@ export type CurvyConfigInternal = {
    * running scan and observe fresh data, instead of returning stale storage.
    */
   inflightRefreshes: Map<string, Promise<void>>;
-  /** Memoized `MultiRpc` per environment (replaces the single mutable `#rpcClient`). */
+  /** Memoized `MultiRpc` per environment. */
   rpcCache: Map<NETWORK_ENVIRONMENT_VALUES, MultiRpc>;
 
+  /** Full tree used when building pending-note commitment witnesses. */
   notesTree: MerkleTree;
   /**
    * Per-network synced notes trees, keyed by networkSlug. Populated by the
    * `syncNotes` action, consumed by `getSpendWitnesses`. Holds whichever engine
-   * the consumer's `notesSyncEngine` selected — a lean `ShardedNotesTree`
-   * (default) or a full-IMT `GlobalNotesTree`; both satisfy `NotesTreeView`.
-   * The full-tree `notesTree` above remains for the legacy (v2 backend-proving)
-   * path until the v3 client-proving API migration.
+   * the consumer's `notesSyncEngine` selected — a bounded `ShardedNotesTree`
+   * (default) or a full `GlobalNotesTree`; both satisfy `NotesTreeView`.
    */
   notesTrees: Map<string, NotesTreeView>;
   /** Durable-base trees retained separately from the disposable effective view. */
@@ -85,10 +100,10 @@ export type CurvyConfigInternal = {
 export type CurvyConfig = {
   readonly uid: string;
 
-  readonly core: ICore;
-  readonly api: IApiClient;
-  readonly storage: StorageInterface;
-  readonly emitter: ICurvyEventEmitter;
+  readonly core: CoreAdapter;
+  readonly api: CurvyApiClient;
+  readonly storage: CurvyStorage;
+  readonly emitter: CurvyEventBus;
   /** Browser-only keypair/JWT persistence for page-refresh survival; `null` in Node. */
   readonly keystore: SessionKeystore | null;
 
@@ -114,10 +129,16 @@ export type CurvyConfig = {
 
   /**
    * Which engine `syncNotes`/`getSpendWitnesses` use for a network's notes
-   * tree: "sharded" (default, bounded live shard + witnesses) or "global" (legacy full IMT).
+   * tree: "sharded" (default, bounded live shard + witnesses) or "global" (full tree).
    * A consumer-level choice, fixed for the config's lifetime.
    */
   readonly notesSyncEngine: NotesSyncEngine;
+  /** Host-tunable polling and settlement deadlines used by planner execution. */
+  readonly executionPolicy: ExecutionPolicy;
+  /** Default planner submission path. An estimate records this choice for execution. */
+  readonly submissionMode: SubmissionMode;
+  /** Optional signer adapter used when `submissionMode` is `direct`. */
+  readonly directSubmitter?: DirectSubmitter;
 
   /**
    * The Groth16 prover used by the client-proving actions (`proveWithdrawal`,
@@ -143,7 +164,7 @@ export type CurvyConfig = {
    */
   readonly circuitKeyCache?: CircuitKeyCache;
 
-  /** Stop timers + detach listeners. New, required lifecycle obligation. */
+  /** Stop timers and detach listeners owned by this config. */
   destroy: () => Promise<void>;
 
   readonly _internal: CurvyConfigInternal;
@@ -153,7 +174,7 @@ export type CreateCurvyConfigParameters = {
   environment?: NETWORK_ENVIRONMENT_VALUES;
   apiBaseUrl?: string;
   /**
-   * Base URL of the v3 metadata service. When set, the `network.*`, `user.*`,
+   * Base URL of the metadata service. When set, the `network.*`, `user.*`,
    * and `auth.*` API routes (currency/network metadata, Curvy ID registration
    * & resolution, JWT issuance) are routed here instead of `apiBaseUrl`.
    * Everything else (aggregator, relay, portals, sync) stays on `apiBaseUrl`
@@ -161,36 +182,42 @@ export type CreateCurvyConfigParameters = {
    */
   metadataBaseUrl?: string;
   /**
-   * Base URL of the v3 indexer. When set, the `sync.*` API routes (note +
+   * Base URL of the indexer. When set, the `sync.*` API routes (note +
    * nullifier streams + meta) are routed here instead of `apiBaseUrl`.
    * Everything else (auth, aggregator, relay, user, portals) stays on
    * `apiBaseUrl`.
    */
   indexerBaseUrl?: string;
   /**
-   * Per-chain v3 indexer base URLs, keyed by decimal `chainId`, for when each
+   * Per-chain indexer base URLs, keyed by decimal `chainId`, for when each
    * chain runs its own single-chain indexer (e.g. eth / base / arbitrum). A chain
    * absent from the map falls back to `indexerBaseUrl`. The `chainId` is also sent
    * as a query param so an indexer rejects requests meant for another chain.
    */
   indexerBaseUrlsByChainId?: Record<string, string>;
   /**
-   * Base URL of the v3 relayer service. When set, the `relay.*` API routes
+   * Base URL of the relayer service. When set, the `relay.*` API routes
    * (proof submission + status polling) are routed here instead of
    * `apiBaseUrl`. Everything else (auth, aggregator, user, portals, sync)
    * stays on `apiBaseUrl` (or `metadataBaseUrl`/`indexerBaseUrl`).
    */
   relayerBaseUrl?: string;
-  storage?: StorageInterface;
+  storage?: CurvyStorage;
   wasmUrl?: string;
   /** Pre-compiled core WASM module — pass this (instead of a URL) under MV3 to avoid a remote fetch. */
   wasmModule?: WebAssembly.Module;
   /** Inject a `core` (e.g. a fake) to make WASM-backed flows testable. */
-  core?: ICore;
+  core?: CoreAdapter;
   enableKeystore?: boolean;
   customFetch?: typeof globalThis.fetch;
   /** Injectable timer scheduler (default wraps setInterval); swap for `chrome.alarms` under MV3. */
   timerProvider?: TimerProvider;
+  /** Override planner polling/deadline defaults for the target chain or test host. */
+  executionPolicy?: Partial<ExecutionPolicy>;
+  /** Planner submission path. Defaults to `relay`. Can be overridden per estimate. */
+  submissionMode?: SubmissionMode;
+  /** Wallet-client resolver used for direct submission. It may also be supplied to `executeIntent`. */
+  directSubmitter?: DirectSubmitter;
   /** Notes-sync engine for `syncNotes`/`getSpendWitnesses`. Defaults to "sharded". */
   notesSyncEngine?: NotesSyncEngine;
   /** Opt into the Rayon browser build. `auto` uses it only when the page is cross-origin isolated. */

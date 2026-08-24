@@ -1,8 +1,8 @@
 import { isAddress as isSolanaAddress, type Address as SolanaAddress, address as toSolanaAddress } from "@solana/kit";
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import type { CurvyConfig } from "@/config/types";
+import type { MatchedPortalRecord, Network } from "@/http/contracts";
 import { deriveRecoveryIdentifier, deriveVaultPda, ownerHashToBytes } from "@/solana";
-import type { MatchedPortalRecord, Network } from "@/types/api";
 
 /**
  * Locate a Solana entry-portal vault PDA among the user's portal records.

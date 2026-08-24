@@ -1,7 +1,7 @@
 import { balanceEntryToNote, type Note } from "@/note";
 import type { CommandData } from "@/planner/types";
+import type { BalanceEntry } from "@/storage/types";
 import type { DeepNonNullable } from "@/types/helper";
-import type { BalanceEntry } from "@/types/storage";
 import { invariant } from "@/utils/invariant";
 
 /**
@@ -15,15 +15,10 @@ export function normalizeCommandNotes(rawInput: CommandData): {
   inputNotes: Note[];
   grossAmount: bigint;
 } {
-  if (Array.isArray(rawInput)) {
-    invariant(!rawInput.some((note) => !note.vaultTokenId), "Invalid input for command, vaultTokenId is required.");
-  } else {
-    invariant(rawInput.vaultTokenId, "Invalid input for command, vaultTokenId is required.");
-  }
+  invariant(rawInput.length > 0, "A command requires at least one input note.");
+  invariant(!rawInput.some((note) => !note.vaultTokenId), "Every command input requires a vaultTokenId.");
 
-  const input: DeepNonNullable<BalanceEntry>[] = (
-    Array.isArray(rawInput) ? rawInput.flat() : [rawInput]
-  ) as DeepNonNullable<BalanceEntry>[];
+  const input = rawInput as DeepNonNullable<BalanceEntry>[];
 
   const inputNotes: Note[] = input.map((noteBalanceEntry) => balanceEntryToNote(noteBalanceEntry));
   const grossAmount = inputNotes.reduce((acc, note) => acc + note.amount, 0n);

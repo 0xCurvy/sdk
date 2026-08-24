@@ -3,8 +3,7 @@ import { AuthError } from "@/errors";
 import { type EvmSignatureData, type EvmSignTypedDataParameters, isHexString } from "@/types";
 
 /**
- * Verify an EVM EIP-712 signature and return its `[r, s]` components. Faithful
- * port of `AccountManager.#verifySignature`.
+ * Verify an EVM EIP-712 signature and return its `[r, s]` components.
  *
  * Internal (non-action) helper. Throws on a non-hex signature result or a
  * signature that fails typed-data verification against `signingAddress`.

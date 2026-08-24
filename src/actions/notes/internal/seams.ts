@@ -1,17 +1,14 @@
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import type { CurvyConfig } from "@/config/types";
+import { getNotesTreeParameters, nullifier as rustNullifier } from "@/core/rustCore";
 import type { OwnershipMatch, OwnershipResolver } from "@/note/discoverOwnedNotes";
 import type { FinalizedSyncCheckpoint, LeafSource, RootVerifier, SyncedLeaf } from "@/note/notesTreeSync";
 import type { LeafRangeSource } from "@/note/shardedNotesSync";
-import { DEFAULT_SHARD_HEIGHT } from "@/note/shardedNotesTree";
-import { nullifier as rustNullifier } from "@/proving/rustCore";
 import type { EvmRpc } from "@/rpc";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Production adapters for the sharded-sync seams. The engine
-// (syncShardedNotesTree) is transport-agnostic; these bind it to the real
-// surfaces: the indexer HTTP API (availability), a direct contract read
-// (truth), and the account's stored balance entries (ownership).
+// Bind the transport-agnostic sync engine to the indexer, direct chain RPC,
+// and local Rust ownership discovery.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // The indexer serializes field elements as 0x-hex, but the rest of the SDK works
@@ -47,8 +44,9 @@ export function apiLeafSource(
         throw new Error(`sync checkpoint contract ${meta.contractAddress} does not match chain ${chainId}`);
       }
       if (meta.chainId !== chainId) throw new Error(`sync checkpoint chain ${meta.chainId} does not match ${chainId}`);
-      if (meta.treeVersion !== 1) throw new Error(`unsupported sync tree version ${meta.treeVersion}`);
-      if (meta.shardHeight !== DEFAULT_SHARD_HEIGHT || meta.shardSize !== 1 << DEFAULT_SHARD_HEIGHT) {
+      const production = getNotesTreeParameters();
+      if (meta.treeVersion !== production.version) throw new Error(`unsupported sync tree version ${meta.treeVersion}`);
+      if (meta.shardHeight !== production.shardHeight || meta.shardSize !== production.shardSize) {
         throw new Error(`unsupported shard geometry h${meta.shardHeight}/${meta.shardSize}`);
       }
       if (meta.noteCount < cursor.leafCount || meta.nullifierCount < cursor.nullifierCount) {
@@ -193,51 +191,9 @@ export function rpcRootVerifier(config: CurvyConfig, networkSlug: string): RootV
 }
 
 /**
- * Ownership resolver derived from the account's STORED balance entries — the
- * notes the existing scan path already discovered. No new cryptography: the
- * resolver only supplies (sharedSecret, ownerPub); `discoverOwnedNotes`' noteId
- * recompute remains the integrity gate. A WASM-Core per-leaf ECDH resolver can
- * replace this later to also discover notes the scan has never seen.
- *
- * Intentional dead code: production sync uses {@link coreOwnershipResolver} (which
- * supersedes this); the stored-balance variant is retained as a documented
- * fallback and is currently exercised only by tests.
- */
-export async function balanceOwnershipResolver(
-  config: CurvyConfig,
-  accountId: string,
-  networkSlug: string,
-): Promise<OwnershipResolver> {
-  const entries = await config.storage.getBalances(accountId, config.state.environment);
-  const byNoteId = new Map(
-    entries
-      .filter((e) => e.networkSlug === networkSlug)
-      .map((e) => [
-        e.id,
-        {
-          sharedSecret: BigInt(e.owner.sharedSecret),
-          ownerPub: [BigInt(e.owner.babyJubjubPublicKey.x), BigInt(e.owner.babyJubjubPublicKey.y)] as [bigint, bigint],
-        },
-      ]),
-  );
-  return async (leaf) => byNoteId.get(leaf.noteId) ?? null;
-}
-
-/**
- * Production ownership resolver: local-ECDH note discovery via the WASM `Core`.
- * Trial-decrypts each delta leaf's ephemeral key against the account's (s, v)
- * keys — the SAME ownership step the legacy `noteScan` ran (`core.scanNotes` →
- * per-note `spendingPubKey`), minus the per-note backend round-trip. Unlike the
- * balance-derived resolver it discovers FIRST-TIME-seen notes (incoming
- * deposits/transfers), not just notes already in storage.
- *
- * The whole delta is trial-decrypted in ONE `scanNotes` via the `prescan` hook;
- * the per-leaf body is then a map lookup. Format bridge: a `SyncedLeaf` carries
- * `ephemeralKey: [x, y]` + a numeric `viewTag`, whereas the WASM scan wants the
- * V2 announcement shape — R as the packed "x.y" key and viewTag as zero-padded hex
- * (`viewTag.toString(16).padStart(2, "0")`), matching `Note.serializeOutputNote`'s deliveryTag.
- * `discoverOwnedNotes`' noteId recompute stays the integrity gate, so a wrong
- * (sharedSecret, ownerPub) can never survive into a balance entry.
+ * Discover incoming notes locally with the account viewing keys. Rust scans the
+ * batch once; individual resolver calls then read the matched shared secret.
+ * `discoverOwnedNotes` independently recomputes each note id before accepting it.
  */
 export function coreOwnershipResolver(config: CurvyConfig, accountId: string): OwnershipResolver {
   const { s, v, babyJubjubPublicKey } = getActiveKeyPairs(config, accountId);
@@ -259,8 +215,7 @@ export function coreOwnershipResolver(config: CurvyConfig, accountId: string): O
       v,
       discoverable.map((l) => ({
         ephemeralKey: `${BigInt(l.ephemeralKey[0])}.${BigInt(l.ephemeralKey[1])}`,
-        // Keep the delivery tag byte-aligned for stable compatibility with
-        // persisted values created by the original scanner.
+        // Delivery tags are byte values represented as zero-padded hex.
         viewTag: (l.viewTag ?? 0).toString(16).padStart(2, "0"),
       })),
     );

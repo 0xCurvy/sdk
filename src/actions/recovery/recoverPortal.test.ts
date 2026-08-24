@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Currency, MatchedPortalRecord } from "@/http/contracts";
 import { EvmRpc } from "@/rpc/evm";
 import type { MultiRpc } from "@/rpc/multi";
 import { createFakeApi, createFakeConfig, createFakeCore, fakeCurvyAccount, fixtureNetwork } from "@/test/fixtures";
-import type { Currency, MatchedPortalRecord } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { recoverPortal } from "./recoverPortal";
 
@@ -28,6 +28,7 @@ const NATIVE_ETH: Currency = {
 };
 
 const FACTORY = "0x00000000000000000000000000000000000000fa";
+const LEGACY_FACTORY = "0x00000000000000000000000000000000000000fb";
 const DESTINATION = "0x00000000000000000000000000000000000000d0";
 const TOKEN = "0x00000000000000000000000000000000000000c0";
 const RECOVERY_ADDR = "0x00000000000000000000000000000000000000e0";
@@ -142,6 +143,26 @@ describe("recoverPortal", () => {
     // The derived recovery account is the tx sender.
     expect(call.account.address).toBe("0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf");
     expect(waitForTransactionReceipt).toHaveBeenCalledWith({ hash: RECOVERY_TX_HASH });
+  });
+
+  it("can recover through a retired factory override", async () => {
+    const network = evmNetwork();
+    const { config, writeContract } = makeConfig({
+      spendingPrivKeys: [RECOVERY_PRIV_KEY],
+      networks: [network],
+      rpcNetwork: network,
+    });
+
+    await recoverPortal({
+      config,
+      networkId: 42,
+      tokenAddress: TOKEN,
+      portalRecord: evmEntryRecord(),
+      destinationAddress: DESTINATION,
+      portalFactoryContractAddress: LEGACY_FACTORY,
+    });
+
+    expect(writeContract.mock.calls[0][0].address).toBe(LEGACY_FACTORY);
   });
 
   it("submits deployRecoveryExitPortal for an exit portal", async () => {

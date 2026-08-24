@@ -1,6 +1,6 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { ScanError } from "@/errors";
-import type { Plan, PlanExecution } from "@/planner/types";
+import type { CurvyError, ScanError } from "@/errors";
+import type { PlanStep } from "@/planner/types";
 import type { ExtractValues } from "@/types/helper";
 
 export const CURVY_EVENT_TYPES = {
@@ -11,7 +11,6 @@ export const CURVY_EVENT_TYPES = {
   BALANCE_REFRESH_ERROR: "balance-refresh-error",
 
   PLAN_EXECUTION_STARTED: "plan-execution-started",
-  PLAN_COMMAND_EXECUTION_PROGRESS: "plan-command-execution-progress",
   PLAN_EXECUTION_PROGRESS: "plan-execution-progress",
   PLAN_EXECUTION_COMPLETE: "plan-execution-complete",
   PLAN_EXECUTION_ERROR: "plan-execution-error",
@@ -34,7 +33,6 @@ export type CURVY_EVENTS = {
   [CURVY_EVENT_TYPES.BALANCE_REFRESH_ERROR]: BalanceRefreshErrorEvent;
 
   [CURVY_EVENT_TYPES.PLAN_EXECUTION_STARTED]: PlanExecutionStartedEvent;
-  [CURVY_EVENT_TYPES.PLAN_COMMAND_EXECUTION_PROGRESS]: PlanCommandExecutionProgressEvent;
   [CURVY_EVENT_TYPES.PLAN_EXECUTION_PROGRESS]: PlanExecutionProgressEvent;
   [CURVY_EVENT_TYPES.PLAN_EXECUTION_COMPLETE]: PlanExecutionCompleteEvent;
   [CURVY_EVENT_TYPES.PLAN_EXECUTION_ERROR]: PlanExecutionErrorEvent;
@@ -93,24 +91,27 @@ export type {
 //#region Plan Execution events
 
 type PlanExecutionStartedEvent = {
-  plan: Plan;
+  executionId: string;
+  steps: PlanStep[];
 };
 
 type PlanExecutionProgressEvent = {
-  plan: Plan;
-  result: PlanExecution;
+  executionId: string;
+  step: PlanStep;
+  status: "started" | "succeeded" | "failed";
+  error?: CurvyError;
 };
 
-type PlanCommandExecutionProgressEvent = {
-  commandId: string;
+type PlanExecutionCompleteEvent = {
+  executionId: string;
+  steps: PlanStep[];
 };
 
-type PlanExecutionCompleteEvent = PlanExecutionProgressEvent;
-
-type PlanExecutionErrorEvent = PlanExecutionProgressEvent;
+type PlanExecutionErrorEvent = PlanExecutionCompleteEvent & {
+  error: CurvyError;
+};
 
 export type {
-  PlanCommandExecutionProgressEvent,
   PlanExecutionStartedEvent,
   PlanExecutionProgressEvent,
   PlanExecutionCompleteEvent,

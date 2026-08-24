@@ -1,23 +1,23 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { StorageInterface } from "@/interfaces/storage";
+import { nullifier as rustNullifier } from "@/core/rustCore";
+import type { GetSyncHotMetaReturnType, SyncHotBlock } from "@/http/contracts";
 import { Note } from "@/note/note";
 import { noteToBalanceEntry } from "@/note/noteToBalanceEntry";
-import { nullifier as rustNullifier } from "@/proving/rustCore";
-import type { GetSyncHotMetaReturnType, SyncHotBlock } from "@/types/api";
-import type { HexString } from "@/types/helper";
+import type { CurvyStorage } from "@/storage/contracts";
 import type {
   HotBlockRecord,
   HotNoteState,
   NotesCheckpoint,
   TransferHistoryRecord,
   TxHistoryEntry,
-} from "@/types/storage";
+} from "@/storage/types";
+import type { HexString } from "@/types/helper";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "./discoverOwnedNotes";
 import type { SyncedLeaf } from "./notesTreeSync";
 import { ShardedNotesTree } from "./shardedNotesTree";
 
 type ApplyHotNotesOverlayOptions = {
-  storage: StorageInterface;
+  storage: CurvyStorage;
   accountId?: string;
   networkSlug: string;
   environment: NETWORK_ENVIRONMENT_VALUES;
@@ -121,7 +121,7 @@ export async function applyHotNotesOverlay(options: ApplyHotNotesOverlayOptions)
   }
 
   const noteStates = new Map<string, HotNoteState>();
-  const balanceById = new Map<string, Awaited<ReturnType<StorageInterface["getBalances"]>>[number]>();
+  const balanceById = new Map<string, Awaited<ReturnType<CurvyStorage["getBalances"]>>[number]>();
   if (accountId) {
     for (const entry of await storage.getBalances(accountId, environment)) {
       if (entry.networkSlug === networkSlug) balanceById.set(entry.id, entry);
@@ -145,7 +145,7 @@ export async function applyHotNotesOverlay(options: ApplyHotNotesOverlayOptions)
 
   const toBalance = async (note: OwnedNote, finality: "hot" | "finalized") => {
     if (!accountId) return undefined;
-    let metadata: Awaited<ReturnType<StorageInterface["getCurrencyMetadata"]>>;
+    let metadata: Awaited<ReturnType<CurvyStorage["getCurrencyMetadata"]>>;
     try {
       metadata = await storage.getCurrencyMetadata(note.token, networkSlug);
     } catch {
@@ -247,7 +247,7 @@ export async function applyHotNotesOverlay(options: ApplyHotNotesOverlayOptions)
         balanceEntry: provisional?.balanceEntry ?? balanceById.get(noteId),
         origin: provisional?.origin ?? "external",
         originIntentId: provisional?.originIntentId,
-        spentHotBy: nullifier.relaySubmissionId ?? nullifier.transactionHash,
+        spentHotBy: nullifier.transactionHash,
         spentBlockNumber: block.number,
         spentBlockHash: block.hash,
         spendTxHash: nullifier.transactionHash,

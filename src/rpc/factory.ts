@@ -1,7 +1,7 @@
 import { NETWORK_FLAVOUR } from "@/constants/networks";
+import type { Network } from "@/http/contracts";
 import { EvmRpc } from "@/rpc/evm";
 import { SolanaRpc } from "@/rpc/solana";
-import type { Network } from "@/types/api";
 import { MultiRpc } from "./multi";
 
 function newRpc(network: Network) {

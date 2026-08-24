@@ -1,4 +1,5 @@
 import { Note } from "@/note";
+import { computeAggregationTotals } from "@/planner/feeMath";
 import { poseidonHash } from "@/utils/hash/poseidonHash";
 import { ephemeralPubKey, pubFromPrivateKey, sign } from "./babyJubjub";
 import { encryptAmountToken } from "./balanceCipher";
@@ -16,7 +17,7 @@ import { MerkleTree } from "./merkleTree";
 import { generateRandomBigInt } from "./utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// From-REAL-notes input builders for the v2 single-* circuits + their flat ABI.
+// Build circuit witnesses and flat proving inputs from committed notes.
 //
 // Why flatten: circom_runtime (0.1.28) consumes circom 2.2 `bus` inputs as FLAT
 // arrays in field-declaration order, NOT nested `{field: value}` objects. These
@@ -175,7 +176,7 @@ const flatEncrypted = (e: EncryptedNoteDataBus): bigint[] => [
   e.viewTag,
 ];
 
-/** Flatten `WithdrawCircuitInputs` into the witness `groth16.fullProve` expects. */
+/** Flatten `WithdrawCircuitInputs` into the signal map consumed by the witness graph. */
 export const flattenWithdrawalCircuitInputs = (w: WithdrawCircuitInputs) => ({
   inputNotes: w.inputNotes.map(flatNote),
   publicKey: w.publicKey,
@@ -186,7 +187,7 @@ export const flattenWithdrawalCircuitInputs = (w: WithdrawCircuitInputs) => ({
   tokenId: w.tokenId,
 });
 
-/** Flatten `AggregationCircuitInputs` into the witness `groth16.fullProve` expects. */
+/** Flatten `AggregationCircuitInputs` into the signal map consumed by the witness graph. */
 export const flattenAggregationCircuitInputs = (a: AggregationCircuitInputs) => ({
   inputNotes: a.inputNotes.map(flatNote),
   inputNoteInclusionProofs: a.inputNoteInclusionProofs.map(flatInclusion),
@@ -318,12 +319,9 @@ export type AggregationFromNotesParams = {
   /** Lean-profile alternative: pre-built proofs (e.g. from ShardedNotesTree.witness), all at one root. */
   supplied?: SuppliedInclusionProofs;
   /**
-   * Coherently seal the change-to-self note so it is DISCOVERABLE on rescan/fresh
-   * device — wire this to `core.sendNote(selfS, selfV, …)` (real ECDH stealth
-   * delivery to the sender). When omitted, the change note falls back to a random,
-   * uncorrelated ephemeral/sharedSecret and is permanently undiscoverable (the
-   * legacy behaviour; acceptable only when `change` is 0 or for raw-tuple tests).
-   * The sealed note MUST own `change` for the sender (validated below).
+   * Create a discoverable change note for the sender. Required for non-zero
+   * change in application flows; the result is validated against the sender and
+   * expected amount.
    */
   sealChange?: (amount: bigint) => Promise<Note>;
   /**
@@ -381,9 +379,7 @@ export const buildAggregationWitnessBundle = async ({
   maxOutputs,
   treeDepth,
 }: AggregationFromNotesParams): Promise<AggregationWitnessBundle> => {
-  // The aggregation circuit zero-pads unused input slots (VerifyInclusionProof skips
-  // zero-amount notes), so 1..maxInputs real committed notes are allowed — the builder
-  // pads the rest below. Only TOO MANY is unspendable here (fold the excess first).
+  // The circuit accepts 1..maxInputs committed notes and zero-pads unused slots.
   if (inputNotes.length < 1 || inputNotes.length > maxInputs) {
     throw new Error(
       `aggregation: need 1..${maxInputs} real committed input notes (the circuit zero-pads the rest); got ${inputNotes.length}`,
@@ -422,20 +418,17 @@ export const buildAggregationWitnessBundle = async ({
     );
   }
 
-  const totalInput = inputNotes.reduce((acc, n) => acc + n.amount, 0n);
-  // All value routed to recipient slots (INCLUDING a self-directed carve-out note),
-  // used for change/conservation: change = inputs − recipients − fee, mirroring the
-  // circuit's `Σoutputs = Σinputs − feeNote.amount`.
-  const spentToRecipients = recipientOutputNotes.reduce((acc, n) => acc + n.amount, 0n);
-  // The protocol fee is charged ONLY on value LEAVING the sender. The circuit's
-  // `totalSpentValue` skips sender-owned outputs (the in-circuit `isSender` check), so
-  // exclude recipient notes the sender owns — e.g. a withdrawal carve-out's self note.
-  // Otherwise the SDK's feeNote amount wouldn't match the circuit and the proof fails.
-  const spentToOthers = recipientOutputNotes
-    .filter((n) => !sameKey(publicKey, n.owner.babyJubjubPublicKey))
-    .reduce((acc, n) => acc + n.amount, 0n);
-  const feeAmount = gasFee + (spentToOthers * protocolFeePerThousand) / 1000n;
-  const change = totalInput - spentToRecipients - feeAmount;
+  const allocation = computeAggregationTotals({
+    grossAmount: inputNotes.reduce((total, note) => total + note.amount, 0n),
+    recipients: recipientOutputNotes.map((note) => ({
+      amount: note.amount,
+      isSender: sameKey(publicKey, note.owner.babyJubjubPublicKey),
+    })),
+    commitmentFee: gasFee,
+    protocolFeePerThousand,
+  });
+  const feeAmount = allocation.feeNoteAmount;
+  const change = allocation.changeAmount;
   if (change < 0n) throw new Error(`aggregation: change negative (${change}); reduce outputs or fees`);
 
   const outputNotes: Note[] = [...recipientOutputNotes];
@@ -462,18 +455,8 @@ export const buildAggregationWitnessBundle = async ({
   outputNotes.push(changeNote);
   while (outputNotes.length < maxOutputs) outputNotes.push(zeroPadNote(publicKey, token));
 
-  // The fee note is owned by the protocol (`feeNotePublicKey`) but is a stealth
-  // note: its noteId/nullifier depend on `sharedSecret`. The fee collector
-  // recomputes it from ECDH(feeViewKey, R), so a random sharedSecret/R makes the
-  // fee PERMANENTLY UNCOLLECTABLE. `sealFee` (the fee-collector-aware delivery)
-  // makes a non-zero fee spendable; the bare SDK-direct path has no access to the
-  // collector's viewing key (the contract exposes only feeNotePublicKey), so when
-  // it is omitted the fee note falls back to a random tuple — harmless for a zero
-  // fee, but an uncollectable protocol fee for a non-zero one (set the on-chain
-  // fee to 0, or supply `sealFee`/`feeRecipient` from operator config, to recover it).
-  // A non-zero protocol fee MUST be sealed to the fee collector, or it is emitted with a
-  // random sharedSecret and becomes permanently uncollectable. Refuse to silently mint
-  // dead value (the previous behaviour contradicted this function's own `sealFee` JSDoc).
+  // A non-zero fee needs valid delivery data so the fee collector can discover
+  // and spend it. Refuse to create an unreachable fee note.
   if (feeAmount > 0n && !sealFee) {
     throw new Error(
       `aggregation: a non-zero protocol fee (${feeAmount}) requires \`sealFee\` (fee-collector stealth delivery); ` +

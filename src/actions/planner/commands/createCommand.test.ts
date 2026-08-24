@@ -1,15 +1,19 @@
+import { getQuote } from "@lifi/sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildAggregateRequest } from "@/actions/aggregator/buildAggregateRequest";
 import { buildWithdrawRequest } from "@/actions/aggregator/buildWithdrawRequest";
+import { estimateAggregationCosts } from "@/actions/aggregator/internal/estimateAggregationCosts";
 import { relaySubmission } from "@/actions/aggregator/relaySubmission";
 import { waitForRelay } from "@/actions/aggregator/waitForRelay";
 import { getSpendWitnesses } from "@/actions/notes/getSpendWitnesses";
 import { syncNotes } from "@/actions/notes/syncNotes";
+import { FeeEstimateUnavailableError } from "@/errors";
 import { Note } from "@/note";
 import type { Intent } from "@/planner/types";
 import {
   createFakeApi,
   createFakeConfig,
+  createFakeMultiRpc,
   DEFAULT_TEST_PROTOCOL,
   fakeBalanceEntry,
   fakeCurvyAccount,
@@ -18,18 +22,25 @@ import {
 import type { BalanceEntry, CurvyId, HexString } from "@/types";
 import { createCommand } from "./createCommand";
 
-// The v3 client-proving execute path is mocked at the seam — local proving +
-// relay + sync are exercised end-to-end by the devenv e2e; here we assert the
-// command delegates to them. (Construction-only tests below don't call these.)
+// Mock expensive proving and external IO at their action boundaries; these
+// tests verify command allocation, delegation, and bookkeeping contracts.
 vi.mock("@/actions/aggregator/buildAggregateRequest", () => ({ buildAggregateRequest: vi.fn() }));
 vi.mock("@/actions/aggregator/buildWithdrawRequest", () => ({ buildWithdrawRequest: vi.fn() }));
+vi.mock("@/actions/aggregator/internal/estimateAggregationCosts", () => ({ estimateAggregationCosts: vi.fn() }));
 vi.mock("@/actions/aggregator/relaySubmission", () => ({ relaySubmission: vi.fn() }));
 vi.mock("@/actions/aggregator/waitForRelay", () => ({ waitForRelay: vi.fn() }));
 vi.mock("@/actions/notes/getSpendWitnesses", () => ({ getSpendWitnesses: vi.fn() }));
 vi.mock("@/actions/notes/syncNotes", () => ({ syncNotes: vi.fn() }));
+vi.mock("@lifi/sdk", () => ({ getQuote: vi.fn() }));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(estimateAggregationCosts).mockResolvedValue({
+    operator: { S: "operator-S", V: "operator-V", babyJubjubPublicKey: "3.4" },
+    relayFee: 0n,
+    commitmentFee: 10n,
+    protocolFeePerThousand: 0n,
+  });
 });
 
 /**
@@ -41,7 +52,7 @@ function entry(overrides: Partial<BalanceEntry> = {}): BalanceEntry {
   return fakeBalanceEntry({ deliveryTag: { ephemeralKey: "4.5", viewTag: "0x6" }, ...overrides });
 }
 
-const NETWORK = fixtureNetwork();
+const NETWORK = fixtureNetwork({ vaultContractAddress: "0x0000000000000000000000000000000000000010" });
 
 /** Protocol-global proving config with groupFee 10 on both aggregation and withdrawal. */
 const PROTOCOL = {
@@ -56,6 +67,8 @@ const PROTOCOL = {
 /** A config wired so both `getActiveAccount` (state) and `signMessage` (live map) resolve. */
 function buildConfig(api = createFakeApi()) {
   const account = fakeCurvyAccount();
+  const rpc = createFakeMultiRpc();
+  rpc.Network = vi.fn(() => ({ provider: { readContract: vi.fn(async () => ({ withdrawal: 0n })) } }) as never);
   const config = createFakeConfig({
     api,
     networks: [NETWORK],
@@ -71,6 +84,7 @@ function buildConfig(api = createFakeApi()) {
       },
     },
     liveAccounts: new Map([["account-a", account]]),
+    rpc,
   });
   return config;
 }
@@ -80,10 +94,10 @@ describe("createCommand (dispatch)", () => {
     const config = buildConfig();
     const command = createCommand(config, {
       id: "cmd-1",
-      name: "aggregator-aggregate",
-      input: entry(),
+      kind: "aggregator-aggregate",
+      input: [entry()],
     });
-    expect(command.name).toBe("AggregatorAggregateCommand");
+    expect(command.kind).toBe("aggregator-aggregate");
     expect(command.id).toBe("cmd-1");
   });
 
@@ -98,24 +112,24 @@ describe("createCommand (dispatch)", () => {
     };
     const command = createCommand(config, {
       id: "cmd-2",
-      name: "aggregator-withdraw",
-      input: entry(),
+      kind: "aggregator-withdraw",
+      input: [entry()],
       intent,
     });
-    expect(command.name).toBe("AggregatorWithdrawToVaultCommand");
+    expect(command.kind).toBe("aggregator-withdraw");
     expect(command.id).toBe("cmd-2");
   });
 
   it("throws on an unknown command name", () => {
     const config = buildConfig();
-    expect(() => createCommand(config, { id: "cmd-3", name: "totally-unknown", input: entry() })).toThrow(
-      "Unknown command name: totally-unknown",
+    expect(() => createCommand(config, { id: "cmd-3", kind: "totally-unknown" as never, input: [entry()] })).toThrow(
+      "Unknown command kind: totally-unknown",
     );
   });
 
   it("throws when aggregator-withdraw is missing its intent", () => {
     const config = buildConfig();
-    expect(() => createCommand(config, { id: "cmd-4", name: "aggregator-withdraw", input: entry() })).toThrow(
+    expect(() => createCommand(config, { id: "cmd-4", kind: "aggregator-withdraw", input: [entry()] })).toThrow(
       "Intent is required for aggregator withdraw command.",
     );
   });
@@ -124,7 +138,7 @@ describe("createCommand (dispatch)", () => {
     const config = buildConfig();
     const command = createCommand(config, {
       id: "cmd-5",
-      name: "aggregator-aggregate",
+      kind: "aggregator-aggregate",
       input: [entry({ balance: 400n }), entry({ balance: 600n })],
     });
     expect(command.grossAmount).toBe(1000n);
@@ -136,7 +150,7 @@ describe("aggregator-aggregate command", () => {
     const config = buildConfig();
     const command = createCommand(config, {
       id: "cmd-agg",
-      name: "aggregator-aggregate",
+      kind: "aggregator-aggregate",
       input: [entry({ balance: 700n }), entry({ balance: 300n })],
     });
     expect(command.grossAmount).toBe(1000n);
@@ -155,8 +169,8 @@ describe("aggregator-aggregate command", () => {
     };
     const command = createCommand(config, {
       id: "cmd-agg2",
-      name: "aggregator-aggregate",
-      input: entry({ balance: 1000n }),
+      kind: "aggregator-aggregate",
+      input: [entry({ balance: 1000n })],
       intent,
     });
     expect(command.recipient).toBe("bob.curvy.name");
@@ -179,8 +193,8 @@ describe("aggregator-aggregate command", () => {
 
     const command = createCommand(config, {
       id: "cmd-agg3",
-      name: "aggregator-aggregate",
-      input: entry({ balance: 1000n }),
+      kind: "aggregator-aggregate",
+      input: [entry({ balance: 1000n })],
     });
 
     const estimate = await command.estimateFees();
@@ -190,6 +204,31 @@ describe("aggregator-aggregate command", () => {
     expect(sendNote).toHaveBeenCalledTimes(1);
     // netAmount = 1000 - 10 - 0 = 990 (the amount requested for the output note)
     expect(sendNote.mock.calls[0][2]).toMatchObject({ amount: 990n });
+  });
+
+  it("estimates direct aggregation without requiring relay operator keys", async () => {
+    vi.mocked(estimateAggregationCosts).mockResolvedValueOnce({
+      relayFee: 0n,
+      commitmentFee: 10n,
+      protocolFeePerThousand: 0n,
+    });
+    const config = buildConfig();
+    config.core.sendNote = vi.fn(async () => Note.random({ amount: 990n, token: 1n })) as never;
+    config.api.user.ResolveCurvyId = vi.fn(async () => ({
+      data: {
+        createdAt: "2024-01-01T00:00:00.000Z",
+        publicKeys: { spendingKey: "0xS", viewingKey: "0xV", babyJubjubPublicKey: "1.2" },
+      },
+    }));
+    const command = createCommand(config, {
+      id: "cmd-direct",
+      kind: "aggregator-aggregate",
+      input: [entry({ balance: 1000n })],
+      submissionMode: "direct",
+    });
+
+    await expect(command.estimateFees()).resolves.toMatchObject({ gasFeeInCurrency: 0n, deliveredAmount: 990n });
+    expect(estimateAggregationCosts).toHaveBeenCalledWith(expect.objectContaining({ submissionMode: "direct" }));
   });
 
   it("execute proves locally, relays, and returns the committed output once synced", async () => {
@@ -230,8 +269,8 @@ describe("aggregator-aggregate command", () => {
 
     const command = createCommand(config, {
       id: "cmd-agg4",
-      name: "aggregator-aggregate",
-      input,
+      kind: "aggregator-aggregate",
+      input: [input],
     });
 
     await command.estimateFees();
@@ -239,10 +278,13 @@ describe("aggregator-aggregate command", () => {
 
     expect(getSpendWitnesses).toHaveBeenCalledTimes(1);
     expect(buildAggregateRequest).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(buildAggregateRequest).mock.calls[0][0].recipients).toEqual([
+      { note: (command.getExecutionData() as { note: Note }).note },
+    ]);
     expect(relaySubmission).toHaveBeenCalledTimes(1);
     expect(waitForRelay).toHaveBeenCalledTimes(1);
     // execute returns the synced (committed) output balance entry.
-    expect((result as BalanceEntry).id).toBe("42");
+    expect((result as BalanceEntry[])[0].id).toBe("42");
   });
 });
 
@@ -260,7 +302,7 @@ describe("aggregator-withdraw command", () => {
     const config = buildConfig();
     const command = createCommand(config, {
       id: "cmd-wd",
-      name: "aggregator-withdraw",
+      kind: "aggregator-withdraw",
       input: [entry({ balance: 600n }), entry({ balance: 400n })],
       intent,
     });
@@ -273,8 +315,8 @@ describe("aggregator-withdraw command", () => {
     const badIntent = { ...intent, recipient: "not-a-hex" as never };
     const command = createCommand(config, {
       id: "cmd-wd2",
-      name: "aggregator-withdraw",
-      input: entry(),
+      kind: "aggregator-withdraw",
+      input: [entry()],
       intent: badIntent,
     });
     expect(() => command.recipient).toThrow("Withdraw command recipient must be a hex string address");
@@ -284,14 +326,53 @@ describe("aggregator-withdraw command", () => {
     const config = buildConfig();
     const command = createCommand(config, {
       id: "cmd-wd3",
-      name: "aggregator-withdraw",
-      input: entry({ balance: 1000n }),
+      kind: "aggregator-withdraw",
+      input: [entry({ balance: 1000n })],
       intent,
     });
     const estimate = await command.estimateFees();
     expect(estimate.curvyFeeInCurrency).toBe(10n);
     expect(estimate.gasFeeInCurrency).toBe(0n);
     expect(estimate.bridgeFeeInCurrency).toBeUndefined();
+    expect(estimate).toMatchObject({ deliveredAmount: 990n, totalFeeInCurrency: 10n });
+  });
+
+  it("reports the quoted delivered amount for a portal route", async () => {
+    vi.mocked(getQuote).mockResolvedValue({
+      action: {
+        fromToken: { chainId: 1, address: "0xcafe", decimals: 6, priceUSD: "1" },
+      },
+      estimate: { toAmount: "875", feeCosts: [], gasCosts: [] },
+    } as never);
+    const exitCurrency = { contractAddress: "0xbeef" as HexString } as never;
+    const config = buildConfig();
+    const command = createCommand(config, {
+      id: "cmd-wd-portal",
+      kind: "aggregator-withdraw",
+      input: [entry({ balance: 1000n })],
+      intent: { ...intent, exitAddress: intent.recipient, exitCurrency },
+    });
+
+    const estimate = await command.estimateFees();
+    const delivered = await command.getResultingData();
+
+    expect(estimate.bridgeEstimateAmount).toBe("875");
+    expect(delivered).toMatchObject({ kind: "delivered", amount: 875n, currencyAddress: "0xbeef" });
+  });
+
+  it("fails the estimate when the on-chain withdrawal fee cannot be read", async () => {
+    const config = buildConfig();
+    vi.mocked(config.getRpc().Network).mockReturnValue({
+      provider: { readContract: vi.fn(async () => Promise.reject(new Error("rpc unavailable"))) },
+    } as never);
+    const command = createCommand(config, {
+      id: "cmd-wd-fee-error",
+      kind: "aggregator-withdraw",
+      input: [entry({ balance: 1000n })],
+      intent,
+    });
+
+    await expect(command.estimateFees()).rejects.toBeInstanceOf(FeeEstimateUnavailableError);
   });
 
   it("execute proves the withdrawal locally and relays it", async () => {
@@ -316,7 +397,7 @@ describe("aggregator-withdraw command", () => {
 
     const command = createCommand(config, {
       id: "cmd-wd4",
-      name: "aggregator-withdraw",
+      kind: "aggregator-withdraw",
       // v3 withdrawal consumes exactly maxInputs (2) committed notes.
       input,
       intent,
@@ -330,6 +411,6 @@ describe("aggregator-withdraw command", () => {
     expect(relaySubmission).toHaveBeenCalledTimes(1);
     expect(waitForRelay).toHaveBeenCalledTimes(1);
     // netAmount = 1000 - 10 - 0 = 990
-    expect((result as { balance: bigint }).balance).toBe(990n);
+    expect(result).toMatchObject({ kind: "delivered", amount: 990n });
   });
 });

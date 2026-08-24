@@ -1,11 +1,12 @@
+import { isAddress } from "viem";
 import { getActiveKeyPairs } from "@/actions/account/internal/getActiveKeyPairs";
 import type { CurvyConfig } from "@/config/types";
 import { portalFactoryAbi } from "@/contracts/evm/abi/portal-factory";
+import { ownerHash as computeOwnerHash } from "@/core/rustCore";
+import type { MatchedPortalRecord, Network } from "@/http/contracts";
 import { EvmRpc } from "@/rpc/evm";
-import type { MatchedPortalRecord, Network } from "@/types/api";
 import type { HexString } from "@/types/helper";
 import { deriveAddress } from "@/utils/address/deriveAddress";
-import { poseidonHash } from "@/utils/hash/poseidonHash";
 
 /**
  * Enumerate every EVM portal owned by the active account's keys on `network`.
@@ -16,10 +17,15 @@ import { poseidonHash } from "@/utils/hash/poseidonHash";
  * address via a `portalFactory` multicall (`getEntryPortalAddress` /
  * `getExitPortalAddress`). Internal helper: takes `config` as a plain arg.
  */
-export async function findOwnedEvmPortals(config: CurvyConfig, network: Network): Promise<MatchedPortalRecord[]> {
+export async function findOwnedEvmPortals(
+  config: CurvyConfig,
+  network: Network,
+  portalFactoryContractAddress?: HexString,
+): Promise<MatchedPortalRecord[]> {
   const keyPairs = getActiveKeyPairs(config);
+  const configuredFactoryAddress = portalFactoryContractAddress ?? network.portalFactoryContractAddress;
 
-  if (!network.portalFactoryContractAddress) {
+  if (!configuredFactoryAddress || !isAddress(configuredFactoryAddress)) {
     throw new Error(`Provided network ${network.name} does not have PortalFactory contract deployed.`);
   }
 
@@ -29,7 +35,7 @@ export async function findOwnedEvmPortals(config: CurvyConfig, network: Network)
     throw new Error(`Unsupported network ${network.name}`);
   }
 
-  const factoryAddress = network.portalFactoryContractAddress as HexString;
+  const factoryAddress = configuredFactoryAddress as HexString;
 
   const BATCH_SIZE = 200;
   let cursor: string | undefined;
@@ -58,7 +64,7 @@ export async function findOwnedEvmPortals(config: CurvyConfig, network: Network)
       const recoveryAddress = deriveAddress(spendingPubKey, "evm");
 
       const sharedSecret = spendingPubKey.split(".")[0];
-      const ownerHash = poseidonHash([BigInt(bjjX), BigInt(bjjY), BigInt(sharedSecret)]).toString();
+      const ownerHash = computeOwnerHash(BigInt(bjjX), BigInt(bjjY), BigInt(sharedSecret)).toString();
 
       matched.push({ index: i, spendingPubKey, recoveryAddress, ownerHash });
     }

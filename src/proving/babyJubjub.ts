@@ -1,9 +1,9 @@
-import type { Signature } from "@/types/core";
 import {
   ephemeralPubKey as rustEphemeralPubKey,
   pubFromPrivateKey as rustPubFromPrivateKey,
   sign as rustSign,
-} from "./rustCore";
+} from "@/core/rustCore";
+import type { Signature } from "@/core/types";
 
 // BabyJubjub / EdDSA-Poseidon primitives shared by the circuit-witness builders:
 // ephemeral public-key derivation, public-key recovery, and message signing.

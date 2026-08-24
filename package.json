@@ -59,66 +59,6 @@
         "default": "./dist/_cjs/actions/index.cjs"
       }
     },
-    "./actions/account": {
-      "import": {
-        "types": "./dist/_types/actions/account/index.d.ts",
-        "default": "./dist/_esm/actions/account/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/actions/account/index.d.cts",
-        "default": "./dist/_cjs/actions/account/index.cjs"
-      }
-    },
-    "./actions/auth": {
-      "import": {
-        "types": "./dist/_types/actions/auth/index.d.ts",
-        "default": "./dist/_esm/actions/auth/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/actions/auth/index.d.cts",
-        "default": "./dist/_cjs/actions/auth/index.cjs"
-      }
-    },
-    "./actions/balances": {
-      "import": {
-        "types": "./dist/_types/actions/balances/index.d.ts",
-        "default": "./dist/_esm/actions/balances/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/actions/balances/index.d.cts",
-        "default": "./dist/_cjs/actions/balances/index.cjs"
-      }
-    },
-    "./actions/networks": {
-      "import": {
-        "types": "./dist/_types/actions/networks/index.d.ts",
-        "default": "./dist/_esm/actions/networks/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/actions/networks/index.d.cts",
-        "default": "./dist/_cjs/actions/networks/index.cjs"
-      }
-    },
-    "./actions/planner": {
-      "import": {
-        "types": "./dist/_types/actions/planner/index.d.ts",
-        "default": "./dist/_esm/actions/planner/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/actions/planner/index.d.cts",
-        "default": "./dist/_cjs/actions/planner/index.cjs"
-      }
-    },
-    "./actions/portals": {
-      "import": {
-        "types": "./dist/_types/actions/portals/index.d.ts",
-        "default": "./dist/_esm/actions/portals/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/actions/portals/index.d.cts",
-        "default": "./dist/_cjs/actions/portals/index.cjs"
-      }
-    },
     "./config": {
       "import": {
         "types": "./dist/_types/config/index.d.ts",
@@ -129,24 +69,14 @@
         "default": "./dist/_cjs/config/index.cjs"
       }
     },
-    "./config/browser": {
+    "./planner": {
       "import": {
-        "types": "./dist/_types/config/browser.d.ts",
-        "default": "./dist/_esm/config/browser.js"
+        "types": "./dist/_types/planner/index.d.ts",
+        "default": "./dist/_esm/planner/index.js"
       },
       "require": {
-        "types": "./dist/_types/config/browser.d.cts",
-        "default": "./dist/_cjs/config/browser.cjs"
-      }
-    },
-    "./config/server": {
-      "import": {
-        "types": "./dist/_types/config/server.d.ts",
-        "default": "./dist/_esm/config/server.js"
-      },
-      "require": {
-        "types": "./dist/_types/config/server.d.cts",
-        "default": "./dist/_cjs/config/server.cjs"
+        "types": "./dist/_types/planner/index.d.cts",
+        "default": "./dist/_cjs/planner/index.cjs"
       }
     },
     "./utils": {
@@ -157,86 +87,6 @@
       "require": {
         "types": "./dist/_types/utils/index.d.cts",
         "default": "./dist/_cjs/utils/index.cjs"
-      }
-    },
-    "./utils/brand": {
-      "import": {
-        "types": "./dist/_types/utils/brand.d.ts",
-        "default": "./dist/_esm/utils/brand.js"
-      },
-      "require": {
-        "types": "./dist/_types/utils/brand.d.cts",
-        "default": "./dist/_cjs/utils/brand.cjs"
-      }
-    },
-    "./utils/invariant": {
-      "import": {
-        "types": "./dist/_types/utils/invariant.d.ts",
-        "default": "./dist/_esm/utils/invariant.js"
-      },
-      "require": {
-        "types": "./dist/_types/utils/invariant.d.cts",
-        "default": "./dist/_cjs/utils/invariant.cjs"
-      }
-    },
-    "./utils/timer": {
-      "import": {
-        "types": "./dist/_types/utils/timer.d.ts",
-        "default": "./dist/_esm/utils/timer.js"
-      },
-      "require": {
-        "types": "./dist/_types/utils/timer.d.cts",
-        "default": "./dist/_cjs/utils/timer.cjs"
-      }
-    },
-    "./utils/address": {
-      "import": {
-        "types": "./dist/_types/utils/address/index.d.ts",
-        "default": "./dist/_esm/utils/address/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/utils/address/index.d.cts",
-        "default": "./dist/_cjs/utils/address/index.cjs"
-      }
-    },
-    "./utils/encoding": {
-      "import": {
-        "types": "./dist/_types/utils/encoding/index.d.ts",
-        "default": "./dist/_esm/utils/encoding/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/utils/encoding/index.d.cts",
-        "default": "./dist/_cjs/utils/encoding/index.cjs"
-      }
-    },
-    "./utils/hash": {
-      "import": {
-        "types": "./dist/_types/utils/hash/index.d.ts",
-        "default": "./dist/_esm/utils/hash/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/utils/hash/index.d.cts",
-        "default": "./dist/_cjs/utils/hash/index.cjs"
-      }
-    },
-    "./utils/keys": {
-      "import": {
-        "types": "./dist/_types/utils/keys/index.d.ts",
-        "default": "./dist/_esm/utils/keys/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/utils/keys/index.d.cts",
-        "default": "./dist/_cjs/utils/keys/index.cjs"
-      }
-    },
-    "./utils/network": {
-      "import": {
-        "types": "./dist/_types/utils/network/index.d.ts",
-        "default": "./dist/_esm/utils/network/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/utils/network/index.d.cts",
-        "default": "./dist/_cjs/utils/network/index.cjs"
       }
     },
     "./gas": {
@@ -309,14 +159,14 @@
         "default": "./dist/_cjs/core/index.cjs"
       }
     },
-    "./http": {
+    "./contracts": {
       "import": {
-        "types": "./dist/_types/http/index.d.ts",
-        "default": "./dist/_esm/http/index.js"
+        "types": "./dist/_types/contracts/index.d.ts",
+        "default": "./dist/_esm/contracts/index.js"
       },
       "require": {
-        "types": "./dist/_types/http/index.d.cts",
-        "default": "./dist/_cjs/http/index.cjs"
+        "types": "./dist/_types/contracts/index.d.cts",
+        "default": "./dist/_cjs/contracts/index.cjs"
       }
     },
     "./http/api": {
@@ -357,26 +207,6 @@
       "require": {
         "types": "./dist/_types/storage/idb/index.d.cts",
         "default": "./dist/_cjs/storage/idb/index.cjs"
-      }
-    },
-    "./errors": {
-      "import": {
-        "types": "./dist/_types/errors.d.ts",
-        "default": "./dist/_esm/errors.js"
-      },
-      "require": {
-        "types": "./dist/_types/errors.d.cts",
-        "default": "./dist/_cjs/errors.cjs"
-      }
-    },
-    "./types": {
-      "import": {
-        "types": "./dist/_types/types/index.d.ts",
-        "default": "./dist/_esm/types/index.js"
-      },
-      "require": {
-        "types": "./dist/_types/types/index.d.cts",
-        "default": "./dist/_cjs/types/index.cjs"
       }
     },
     "./vite": {
@@ -436,7 +266,7 @@
     }
   },
   "dependencies": {
-    "@0xcurvy/rs-core-wasm": "0.1.0-rc.2",
+    "@0xcurvy/rs-core-wasm": "0.1.0-rc.4",
     "@cloudflare/privacypass-ts": "0.9.0",
     "@lifi/sdk": "^3.13.6",
     "@noble/hashes": "^2.2.0",

@@ -1,30 +1,22 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { StorageInterface } from "@/interfaces/storage";
 import {
   bytesToFields,
   createRustMerkleTreeFromLeaves,
   fieldToBytes,
+  getNotesTreeParameters,
   nullifier as rustNullifier,
-} from "@/proving/rustCore";
+} from "@/core/rustCore";
+import type { CurvyStorage } from "@/storage/contracts";
 import { discoverOwnedNotes, type OwnedNote, type OwnershipResolver } from "./discoverOwnedNotes";
 import { type LeafSource, type RootVerifier, reconcileWithChain, type SyncedLeaf } from "./notesTreeSync";
-import { DEFAULT_SHARD_HEIGHT, NOTES_TREE_DEPTH, ShardedNotesTree } from "./shardedNotesTree";
+import { ShardedNotesTree } from "./shardedNotesTree";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sharded notes-tree sync engine — the lean-profile counterpart of
-// `syncNotesTree`. Same seams (LeafSource for deltas, RootVerifier as the chain
-// trust anchor, chunked append-only persistence), different working set:
-// instead of rebuilding and holding the FULL global IMT, it restores
-// {shard roots + owned-note witnesses + live shard} — a few MB at any global
-// tree size — and folds only the delta. See plan-shardtree-curvy.md.
-//
-// Ordering invariant: discovery runs BEFORE folding. A delta can complete
-// several shards in one pass; marks must exist when a shard's rollover fires
-// so the freeze captures the owned notes inside it.
-// ─────────────────────────────────────────────────────────────────────────────
+// Bounded-memory sync profile. Rust restores shard roots, owned-note witnesses,
+// and the live shard, then folds only new leaves. Ownership discovery runs before
+// folding so completed shards can freeze paths for every owned note.
 
 export type SyncShardedNotesTreeOptions = {
-  storage: StorageInterface;
+  storage: CurvyStorage;
   networkSlug: string;
   environment: NETWORK_ENVIRONMENT_VALUES;
   source: LeafSource;
@@ -77,8 +69,9 @@ export type SyncShardedNotesTreeResult = {
  */
 export async function syncShardedNotesTree(opts: SyncShardedNotesTreeOptions): Promise<SyncShardedNotesTreeResult> {
   const { storage, networkSlug, environment, source, verifier } = opts;
-  const depth = opts.depth ?? NOTES_TREE_DEPTH;
-  const shardHeight = opts.shardHeight ?? DEFAULT_SHARD_HEIGHT;
+  const production = getNotesTreeParameters();
+  const depth = opts.depth ?? production.depth;
+  const shardHeight = opts.shardHeight ?? production.shardHeight;
   const now = opts.now ?? (() => Date.now());
 
   // 1. Restore the working set from storage — O(live shard), not O(n).
@@ -259,7 +252,7 @@ export async function recoverWitness(
  * any forged root.
  */
 export async function bootstrapShardRoots(
-  storage: StorageInterface,
+  storage: CurvyStorage,
   networkSlug: string,
   shardRoots: string[],
 ): Promise<void> {

@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { poseidonHash } from "@/utils/hash/poseidonHash";
+import { noteId, nullifier, ownerHash } from "@/core/rustCore";
 import type { FullNoteData, InputNote, NoteOwner, OutputNote } from "./types";
 
 // The single Curvy note. Holds the owner (BabyJubjub pubkey + ECDH shared
@@ -36,7 +36,7 @@ export class Note {
   }
 
   static computeOwnerHash(owner: NoteOwner): bigint {
-    return poseidonHash([owner.babyJubjubPublicKey.x, owner.babyJubjubPublicKey.y, owner.sharedSecret]);
+    return ownerHash(owner.babyJubjubPublicKey.x, owner.babyJubjubPublicKey.y, owner.sharedSecret);
   }
 
   get ownerHash(): bigint {
@@ -44,11 +44,11 @@ export class Note {
   }
 
   get id(): bigint {
-    return poseidonHash([this.ownerHash, this.amount, this.token]);
+    return noteId(this.ownerHash, this.amount, this.token);
   }
 
   get nullifier(): bigint {
-    return poseidonHash([this.owner.sharedSecret, this.owner.babyJubjubPublicKey.x, this.owner.babyJubjubPublicKey.y]);
+    return nullifier(this.owner.sharedSecret, this.owner.babyJubjubPublicKey.x, this.owner.babyJubjubPublicKey.y);
   }
 
   // ── Aggregator backend wire serializers ────────────────────────────────────

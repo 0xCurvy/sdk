@@ -1,8 +1,9 @@
 import { APIError } from "@/errors";
 import { HttpClient } from "@/http/index";
-import type { IApiClient } from "@/interfaces/api";
-import type { InsertEntryPortalRequestBody, InsertExitPortalRequestBody, InsertPortalReturnType } from "@/types";
-import type { PaymasterInfo, RelaySubmitRequestBody, RelaySubmitReturnType } from "@/types/aggregator";
+import type { CurvyApiClient } from "@/http/types";
+
+export type { CurvyApiClient } from "@/http/types";
+
 import type {
   BridgeEstimateRequestBody,
   BridgeEstimateReturnType,
@@ -25,7 +26,9 @@ import type {
   RegisterCurvyIdRequestBody,
   RegisterCurvyIdReturnType,
   ResolveCurvyIdReturnType,
-} from "@/types/api";
+} from "@/http/contracts";
+import type { InsertEntryPortalRequestBody, InsertExitPortalRequestBody, InsertPortalReturnType } from "@/types";
+import type { PaymasterInfo, RelaySubmitRequestBody, RelaySubmitReturnType } from "@/types/aggregator";
 import type { CurvyId } from "@/types/curvy";
 
 /** Optional per-service base URLs; each defaults to `apiBaseUrl` when unset. */
@@ -47,7 +50,7 @@ export type ApiBaseUrls = {
 const SYNC_TIMEOUT = 60_000;
 const SUBMIT_PROOF_TIMEOUT = 60_000;
 
-class ApiClient extends HttpClient implements IApiClient {
+class ApiClient extends HttpClient implements CurvyApiClient {
   private readonly metadataBaseUrl?: string;
   private readonly indexerBaseUrl?: string;
   private readonly relayerBaseUrl?: string;
@@ -373,9 +376,8 @@ class ApiClient extends HttpClient implements IApiClient {
     },
   };
 
-  // v3 client-proving relay (anonymous, SDK-owned contract). `retries: 0` on POST
-  // so a network hiccup never double-submits — the exact-payload `requestKey` is the dedupe
-  // guard if the relayer DID receive it.
+  // Proof submission is not transport-retried. A caller can safely retry the
+  // same payload because `requestKey` is its idempotency key.
   relay = {
     // `privateTokenHeader` is a single-use, unlinkable Privacy Pass token
     // ("PrivateToken token=…") — the relayer's anonymous rate-limit credential.

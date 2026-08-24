@@ -1,9 +1,11 @@
 import { getQuote } from "@lifi/sdk";
+import { getDefaultAggregatorNetwork } from "@/config/getDefaultAggregatorNetwork";
 import { resolveConfig } from "@/config/global";
 import { getProtocol } from "@/config/protocol";
 import type { WithConfig } from "@/config/types";
 import { NETWORK_FLAVOUR } from "@/constants/networks";
 import { LIFI_SOLANA_CHAIN_ID } from "@/constants/solana";
+import { NetworkError, RouteUnavailableError } from "@/errors";
 import type { Currency, Network } from "@/types";
 import { LIFI_BRIDGES_EVM, LIFI_BRIDGES_SOLANA_ENTRY, LIFI_BRIDGES_SOLANA_EXIT } from "./constants";
 
@@ -93,17 +95,23 @@ export async function estimateExternalTransfer(
 
   // Pick the shielding network. Multi-aggregator safe: an explicit slug wins;
   // otherwise shield on the SOURCE chain when it has its own aggregator (no entry
-  // bridge — mirrors the backend deposit rule); otherwise the first active
-  // aggregator network. (Value-tiered selection lands with the planner expansion.)
+  // bridge — mirrors the backend deposit rule); otherwise the environment's DEFAULT
+  // aggregator, which is the same network portal-broadcaster bridges deposits to.
+  // (Value-tiered selection lands with the planner expansion.)
   const aggregatorNetworks = config.state.activeNetworks.filter((n) => !!n.aggregatorContractAddress);
   let shielding: Network | undefined;
   if (shieldingNetworkSlug) {
     shielding = aggregatorNetworks.find((n) => n.slug === shieldingNetworkSlug);
-    if (!shielding) throw new Error(`Shielding network "${shieldingNetworkSlug}" is not an active aggregator network.`);
+    if (!shielding) {
+      throw new NetworkError(
+        `Shielding network "${shieldingNetworkSlug}" is not an active aggregator network.`,
+        shieldingNetworkSlug,
+      );
+    }
   } else {
-    shielding = fromNetwork.aggregatorContractAddress ? fromNetwork : aggregatorNetworks[0];
+    shielding = fromNetwork.aggregatorContractAddress ? fromNetwork : getDefaultAggregatorNetwork({ config });
   }
-  if (!shielding) throw new Error("No shielding-capable network is active.");
+  if (!shielding) throw new NetworkError("No shielding-capable network is active.");
 
   // ── Entry leg ────────────────────────────────────────────────────────────────
   let bridgedCurrency: Currency;
@@ -116,11 +124,13 @@ export async function estimateExternalTransfer(
   } else {
     const bridgedId = fromCurrency.bridgeNetworkIdToCurrencyIdMap?.[shielding.id];
     if (!bridgedId) {
-      throw new Error(`No bridge route from ${fromCurrency.symbol} on ${fromNetwork.name} to the shielding chain.`);
+      throw new RouteUnavailableError(
+        `No bridge route from ${fromCurrency.symbol} on ${fromNetwork.name} to the shielding network.`,
+      );
     }
     const bridged = shielding.currencies.find((c) => c.id === bridgedId);
     if (!bridged) {
-      throw new Error(`Bridged currency id ${bridgedId} not found on the shielding chain.`);
+      throw new RouteUnavailableError(`The shielding network does not support bridged currency ${bridgedId}.`);
     }
     bridgedCurrency = bridged;
 
@@ -143,7 +153,9 @@ export async function estimateExternalTransfer(
   }
 
   // ── Curvy fee ────────────────────────────────────────────────────────────────
-  const groupFee = BigInt(getProtocol({ config }).proving.withdrawal.groupFee);
+  // The fee is charged by the aggregator the funds are shielded on, so read that
+  // deployment's withdrawal circuit rather than the protocol default.
+  const groupFee = BigInt(getProtocol({ config, network: shielding }).withdrawal.groupFee);
   const curvyFee = (amountAfterEntry * groupFee) / 1000n;
   const netAfterCurvy = amountAfterEntry - curvyFee;
 

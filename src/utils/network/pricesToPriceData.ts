@@ -1,4 +1,4 @@
-import type { CurrencyPrice } from "@/types/api";
+import type { CurrencyPrice } from "@/http/contracts";
 
 /**
  * Build the symbol→{price,decimals} feed from the lean `/prices` response. Sibling of

@@ -1,70 +1,97 @@
-import type { CurvyConfig } from "@/config/types";
-import type { EstimatedPlan, PlanExecution } from "@/planner/types";
+import type { CurvyConfig, DirectSubmitter, SubmissionMode } from "@/config/types";
+import { type CurvyError, normalizeCurvyError, PlanExecutionError, PlanWaitTimeoutError } from "@/errors";
+import type { EstimatedPlan, PlanExecution, PlanWait } from "@/planner/types";
+import { hasBytecode } from "@/rpc/hasBytecode";
 import { pollForCriteria } from "@/utils";
+import { sleepWithTimerProvider } from "@/utils/timer";
 import { createCommand } from "./commands";
 import { walkPlan } from "./walkPlan";
 
-/**
- * Execute an already-estimated plan tree (functional port of
- * `Planner.#executeRecursively`). Walks the tree, re-hydrating each command from
- * its stored estimate and running it; spent balance entries are removed from
- * storage and per-command progress is emitted. `wait` nodes poll their
- * condition until it holds (or time out).
- *
- * @example
- * const result = await executePlanTree(config, estimatedPlan);
- */
-export async function executePlanTree(
-  config: CurvyConfig,
-  plan: EstimatedPlan,
-  input?: Parameters<typeof walkPlan>[2],
-): Promise<PlanExecution> {
-  return walkPlan(
+/** Internal estimated-plan executor. Public integrations call `executeIntent`. */
+export type ExecutePlanTreeParameters = {
+  config: CurvyConfig;
+  plan: EstimatedPlan;
+  submissionMode?: SubmissionMode;
+  directSubmitter?: DirectSubmitter;
+  input?: Parameters<typeof walkPlan>[0]["input"];
+  onStep?: (event: { id: string; status: "started" | "succeeded" | "failed"; error?: CurvyError }) => void;
+  resolveWait?: (condition: PlanWait["condition"]) => Promise<boolean>;
+};
+
+export async function executePlanTree(parameters: ExecutePlanTreeParameters): Promise<PlanExecution> {
+  const { config, plan, input, onStep, submissionMode = config.submissionMode, directSubmitter } = parameters;
+  const resolveWait =
+    parameters.resolveWait ??
+    (async (condition: PlanWait["condition"]): Promise<boolean> => {
+      const network = config.state.networks.find((candidate) => candidate.slug === condition.networkSlug);
+      if (!network) return false;
+      const deployed = await hasBytecode({ config, network, address: condition.address });
+      if (deployed && condition.settleDelayMs) {
+        await sleepWithTimerProvider(config._internal.timerProvider, condition.settleDelayMs);
+      }
+      return deployed;
+    });
+  return walkPlan({
     plan,
-    {
+    handlers: {
       command: async (node, nodeInput) => {
+        onStep?.({ id: node.id, status: "started" });
         try {
           const command = createCommand(config, {
             id: node.id,
-            name: node.name,
+            kind: node.kind,
             input: nodeInput,
             intent: node.intent,
             estimate: node.estimate,
+            execution: node.execution,
+            submissionMode,
+            directSubmitter,
           });
 
           const data = await command.execute();
-
-          // v3 hot inputs remain in the finalized base and are hidden by intent
-          // locks/canonical nullifiers; only legacy commands delete eagerly.
-          if (node.name !== "aggregator-aggregate" && node.name !== "aggregator-withdraw") {
-            await config.storage.removeSpentBalanceEntries(Array.isArray(nodeInput) ? nodeInput : [nodeInput]);
-          }
-          config.emitter.emitPlanCommandExecutionProgress({ commandId: node.id });
+          onStep?.({ id: node.id, status: "succeeded" });
 
           return { success: true, estimate: node.estimate, data };
         } catch (error) {
-          return { success: false, error };
+          const cause = normalizeCurvyError(error);
+          const executionError = new PlanExecutionError(`Could not execute ${node.kind}.`, node.id, node.kind, cause, [
+            cause,
+          ]);
+          onStep?.({ id: node.id, status: "failed", error: executionError });
+          return {
+            success: false,
+            error: executionError,
+          };
         }
       },
       data: async (node) => {
         return { success: true, data: node.data };
       },
       wait: async (node, nodeInput) => {
+        onStep?.({ id: node.id, status: "started" });
         try {
-          await pollForCriteria(() => node.condition(), Boolean, 30, 10000);
-
-          config.emitter.emitPlanCommandExecutionProgress({ commandId: node.id });
+          await pollForCriteria(
+            () => resolveWait(node.condition),
+            Boolean,
+            config.executionPolicy.planWaitAttempts,
+            config.executionPolicy.planWaitIntervalMs,
+            undefined,
+            (ms) => sleepWithTimerProvider(config._internal.timerProvider, ms),
+          );
+          onStep?.({ id: node.id, status: "succeeded" });
 
           return { success: true, data: nodeInput };
-        } catch {
+        } catch (error) {
+          const waitError =
+            error instanceof PlanWaitTimeoutError ? error : new PlanWaitTimeoutError(node.id, node.name);
+          onStep?.({ id: node.id, status: "failed", error: waitError });
           return {
             success: false,
-            error: new Error(`Timeout: ${node.name} condition was not met within the expected time.`),
+            error: waitError,
           };
         }
       },
     },
     input,
-    (p, result: PlanExecution) => config.emitter.emitPlanExecutionProgress({ plan: p, result }),
-  ) as Promise<PlanExecution>;
+  });
 }

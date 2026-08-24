@@ -1,16 +1,17 @@
 import { v4 as uuidv4 } from "uuid";
 import { restoreSession } from "@/actions/auth/restoreSession";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
-import { Core } from "@/core";
+import { createCoreAdapter } from "@/core";
+import { getNotesTreeParameters, initCore as initRustCore } from "@/core/rustCore";
+import type { CurvyKeyPairs } from "@/core/types";
 import { CurvyEventEmitter } from "@/events";
 import { ApiClient } from "@/http/api";
 import { createRustProver, defaultCircuitKeyCache, MerkleTree } from "@/proving";
-import { initCore as initRustCore } from "@/proving/rustCore";
 import { newMultiRpc } from "@/rpc/factory";
 import { SessionKeystore } from "@/session-keystore";
 import { MapStorage } from "@/storage/map-storage";
-import type { CurvyKeyPairs } from "@/types/core";
 import { defaultTimerProvider, filterNetworks, networksToCurrencyMetadata, networksToPriceData } from "@/utils";
+import { DEFAULT_EXECUTION_POLICY } from "./executionPolicy";
 import { setCurvyConfig } from "./global";
 import { KEYSTORE_JWT_KEY } from "./keystoreKeys";
 import { startPriceRefresh } from "./priceRefresh";
@@ -18,16 +19,11 @@ import { createStore } from "./store";
 import type { CreateCurvyConfigParameters, CurvyConfig, CurvyConfigInternal, CurvyState } from "./types";
 
 /**
- * Create a `CurvyConfig` — the functional successor to `CurvySDK.init`.
+ * Create and initialize the SDK runtime.
  *
- * Builds the live IO subsystems (WASM core, API client, storage, event
- * emitter, optional keystore), seeds currency/price metadata, derives the
- * active networks for the chosen environment, and starts the price-refresh
- * timer. The returned config is also registered as the ambient global so
- * actions can be called without passing `config` (see `getCurvyConfig`).
- *
- * Remember to call `config.destroy()` (or `destroyConfig`) on teardown —
- * the price/JWT timers leak otherwise.
+ * The returned config is registered as the ambient config by default, so
+ * actions can omit their `config` option. Call `config.destroy()` (or
+ * `destroyConfig`) when the owning application or request scope shuts down.
  *
  * @example
  * const config = await createCurvyConfig({ environment: "mainnet" });
@@ -44,10 +40,13 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     storage = new MapStorage(),
     wasmUrl,
     wasmModule,
-    core = new Core(wasmUrl, wasmModule),
+    core = createCoreAdapter({ wasmUrl, wasmModule }),
     enableKeystore = false,
     customFetch,
     timerProvider = defaultTimerProvider(),
+    executionPolicy,
+    submissionMode = "relay",
+    directSubmitter,
     notesSyncEngine = "sharded",
     rustCoreThreads = false,
     rustProverThreads = rustCoreThreads,
@@ -57,9 +56,8 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     setAsActive = true,
   } = parameters;
 
-  // Sharded sync and witness construction use synchronous Rust/WASM methods
-  // after startup. Initialize their shared module before any tree is created;
-  // concurrent configs reuse the same promise.
+  // Initialize Rust before constructing state that calls its synchronous APIs.
+  // Concurrent configs share the same race-safe initialization promise.
   const rustCoreSource = wasmModule ? { module: wasmModule } : wasmUrl ? { url: wasmUrl } : undefined;
   await initRustCore(rustCoreSource, { threads: rustCoreThreads });
   const activeProver = prover ?? createRustProver({ threads: rustProverThreads });
@@ -90,33 +88,29 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     scanLocks: new Map(),
     inflightRefreshes: new Map(),
     rpcCache: new Map(),
-    notesTree: new MerkleTree({ depth: 30 }),
+    notesTree: new MerkleTree({ depth: getNotesTreeParameters().depth }),
     notesTrees: new Map(),
     finalizedNotesTrees: new Map(),
   };
 
-  // The keyring: raw keypairs (ephemeral, in-memory), keyed by account id.
-  // Populated by auth/account actions; the browser keystore rehydrates it on
-  // refresh via restoreSession. Account metadata lives in `state.accounts`.
+  // Private key material stays in memory. Serializable account metadata lives
+  // in `state.accounts`; the browser keystore can restore keys across refreshes.
   const keyring = new Map<string, CurvyKeyPairs>();
 
   let keystore: SessionKeystore | null = null;
   if (enableKeystore && typeof window !== "undefined") {
     keystore = new SessionKeystore({ name: "curvy-keypairs" });
     await keystore.ready();
-    // Persist the JWT to the keystore under the magic `__jwt__` key on every
-    // token change (initial auth + refresh). Per-account keypairs are co-tenants
-    // in the same store; iteration must skip this key (see actions/auth/session).
+    // Keep the session JWT alongside account keys so a page refresh can restore
+    // the authenticated session. The keystore hides this reserved entry.
     api.setOnTokenChange((token) => {
       if (token) keystore?.set(KEYSTORE_JWT_KEY, token);
       else keystore?.delete(KEYSTORE_JWT_KEY);
     });
   }
 
-  // Split metadata: the registry (/networks, currencies carry their initial price) plus the
-  // protocol-global config (/protocol). Protocol lives in `state.protocol` (the single source
-  // consumers read) — it is NOT stamped onto the networks. The volatile /prices feed is the
-  // poll endpoint used by the refresh timer, not the bootstrap.
+  // Load the network registry and protocol-wide proving parameters together;
+  // live prices are refreshed separately after bootstrap.
   const [networks, protocol] = await Promise.all([api.network.GetNetworks(), api.network.GetProtocol()]);
   await storage.upsertCurrencyMetadata(networksToCurrencyMetadata(networks));
 
@@ -149,6 +143,9 @@ export async function createCurvyConfig(parameters: CreateCurvyConfigParameters 
     setState: store.setState,
     subscribe: store.subscribe,
     notesSyncEngine,
+    executionPolicy: { ...DEFAULT_EXECUTION_POLICY, ...executionPolicy },
+    submissionMode,
+    directSubmitter,
     // Default prover: Curvy's Rust witness evaluator and arkworks Groth16 backend.
     prover: activeProver,
     circuitKeysBaseUrl,

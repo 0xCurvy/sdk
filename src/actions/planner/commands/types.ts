@@ -1,19 +1,13 @@
-import type { CurvyConfig } from "@/config/types";
-import type { IApiClient } from "@/interfaces/api";
-import type { ICore } from "@/interfaces/core";
-import type { CommandData, CommandEstimate, Intent } from "@/planner/types";
+import type { CurvyConfig, DirectSubmitter, SubmissionMode } from "@/config/types";
+import type { CoreAdapter } from "@/core/types";
+import type { CurvyApiClient } from "@/http/types";
+import type { CommandData, CommandEstimate, CommandKind, Intent, IntentOutput, PlanValue } from "@/planner/types";
 import type { CurvyId, CurvyPublicKeys, HexString, Network, Signature, StringifyBigInts } from "@/types";
 
 export type { CommandEstimate };
 
 /**
- * The ambient bag a command closure operates on. Resolved by `createCommand`
- * from the live config.
- *
- * The v3 client-proving commands prove locally and relay (see
- * `createAggregatorAggregateCommand` / `createAggregatorWithdrawCommand`), which
- * needs the broader config (prover, relay, storage, synced trees). It is carried
- * here as `config`; the narrowed fields below stay for the estimate path.
+ * Dependencies and prepared state for one planner command.
  */
 export type CommandContext = {
   /** Stable command id (carried through plan estimation/execution). */
@@ -24,35 +18,42 @@ export type CommandContext = {
   intent?: Intent;
   /** A pre-computed estimate, when re-hydrating an already-estimated command. */
   estimate?: CommandEstimate;
+  /** Opaque state created during estimation and consumed during execution. */
+  execution?: unknown;
   /** Network resolved from the input's `networkSlug`. */
   network: Network;
-  /** The input's network slug (the v3 build/sync actions key off this). */
+  /** The input's network slug. */
   networkSlug: string;
-  /** Active account's `curvyHandle`, or `null` for ephemeral (STA-claim) accounts. */
+  /** Active account's `curvyHandle`, or `null` for ephemeral accounts. */
   senderCurvyId: CurvyId | null;
   /** The active account's BabyJubjub private key (hex) — owns the input notes, signs the proof. */
   ownerBjjPrivateKeyHex: string;
-  /** The live config — the v3 client-proving path needs the prover/relay/storage/sync seams. */
+  /** Submission path selected when this plan was estimated. */
+  submissionMode: SubmissionMode;
+  /** Direct signer adapter, resolved at execution time. */
+  directSubmitter?: DirectSubmitter;
+  /** Live SDK dependencies used for proving, relay, storage, and sync. */
   config: CurvyConfig;
   /** Just the api resources commands use. */
-  api: Pick<IApiClient, "user">;
+  api: Pick<CurvyApiClient, "user">;
   /** Just the core methods commands use. */
-  core: Pick<ICore, "sendNote">;
+  core: Pick<CoreAdapter, "sendNote">;
   /** Sign a BabyJubjub message, bound to the active account's key. */
   signMessage: (message: bigint) => Promise<StringifyBigInts<Signature>>;
 };
 
 /**
- * The closure-based command surface (the faithful functional analog of the
- * legacy `CurvyCommand` class). Built by the `create*Command` factories.
+ * Internal command contract shared by estimation and execution.
  */
 export type Command = {
   readonly id: string;
-  readonly name: string;
+  readonly kind: CommandKind;
   readonly recipient: HexString | CurvyId | CurvyPublicKeys;
   readonly grossAmount: bigint;
   estimate?: CommandEstimate;
   estimateFees(): Promise<CommandEstimate>;
-  getResultingBalanceEntry(executionData?: unknown): Promise<CommandData | undefined>;
-  execute(): Promise<CommandData | undefined>;
+  getResultingData(): Promise<PlanValue | undefined>;
+  getExecutionData(): unknown;
+  getIntentOutput(): IntentOutput | undefined;
+  execute(): Promise<PlanValue | undefined>;
 };

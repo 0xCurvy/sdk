@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { FeeEstimateUnavailableError } from "@/errors";
 import { GAS_FEE_TREE_DEPTH, MerkleTree } from "@/proving";
 import type { MultiRpc } from "@/rpc/multi";
 import { createFakeConfig, fixtureNetwork } from "@/test/fixtures";
@@ -79,8 +80,6 @@ describe("fetchAggregatorFees", () => {
   it("fails before proving when the vault table does not match the aggregator root", async () => {
     const { config } = buildConfig(123n);
 
-    await expect(fetchAggregatorFees(config, "ethereum")).rejects.toThrow(
-      /gas-fee table root .* does not match on-chain root 123/,
-    );
+    await expect(fetchAggregatorFees(config, "ethereum")).rejects.toBeInstanceOf(FeeEstimateUnavailableError);
   });
 });

@@ -1,6 +1,6 @@
 import type { CurvyConfig } from "@/config/types";
+import type { NotesCheckpoint, TransferHistoryRecord } from "@/storage/types";
 import type { RelaySubmitReturnType } from "@/types/aggregator";
-import type { NotesCheckpoint, TransferHistoryRecord } from "@/types/storage";
 
 type ReconcileTransferRecordsOptions = {
   config: CurvyConfig;

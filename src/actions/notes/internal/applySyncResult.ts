@@ -1,15 +1,15 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { StorageInterface } from "@/interfaces/storage";
 import type { OwnedNote } from "@/note/discoverOwnedNotes";
 import { Note } from "@/note/note";
 import { noteToBalanceEntry } from "@/note/noteToBalanceEntry";
 import type { SyncShardedNotesTreeResult } from "@/note/shardedNotesSync";
 import { reduceSyncToHistory } from "@/note/txHistory";
+import type { BalanceStore, CurrencyStore, HistoryStore } from "@/storage/contracts";
+import type { BalanceEntry, TxHistoryEntry } from "@/storage/types";
 import type { HexString } from "@/types";
-import type { BalanceEntry, TxHistoryEntry } from "@/types/storage";
 
 export type ApplySyncResultParams = {
-  storage: StorageInterface;
+  storage: BalanceStore & CurrencyStore & HistoryStore;
   accountId: string;
   networkSlug: string;
   environment: NETWORK_ENVIRONMENT_VALUES;
@@ -62,7 +62,7 @@ export async function applySyncResult(params: ApplySyncResultParams): Promise<Ap
     // `removed` only scans `existing`, so a freshly-added one would never be
     // reconciled away → phantom balance.)
     if (spentIds.has(owned.noteId)) continue;
-    let metadata: Awaited<ReturnType<StorageInterface["getCurrencyMetadata"]>>;
+    let metadata: Awaited<ReturnType<CurrencyStore["getCurrencyMetadata"]>>;
     try {
       metadata = await storage.getCurrencyMetadata(owned.token, networkSlug);
     } catch {

@@ -1,8 +1,7 @@
 import merge from "lodash.merge";
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
 import { StorageError } from "@/errors";
-import type { StorageInterface } from "@/interfaces/storage";
-import type { CurvyAccountData, PriceData, SerializedCurvyAccount } from "@/types";
+import type { CurvyStorage } from "@/storage/contracts";
 import type {
   BalanceBreakdown,
   BalanceEntry,
@@ -23,7 +22,8 @@ import type {
   TransferHistoryRecord,
   TransferSettlement,
   TxHistoryEntry,
-} from "@/types/storage";
+} from "@/storage/types";
+import type { CurvyAccountData, PriceData, SerializedCurvyAccount } from "@/types";
 
 type TokenAgg = { sum: bigint; environment: NETWORK_ENVIRONMENT_VALUES; symbol: string };
 
@@ -36,7 +36,7 @@ type TokenAgg = { sum: bigint; environment: NETWORK_ENVIRONMENT_VALUES; symbol: 
 const LOG_CHUNK_SIZE = 1024;
 
 /**
- * Abstract base for storage adapters. Implements ALL of {@link StorageInterface}'s
+ * Abstract base for storage adapters. Implements the complete {@link CurvyStorage}
  * business logic — balance delta tracking, total-balance computation, the
  * currency-metadata `vaultTokenId` lookup, validation — on top of a small set of
  * raw CRUD primitives that subclasses provide. A new backend (in-memory, IndexedDB,
@@ -48,7 +48,7 @@ const LOG_CHUNK_SIZE = 1024;
  *   // …implement the remaining primitives
  * }
  */
-export abstract class BaseStorage implements StorageInterface {
+export abstract class BaseStorage implements CurvyStorage {
   // ──────────────────────────────────────────────
   // Abstract primitives — implemented by subclasses
   // ──────────────────────────────────────────────
@@ -177,7 +177,7 @@ export abstract class BaseStorage implements StorageInterface {
   }
 
   // ──────────────────────────────────────────────
-  // StorageInterface — concrete implementations
+  // CurvyStorage — concrete implementations
   // ──────────────────────────────────────────────
 
   async insertCurvyAccount(account: SerializedCurvyAccount): Promise<void> {
@@ -276,10 +276,6 @@ export abstract class BaseStorage implements StorageInterface {
     return this._runInNotesTransaction(fn);
   }
 
-  async deleteBalanceEntries(entries: BalanceEntry[]): Promise<void> {
-    if (entries.length > 0) await this._deleteBalances(entries);
-  }
-
   async removeSpentBalanceEntries(balanceEntries: BalanceEntry[]): Promise<void> {
     if (balanceEntries.length === 0) return;
 
@@ -289,15 +285,8 @@ export abstract class BaseStorage implements StorageInterface {
     }
     const accountId = balanceEntries[0].accountId;
 
-    // Remove ONLY the spent entries, preserving the account's other notes.
-    // `updateBalanceEntries` has FULL-REPLACEMENT semantics per (account, network):
-    // it deletes every existing entry absent from the set it is given. So we must
-    // pass the SURVIVORS (existing minus spent), NOT just the spent entries — the
-    // previous code passed only the spent ones, which deleted every OTHER note for
-    // the network (and left the spent note as a balance-0 zombie), wiping the wallet
-    // on each spend. The forward-only sync cursor can't re-discover those leaves, so
-    // the loss is permanent without a full re-scan. Group by network because
-    // `updateBalanceEntries` operates per (account, network).
+    // `updateBalanceEntries` replaces one account/network set, so compute and
+    // write its survivors. Process each network independently.
     const spentByNetwork = new Map<string, Set<string>>();
     for (const entry of balanceEntries) {
       const ids = spentByNetwork.get(entry.networkSlug) ?? new Set<string>();

@@ -1,8 +1,9 @@
-import type { StorageInterface } from "@/interfaces/storage";
-import type { BalanceEntry, InputFinalityPolicy, TransferHistoryRecord } from "@/types/storage";
+import { StorageError } from "@/errors";
+import type { TransferStore } from "@/storage/contracts";
+import type { BalanceEntry, InputFinalityPolicy, TransferHistoryRecord } from "@/storage/types";
 
 type RecordTransferIntentOptions = {
-  storage: StorageInterface;
+  storage: TransferStore;
   accountId: string;
   intentId: string;
   networkSlug: string;
@@ -41,7 +42,9 @@ export async function recordTransferIntent(options: RecordTransferIntentOptions)
     const visited = new Set<string>();
     while (queue.length > 0) {
       const current = queue.shift() as string;
-      if (current === dependency.fromIntentId) throw new Error("transfer intent dependency would create a cycle");
+      if (current === dependency.fromIntentId) {
+        throw new StorageError("Transfer intent dependencies must not contain a cycle.");
+      }
       if (visited.has(current)) continue;
       visited.add(current);
       for (const edge of existingEdges) if (edge.fromIntentId === current) queue.push(edge.toIntentId);

@@ -17,12 +17,8 @@ export type SubmitToChainParameters = WithConfig<{
 }>;
 
 /**
- * Submit a built aggregator proof ON-CHAIN using the user's own wallet client.
- *
- * The user is the transaction sender and pays the gas (aggregator submit is
- * permissionless — the on-chain verifier is the gate). This is the logic that used
- * to live in the devenv test flows (simulate -> writeContract -> waitForReceipt),
- * now owned by the SDK so any consumer gets it for free.
+ * Submit a built aggregator proof on-chain with the caller's wallet client.
+ * The wallet account is the transaction sender and pays the native network gas.
  */
 export async function submitToChain(parameters: SubmitToChainParameters): Promise<ChainSubmitResult> {
   const { request, walletClient } = parameters;

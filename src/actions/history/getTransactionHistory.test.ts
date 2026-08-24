@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { NETWORK_ENVIRONMENT } from "@/constants/networks";
 import { MapStorage } from "@/storage/map-storage";
+import type { TransferHistoryRecord, TxHistoryEntry } from "@/storage/types";
 import { createFakeConfig, fixtureNetwork } from "@/test/fixtures";
-import type { TransferHistoryRecord, TxHistoryEntry } from "@/types/storage";
 import { getTransactionHistory } from "./getTransactionHistory";
 
 const ACCOUNT = "account-a";

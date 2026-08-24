@@ -1,38 +1,39 @@
 import { getActiveAccount } from "@/actions/account/getActiveAccount";
 import { resolveConfig } from "@/config/global";
 import { getProtocol } from "@/config/protocol";
-import type { WithConfig } from "@/config/types";
+import type { SubmissionMode, WithConfig } from "@/config/types";
 import { NoActiveAccountError } from "@/errors";
 import type { Intent, IntentEstimation } from "@/planner/types";
 import { generatePlan } from "@/planner/utils";
-import { hasBytecode } from "@/rpc/hasBytecode";
-import type { InputFinalityPolicy } from "@/types/storage";
+import type { InputFinalityPolicy } from "@/storage/types";
 import { toSlug } from "@/utils/format";
 import { invariant } from "@/utils/invariant";
 import { estimatePlanTree } from "./estimatePlanTree";
+import { prepareIntentPlan } from "./internal/preparedIntent";
 import { resolveInputFinalityPolicy } from "./resolveInputFinalityPolicy";
 
 export type EstimateIntentParameters = WithConfig<{
   intent: Intent;
   /** Integration-level lower bound that account/intent settings cannot weaken. */
   minimumInputFinalityPolicy?: InputFinalityPolicy;
+  /** Override the config's submission path for this estimate and its prepared execution. */
+  submissionMode?: SubmissionMode;
 }>;
 
 /**
- * Estimate the full cost of fulfilling an `intent` (functional port of
- * `Planner.estimate`). Selects the active account's matching balances, generates
- * a draft plan, estimates the whole tree, and returns the consumed balances plus
- * the aggregated fee breakdown and the effective delivered amount.
+ * Select spendable notes and return fees, delivered amount, a sanitized route,
+ * and an in-memory handle that can be passed to `executeIntent`.
  *
  * @example
  * const estimation = await estimateIntent({ intent });
  *
  * @throws {NoActiveAccountError} when no account is active.
- * @throws when estimation fails, yields no/many data entries, or no estimate.
+ * @throws a typed `CurvyError` when selection or estimation fails.
  */
 export async function estimateIntent(parameters: EstimateIntentParameters): Promise<IntentEstimation> {
   const config = resolveConfig(parameters.config);
   const { intent } = parameters;
+  const submissionMode = parameters.submissionMode ?? config.submissionMode;
 
   const activeAccount = getActiveAccount({ config });
   if (!activeAccount) throw new NoActiveAccountError();
@@ -52,31 +53,39 @@ export async function estimateIntent(parameters: EstimateIntentParameters): Prom
 
   const resolvedIntent = { ...intent, inputFinalityPolicy } as Intent;
   const { plan: draftPlan, usedBalances } = generatePlan(balances, resolvedIntent, {
-    checkBytecode: (n, a) => hasBytecode({ network: n, address: a, config }),
-    maxInputs: getProtocol({ config }).proving.aggregation.maxInputs,
+    // Per-network: how many notes one aggregation can consume is set by the
+    // circuit that intent's own aggregator runs.
+    maxInputs: getProtocol({ config, network: intent.network }).aggregation.maxInputs,
+    shieldSettleDelayMs: config.executionPolicy.shieldSettleDelayMs,
   });
 
-  const result = await estimatePlanTree(config, draftPlan, undefined);
+  const result = await estimatePlanTree({ config, plan: draftPlan, submissionMode });
   if (!result.success) {
     throw result.error;
   }
 
-  invariant(result.data, "Estimation resulted in no data, expected a single BalanceEntry.");
-
-  invariant(
-    !Array.isArray(result.data),
-    "Estimation resulted in multiple data entries, expected a single BalanceEntry.",
-  );
+  invariant(result.data, "Estimation produced no delivered value.");
 
   invariant(result.estimate, "Estimation resulted in no estimate data.");
+  invariant(result.preparedPlan, "Estimation resulted in no prepared plan.");
+  let effectiveAmount: bigint;
+  if (Array.isArray(result.data)) {
+    invariant(result.data.length === 1, "Estimation produced multiple final private notes.");
+    effectiveAmount = result.data[0].balance;
+  } else {
+    effectiveAmount = result.data.amount;
+  }
 
   return {
-    plan: result.estimatedPlan,
+    prepared: prepareIntentPlan(result.preparedPlan, submissionMode),
+    plan: result.preparedPlan,
     usedBalances,
     gas: result.estimate.gasFeeInCurrency,
     curvyFee: result.estimate.curvyFeeInCurrency,
     bridgeFee: result.estimate.bridgeFeeInCurrency,
-    effectiveAmount: result.data.balance,
+    effectiveAmount,
+    degradedToFeesOnAmount: result.estimate.degradedToFeesOnAmount ?? false,
     inputFinalityPolicy,
+    output: result.output,
   };
 }

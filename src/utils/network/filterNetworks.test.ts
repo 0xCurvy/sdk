@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { Network } from "@/http/contracts";
 import { fixtureNetwork } from "@/test/fixtures";
-import type { Network } from "@/types/api";
 import { filterNetworks } from "@/utils/network/filterNetworks";
-
-// Migrated from the legacy tests/network-filter.test.ts (which was @ts-nocheck
-// and hand-rolled stale Network objects). Rebuilt on the shared `fixtureNetwork`
-// helper and extended to cover every NetworkFilter variant, including the cases
-// the legacy file left as a TODO (string[]/number[]/callback/undefined).
 
 const networks: Network[] = [
   fixtureNetwork({ id: 1, name: "Ethereum Sepolia", slug: "ethereum-sepolia", testnet: true }),

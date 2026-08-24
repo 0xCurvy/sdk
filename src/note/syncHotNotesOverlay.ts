@@ -1,16 +1,16 @@
 import type { NETWORK_ENVIRONMENT_VALUES } from "@/constants/networks";
-import type { IApiClient } from "@/interfaces/api";
-import type { StorageInterface } from "@/interfaces/storage";
-import type { GetSyncHotBlocksReturnType, GetSyncHotMetaReturnType, SyncHotBlock } from "@/types/api";
-import type { NotesCheckpoint } from "@/types/storage";
+import type { GetSyncHotBlocksReturnType, GetSyncHotMetaReturnType, SyncHotBlock } from "@/http/contracts";
+import type { CurvyApiClient } from "@/http/types";
+import type { CurvyStorage } from "@/storage/contracts";
+import type { NotesCheckpoint } from "@/storage/types";
 import { applyHotNotesOverlay } from "./applyHotNotesOverlay";
 import type { OwnershipResolver } from "./discoverOwnedNotes";
 import type { RootVerifier } from "./notesTreeSync";
 import type { ShardedNotesTree } from "./shardedNotesTree";
 
 type SyncHotNotesOverlayOptions = {
-  api: IApiClient;
-  storage: StorageInterface;
+  api: CurvyApiClient;
+  storage: CurvyStorage;
   chainId: number;
   accountId?: string;
   networkSlug: string;

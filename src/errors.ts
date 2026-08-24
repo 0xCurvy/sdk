@@ -1,11 +1,43 @@
-class CurvyError extends Error {
+export type CurvyErrorCode =
+  | "ACCOUNT_ERROR"
+  | "AGGREGATION_OUTPUT_TIMEOUT"
+  | "AGGREGATOR_SUBMIT_ERROR"
+  | "API_ERROR"
+  | "AUTH_ERROR"
+  | "COMMAND_ERROR"
+  | "FEE_ESTIMATE_UNAVAILABLE"
+  | "INSUFFICIENT_BALANCE"
+  | "MISSING_CONTRACT_ADDRESS"
+  | "NETWORK_ERROR"
+  | "NO_ACTIVE_ACCOUNT"
+  | "NO_CONFIG"
+  | "PLAN_ESTIMATION_ERROR"
+  | "PLAN_EXECUTION_ERROR"
+  | "PLAN_WAIT_TIMEOUT"
+  | "RELAY_ERROR"
+  | "ROUTE_UNAVAILABLE"
+  | "SCAN_ERROR"
+  | "SPEND_KEY_REQUIRED"
+  | "STORAGE_ERROR"
+  | "UNKNOWN_ERROR"
+  | "VIEW_KEY_REQUIRED";
+
+class CurvyError<Code extends string = CurvyErrorCode> extends Error {
   constructor(
     message: string,
-    public code: string,
+    public readonly code: Code,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = "CurvyError";
   }
+}
+
+/** Convert a thrown value into the SDK's stable error contract. */
+function normalizeCurvyError(error: unknown, fallbackMessage = "An unexpected SDK error occurred."): CurvyError {
+  if (error instanceof CurvyError) return error;
+  if (error instanceof Error) return new CurvyError(error.message, "UNKNOWN_ERROR", { cause: error });
+  return new CurvyError(fallbackMessage, "UNKNOWN_ERROR", { cause: error });
 }
 
 class StorageError extends CurvyError {
@@ -61,9 +93,9 @@ class PlanExecutionError extends CurvyError {
     public commandId?: string,
     public commandName?: string,
     public originalError?: Error,
-    public causes?: Error[],
+    public causes?: CurvyError[],
   ) {
-    super(message, "PLAN_EXECUTION_ERROR");
+    super(message, "PLAN_EXECUTION_ERROR", { cause: originalError });
     this.name = "PlanExecutionError";
   }
 }
@@ -75,9 +107,9 @@ class PlanEstimationError extends CurvyError {
     public commandId?: string,
     public commandName?: string,
     public originalError?: Error,
-    public causes?: Error[],
+    public causes?: CurvyError[],
   ) {
-    super(message, "PLAN_ESTIMATION_ERROR");
+    super(message, "PLAN_ESTIMATION_ERROR", { cause: originalError });
     this.name = "PlanEstimationError";
   }
 }
@@ -90,6 +122,43 @@ class CommandError extends CurvyError {
   ) {
     super(message, "COMMAND_ERROR");
     this.name = "CommandError";
+  }
+}
+
+class InsufficientBalanceError extends CurvyError {
+  constructor(
+    public readonly required: bigint,
+    public readonly available: bigint,
+    public readonly networkSlug?: string,
+    public readonly currencyAddress?: string,
+  ) {
+    super(`Insufficient balance: required ${required}, available ${available}.`, "INSUFFICIENT_BALANCE");
+    this.name = "InsufficientBalanceError";
+  }
+}
+
+class FeeEstimateUnavailableError extends CurvyError {
+  constructor(message = "A relay-ready fee estimate is currently unavailable.", options?: ErrorOptions) {
+    super(message, "FEE_ESTIMATE_UNAVAILABLE", options);
+    this.name = "FeeEstimateUnavailableError";
+  }
+}
+
+/** No supported bridge or swap route can fulfill the requested delivery. */
+class RouteUnavailableError extends CurvyError {
+  constructor(message = "No supported route is currently available.", options?: ErrorOptions) {
+    super(message, "ROUTE_UNAVAILABLE", options);
+    this.name = "RouteUnavailableError";
+  }
+}
+
+class PlanWaitTimeoutError extends CurvyError {
+  constructor(
+    public readonly waitId: string,
+    public readonly waitName: string,
+  ) {
+    super(`Timed out while ${waitName}.`, "PLAN_WAIT_TIMEOUT");
+    this.name = "PlanWaitTimeoutError";
   }
 }
 
@@ -181,7 +250,7 @@ class RelayError extends CurvyError {
 class AggregationOutputTimeoutError extends CurvyError {
   constructor() {
     super(
-      "Aggregation was submitted, but its resulting balance was not detected within 4 minutes. It may still complete in the background; refresh your balances before trying again.",
+      "Aggregation was submitted, but its resulting balance was not detected before the configured deadline. It may still complete in the background; refresh balances before trying again.",
       "AGGREGATION_OUTPUT_TIMEOUT",
     );
     this.name = "AggregationOutputTimeoutError";
@@ -198,6 +267,7 @@ class MissingContractAddressError extends CurvyError {
 
 export {
   CurvyError,
+  normalizeCurvyError,
   StorageError,
   APIError,
   NoCurvyConfigError,
@@ -205,6 +275,10 @@ export {
   PlanExecutionError,
   PlanEstimationError,
   CommandError,
+  InsufficientBalanceError,
+  FeeEstimateUnavailableError,
+  RouteUnavailableError,
+  PlanWaitTimeoutError,
   ScanError,
   NetworkError,
   AuthError,

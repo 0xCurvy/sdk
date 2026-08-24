@@ -1,4 +1,4 @@
-import type { Network } from "@/types/api";
+import type { Network } from "@/http/contracts";
 import { toSlug } from "@/utils/format/toSlug";
 
 // Network filter can be:

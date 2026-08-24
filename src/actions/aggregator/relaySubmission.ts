@@ -18,8 +18,8 @@ export type RelaySubmissionParameters = WithConfig<{
  * anonymous. Returns IMMEDIATELY with `{ requestId, status: "queued" }`; poll to
  * finality with {@link waitForRelay}.
  *
- * The wire contract is SDK-owned (see {@link RelaySubmitRequestBody}); nothing here
- * couples to a specific backend, so a backend rewrite cannot break it.
+ * The SDK derives idempotency keys from the proof payload, so callers may retry
+ * an uncertain submission without creating a second spend.
  */
 export async function relaySubmission(parameters: RelaySubmissionParameters): Promise<RelaySubmitReturnType> {
   const { request } = parameters;

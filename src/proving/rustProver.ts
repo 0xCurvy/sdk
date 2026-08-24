@@ -1,23 +1,21 @@
-import * as plainProverWasm from "./_prover_wasm/curvy_prover.js";
+import * as plainProverWasm from "@0xcurvy/rs-core-wasm/prover";
+import { RS_PROVER_THREADS_WASM, RS_PROVER_WASM, readPackagedWasm } from "@/core/packagedWasm";
+import type { CoreWasmSource, RustCoreRuntimeStatus, RustCoreThreads } from "@/core/rustCore";
 import type { Groth16Proof, ProofResult, Prover, ProverContext, PublicSignals, ZKArtifact } from "./prover";
-import type { CoreWasmSource, RustCoreRuntimeStatus, RustCoreThreads } from "./rustCore";
 import type { RustProverWorkerRequest, RustProverWorkerResponse } from "./rustProverProtocol";
 
-declare const __CURVY_ASSETS_REL__: string;
-declare const __CURVY_PROVER_RS_WASM_URL__: string;
-declare const __CURVY_PROVER_RS_THREADS_WASM_URL__: string;
+// Path from the emitted chunk to the SDK's own proving worker, injected by tsup
+// `define` (see tsup.config.ts). It must stay a bare literal inside `new URL`
+// so downstream bundlers can statically analyse it and emit the worker.
 declare const __CURVY_PROVER_WORKER_URL__: string;
 
-const NODE_ASSETS_REL = typeof __CURVY_ASSETS_REL__ === "string" ? __CURVY_ASSETS_REL__ : "../../assets";
-const NODE_PROVER_WASM = `${NODE_ASSETS_REL}/core-rs/curvy_prover_bg.wasm`;
-const NODE_PROVER_THREADS_WASM = `${NODE_ASSETS_REL}/core-rs/curvy_prover_threads_bg.wasm`;
 const MAX_BROWSER_THREADS = 8;
-const PROVER_WORKERS = Symbol.for("curvy.rustProverWorkers");
 
 const isNode = typeof process !== "undefined" && !!process.versions?.node;
 
 type WasmBindings = typeof plainProverWasm;
-type ThreadedWasmBindings = WasmBindings & { initThreadPool(threadCount: number): Promise<unknown> };
+type ThreadedWasmBindings = typeof import("@0xcurvy/rs-core-wasm/prover-threads");
+type AnyWasmBindings = WasmBindings | ThreadedWasmBindings;
 type WasmCircuitProver = InstanceType<typeof plainProverWasm.WasmCircuitProver>;
 
 export type RustProverOptions = {
@@ -28,17 +26,12 @@ export type RustProverOptions = {
   wasm?: { single?: CoreWasmSource; threaded?: CoreWasmSource };
 };
 
-let wasm: WasmBindings = plainProverWasm;
+let wasm: AnyWasmBindings = plainProverWasm;
 let ready = false;
 let initPromise: Promise<void> | null = null;
 let runtimeStatus: RustCoreRuntimeStatus = { mode: "uninitialized", threadCount: 0 };
 
-async function load(
-  bindings: WasmBindings,
-  nodeAssetPath: string,
-  browserAssetUrl: URL | undefined,
-  source?: CoreWasmSource,
-): Promise<void> {
+async function load(bindings: AnyWasmBindings, nodeWasmSpecifier: string, source?: CoreWasmSource): Promise<void> {
   if (source?.module) {
     bindings.initSync({ module: source.module });
     return;
@@ -58,32 +51,11 @@ async function load(
     return;
   }
   if (isNode) {
-    const [{ readFile }, { dirname, join }, { fileURLToPath }] = await Promise.all([
-      import("node:fs/promises"),
-      import("node:path"),
-      import("node:url"),
-    ]);
-    const moduleDirectory = dirname(fileURLToPath(import.meta.url));
-    const assetName = nodeAssetPath.split("/").at(-1) ?? "";
-    const candidates = [
-      join(moduleDirectory, nodeAssetPath),
-      join(moduleDirectory, "..", "assets", "core-rs", assetName),
-      join(moduleDirectory, "..", "..", "assets", "core-rs", assetName),
-    ];
-    let lastError: unknown;
-    for (const candidate of candidates) {
-      try {
-        const bytes = new Uint8Array(await readFile(candidate));
-        await bindings.default({ module_or_path: bytes });
-        return;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    throw lastError;
+    await bindings.default({ module_or_path: await readPackagedWasm(nodeWasmSpecifier) });
+    return;
   }
-  if (!browserAssetUrl) throw new Error("Curvy Rust prover browser asset URL is unavailable");
-  await bindings.default({ module_or_path: browserAssetUrl });
+  // Browser: the generated glue resolves its own binary relative to itself.
+  await bindings.default();
 }
 
 const supportsBrowserThreads = (): boolean => {
@@ -101,36 +73,27 @@ const resolveThreadCount = (threads: Exclude<RustCoreThreads, false>): number =>
   return Math.min(requested, hardwareThreads, MAX_BROWSER_THREADS);
 };
 
-function terminateFailedThreadPool(): void {
-  const holder = globalThis as typeof globalThis & { [PROVER_WORKERS]?: Array<{ terminate(): void }> };
-  holder[PROVER_WORKERS]?.forEach((worker) => {
-    worker.terminate();
-  });
-  delete holder[PROVER_WORKERS];
-}
-
 async function initialize(options: RustProverOptions): Promise<void> {
   const requestedThreads = options.threads ?? false;
   if (requestedThreads !== false && supportsBrowserThreads()) {
     try {
-      const bindings = (await import("./_prover_wasm_threads/curvy_prover.js")) as unknown as ThreadedWasmBindings;
-      const browserAssetUrl = isNode ? undefined : new URL(__CURVY_PROVER_RS_THREADS_WASM_URL__, import.meta.url);
-      await load(bindings, NODE_PROVER_THREADS_WASM, browserAssetUrl, options.wasm?.threaded);
+      // Browser-only and lazily imported: the Rayon snippet touches `self` at
+      // module scope, which does not exist in Node.
+      const bindings = await import("@0xcurvy/rs-core-wasm/prover-threads");
+      await load(bindings, RS_PROVER_THREADS_WASM, options.wasm?.threaded);
       const threadCount = resolveThreadCount(requestedThreads);
       await bindings.initThreadPool(threadCount);
       wasm = bindings;
       runtimeStatus = { mode: "multi-threaded", threadCount };
       return;
     } catch (error) {
-      terminateFailedThreadPool();
       if (requestedThreads !== "auto") throw error;
     }
   } else if (typeof requestedThreads === "number") {
     throw new Error("Threaded Curvy Rust prover requires a cross-origin-isolated browser with Web Workers");
   }
 
-  const browserAssetUrl = isNode ? undefined : new URL(__CURVY_PROVER_RS_WASM_URL__, import.meta.url);
-  await load(plainProverWasm, NODE_PROVER_WASM, browserAssetUrl, options.wasm?.single);
+  await load(plainProverWasm, RS_PROVER_WASM, options.wasm?.single);
   wasm = plainProverWasm;
   runtimeStatus = { mode: "single-threaded", threadCount: 1 };
 }
@@ -232,8 +195,10 @@ function createBrowserWorkerProver(options: RustProverOptions): Prover {
 
   const getWorker = (): Worker => {
     if (worker) return worker;
-    const workerUrl = new URL(__CURVY_PROVER_WORKER_URL__, import.meta.url);
-    const created = new Worker(workerUrl, { type: "module", name: "curvy-rust-prover" });
+    const created = new Worker(new URL(__CURVY_PROVER_WORKER_URL__, import.meta.url), {
+      type: "module",
+      name: "curvy-rust-prover",
+    });
     created.addEventListener("message", (event: MessageEvent<RustProverWorkerResponse>) => {
       const response = event.data;
       const request = pending.get(response.id);
@@ -281,10 +246,6 @@ function createBrowserWorkerProver(options: RustProverOptions): Prover {
         zkey,
         context,
         threads: options.threads ?? false,
-        wasm: {
-          singleUrl: new URL(__CURVY_PROVER_RS_WASM_URL__, import.meta.url).href,
-          threadedUrl: new URL(__CURVY_PROVER_RS_THREADS_WASM_URL__, import.meta.url).href,
-        },
       };
       return new Promise<ProofResult>((resolve, reject) => {
         pending.set(id, { resolve, reject });

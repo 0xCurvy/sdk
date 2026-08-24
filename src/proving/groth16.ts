@@ -8,8 +8,8 @@ export type SolidityProof = {
 };
 
 /**
- * snarkjs groth16 proof -> Solidity verifier (a, b, c). Note the G2 (`pi_b`)
- * coordinate swap the snarkjs-generated verifier expects. Shared by every proof
+ * snarkjs-compatible Groth16 proof -> Solidity verifier (a, b, c). Note the G2
+ * (`pi_b`) coordinate swap the generated Solidity verifier expects. Shared by every proof
  * builder (aggregation, withdrawal, folded fee-pool, drain) so the swap is
  * written exactly once.
  */

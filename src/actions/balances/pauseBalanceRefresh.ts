@@ -5,9 +5,7 @@ import { NoActiveAccountError } from "@/errors";
 export type PauseBalanceRefreshParameters = WithConfig<{ accountId?: string }>;
 
 /**
- * Set the per-account balance-refresh lock so an in-flight or future
- * `refreshBalances` for that account is short-circuited (port of
- * `BalanceScanner.pauseBalanceRefreshForAccount`).
+ * Pause new balance refreshes for an account.
  *
  * Defaults `accountId` to the active account (`state.activeAccountId`).
  *

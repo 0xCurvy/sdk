@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlanWalkResult } from "@/actions/planner/walkPlan";
+import { CurvyError } from "@/errors";
 import { mergeEstimates } from "./mergeEstimates";
 
 describe("mergeEstimates", () => {
@@ -17,7 +18,7 @@ describe("mergeEstimates", () => {
   it("skips failed results", () => {
     const results: PlanWalkResult[] = [
       { success: true, estimate: { gasFeeInCurrency: 2n, curvyFeeInCurrency: 3n } },
-      { success: false, error: new Error("boom") },
+      { success: false, error: new CurvyError("boom", "UNKNOWN_ERROR") },
     ];
     const merged = mergeEstimates(results);
     expect(merged.gasFeeInCurrency).toBe(2n);

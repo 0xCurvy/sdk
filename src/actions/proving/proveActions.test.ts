@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Network, ProtocolConfig } from "@/http/contracts";
 import type { WithdrawCircuitInputs } from "@/proving/circuitInputs";
 import type { CircuitKeyCache } from "@/proving/circuitKeyCache";
 import type { ProofResult, Prover } from "@/proving/prover";
 import { createFakeConfig, DEFAULT_TEST_PROTOCOL } from "@/test/fixtures";
-import type { Network, ProtocolConfig } from "@/types/api";
 import { proveWithdrawal } from "./proveWithdrawal";
 
 const SENTINEL = { proof: {}, publicSignals: ["42"] } as unknown as ProofResult;

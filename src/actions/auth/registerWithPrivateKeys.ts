@@ -13,8 +13,7 @@ export type RegisterWithPrivateKeysParameters = WithConfig<{
 }>;
 
 /**
- * Register a new Curvy handle from raw spending/viewing private keys. Faithful
- * port of `AccountManager.registerAccountWithPrivateKeys`.
+ * Register a new Curvy handle from raw spending and viewing private keys.
  *
  * @example
  * const account = await registerWithPrivateKeys({ s, v, handle, userAddress });

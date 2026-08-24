@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { MapStorage } from "@/storage/map-storage";
+import type { HotOverlayReplacement, NotesCheckpoint, TransferHistoryRecord } from "@/storage/types";
 import { createFakeApi, createFakeConfig, fixtureNetwork } from "@/test/fixtures";
-import type { HotOverlayReplacement, NotesCheckpoint, TransferHistoryRecord } from "@/types/storage";
 import { reconcileTransferRecords } from "./reconcileTransferRecords";
 
 const checkpoint: NotesCheckpoint = {
