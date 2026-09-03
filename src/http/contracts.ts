@@ -45,6 +45,13 @@ type Network = {
    * carry an `aggregatorContractAddress`.
    */
   defaultAggregator?: boolean;
+  /**
+   * Whether this network's aggregator accepts `portalShield`. False on a
+   * direct-shield-only deployment, whose on-chain `portalFactory` is unset — there
+   * `directShield` is the only way to shield, and the portal-broadcaster must not
+   * route portals here. Absent (older metadata) means portal-capable, as before.
+   */
+  portalShieldEnabled?: boolean;
   portalFactoryContractAddress?: string;
   portalProgramAddress?: string;
   /** Native currency identifier supplied by metadata, when present. */
