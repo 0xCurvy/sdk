@@ -1,3 +1,4 @@
+export { acceptsPortalShield } from "./acceptsPortalShield";
 export { type CreateBrowserCurvyConfigParameters, createBrowserCurvyConfig } from "./browser";
 export { createCurvyConfig } from "./createCurvyConfig";
 export { destroyConfig } from "./destroyConfig";
