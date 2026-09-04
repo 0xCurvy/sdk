@@ -42,8 +42,15 @@ export const RELAY_PROGRAM_ID: Address = address("99vQwtBwYtrqqD9YSXbdum3KBdxPAV
 /** Across V4 bridge program — the main production cross-chain bridge. */
 export const ACROSS_PROGRAM_ID: Address = address("DLv3NggMiSaef97YCkew5xKUHDh13tVGZ7tydt3ZeAru");
 
-/** Eco Routes intent program used by LiFi for Solana -> EVM SPL-token routes. */
-export const ECO_PROGRAM_ID: Address = address("EcooiHrTiMnfUBMw297gvPwX55HD8SCxA61tBBLV3yaV");
+/**
+ * Eco Routes intent program used by LiFi for Solana -> EVM SPL-token routes.
+ *
+ * Eco deployments are immutable, so every Eco fix ships at a NEW address and LiFi
+ * follows it. v1 `EcooiHrTiMnfUBMw297gvPwX55HD8SCxA61tBBLV3yaV` was superseded by
+ * eco-routes-svm v2.0.0 (Aug 2026, same `fund` ABI). The on-chain Curvy program
+ * pins the same id in `bridge_eco_spl.rs` and must be upgraded in lockstep.
+ */
+export const ECO_PROGRAM_ID: Address = address("EcooswwC1NggsckZyF5SeAL9WsgJs3UhPbrqY1apV73F");
 
 /** SPL Token-2022 program used in Eco's fixed `fund` account layout. */
 export const TOKEN_2022_PROGRAM_ADDRESS: Address = address("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
@@ -93,8 +100,12 @@ export const LIFI_SOLANA_CHAIN_ID = 1151111081099710;
  * Across remains available through the dedicated Across instruction builders, but
  * LiFi no longer advertises Across as a Solana-origin connector. Do not add a tool
  * here until the on-chain program has a matching, amount-checked CPI integration.
+ *
+ * "eco" is temporarily disabled: the deployed Curvy program still pins the v1 Eco
+ * program id, so every Eco quote fails closed. Re-add it once the program upgrade
+ * carrying the v2 `ECO_PROGRAM_ID` is live on mainnet.
  */
-export const ALLOWED_LIFI_BRIDGES = ["relaydepository", "eco"] as const;
+export const ALLOWED_LIFI_BRIDGES = ["relaydepository"] as const;
 
 // ─── Anchor Instruction Discriminators ──────────────────────────────────────
 //
