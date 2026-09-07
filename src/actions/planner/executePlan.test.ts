@@ -33,6 +33,25 @@ function buildConfig({ withAccount = true }: { withAccount?: boolean } = {}) {
 }
 
 describe("executePreparedPlan", () => {
+  it("executes for a temporary recovery account without registered metadata", async () => {
+    const config = buildConfig();
+    config.setState({ accounts: {} });
+    const plan: EstimatedPlan = { type: "data", data: [fakeBalanceEntry({ id: "recovery-note" })] };
+
+    const result = await executePreparedPlan({ plan, config });
+
+    expect(result.success).toBe(true);
+    expect(config._internal.scanLocks.get(LOCK_KEY)).toBe(false);
+    expect(config.state.accounts).toEqual({});
+  });
+
+  it("rejects an active account whose keys are unavailable", async () => {
+    const config = buildConfig();
+    config.keyring.clear();
+    const plan: EstimatedPlan = { type: "data", data: [fakeBalanceEntry({ id: "d" })] };
+    await expect(executePreparedPlan({ plan, config })).rejects.toBeInstanceOf(NoActiveAccountError);
+  });
+
   beforeEach(() => {
     vi.mocked(hasBytecode).mockResolvedValue(true);
   });

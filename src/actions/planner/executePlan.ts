@@ -1,9 +1,9 @@
-import { getActiveAccount } from "@/actions/account/getActiveAccount";
+import { resolveAccount } from "@/actions/account/internal/resolveAccount";
 import { pauseBalanceRefresh } from "@/actions/balances/pauseBalanceRefresh";
 import { resumeBalanceRefresh } from "@/actions/balances/resumeBalanceRefresh";
 import { resolveConfig } from "@/config/global";
 import type { DirectSubmitter, SubmissionMode, WithConfig } from "@/config/types";
-import { NoActiveAccountError, normalizeCurvyError } from "@/errors";
+import { normalizeCurvyError } from "@/errors";
 import type { EstimatedPlan, PlanSuccessfulExecution } from "@/planner/types";
 import { executePlanTree } from "./executePlanTree";
 import { getPlanSteps } from "./getPlanSteps";
@@ -19,9 +19,7 @@ export async function executePreparedPlan(parameters: ExecutePreparedPlanParamet
   const config = resolveConfig(parameters.config);
   const { plan } = parameters;
 
-  const activeAccount = getActiveAccount({ config });
-  if (!activeAccount) throw new NoActiveAccountError();
-  const activeAccountId = activeAccount.id;
+  const { id: activeAccountId } = resolveAccount(config);
   const executionId = crypto.randomUUID();
   const steps = getPlanSteps(plan);
   const stepsById = new Map(steps.map((step) => [step.id, step]));

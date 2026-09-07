@@ -5,7 +5,8 @@ import type { CurvyAccountData } from "@/types/account";
 export type GetActiveAccountParameters = WithConfig;
 
 /**
- * Get the active account's serializable metadata, or `null` if none is active.
+ * Get the active account's registered profile metadata. Temporary swap/recovery
+ * accounts have no profile and return `null`; use `getActiveAccountId` for identity.
  *
  * @example
  * const account = getActiveAccount();

@@ -1,8 +1,7 @@
-import { getActiveAccount } from "@/actions/account/getActiveAccount";
+import { resolveAccount } from "@/actions/account/internal/resolveAccount";
 import { resolveConfig } from "@/config/global";
 import { getProtocol } from "@/config/protocol";
 import type { SubmissionMode, WithConfig } from "@/config/types";
-import { NoActiveAccountError } from "@/errors";
 import type { Intent, IntentEstimation } from "@/planner/types";
 import { generatePlan } from "@/planner/utils";
 import type { InputFinalityPolicy } from "@/storage/types";
@@ -35,9 +34,7 @@ export async function estimateIntent(parameters: EstimateIntentParameters): Prom
   const { intent } = parameters;
   const submissionMode = parameters.submissionMode ?? config.submissionMode;
 
-  const activeAccount = getActiveAccount({ config });
-  if (!activeAccount) throw new NoActiveAccountError();
-  const activeAccountId = activeAccount.id;
+  const { id: activeAccountId } = resolveAccount(config);
 
   const networkSlug = toSlug(intent.network.name);
   const inputFinalityPolicy = await resolveInputFinalityPolicy({

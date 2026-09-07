@@ -3,6 +3,7 @@ export { type AddPartialAccountParameters, addPartialAccount } from "./addPartia
 export { type GetAccountByIdParameters, getAccountById } from "./getAccountById";
 export { type GetAccountsParameters, getAccounts } from "./getAccounts";
 export { type GetActiveAccountParameters, getActiveAccount } from "./getActiveAccount";
+export { type GetActiveAccountIdParameters, getActiveAccountId } from "./getActiveAccountId";
 export { type GetBabyJubjubPublicKeyParameters, getBabyJubjubPublicKey } from "./getBabyJubjubPublicKey";
 export { type HasAccountParameters, hasAccount } from "./hasAccount";
 export { type HasActiveAccountParameters, hasActiveAccount } from "./hasActiveAccount";

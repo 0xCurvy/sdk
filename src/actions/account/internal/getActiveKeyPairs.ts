@@ -1,6 +1,6 @@
 import type { CurvyConfig } from "@/config/types";
 import type { CurvyKeyPairs } from "@/core/types";
-import { NoActiveAccountError } from "@/errors";
+import { resolveAccount } from "./resolveAccount";
 
 /**
  * Resolve an account's keypairs from `config.keyring` — by explicit `accountId`,
@@ -15,8 +15,5 @@ import { NoActiveAccountError } from "@/errors";
  * const keyPairs = getActiveKeyPairs(config, accountId); // explicit account
  */
 export function getActiveKeyPairs(config: CurvyConfig, accountId?: string): CurvyKeyPairs {
-  const id = accountId ?? config.state.activeAccountId;
-  const keyPairs = id ? config.keyring.get(id) : undefined;
-  if (!keyPairs) throw new NoActiveAccountError();
-  return keyPairs;
+  return resolveAccount(config, accountId).keyPairs;
 }

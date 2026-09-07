@@ -13,6 +13,11 @@ import {
 } from "@/test/fixtures";
 import type { BalanceEntry, CurvyId, HexString } from "@/types";
 import { estimateIntent } from "./estimateIntent";
+import { executeIntent } from "./executeIntent";
+import { runSubmittedCommand } from "./internal/runSubmittedCommand";
+
+// Keep real planning, fee estimation and execution; stop at the submission boundary.
+vi.mock("./internal/runSubmittedCommand", () => ({ runSubmittedCommand: vi.fn(async () => ({})) }));
 
 const NETWORK = fixtureNetwork({ vaultContractAddress: "0x00000000000000000000000000000000000000a2" });
 
@@ -80,6 +85,32 @@ async function buildConfig(opts: { withAccount?: boolean; seed?: BalanceEntry[] 
 }
 
 describe("estimateIntent", () => {
+  it("estimates a public-swap withdrawal for an account that exists only in the keyring", async () => {
+    const config = await buildConfig({ seed: [entry({ id: "note-1", balance: 1000n })] });
+    config.setState({ accounts: {} });
+
+    const estimation = await estimateIntent({ intent, config });
+
+    expect(estimation.effectiveAmount).toBe(990n);
+    expect(config.state.accounts).toEqual({});
+    const result = await executeIntent({ prepared: estimation.prepared, config });
+    expect(result.data).toMatchObject({ kind: "delivered", amount: 990n });
+    expect(runSubmittedCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "withdrawal",
+        accountId: "account-a",
+        recipients: [intent.recipient],
+        amount: "990",
+      }),
+    );
+  });
+
+  it("rejects an active account whose keys are unavailable", async () => {
+    const config = await buildConfig();
+    config.keyring.clear();
+    await expect(estimateIntent({ intent, config })).rejects.toBeInstanceOf(NoActiveAccountError);
+  });
+
   it("throws NoActiveAccountError when there is no active account", async () => {
     const config = await buildConfig({ withAccount: false });
     await expect(estimateIntent({ intent, config })).rejects.toBeInstanceOf(NoActiveAccountError);
