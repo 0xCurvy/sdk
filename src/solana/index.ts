@@ -21,17 +21,26 @@ export {
   DEPOSIT_TOKEN_DISC,
   ECO_FUND_DISC,
   ECO_PROGRAM_ID,
+  FEE_CONFIG_SEED,
   IX_DISC,
+  LAMPORTS_PER_SIGNATURE,
+  LIFI_BRIDGES_WITHOUT_NATIVE_SOL,
+  LIFI_DEPOSIT_ADDRESS_BRIDGES,
   LIFI_SOLANA_CHAIN_ID,
+  MAX_OPERATOR_FEE_CAP_BPS,
+  MEMO_PROGRAM_ADDRESSES,
   NATIVE_SOL_MINT,
+  PORTAL_ACCOUNT_SPACE,
   PORTAL_META_SEED,
   PORTAL_SEED,
+  PROVIDER_SEED,
   RECOVER_SOL_DISC,
   RECOVER_SPL_DISC,
   RECOVERY_DOMAIN,
   RELAY_PROGRAM_ID,
   SOLANA_ONCHAIN_DECIMALS,
   TOKEN_2022_PROGRAM_ADDRESS,
+  TOKEN_ACCOUNT_SPACE,
   WSOL_MINT,
 } from "@/constants/solana";
 export type { AcrossQuoteParams, SolanaPortalBalance } from "@/types/solana";
@@ -53,7 +62,9 @@ export { deriveAcrossEventAuthorityPda } from "./deriveAcrossEventAuthorityPda";
 export { deriveAcrossStatePda } from "./deriveAcrossStatePda";
 export { deriveAssociatedTokenAddress } from "./deriveAssociatedTokenAddress";
 export { deriveConfigPda } from "./deriveConfigPda";
+export { deriveFeeConfigPda } from "./deriveFeeConfigPda";
 export { derivePortalMetaPda } from "./derivePortalMetaPda";
+export { deriveProviderPda } from "./deriveProviderPda";
 export { deriveRecoveryIdentifier } from "./deriveRecoveryIdentifier";
 export { deriveRelayDepositoryPda } from "./deriveRelayDepositoryPda";
 export { deriveRelayVaultPda } from "./deriveRelayVaultPda";

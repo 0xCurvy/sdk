@@ -90,6 +90,7 @@ The **root** (`@0xcurvy/curvy-sdk`) is intentionally consumer-facing: public act
 | `getAccounts` | `(p?) => CurvyAccountData[]` (sync) |
 | `getAccountById` | `(p: { id }) => CurvyAccountData \| undefined` (sync) |
 | `getActiveAccount` | `(p?) => CurvyAccountData \| null` (sync) |
+| `getActiveAccountId` | `(p?) => string \| null` — selected identity, including temporary accounts (sync) |
 | `hasAccount` / `hasActiveAccount` | `(p?) => boolean` (sync) |
 | `setActiveAccount` | `(p: { accountId; skipBearerTokenUpdate? }) => Promise<void>` |
 | `getBabyJubjubPublicKey` | `(p?: { accountId? }) => Promise<string>` |
@@ -204,6 +205,7 @@ The shared contract/domain types and guards: `Network`, `Currency`, `BalanceEntr
 - **Exports:** prefer the root for the ordinary application API. Add a symbol to `./actions`, `./config`, or curated `./utils` only when consumers are meant to depend on it. Do not publish category aliases or re-export implementation barrels for convenience.
 - **`invariant(cond, msg)`** for internal preconditions / impossible‑state assertions (it narrows + strips the message in prod). Do **not** use it for user‑facing/validation messages or typed domain errors (keep those as `throw new XError`).
 - **Never put private keys in `state`, events, storage, or logs.** Read keys from `config.keyring`; gate spend ops through `requireSpendKey`.
+- **Account resolution:** use internal `resolveAccount` / `getActiveKeyPairs` for runtime identity and keys. `getActiveAccount` returns registered profile metadata and is not a spending guard. Browser apps with an ambient config can use `getActiveAccountId()` for identity without threading config or reading the keyring.
 - **Don't add a default periodic balance poll** to the core — it's deliberately on‑demand/event‑driven (polling belongs at the consumer/React layer).
 - **Crypto / proof‑system / key‑derivation decisions go through an external crypto advisor + an ADR** (`knowledge/adrs/`) — produce open questions, don't unilaterally commit.
 - **Before finishing:** `tsc --noEmit` clean, `biome check --write src` clean, `vitest run src` green. When changing shared types, check downstream consumers.

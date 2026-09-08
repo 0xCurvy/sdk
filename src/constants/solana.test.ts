@@ -16,6 +16,10 @@ const ON_CHAIN_NAMES = {
   bridgeAcrossSol: "bridge_sol",
   bridgeAcrossSpl: "bridge_spl",
   bridgeEcoSpl: "bridge_eco_spl",
+  setProvider: "set_provider",
+  bridgeDepositSol: "bridge_deposit_sol",
+  bridgeDepositSpl: "bridge_deposit_spl",
+  setOperatorFeeCap: "set_operator_fee_cap",
 } as const satisfies Record<keyof typeof IX_DISC, string>;
 
 const discriminatorOf = (name: string) => sha256(new TextEncoder().encode(`global:${name}`)).slice(0, 8);

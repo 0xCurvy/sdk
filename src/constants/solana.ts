@@ -24,6 +24,20 @@ export const PORTAL_SEED = new TextEncoder().encode("portal");
 
 /** PDA seed for the metadata account — per-portal state (is_used, amount, timestamps). */
 export const PORTAL_META_SEED = new TextEncoder().encode("portal_meta");
+/** `ProviderEntry` PDA seed — one entry per allowed LiFi provider program (`set_provider`). */
+export const PROVIDER_SEED = new TextEncoder().encode("provider");
+/** `FeeConfig` PDA seed — authority-set cap on the operator's in-kind bridge fee (`set_operator_fee_cap`). */
+export const FEE_CONFIG_SEED = new TextEncoder().encode("fee_config");
+
+/** Hard ceiling the program accepts for `set_operator_fee_cap` (10% of the input amount). */
+export const MAX_OPERATOR_FEE_CAP_BPS = 1_000;
+
+/** Byte size of the one-shot portal meta account (`8 + PortalAccount::INIT_SPACE`) — rent the operator fronts per bridge. */
+export const PORTAL_ACCOUNT_SPACE = 123;
+/** Byte size of an SPL token account — rent the operator fronts when a route creates one. */
+export const TOKEN_ACCOUNT_SPACE = 165;
+/** Base fee per signature; the broadcaster signs each bridge transaction once. */
+export const LAMPORTS_PER_SIGNATURE = 5_000n;
 
 /** PDA seed for the global config account — stores the operator address and pause flag. */
 export const CONFIG_SEED = new TextEncoder().encode("config");
@@ -47,8 +61,13 @@ export const ACROSS_PROGRAM_ID: Address = address("DLv3NggMiSaef97YCkew5xKUHDh13
  *
  * Eco deployments are immutable, so every Eco fix ships at a NEW address and LiFi
  * follows it. v1 `EcooiHrTiMnfUBMw297gvPwX55HD8SCxA61tBBLV3yaV` was superseded by
- * eco-routes-svm v2.0.0 (Aug 2026, same `fund` ABI). The on-chain Curvy program
- * pins the same id in `bridge_eco_spl.rs` and must be upgraded in lockstep.
+ * eco-routes-svm v2.0.0 (Aug 2026, same `fund` ABI).
+ *
+ * Nothing at runtime pins this value any more: the broadcaster takes the provider
+ * program from LiFi's own transaction (located by the `fund` ABI) and the on-chain
+ * program checks it against the authority-managed `ProviderEntry` allowlist
+ * (`set_provider`). This constant is the CURRENT known address for scripts, tests
+ * and the registration runbook.
  */
 export const ECO_PROGRAM_ID: Address = address("EcooswwC1NggsckZyF5SeAL9WsgJs3UhPbrqY1apV73F");
 
@@ -101,11 +120,28 @@ export const LIFI_SOLANA_CHAIN_ID = 1151111081099710;
  * LiFi no longer advertises Across as a Solana-origin connector. Do not add a tool
  * here until the on-chain program has a matching, amount-checked CPI integration.
  *
- * "eco" is temporarily disabled: the deployed Curvy program still pins the v1 Eco
- * program id, so every Eco quote fails closed. Re-add it once the program upgrade
- * carrying the v2 `ECO_PROGRAM_ID` is live on mainnet.
+ * The broadcaster first lets LiFi pick among all of these, then falls back to each
+ * remaining bridge in this order when the chosen one fails before broadcast (quote,
+ * validation or simulation). Relay comes first as the stable fallback: its program
+ * is upgradeable, so its address does not rotate the way Eco's does.
+ *
+ * `near` and `layerswap` are deposit-address bridges: no provider program on Solana,
+ * the vault transfers to a one-time address (`bridge_deposit_sol` / `bridge_deposit_spl`).
+ * Nothing about them is pinned on-chain, so they survive any provider-side change.
  */
-export const ALLOWED_LIFI_BRIDGES = ["relaydepository"] as const;
+export const ALLOWED_LIFI_BRIDGES = ["relaydepository", "eco", "near", "layerswap"] as const;
+
+/** Bridges in {@link ALLOWED_LIFI_BRIDGES} that LiFi offers only for SPL tokens (no native SOL route, Sep 2026 survey). */
+export const LIFI_BRIDGES_WITHOUT_NATIVE_SOL = ["eco", "layerswap"] as const;
+
+/** LiFi tools whose Solana leg is a transfer to a provider deposit address rather than a program CPI. */
+export const LIFI_DEPOSIT_ADDRESS_BRIDGES = ["near", "layerswap"] as const;
+
+/** SPL Memo programs (v1 and v2) — deposit-address providers such as Layerswap tag the deposit with a memo. */
+export const MEMO_PROGRAM_ADDRESSES: readonly Address[] = [
+  address("Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo"),
+  address("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
+];
 
 // ─── Anchor Instruction Discriminators ──────────────────────────────────────
 //
@@ -139,6 +175,13 @@ export const IX_DISC = {
   bridgeAcrossSol: Uint8Array.from([190, 190, 32, 158, 75, 153, 32, 86]),
   bridgeAcrossSpl: Uint8Array.from([87, 109, 172, 103, 8, 187, 223, 126]),
   bridgeEcoSpl: Uint8Array.from([80, 79, 216, 219, 154, 122, 7, 131]),
+  /** Authority-only: allow / disallow a LiFi provider program (`ProviderEntry` PDA). */
+  setProvider: Uint8Array.from([42, 159, 3, 191, 52, 175, 112, 88]),
+  /** Deposit-address bridges (LiFi `near`, `layerswap`, …): plain transfer to a one-time address. */
+  bridgeDepositSol: Uint8Array.from([130, 110, 110, 203, 156, 14, 180, 208]),
+  bridgeDepositSpl: Uint8Array.from([219, 109, 100, 201, 63, 12, 231, 51]),
+  /** Authority-only: proportional cap on the operator's in-kind bridge fee (`FeeConfig` PDA). */
+  setOperatorFeeCap: Uint8Array.from([239, 26, 192, 45, 45, 52, 172, 8]),
 } as const;
 
 /** Relay Depository `deposit_native` discriminator — used to locate the relay_id inside LiFi's serialized tx. */
