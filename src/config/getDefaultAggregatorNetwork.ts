@@ -1,4 +1,5 @@
 import type { Network } from "@/http/contracts";
+import { acceptsPortalShield } from "./acceptsPortalShield";
 import { getActiveNetworks } from "./getActiveNetworks";
 import type { WithConfig } from "./types";
 
@@ -18,6 +19,6 @@ import type { WithConfig } from "./types";
  * const shielding = getDefaultAggregatorNetwork();
  */
 export function getDefaultAggregatorNetwork(parameters: WithConfig = {}): Network | undefined {
-  const candidates = getActiveNetworks(parameters).filter((n) => !!n.aggregatorContractAddress);
+  const candidates = getActiveNetworks(parameters).filter(acceptsPortalShield);
   return candidates.find((n) => n.defaultAggregator) ?? candidates[0];
 }

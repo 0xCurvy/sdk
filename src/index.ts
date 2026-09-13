@@ -151,6 +151,7 @@ export {
   withdraw,
 } from "./actions";
 export {
+  acceptsPortalShield,
   type CreateBrowserCurvyConfigParameters,
   type CreateCurvyConfigParameters,
   type CreateServerCurvyConfigParameters,

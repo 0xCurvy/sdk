@@ -1,4 +1,5 @@
 import { getQuote } from "@lifi/sdk";
+import { acceptsPortalShield } from "@/config/acceptsPortalShield";
 import { getDefaultAggregatorNetwork } from "@/config/getDefaultAggregatorNetwork";
 import { resolveConfig } from "@/config/global";
 import { getProtocol } from "@/config/protocol";
@@ -94,11 +95,13 @@ export async function estimateExternalTransfer(
   const { fromNetwork, fromCurrency, fromAmount, toNetwork, toCurrency, shieldingNetworkSlug } = parameters;
 
   // Pick the shielding network. Multi-aggregator safe: an explicit slug wins;
-  // otherwise shield on the SOURCE chain when it has its own aggregator (no entry
+  // otherwise shield on the SOURCE chain when it accepts portalShield (no entry
   // bridge — mirrors the backend deposit rule); otherwise the environment's DEFAULT
   // aggregator, which is the same network portal-broadcaster bridges deposits to.
+  // A direct-shield-only chain is NOT a candidate: the broadcaster bridges deposits
+  // funded there, so quoting a shield in place would drop the entry-bridge leg.
   // (Value-tiered selection lands with the planner expansion.)
-  const aggregatorNetworks = config.state.activeNetworks.filter((n) => !!n.aggregatorContractAddress);
+  const aggregatorNetworks = config.state.activeNetworks.filter(acceptsPortalShield);
   let shielding: Network | undefined;
   if (shieldingNetworkSlug) {
     shielding = aggregatorNetworks.find((n) => n.slug === shieldingNetworkSlug);
@@ -109,7 +112,7 @@ export async function estimateExternalTransfer(
       );
     }
   } else {
-    shielding = fromNetwork.aggregatorContractAddress ? fromNetwork : getDefaultAggregatorNetwork({ config });
+    shielding = acceptsPortalShield(fromNetwork) ? fromNetwork : getDefaultAggregatorNetwork({ config });
   }
   if (!shielding) throw new NetworkError("No shielding-capable network is active.");
 

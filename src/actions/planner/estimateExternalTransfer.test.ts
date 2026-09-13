@@ -185,6 +185,52 @@ describe("estimateExternalTransfer", () => {
     expect(getQuote).not.toHaveBeenCalled();
   });
 
+  // A direct-shield-only deployment (Gnosis) carries an aggregator address, but the
+  // portal-broadcaster bridges deposits funded there to the default aggregator because
+  // its on-chain portalFactory is unset. Seeding that address must therefore NOT flip
+  // the swap onto a shield in place — the route stays exactly what it is today, when
+  // that chain has no aggregator address at all.
+  it("direct-shield-only source: still bridges to the default aggregator", async () => {
+    const arbUsdc = currency({ id: 1, contractAddress: ARB_USDC });
+    const gnosisUsdc = currency({
+      id: 2,
+      contractAddress: SHIELD_USDC,
+      bridgeNetworkIdToCurrencyIdMap: { 42161: arbUsdc.id },
+    } as Partial<Currency>);
+    const arbitrum = fixtureNetwork({
+      id: 42161,
+      name: "Arbitrum",
+      chainId: "42161",
+      aggregatorContractAddress: "0x000000000000000000000000000000000000b992" as HexString,
+      defaultAggregator: true,
+      currencies: [arbUsdc],
+    } as Partial<Network>);
+    const gnosis = fixtureNetwork({
+      id: 100,
+      name: "Gnosis",
+      chainId: "100",
+      aggregatorContractAddress: "0x000000000000000000000000000000000000c993" as HexString,
+      portalShieldEnabled: false,
+      currencies: [gnosisUsdc],
+    } as Partial<Network>);
+    const config = createFakeConfig({ activeNetworks: [gnosis, arbitrum], protocol: PROTOCOL });
+
+    getQuote.mockResolvedValueOnce({ estimate: { toAmount: "980000", feeCosts: [{ amount: "5000" }] } });
+
+    const result = await estimateExternalTransfer({
+      config,
+      fromNetwork: gnosis,
+      fromCurrency: gnosisUsdc,
+      fromAmount: 1_000_000n,
+      toNetwork: arbitrum,
+      toCurrency: arbUsdc,
+    });
+
+    expect(result.shieldingNetwork.id).toBe(arbitrum.id);
+    expect(result.fees.entryBridge).toBe(5_000n);
+    expect(getQuote).toHaveBeenCalledTimes(1);
+  });
+
   it("multi-aggregator: an explicit shieldingNetworkSlug overrides the default", async () => {
     const ethUsdc = currency({ id: 1, contractAddress: SHIELD_USDC });
     const arbUsdc = currency({

@@ -93,6 +93,19 @@ describe("getDefaultAggregatorNetwork", () => {
     expect(getDefaultAggregatorNetwork({ config })?.slug).toBe("ethereum");
   });
 
+  // A direct-shield-only deployment (Gnosis) carries an aggregator address but its
+  // on-chain portalFactory is unset, so portalShield reverts there. It must never be
+  // the network portals are routed to — the same rule the portal-broadcaster applies.
+  it("ignores a direct-shield-only aggregator", () => {
+    const config = createFakeConfig({
+      activeNetworks: [
+        withAggregator({ id: 1, slug: "gnosis", chainId: "100", portalShieldEnabled: false }),
+        withAggregator({ id: 2, slug: "arbitrum", chainId: "42161" }),
+      ],
+    });
+    expect(getDefaultAggregatorNetwork({ config })?.slug).toBe("arbitrum");
+  });
+
   it("returns undefined when the environment has no aggregator network", () => {
     const config = createFakeConfig({ activeNetworks: [fixtureNetwork({ id: 1, slug: "base", chainId: "8453" })] });
     expect(getDefaultAggregatorNetwork({ config })).toBeUndefined();
