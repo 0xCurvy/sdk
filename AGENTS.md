@@ -8,7 +8,7 @@ Reference + working guide for **AI agents** (and humans) editing or consuming th
 
 ## At a glance
 
-- **Package:** `@0xcurvy/curvy-sdk` (v0.0.8-rc.1) · **dual ESM + CJS** · `"type": "module"` · Node **≥ 22.16**.
+- **Package:** `@0xcurvy/curvy-sdk` (v0.0.8-rc.2) · **dual ESM + CJS** · `"type": "module"` · Node **≥ 22.16**.
 - **Build:** `tsup` + `scripts/postbuild.sh` → `dist/_esm` (ESM) + `dist/_cjs` (CJS) + `dist/_types` (`.d.ts` for `import`, `.d.cts` for `require`). WASM binaries are **not** copied into `dist` — they come from the `@0xcurvy/rs-core-wasm` dependency. Lint/format: **Biome** (`biome check --write src`).
 - **Tests:** `vitest` (`pnpm test` == `vitest run src`). Real‑WASM `Core` tests run offline in Node.
 - **Public import policy:** the root contains the consumer-facing app API. Use the single `./actions`, `./config`, and curated `./utils` entrypoints; do not add category duplicates. Specialized tooling has deliberate subpaths:
