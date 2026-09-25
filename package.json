@@ -1,6 +1,6 @@
 {
   "name": "@0xcurvy/curvy-sdk",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "version": "0.0.8-rc.2",
   "repository": {
     "type": "git",
