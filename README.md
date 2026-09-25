@@ -245,3 +245,12 @@ await destroyConfig({ config });
 ```
 
 Use `config.destroy()` for a specific config or `destroyConfig()` for the ambient global.
+
+## License
+
+[MIT](LICENSE) © Curvy Protocol d.o.o.
+
+Portions of this software are adapted from, and the published npm package
+bundles, third-party open-source software. See
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for the full attribution list.
+
